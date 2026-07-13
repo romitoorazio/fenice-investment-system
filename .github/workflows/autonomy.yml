@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 5 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-autonomy.mjs"
+      - "lib/autonomy.ts"
+      - ".github/workflows/autonomy.yml"
 
 permissions:
   contents: write
