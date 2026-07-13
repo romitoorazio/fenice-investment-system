@@ -1,8 +1,20 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const nativeFetch = globalThis.fetch;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const snapshotPath = path.resolve(__dirname, "..", "data", "latest-snapshot.json");
+const startedAt = Date.now();
 
 const secUserAgent =
   process.env.SEC_USER_AGENT ||
   "FeniceInvestmentSystem/1.0 romitoorazio@gmail.com";
+
+let lastGdeltRequestAt = 0;
+let gdeltQueue = Promise.resolve();
+
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function repairGdeltUrl(value) {
   const url = new URL(value);
@@ -25,6 +37,20 @@ function repairGdeltUrl(value) {
   return url;
 }
 
+async function fetchGdelt(url, init) {
+  const elapsed = Date.now() - lastGdeltRequestAt;
+  if (elapsed < 7000) await sleep(7000 - elapsed);
+  lastGdeltRequestAt = Date.now();
+
+  let response = await nativeFetch(url, init);
+  if (response.status === 429) {
+    await sleep(15000);
+    lastGdeltRequestAt = Date.now();
+    response = await nativeFetch(url, init);
+  }
+  return response;
+}
+
 globalThis.fetch = async (input, init = {}) => {
   const originalUrl =
     typeof input === "string"
@@ -45,9 +71,33 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.hostname.endsWith("gdeltproject.org")) {
     url = repairGdeltUrl(url);
     headers.set("user-agent", "FeniceInvestmentSystem/1.0");
+    const task = gdeltQueue.then(() => fetchGdelt(url, { ...init, headers }));
+    gdeltQueue = task.then(() => undefined, () => undefined);
+    return task;
   }
 
   return nativeFetch(url, { ...init, headers });
 };
 
 await import("./run-autonomy.mjs");
+
+let completed = false;
+for (let attempt = 0; attempt < 180; attempt += 1) {
+  try {
+    const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
+    const generatedAt = new Date(snapshot.generatedAt || 0).getTime();
+    if (generatedAt >= startedAt - 2000) {
+      completed = true;
+      break;
+    }
+  } catch {
+    // Il file può essere in scrittura durante il controllo.
+  }
+  await sleep(1000);
+}
+
+if (!completed) {
+  throw new Error("Il motore principale non ha completato il rapporto entro il limite previsto.");
+}
+
+await import("./postprocess-snapshot.mjs");
