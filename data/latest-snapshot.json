@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "generatedAt": null,
+  "mode": "bootstrap",
+  "headline": "Motore autonomo installato: in attesa della prima raccolta programmata.",
+  "pulse": {
+    "verdict": "ATTENDERE",
+    "opportunity": 50,
+    "risk": 50,
+    "confidence": 20,
+    "marketMomentum": 50,
+    "macroHealth": 50,
+    "discoveryHeat": 0
+  },
+  "providers": [
+    {
+      "id": "sec",
+      "name": "SEC EDGAR",
+      "state": "parziale",
+      "coverage": ["S-1", "F-1", "8-A", "10-12B", "nuovi emittenti USA"],
+      "detail": "Fonte pubblica senza chiave. Sarà interrogata dalla prima esecuzione automatica."
+    },
+    {
+      "id": "gdelt",
+      "name": "GDELT",
+      "state": "parziale",
+      "coverage": ["notizie globali", "geopolitica", "società emergenti", "round di finanziamento"],
+      "detail": "Fonte pubblica senza chiave. Sarà interrogata dalla prima esecuzione automatica."
+    },
+    {
+      "id": "coingecko",
+      "name": "CoinGecko",
+      "state": "parziale",
+      "coverage": ["crypto principali", "token in tendenza"],
+      "detail": "Funziona in modalità pubblica limitata; una chiave aumenta copertura e affidabilità."
+    },
+    {
+      "id": "alphavantage",
+      "name": "Alpha Vantage",
+      "state": "non configurato",
+      "coverage": ["azioni", "ETF", "forex", "materie prime", "opzioni", "IPO"],
+      "detail": "Richiede ALPHA_VANTAGE_API_KEY nei Secrets di GitHub."
+    },
+    {
+      "id": "fred",
+      "name": "FRED",
+      "state": "non configurato",
+      "coverage": ["inflazione", "tassi", "occupazione", "curva rendimenti", "volatilità"],
+      "detail": "Richiede FRED_API_KEY nei Secrets di GitHub."
+    }
+  ],
+  "markets": [],
+  "macro": [],
+  "discoveries": [],
+  "warnings": [
+    "La prima esecuzione automatica deve ancora avvenire.",
+    "Le fonti premium o con chiave non sono ancora configurate.",
+    "Il motore analizza soltanto: non invia ordini a broker o exchange."
+  ],
+  "executionPolicy": {
+    "autonomousAnalysis": true,
+    "autonomousTrading": false,
+    "humanConfirmationRequired": true
+  }
+}
