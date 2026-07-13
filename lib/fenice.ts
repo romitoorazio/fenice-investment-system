@@ -1,4 +1,4 @@
-export type TabId = "overview" | "companies" | "portfolio" | "reports" | "controls";
+export type TabId = "overview" | "autonomy" | "companies" | "portfolio" | "reports" | "controls";
 
 export type Indicator = {
   label: string;
