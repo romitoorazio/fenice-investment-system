@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "policy": {
+    "legalPublicSourcesOnly": true,
+    "darkWebDirectAccess": false,
+    "malwareExecution": false,
+    "credentialCollection": false,
+    "humanVerificationRequired": true
+  },
+  "sources": [
+    {
+      "id": "cisa-kev",
+      "name": "CISA Known Exploited Vulnerabilities",
+      "tier": "primary",
+      "category": "cyber",
+      "format": "json",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "enabled": true
+    },
+    {
+      "id": "nvd-cve",
+      "name": "NVD CVE",
+      "tier": "primary",
+      "category": "cyber",
+      "format": "json",
+      "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=40",
+      "enabled": true
+    },
+    {
+      "id": "hacker-news",
+      "name": "Hacker News",
+      "tier": "secondary",
+      "category": "technology",
+      "format": "hn",
+      "url": "https://hacker-news.firebaseio.com/v0/topstories.json",
+      "enabled": true
+    },
+    {
+      "id": "arxiv-ai",
+      "name": "arXiv AI and emerging technology",
+      "tier": "primary",
+      "category": "research",
+      "format": "atom",
+      "url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:q-bio.GN+OR+cat:quant-ph&start=0&max_results=40&sortBy=submittedDate&sortOrder=descending",
+      "enabled": true
+    },
+    {
+      "id": "clinical-trials",
+      "name": "ClinicalTrials.gov",
+      "tier": "primary",
+      "category": "biotech",
+      "format": "json",
+      "url": "https://clinicaltrials.gov/api/v2/studies?query.term=AREA%5BStudyType%5DINTERVENTIONAL%20AND%20(AI%20OR%20CRISPR%20OR%20gene%20therapy%20OR%20oncology)&pageSize=40&format=json",
+      "enabled": true
+    },
+    {
+      "id": "coingecko-trending",
+      "name": "CoinGecko Trending",
+      "tier": "secondary",
+      "category": "crypto",
+      "format": "json",
+      "url": "https://api.coingecko.com/api/v3/search/trending",
+      "enabled": true
+    },
+    {
+      "id": "world-bank",
+      "name": "World Bank Global Indicators",
+      "tier": "primary",
+      "category": "macro",
+      "format": "json",
+      "url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.MKTP.KD.ZG?format=json&per_page=8",
+      "enabled": true
+    },
+    {
+      "id": "sec-submissions",
+      "name": "SEC EDGAR submissions",
+      "tier": "primary",
+      "category": "corporate",
+      "format": "special",
+      "url": "https://www.sec.gov/Archives/edgar/daily-index/",
+      "enabled": false,
+      "reason": "Handled by dedicated SEC collector"
+    },
+    {
+      "id": "gdelt",
+      "name": "GDELT global events",
+      "tier": "secondary",
+      "category": "geopolitics",
+      "format": "special",
+      "url": "https://api.gdeltproject.org/api/v2/doc/doc",
+      "enabled": false,
+      "reason": "Handled by dedicated GDELT collector"
+    }
+  ]
+}
