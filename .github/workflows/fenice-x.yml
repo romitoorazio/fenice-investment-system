@@ -1,0 +1,58 @@
+name: Fenice X
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5,11,17,23 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "data/*catalog*.json"
+      - "package.json"
+      - ".github/workflows/fenice-x.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-x
+  cancel-in-progress: false
+
+jobs:
+  intelligence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      FENICE_SOURCE_CONCURRENCY: "4"
+      FENICE_SOURCE_TIMEOUT_MS: "25000"
+      FENICE_SOURCE_RETRIES: "3"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Safe secret diagnostics
+        run: |
+          node -e "for (const n of ['ALPHA_VANTAGE_API_KEY','FRED_API_KEY','COINGECKO_API_KEY','COINGECKO_PRO_API_KEY','SEC_USER_AGENT']) console.log(n+': '+(process.env[n]?'configured':'missing'))"
+      - name: Build Fenice intelligence
+        run: npm run foundation
+      - name: Validate generated report
+        run: node scripts/validate-generated-report.mjs
+      - name: Commit generated intelligence
+        run: |
+          git config user.name "fenice-autopilot[bot]"
+          git config user.email "fenice-autopilot[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "data: refresh Fenice intelligence"
+          git pull --rebase origin main
+          git push origin HEAD:main
