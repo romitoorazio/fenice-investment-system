@@ -1,27 +1,36 @@
-name: Fenice Autonomous Analysis
+name: Fenice Foundation
 
 on:
   workflow_dispatch:
+    inputs:
+      job:
+        description: Data collection mode
+        required: false
+        default: full
+        type: choice
+        options: [full, daily, intraday]
   schedule:
-    - cron: "17 5 * * *"
+    - cron: "17 */6 * * *"
+    - cron: "37 5 * * *"
   push:
     branches: [main]
     paths:
       - "scripts/**"
       - "lib/autonomy.ts"
+      - "app/api/sources/**"
       - ".github/workflows/autonomy.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: fenice-autonomy
+  group: fenice-foundation
   cancel-in-progress: false
 
 jobs:
-  analyze:
+  collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -33,24 +42,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Run autonomous analysis
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Collect and validate sources
         env:
+          FENICE_JOB: ${{ inputs.job || (github.event.schedule == '37 5 * * *' && 'daily') || 'intraday' }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
-        run: npm run analyze
+        run: npm run foundation
 
-      - name: Commit updated snapshot
+      - name: Validate generated files
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('data/latest-snapshot.json'));if(!s.generatedAt||!Array.isArray(s.providers)||!s.foundation)process.exit(1);console.log(s.headline)"
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('data/source-health.json'));if(!Array.isArray(h.sources))process.exit(1);console.log('Sources checked:',h.sources.length)"
+
+      - name: Commit data history
         run: |
           if git diff --quiet -- data; then
             echo "No data changes to commit"
             exit 0
           fi
-          git config user.name "fenice-autonomy-bot"
+          git config user.name "fenice-foundation-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/latest-snapshot.json data/history
-          git commit -m "Update autonomous market snapshot"
+          git add data/latest-snapshot.json data/source-health.json data/history
+          git commit -m "Update Fenice Foundation data"
+          git pull --rebase origin main
           git push origin main
