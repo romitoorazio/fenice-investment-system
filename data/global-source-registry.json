@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-23T00:00:00.000Z",
+  "sources": [
+    {"id":"world-bank","name":"World Bank Indicators","category":"macro","authority":"institutional","endpoint":"https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=1","auth":"none","regions":["global"]},
+    {"id":"ecb","name":"ECB Data Portal","category":"macro","authority":"central-bank","endpoint":"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&lastNObservations=1","auth":"none","regions":["euro-area","global-fx"]},
+    {"id":"eurostat","name":"Eurostat","category":"macro","authority":"institutional","endpoint":"https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/ei_cphi_m?lang=en&time=2025-01","auth":"none","regions":["europe"]},
+    {"id":"oecd","name":"OECD Data Explorer SDMX","category":"macro","authority":"institutional","endpoint":"https://sdmx.oecd.org/public/rest/v1/data/OECD.SDD.STES,DSD_STES@DF_FINMARK,/.?startPeriod=2025-01&dimension_at_observation=AllDimensions","auth":"none","regions":["oecd","global"]},
+    {"id":"imf","name":"IMF Data SDMX","category":"macro","authority":"institutional","endpoint":"https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH","auth":"none","regions":["global"]},
+    {"id":"bis","name":"Bank for International Settlements","category":"banking","authority":"institutional","endpoint":"https://stats.bis.org/api/v1/data/WS_CBPOL?format=csvfile","auth":"none","regions":["global"]},
+    {"id":"sec","name":"SEC EDGAR","category":"companies","authority":"regulator","endpoint":"https://www.sec.gov/files/company_tickers.json","auth":"user-agent","regions":["usa","global-issuers"]},
+    {"id":"clinical-trials","name":"ClinicalTrials.gov","category":"biotech","authority":"institutional","endpoint":"https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json","auth":"none","regions":["global"]},
+    {"id":"openfda","name":"openFDA","category":"biotech","authority":"regulator","endpoint":"https://api.fda.gov/drug/event.json?limit=1","auth":"optional-key","regions":["usa","global-pharma"]},
+    {"id":"ema","name":"European Medicines Agency","category":"biotech","authority":"regulator","endpoint":"https://www.ema.europa.eu/en/news-events/whats-new/rss.xml","auth":"none","regions":["europe","global-pharma"]},
+    {"id":"eia","name":"U.S. Energy Information Administration","category":"energy","authority":"institutional","endpoint":"https://api.eia.gov/v2/","auth":"api-key","secret":"EIA_API_KEY","regions":["usa","global-energy"]},
+    {"id":"gdelt","name":"GDELT Project","category":"geopolitics","authority":"research-network","endpoint":"https://api.gdeltproject.org/api/v2/doc/doc?query=markets&mode=ArtList&maxrecords=1&format=json","auth":"none","regions":["global"]},
+    {"id":"coingecko","name":"CoinGecko","category":"crypto","authority":"market-data","endpoint":"https://api.coingecko.com/api/v3/ping","auth":"optional-key","secret":"COINGECKO_API_KEY","regions":["global"]},
+    {"id":"alpha-vantage","name":"Alpha Vantage","category":"markets","authority":"market-data","endpoint":"https://www.alphavantage.co/query?function=MARKET_STATUS&apikey={key}","auth":"api-key","secret":"ALPHA_VANTAGE_API_KEY","regions":["global"]},
+    {"id":"fred","name":"FRED","category":"macro","authority":"central-bank","endpoint":"https://api.stlouisfed.org/fred/series?series_id=GDP&api_key={key}&file_type=json","auth":"api-key","secret":"FRED_API_KEY","regions":["usa","global-macro"]}
+  ]
+}
