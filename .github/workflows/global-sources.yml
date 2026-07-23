@@ -1,0 +1,56 @@
+name: Fenice Global Sources
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/check-global-sources.mjs"
+      - "data/global-source-registry.json"
+      - ".github/workflows/global-sources.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-global-sources
+  cancel-in-progress: false
+
+jobs:
+  check-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check authoritative global sources
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: npm run sources:check
+
+      - name: Commit source health data
+        run: |
+          if git diff --quiet -- data/global-source-health.json data/source-history; then
+            echo "No source health changes"
+            exit 0
+          fi
+          git config user.name "fenice-source-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/global-source-health.json data/source-history
+          git commit -m "Update global source health"
+          git pull --rebase origin main
+          git push origin main
