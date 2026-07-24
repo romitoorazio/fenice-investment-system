@@ -39,8 +39,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - name: Safe secret diagnostics
         run: |
           node -e "for (const n of ['ALPHA_VANTAGE_API_KEY','FRED_API_KEY','COINGECKO_API_KEY','COINGECKO_PRO_API_KEY','SEC_USER_AGENT']) console.log(n+': '+(process.env[n]?'configured':'missing'))"
