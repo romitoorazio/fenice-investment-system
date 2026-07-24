@@ -61,7 +61,9 @@ export default function AutonomyPanel() {
   }, []);
 
   useEffect(() => {
-    void loadSnapshot();
+    queueMicrotask(() => {
+      void loadSnapshot();
+    });
   }, [loadSnapshot]);
 
   if (loading && !snapshot) {
