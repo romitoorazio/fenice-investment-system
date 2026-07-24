@@ -47,10 +47,12 @@ export default function FeniceDashboard() {
     const saved = window.localStorage.getItem("fenice-capital");
     if (!saved) return;
     const parsed = Number(saved);
-    if (Number.isFinite(parsed) && parsed > 0) {
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+    queueMicrotask(() => {
       setCapital(parsed);
       setCapitalInput(String(parsed));
-    }
+    });
   }, []);
 
   const targetMultiple = useMemo(() => project.targetCapital / capital, [capital]);
