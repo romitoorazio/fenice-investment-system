@@ -8,6 +8,7 @@ function decisionClass(decision: ResearchDecision) {
   if (decision === "PRIORITÀ") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
   if (decision === "APPROFONDISCI") return "border-sky-400/30 bg-sky-400/10 text-sky-300";
   if (decision === "OSSERVA") return "border-amber-400/30 bg-amber-400/10 text-amber-300";
+  if (decision === "SPECULATIVA") return "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-300";
   return "border-rose-400/30 bg-rose-400/10 text-rose-300";
 }
 
@@ -45,6 +46,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function CompanyCard({ company }: { company: FundamentalCompany }) {
   const financials = company.financials;
+  const preCommercial = company.businessStage === "pre-commerciale" || company.decision === "SPECULATIVA";
   return (
     <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -52,23 +54,31 @@ function CompanyCard({ company }: { company: FundamentalCompany }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-2xl font-black text-amber-300">{company.ticker}</p>
             <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${decisionClass(company.decision)}`}>{company.decision}</span>
+            {company.businessStage ? <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase text-slate-400">{company.businessStage}</span> : null}
           </div>
           <h2 className="mt-2 text-lg font-black text-white">{company.name}</h2>
           <p className="mt-1 text-sm text-slate-500">{company.sector} · esercizio {financials.fiscalYear ?? "n/d"}</p>
         </div>
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Score fondamentale</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">{preCommercial ? "Score speculativo" : "Score fondamentale"}</p>
           <p className={`mt-1 text-3xl font-black ${scoreClass(company.scores.overall)}`}>{company.scores.overall}</p>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Metric label="Crescita ricavi" value={percent(financials.revenueGrowth3YPercent)} />
         <Metric label="Margine operativo" value={percent(financials.operatingMarginPercent)} />
         <Metric label="Margine FCF" value={percent(financials.freeCashFlowMarginPercent)} />
         <Metric label="Debito/Equity" value={ratio(financials.debtToEquity)} />
         <Metric label="P/E indicativo" value={ratio(financials.priceToEarnings)} />
+        <Metric label="Autonomia cassa" value={Number.isFinite(financials.cashRunwayYears) ? `${ratio(financials.cashRunwayYears)} anni` : "—"} />
       </div>
+
+      {preCommercial ? (
+        <p className="mt-4 rounded-xl border border-fuchsia-400/15 bg-fuchsia-400/[0.05] p-4 text-sm leading-6 text-fuchsia-100">
+          Modello separato: per una società pre-commerciale i margini tradizionali non sono confrontabili con quelli di un’azienda matura. Fenice valuta soprattutto cassa, consumo di capitale, debito, rischio clinico e possibile diluizione.
+        </p>
+      ) : null}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl bg-emerald-400/[0.05] p-4">
@@ -85,8 +95,10 @@ function CompanyCard({ company }: { company: FundamentalCompany }) {
         </div>
       </div>
 
+      {company.warnings.length ? <div className="mt-4 space-y-2">{company.warnings.map((item) => <p key={item} className="rounded-xl bg-amber-300/[0.05] p-3 text-xs leading-5 text-amber-100">{item}</p>)}</div> : null}
+
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs text-slate-500">
-        <span>Completezza dati: <strong className="text-white">{company.scores.dataCompleteness}/100</strong></span>
+        <span>Completezza dati: <strong className="text-white">{company.scores.dataCompleteness}/100</strong> · Ricavi {compact(financials.revenue, financials.currency)}</span>
         {company.filing?.url ? (
           <a href={company.filing.url} target="_blank" rel="noreferrer" className="font-black text-amber-300 hover:text-amber-200">
             Apri {company.filing.form ?? "filing"} SEC →
@@ -139,6 +151,7 @@ export default function ResearchEngine() {
   if (!report) return <main className="min-h-screen bg-slate-950 p-8 text-white">Errore Research Engine: {error}</main>;
 
   const priority = report.companies.filter((company) => company.decision === "PRIORITÀ" || company.decision === "APPROFONDISCI").length;
+  const speculative = report.companies.filter((company) => company.decision === "SPECULATIVA").length;
   const operational = report.companies.filter((company) => company.status === "operativo").length;
 
   return (
@@ -155,17 +168,20 @@ export default function ResearchEngine() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="/" className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-black">Mission Control</Link>
-              <Link href="/autonomia" className="rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-slate-950">Autonomia →</Link>
+              <Link href="/terminal" className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">World Terminal</Link>
+              <Link href="/portfolio" className="rounded-xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950">Paper Portfolio</Link>
+              <Link href="/alerts" className="rounded-xl bg-rose-400 px-4 py-3 text-sm font-black text-slate-950">Alert Center</Link>
             </div>
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           {[
             ["Copertura", `${report.coveragePercent}%`],
             ["Società analizzate", `${report.companyCount}/${report.universeSize}`],
             ["Dati operativi", String(operational)],
             ["Da approfondire", String(priority)],
+            ["Speculative", String(speculative)],
             ["Score medio", `${report.averageScore}/100`],
           ].map(([label, value]) => (
             <article key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
@@ -183,6 +199,7 @@ export default function ResearchEngine() {
               <option value="PRIORITÀ">Priorità</option>
               <option value="APPROFONDISCI">Approfondisci</option>
               <option value="OSSERVA">Osserva</option>
+              <option value="SPECULATIVA">Speculativa</option>
               <option value="SCARTA">Scarta</option>
               <option value="DATI INSUFFICIENTI">Dati insufficienti</option>
             </select>
