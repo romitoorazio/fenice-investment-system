@@ -117,9 +117,25 @@ export default function MissionControl() {
         </section>
 
         <section>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-black">Classifica strumenti monitorati</h2>
-            <span className="text-sm text-slate-500">Top {data.rankedAssets.length} diversificata</span>
+          <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-2xl font-black">Classifica strumenti monitorati</h2>
+              <p className="mt-1 text-sm text-slate-500">Top {data.rankedAssets.length} diversificata · massimo tre criptovalute.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href="/api/integrations/prorealtime/watchlist"
+                className="rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-200 transition hover:bg-amber-300/20"
+              >
+                Esporta lista ProRealTime
+              </a>
+              <a
+                href="/api/integrations/prorealtime/watchlist?format=csv"
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-slate-200 transition hover:bg-white/[0.08]"
+              >
+                Esporta analisi CSV
+              </a>
+            </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
