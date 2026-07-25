@@ -1,5 +1,11 @@
 import TerminalEngine from "@/components/TerminalEngine";
+import TerminalHealthBar from "@/components/TerminalHealthBar";
 
 export default function TerminalPage() {
-  return <TerminalEngine />;
+  return (
+    <>
+      <TerminalHealthBar />
+      <TerminalEngine />
+    </>
+  );
 }
