@@ -5,6 +5,7 @@ export default function Home() {
   return (
     <>
       <nav className="fixed right-5 top-5 z-50 flex flex-wrap justify-end gap-2">
+        <Link href="/strategies" className="rounded-2xl bg-lime-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-lime-300">Strategy Lab</Link>
         <Link href="/valuation" className="rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-cyan-300">DCF Valuation</Link>
         <Link href="/journal" className="rounded-2xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-violet-300">Decision Journal</Link>
         <Link href="/alerts" className="rounded-2xl bg-rose-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-rose-300">Alert Center</Link>
