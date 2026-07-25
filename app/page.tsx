@@ -6,6 +6,12 @@ export default function Home() {
     <>
       <nav className="fixed right-5 top-5 z-50 flex flex-wrap justify-end gap-2">
         <Link
+          href="/portfolio"
+          className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-sky-300"
+        >
+          Paper Portfolio
+        </Link>
+        <Link
           href="/terminal"
           className="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 shadow-2xl transition hover:bg-emerald-300"
         >
