@@ -1,0 +1,63 @@
+name: Fenice Robust Strategy Lab
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * 0"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-strategy-lab.mjs"
+      - "lib/strategy.ts"
+      - "components/StrategyLab.tsx"
+      - "app/api/strategies/**"
+      - "app/strategies/**"
+      - "package.json"
+      - ".github/workflows/strategies.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-robust-strategies
+  cancel-in-progress: true
+
+jobs:
+  strategies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run out of sample strategy tests
+        run: npm run strategies
+
+      - name: Validate strategy report
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('data/strategy-lab.json'));if(!Array.isArray(s.assets)||!Number.isFinite(s.coveragePercent)||!s.source)process.exit(1);if(s.assetCount<12||s.coveragePercent<60)process.exit(1);for(const a of s.assets){if(!Array.isArray(a.families)||a.families.length!==2||!Number.isFinite(a.bestRobustnessScore))process.exit(1);for(const f of a.families){if(!Array.isArray(f.variants)||f.variants.length!==3)process.exit(1);for(const v of f.variants){if(!v.inSample||!v.outOfSample||!v.fullPeriod)process.exit(1)}}};console.log('Strategy assets:',s.assetCount,'coverage',s.coveragePercent,'robust',s.robustCount)"
+
+      - name: Commit strategy analysis
+        run: |
+          if git diff --quiet -- data/strategy-lab.json; then
+            echo "No strategy changes to commit"
+            exit 0
+          fi
+          git config user.name "fenice-strategy-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/strategy-lab.json
+          git commit -m "Update Fenice strategy robustness"
+          git pull --rebase origin main
+          git push origin main
