@@ -1,0 +1,64 @@
+name: Fenice World Terminal
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "27 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-terminal-engine.mjs"
+      - "lib/terminal.ts"
+      - "components/TerminalEngine.tsx"
+      - "app/api/terminal/**"
+      - "app/terminal/**"
+      - "data/fundamental-research.json"
+      - "package.json"
+      - ".github/workflows/terminal.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-world-terminal
+  cancel-in-progress: true
+
+jobs:
+  terminal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build technical valuation and strategy report
+        run: npm run terminal
+
+      - name: Validate terminal report
+        run: |
+          node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);if(t.assetCount<10||t.coveragePercent<50)process.exit(1);for(const a of t.assets){if(!a.technical||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore)"
+
+      - name: Commit terminal intelligence
+        run: |
+          if git diff --quiet -- data/terminal-intelligence.json data/history; then
+            echo "No terminal changes to commit"
+            exit 0
+          fi
+          git config user.name "fenice-terminal-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/terminal-intelligence.json data/history
+          git commit -m "Update Fenice World Terminal data"
+          git pull --rebase origin main
+          git push origin main
