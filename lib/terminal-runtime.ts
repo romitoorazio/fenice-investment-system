@@ -102,7 +102,7 @@ function allocate(report: TerminalReport) {
     asset.targetAmountEuro = Math.round(report.capitalEuro * asset.targetWeightPercent / 100);
   }
   const invested = round(report.assets.reduce((sum, asset) => sum + asset.targetWeightPercent, 0));
-  reserve = round(Math.max(0, 100 - invested));
+  const reserve = round(Math.max(0, 100 - invested));
   const totals = {
     core: round(report.assets.filter((asset) => category(asset) === "core").reduce((sum, asset) => sum + asset.targetWeightPercent, 0)),
     growth: round(report.assets.filter((asset) => category(asset) === "growth").reduce((sum, asset) => sum + asset.targetWeightPercent, 0)),
@@ -181,7 +181,7 @@ export function buildRuntimeTerminal(input: TerminalReport, alertsCount = 0): Te
   report.dataQuality = Math.round(clamp(report.dataQuality - delayed * 1.5 - obsolete * 4));
   report.warnings = [...new Set([
     ...(report.warnings || []),
-    ...(report.guardrails.violations || []),
+    ...(report.guardrails?.violations || []),
     ...(delayed ? [`${delayed} strumenti hanno dati ritardati.`] : []),
     ...(obsolete ? [`${obsolete} strumenti hanno dati obsoleti o non disponibili.`] : []),
   ])];
