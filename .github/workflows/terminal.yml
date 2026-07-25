@@ -8,10 +8,14 @@ on:
     branches: [main]
     paths:
       - "scripts/run-terminal-engine.mjs"
+      - "scripts/postprocess-terminal-intelligence.mjs"
       - "lib/terminal.ts"
       - "components/TerminalEngine.tsx"
+      - "components/AlertCenter.tsx"
       - "app/api/terminal/**"
+      - "app/api/alerts/**"
       - "app/terminal/**"
+      - "app/alerts/**"
       - "data/fundamental-research.json"
       - "package.json"
       - ".github/workflows/terminal.yml"
@@ -43,22 +47,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build technical valuation and strategy report
+      - name: Build and validate technical intelligence
         run: npm run terminal
 
-      - name: Validate terminal report
+      - name: Validate terminal report and guardrails
         run: |
-          node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);if(t.assetCount<10||t.coveragePercent<50)process.exit(1);for(const a of t.assets){if(!a.technical||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore)"
+          node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);if(t.assetCount<10||t.coveragePercent<50)process.exit(1);if(!t.allocationCheck?.valid||Math.abs(t.allocationCheck.totalPercent-100)>.2)process.exit(1);if(t.guardrails?.violations?.length)process.exit(1);for(const a of t.assets){if(!a.technical||!a.technical.freshness||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1);if(['ATTENDI','EVITA'].includes(a.decision)&&a.targetWeightPercent>0)process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore,'freshness',t.freshnessStatus,'invested',t.allocationCheck.investedPercent,'reserve',t.allocationCheck.reservePercent)"
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('data/terminal-alerts.json'));const s=JSON.parse(fs.readFileSync('data/terminal-state.json'));if(!Array.isArray(a.alerts)||!s.assets)process.exit(1);console.log('Alerts stored:',a.alerts.length,'state assets:',Object.keys(s.assets).length)"
 
       - name: Commit terminal intelligence
         run: |
-          if git diff --quiet -- data/terminal-intelligence.json data/history; then
+          if git diff --quiet -- data/terminal-intelligence.json data/terminal-alerts.json data/terminal-state.json data/history; then
             echo "No terminal changes to commit"
             exit 0
           fi
           git config user.name "fenice-terminal-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/terminal-intelligence.json data/history
+          git add data/terminal-intelligence.json data/terminal-alerts.json data/terminal-state.json data/history
           git commit -m "Update Fenice World Terminal data"
           git pull --rebase origin main
           git push origin main
