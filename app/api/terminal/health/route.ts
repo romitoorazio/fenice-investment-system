@@ -2,13 +2,15 @@ import terminal from "@/data/terminal-intelligence.json";
 import alerts from "@/data/terminal-alerts.json";
 import type { TerminalAlert, TerminalReport } from "@/lib/terminal";
 import { buildRuntimeTerminal } from "@/lib/terminal-runtime";
+import { applyFinalCapitalPolicy } from "@/lib/capital-policy";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
   const alertCount = (alerts as { alerts: TerminalAlert[] }).alerts.length;
-  const report = buildRuntimeTerminal(terminal as TerminalReport, alertCount);
+  const runtime = buildRuntimeTerminal(terminal as TerminalReport, alertCount);
+  const report = applyFinalCapitalPolicy(runtime);
   const decisions = Object.fromEntries(
     ["ACCUMULA", "MANTIENI", "ATTENDI", "SPECULATIVA", "EVITA"].map((decision) => [
       decision,
@@ -21,11 +23,16 @@ export async function GET() {
       symbol: asset.symbol,
       decision: asset.decision,
       score: asset.unifiedScore,
+      confidence: asset.confidence,
       risk: asset.riskScore,
+      signal: asset.technical.signal,
       weightPercent: asset.targetWeightPercent,
       amountEuro: asset.targetAmountEuro,
     }));
-  const invalidWeightedAssets = weightedAssets.filter((asset) => ["ATTENDI", "EVITA"].includes(asset.decision));
+  const invalidWeightedAssets = weightedAssets.filter((asset) =>
+    ["ATTENDI", "EVITA"].includes(asset.decision) ||
+    (asset.decision === "SPECULATIVA" && (asset.score < 40 || asset.confidence < 60 || asset.risk > 90 || asset.signal === "NEGATIVO")),
+  );
   const healthy = Boolean(
     report.coveragePercent === 100 &&
     report.allocationCheck?.valid &&
