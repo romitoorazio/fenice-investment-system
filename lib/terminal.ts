@@ -65,7 +65,7 @@ export type ValuationView = {
   currency?: string;
   currentPrice?: number;
   priceToEarnings?: number;
-  targetPriceToEarnings?: number;
+  targetPriceToEarnings: number;
   fairValueLow?: number;
   fairValueBase?: number;
   fairValueHigh?: number;
