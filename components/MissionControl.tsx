@@ -16,27 +16,57 @@ function actionClass(action: string) {
   return "border-rose-400/30 bg-rose-400/10 text-rose-300";
 }
 
+function freshnessLabel(status: MissionControlData["freshnessStatus"]) {
+  if (status === "near-real-time") return "Quasi in tempo reale";
+  if (status === "aggiornato") return "Aggiornato";
+  if (status === "stale") return "Da aggiornare";
+  return "Non disponibile";
+}
+
 export default function MissionControl() {
   const [data, setData] = useState<MissionControlData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/mission", { cache: "no-store" })
-      .then((response) => {
+    let active = true;
+
+    async function load() {
+      try {
+        const response = await fetch("/api/mission", { cache: "no-store" });
         if (!response.ok) throw new Error("Mission API non disponibile");
-        return response.json();
-      })
-      .then(setData)
-      .catch((reason: Error) => setError(reason.message));
+        const next = (await response.json()) as MissionControlData;
+        if (active) {
+          setData(next);
+          setError(null);
+        }
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : "Mission API non disponibile");
+      }
+    }
+
+    void load();
+    const timer = window.setInterval(() => void load(), 5 * 60 * 1000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
-  if (error) {
+  if (error && !data) {
     return <main className="min-h-screen bg-slate-950 p-6 text-white">Errore: {error}</main>;
   }
 
   if (!data) {
     return <main className="min-h-screen bg-slate-950 p-6 text-white">Fenice sta elaborando i dati…</main>;
   }
+
+  const summaryCards = [
+    ["Rendimento richiesto", `${data.requiredAnnualReturn}% annuo`],
+    ["Qualità dati", `${data.dataQuality}/100`],
+    ["Freschezza", freshnessLabel(data.freshnessStatus)],
+    ["Liquidità obiettivo", `${data.cashTargetPercent}%`],
+    ["Ultimo calcolo", new Date(data.generatedAt).toLocaleString("it-IT")],
+  ];
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
@@ -48,8 +78,9 @@ export default function MissionControl() {
               <h1 className="mt-3 text-3xl font-black sm:text-5xl">Obiettivo 10 anni</h1>
               <p className="mt-3 max-w-3xl text-slate-300">
                 Capitale iniziale {euro.format(data.capital)}, obiettivo ambizioso {euro.format(data.stretchGoal)}.
-                Il sistema trasforma i dati raccolti ogni giorno in regime operativo, allocazione e priorità.
+                Il sistema trasforma i dati raccolti ogni ora in regime operativo, allocazione e priorità.
               </p>
+              <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-500">La pagina verifica automaticamente il nuovo rapporto ogni 5 minuti.</p>
             </div>
             <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4">
               <p className="text-xs uppercase tracking-widest text-amber-200">Regime attuale</p>
@@ -58,13 +89,8 @@ export default function MissionControl() {
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Rendimento richiesto", `${data.requiredAnnualReturn}% annuo`],
-            ["Qualità dati", `${data.dataQuality}/100`],
-            ["Liquidità obiettivo", `${data.cashTargetPercent}%`],
-            ["Ultimo calcolo", new Date(data.generatedAt).toLocaleString("it-IT")],
-          ].map(([label, value]) => (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {summaryCards.map(([label, value]) => (
             <article key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
               <p className="mt-3 text-xl font-black">{value}</p>
@@ -93,7 +119,7 @@ export default function MissionControl() {
         <section>
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-2xl font-black">Classifica strumenti monitorati</h2>
-            <span className="text-sm text-slate-500">Top {data.rankedAssets.length}</span>
+            <span className="text-sm text-slate-500">Top {data.rankedAssets.length} diversificata</span>
           </div>
           <div className="overflow-hidden rounded-2xl border border-white/10">
             <div className="overflow-x-auto">
