@@ -76,12 +76,25 @@ function buildCompany(
   const currency = company.financials.currency;
   const priceCurrency = asset?.currency;
   const currentPrice = Number(asset?.price);
+  const revenue = Number(company.financials.revenue);
+  const operatingCashFlow = Number(company.financials.operatingCashFlow);
+  const capitalExpenditure = Number(company.financials.capitalExpenditure);
   const fcf = Number(company.financials.freeCashFlow);
   const cash = Math.max(0, Number(company.financials.cash || 0));
   const debt = Math.max(0, Number(company.financials.debt || 0));
   const shares = inferredShares(company);
   const completeness = Number(company.scores.dataCompleteness || 0);
   const quality = Number(company.scores.quality || 0);
+  const capexRevenuePercent = Number.isFinite(capitalExpenditure) && revenue > 0 ? (capitalExpenditure / revenue) * 100 : undefined;
+  const fcfMarginPercent = Number.isFinite(fcf) && revenue > 0 ? (fcf / revenue) * 100 : undefined;
+  const suspiciousCapex =
+    !Number.isFinite(operatingCashFlow) ||
+    !Number.isFinite(capitalExpenditure) ||
+    capitalExpenditure <= 0 ||
+    !Number.isFinite(fcf) ||
+    fcf > operatingCashFlow * 1.001 ||
+    (["NVDA", "AMZN"].includes(company.ticker) && Number(capexRevenuePercent) < 2) ||
+    Number(fcfMarginPercent) > 55;
   const common = {
     symbol: company.ticker,
     name: company.name,
@@ -105,6 +118,18 @@ function buildCompany(
     scenarios: [],
     rationale: ["Il DCF tradizionale non è adatto a una società pre-commerciale con free cash flow negativo."],
     warnings: ["Servono un modello probabilistico della pipeline clinica, autonomia di cassa e scenari di diluizione."],
+  };
+  if (suspiciousCapex) return {
+    ...common,
+    status: "dati insufficienti",
+    confidence: Math.round(clamp(completeness * 0.45 + quality * 0.25, 0, 55)),
+    score: 35,
+    scenarios: [],
+    rationale: ["Il free cash flow non supera il controllo di qualità su operating cash flow e investimenti."],
+    warnings: [
+      `Capex/ricavi indicativo: ${round(capexRevenuePercent, 2) ?? "n/d"}%; margine FCF: ${round(fcfMarginPercent, 1) ?? "n/d"}%.`,
+      "Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing.",
+    ],
   };
   if (!Number.isFinite(fcf) || fcf <= 0 || !Number.isFinite(shares) || Number(shares) <= 0) return {
     ...common,
@@ -136,12 +161,19 @@ function buildCompany(
   const base = scenarios[1].fairValuePerShare;
   const high = scenarios[2].fairValuePerShare;
   const upside = Number.isFinite(base) ? (Number(base) / currentPrice - 1) * 100 : undefined;
-  const confidence = Math.round(clamp(completeness * 0.5 + quality * 0.35 + 15 - Math.abs(baseGrowth - growth) * 0.3, 0, 95));
+  const extremeValuation = Number.isFinite(base) && (Number(base) > currentPrice * 4 || Number(base) < currentPrice * 0.1);
+  const confidence = Math.round(clamp(completeness * 0.5 + quality * 0.35 + 15 - Math.abs(baseGrowth - growth) * 0.3 - (extremeValuation ? 25 : 0), 0, 95));
+  const warnings = [
+    "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
+    "L’intervallo di scenari è più importante del valore centrale.",
+    ...(Number(fcfMarginPercent) > 35 ? [`Margine FCF elevato (${round(fcfMarginPercent, 1)}%): usare una media pluriennale prima di investire.`] : []),
+    ...(extremeValuation ? ["Il valore centrale è estremo rispetto al prezzo: score e confidenza sono ridotti e il risultato richiede riconciliazione manuale."] : []),
+  ];
   return {
     ...common,
     status: "disponibile",
     confidence,
-    score: Math.round(clamp(50 + clamp(Number(upside), -70, 70) * 0.6 + (confidence - 60) * 0.15, 5, 95)),
+    score: Math.round(clamp(50 + clamp(Number(upside), -70, 70) * 0.6 + (confidence - 60) * 0.15 - (extremeValuation ? 20 : 0), 5, 95)),
     fairValueLow: low,
     fairValueBase: base,
     fairValueHigh: high,
@@ -149,14 +181,12 @@ function buildCompany(
     scenarios,
     rationale: [
       `Free cash flow di partenza ${round(fcf, 0)} ${currency}.`,
+      `Capex/ricavi verificato al ${round(capexRevenuePercent, 2)}%.`,
       `Crescita iniziale scenario base ${round(baseGrowth, 1)}%, poi progressivamente ridotta.`,
       `Azioni diluite stimate da utile netto/EPS: ${round(shares, 0)}.`,
       `Scostamento scenario base rispetto al prezzo: ${round(upside, 1)}%.`,
     ],
-    warnings: [
-      "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
-      "L’intervallo di scenari è più importante del valore centrale.",
-    ],
+    warnings,
   };
 }
 
@@ -170,19 +200,20 @@ export function buildRuntimeDcf(fundamental: FundamentalResearchReport, terminal
   });
   const availableCount = companies.filter((company) => company.status === "disponibile").length;
   return {
-    version: 1,
+    version: 2,
     generatedAt,
-    mode: availableCount >= 5 ? "live" : companies.length ? "partial" : "bootstrap",
+    mode: availableCount >= 4 ? "live" : companies.length ? "partial" : "bootstrap",
     source: {
       name: "Fenice DCF Scenario Engine",
-      state: availableCount >= 5 ? "operativo" : companies.length ? "parziale" : "errore",
-      detail: `${availableCount}/${companies.length} società con DCF confrontabile; le altre sono bloccate per valuta, fase o dati insufficienti.`,
+      state: availableCount >= 4 ? "operativo" : companies.length ? "parziale" : "errore",
+      detail: `${availableCount}/${companies.length} società con DCF confrontabile; gli altri casi sono bloccati per qualità FCF, valuta, fase o dati insufficienti.`,
     },
     companyCount: companies.length,
     availableCount,
     coveragePercent: companies.length ? Math.round(availableCount / companies.length * 100) : 0,
     methodology: [
       "Free cash flow annuale SEC collegato al prezzo del World Terminal.",
+      "Controllo qualità obbligatorio su operating cash flow, capex, margine FCF e coerenza dei valori.",
       "Tre scenari a cinque anni con crescita progressivamente decrescente.",
       "Prudente: sconto 11,5%, crescita terminale 2%.",
       "Base: sconto 9,5%, crescita terminale 2,5%.",
@@ -194,6 +225,7 @@ export function buildRuntimeDcf(fundamental: FundamentalResearchReport, terminal
     ],
     companies,
     warnings: [
+      "Il DCF usa ancora un free cash flow annuale: prima di un impiego reale servirà una normalizzazione pluriennale.",
       "Non sono ancora inclusi compensi azionari, acquisizioni future e costo del capitale specifico per società.",
       "Fair value e upside sono scenari, non obiettivi garantiti.",
     ],
