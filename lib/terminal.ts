@@ -1,6 +1,7 @@
 export type TerminalDecision = "ACCUMULA" | "MANTIENI" | "ATTENDI" | "SPECULATIVA" | "EVITA";
 export type TechnicalSignal = "FORTE" | "POSITIVO" | "NEUTRALE" | "DEBOLE" | "NEGATIVO";
 export type ValuationStatus = "disponibile" | "non confrontabile" | "non applicabile" | "dati insufficienti";
+export type FreshnessStatus = "quasi in tempo reale" | "aggiornato" | "ritardato" | "obsoleto" | "non disponibile";
 
 export type StrategyBacktest = {
   id: "buy-hold" | "trend-50-200" | "tactical-20-50";
@@ -29,6 +30,10 @@ export type TechnicalAsset = {
   observedAt: string;
   source: string;
   status: "operativo" | "parziale" | "errore";
+  freshness?: {
+    ageHours: number;
+    status: FreshnessStatus;
+  };
   price?: number;
   returns: {
     oneMonthPercent?: number;
@@ -107,6 +112,18 @@ export type PortfolioSlice = {
   rationale: string;
 };
 
+export type TerminalAlert = {
+  id: string;
+  generatedAt: string;
+  severity: "informazione" | "attenzione" | "critico";
+  type: "decisione" | "segnale" | "punteggio" | "prezzo" | "freschezza" | "rischio";
+  symbol?: string;
+  title: string;
+  detail: string;
+  previous?: string | number;
+  current?: string | number;
+};
+
 export type TerminalReport = {
   version: number;
   generatedAt: string;
@@ -124,6 +141,23 @@ export type TerminalReport = {
   averageUnifiedScore: number;
   dataQuality: number;
   marketRegime: string;
+  freshnessStatus?: FreshnessStatus;
+  freshAssetCount?: number;
+  alertsCount?: number;
+  allocationCheck?: {
+    investedPercent: number;
+    reservePercent: number;
+    totalPercent: number;
+    valid: boolean;
+  };
+  guardrails?: {
+    maxCoreWeightPercent: number;
+    maxGrowthWeightPercent: number;
+    maxSpeculativeWeightPercent: number;
+    cryptoTotalPercent: number;
+    speculativeTotalPercent: number;
+    violations: string[];
+  };
   methodology: string[];
   portfolio: PortfolioSlice[];
   assets: UnifiedAsset[];
