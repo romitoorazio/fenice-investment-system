@@ -1,4 +1,4 @@
-export type ResearchDecision = "PRIORITÀ" | "APPROFONDISCI" | "OSSERVA" | "SCARTA" | "DATI INSUFFICIENTI";
+export type ResearchDecision = "PRIORITÀ" | "APPROFONDISCI" | "OSSERVA" | "SPECULATIVA" | "SCARTA" | "DATI INSUFFICIENTI";
 
 export type ResearchScore = {
   overall: number;
@@ -29,6 +29,7 @@ export type ResearchFinancials = {
   dilutedEps?: number;
   price?: number;
   priceToEarnings?: number;
+  cashRunwayYears?: number;
 };
 
 export type ResearchFiling = {
@@ -43,6 +44,7 @@ export type FundamentalCompany = {
   name: string;
   cik: string;
   sector: string;
+  businessStage?: "maturo" | "crescita" | "pre-commerciale";
   status: "operativo" | "parziale" | "errore";
   observedAt: string;
   source: string;
