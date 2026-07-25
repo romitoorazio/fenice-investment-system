@@ -10,7 +10,7 @@ on:
         type: choice
         options: [full, daily, intraday]
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "17 * * * *"
     - cron: "37 5 * * *"
   push:
     branches: [main]
@@ -59,7 +59,7 @@ jobs:
 
       - name: Validate generated files
         run: |
-          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('data/latest-snapshot.json'));if(!s.generatedAt||!Array.isArray(s.providers)||!s.foundation)process.exit(1);console.log(s.headline)"
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('data/latest-snapshot.json'));if(!s.generatedAt||!Array.isArray(s.providers)||!s.foundation||!s.reliability)process.exit(1);if(!Number.isFinite(s.dataQuality))process.exit(1);console.log(s.headline,'quality',s.dataQuality)"
           node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('data/source-health.json'));if(!Array.isArray(h.sources))process.exit(1);console.log('Sources checked:',h.sources.length)"
 
       - name: Commit data history
