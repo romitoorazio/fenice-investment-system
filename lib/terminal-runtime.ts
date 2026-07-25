@@ -83,7 +83,6 @@ function distribute(candidates: UnifiedAsset[], target: number, cap: number) {
     if (allocated <= 0.001) break;
     remaining -= allocated;
   }
-  return Math.max(0, remaining);
 }
 
 function allocate(report: TerminalReport) {
@@ -93,10 +92,9 @@ function allocate(report: TerminalReport) {
     asset.targetAmountEuro = 0;
   }
   const eligible = report.assets.filter((asset) => ["ACCUMULA", "MANTIENI", "SPECULATIVA"].includes(asset.decision));
-  let reserve = policy.reserve;
-  reserve += distribute(eligible.filter((asset) => category(asset) === "core"), policy.core, 20);
-  reserve += distribute(eligible.filter((asset) => category(asset) === "growth"), policy.growth, 7);
-  reserve += distribute(eligible.filter((asset) => category(asset) === "speculative"), policy.speculative, 2.5);
+  distribute(eligible.filter((asset) => category(asset) === "core"), policy.core, 20);
+  distribute(eligible.filter((asset) => category(asset) === "growth"), policy.growth, 7);
+  distribute(eligible.filter((asset) => category(asset) === "speculative"), policy.speculative, 2.5);
   for (const asset of report.assets) {
     asset.targetWeightPercent = round(asset.targetWeightPercent);
     asset.targetAmountEuro = Math.round(report.capitalEuro * asset.targetWeightPercent / 100);
