@@ -1,15 +1,26 @@
-name: Fenice CI
+name: Fenice Production CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - "data/history/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-production-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -19,12 +30,49 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Lint
         run: npm run lint
 
-      - name: Build
+      - name: TypeScript and production build
         run: npm run build
+
+      - name: Validate published datasets
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const files = [
+            'data/latest-snapshot.json',
+            'data/fundamental-research.json',
+            'data/terminal-intelligence.json',
+            'data/terminal-alerts.json',
+            'data/terminal-state.json',
+            'data/dcf-analysis.json',
+            'data/strategy-lab.json',
+          ];
+          for (const file of files) {
+            const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (!parsed || typeof parsed !== 'object') throw new Error(`Invalid dataset: ${file}`);
+            console.log('Validated', file);
+          }
+          NODE
+
+      - name: Validate critical structures
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const terminal = JSON.parse(fs.readFileSync('data/terminal-intelligence.json', 'utf8'));
+          if (!Array.isArray(terminal.assets) || terminal.assets.length < 10) throw new Error('Terminal asset coverage insufficient');
+          for (const asset of terminal.assets) {
+            if (!asset.symbol || !asset.technical || !Number.isFinite(asset.unifiedScore) || !Number.isFinite(asset.riskScore)) {
+              throw new Error(`Invalid terminal asset: ${asset.symbol || 'unknown'}`);
+            }
+          }
+          const research = JSON.parse(fs.readFileSync('data/fundamental-research.json', 'utf8'));
+          if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
+          console.log('Critical datasets are structurally valid');
+          NODE
