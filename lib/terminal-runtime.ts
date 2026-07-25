@@ -85,6 +85,23 @@ function distribute(candidates: UnifiedAsset[], target: number, cap: number) {
   }
 }
 
+function trimRoundedTotal(assets: UnifiedAsset[], maximum: number) {
+  let total = round(assets.reduce((sum, asset) => sum + asset.targetWeightPercent, 0));
+  if (total <= maximum) return;
+  const ordered = [...assets].sort((left, right) => left.unifiedScore - right.unifiedScore || right.riskScore - left.riskScore);
+  let excess = round(total - maximum);
+  for (const asset of ordered) {
+    if (excess <= 0) break;
+    const reduction = Math.min(asset.targetWeightPercent, excess);
+    asset.targetWeightPercent = round(asset.targetWeightPercent - reduction);
+    excess = round(excess - reduction);
+  }
+  total = round(assets.reduce((sum, asset) => sum + asset.targetWeightPercent, 0));
+  if (total > maximum && ordered.length) {
+    ordered[0].targetWeightPercent = round(Math.max(0, ordered[0].targetWeightPercent - (total - maximum)));
+  }
+}
+
 function allocate(report: TerminalReport) {
   const policy = policyFor(report);
   for (const asset of report.assets) {
@@ -95,10 +112,12 @@ function allocate(report: TerminalReport) {
   distribute(eligible.filter((asset) => category(asset) === "core"), policy.core, 20);
   distribute(eligible.filter((asset) => category(asset) === "growth"), policy.growth, 7);
   distribute(eligible.filter((asset) => category(asset) === "speculative"), policy.speculative, 2.5);
-  for (const asset of report.assets) {
-    asset.targetWeightPercent = round(asset.targetWeightPercent);
-    asset.targetAmountEuro = Math.round(report.capitalEuro * asset.targetWeightPercent / 100);
-  }
+  for (const asset of report.assets) asset.targetWeightPercent = round(asset.targetWeightPercent);
+  trimRoundedTotal(report.assets.filter((asset) => category(asset) === "core"), policy.core);
+  trimRoundedTotal(report.assets.filter((asset) => category(asset) === "growth"), policy.growth);
+  trimRoundedTotal(report.assets.filter((asset) => category(asset) === "speculative"), policy.speculative);
+  trimRoundedTotal(report.assets.filter((asset) => asset.assetClass === "Criptovaluta"), 5);
+  for (const asset of report.assets) asset.targetAmountEuro = Math.round(report.capitalEuro * asset.targetWeightPercent / 100);
   const invested = round(report.assets.reduce((sum, asset) => sum + asset.targetWeightPercent, 0));
   const reserve = round(Math.max(0, 100 - invested));
   const totals = {
@@ -109,7 +128,7 @@ function allocate(report: TerminalReport) {
   report.portfolio = [
     { id: "core", label: "Nucleo diversificato", targetPercent: totals.core, targetAmountEuro: Math.round(report.capitalEuro * totals.core / 100), rationale: "ETF, obbligazioni e strumenti ampi realmente eleggibili." },
     { id: "growth", label: "Crescita selezionata", targetPercent: totals.growth, targetAmountEuro: Math.round(report.capitalEuro * totals.growth / 100), rationale: "Azioni con decisione ACCUMULA o MANTIENI e limiti di concentrazione." },
-    { id: "speculative", label: "Opportunità speculative", targetPercent: totals.speculative, targetAmountEuro: Math.round(report.capitalEuro * totals.speculative / 100), rationale: "Biotech pre-commerciali e crypto, massimo 2,5% per singolo strumento." },
+    { id: "speculative", label: "Opportunità speculative", targetPercent: totals.speculative, targetAmountEuro: Math.round(report.capitalEuro * totals.speculative / 100), rationale: "Biotech pre-commerciali e crypto, massimo 2,5% per singolo strumento e 5% complessivo." },
     { id: "reserve", label: "Riserva strategica", targetPercent: reserve, targetAmountEuro: Math.round(report.capitalEuro * reserve / 100), rationale: "Liquidità liberata dagli strumenti in ATTENDI/EVITA e dai limiti di rischio." },
   ];
   report.allocationCheck = { investedPercent: invested, reservePercent: reserve, totalPercent: round(invested + reserve), valid: Math.abs(invested + reserve - 100) <= 0.2 };
@@ -125,11 +144,11 @@ function guardrails(report: TerminalReport) {
   const crypto = report.assets.filter((asset) => asset.assetClass === "Criptovaluta").reduce((sum, asset) => sum + asset.targetWeightPercent, 0);
   const speculativeTotal = speculative.reduce((sum, asset) => sum + asset.targetWeightPercent, 0);
   const violations: string[] = [];
-  if (maxCore > 20.01) violations.push("Limite singola posizione core superato.");
-  if (maxGrowth > 7.01) violations.push("Limite singola posizione growth superato.");
-  if (maxSpeculative > 2.51) violations.push("Limite singola posizione speculativa superato.");
-  if (crypto > 5.01) violations.push("Limite crypto complessivo superato.");
-  if (speculativeTotal > 5.01) violations.push("Limite area speculativa superato.");
+  if (maxCore > 20.001) violations.push("Limite singola posizione core superato.");
+  if (maxGrowth > 7.001) violations.push("Limite singola posizione growth superato.");
+  if (maxSpeculative > 2.501) violations.push("Limite singola posizione speculativa superato.");
+  if (crypto > 5.001) violations.push("Limite crypto complessivo superato.");
+  if (speculativeTotal > 5.001) violations.push("Limite area speculativa superato.");
   if (!report.allocationCheck?.valid) violations.push("Allocazione totale diversa dal 100%.");
   report.guardrails = {
     maxCoreWeightPercent: round(maxCore),
@@ -178,7 +197,7 @@ export function buildRuntimeTerminal(input: TerminalReport, alertsCount = 0): Te
   report.averageUnifiedScore = report.assets.length ? Math.round(report.assets.reduce((sum, asset) => sum + asset.unifiedScore, 0) / report.assets.length) : 0;
   report.dataQuality = Math.round(clamp(report.dataQuality - delayed * 1.5 - obsolete * 4));
   report.warnings = [...new Set([
-    ...(report.warnings || []),
+    ...(report.warnings || []).filter((warning) => !/Limite area speculativa superato|Limite crypto complessivo superato/.test(warning)),
     ...(report.guardrails?.violations || []),
     ...(delayed ? [`${delayed} strumenti hanno dati ritardati.`] : []),
     ...(obsolete ? [`${obsolete} strumenti hanno dati obsoleti o non disponibili.`] : []),
