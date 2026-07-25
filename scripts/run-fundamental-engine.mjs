@@ -7,7 +7,7 @@ const reportPath = path.join(root, 'data', 'fundamental-research.json');
 const snapshotPath = path.join(root, 'data', 'latest-snapshot.json');
 const historyDir = path.join(root, 'data', 'history');
 const now = new Date();
-const secUserAgent = process.env.SEC_USER_AGENT || 'FeniceInvestmentSystem/3.1 romitoorazio@gmail.com';
+const secUserAgent = process.env.SEC_USER_AGENT || 'FeniceInvestmentSystem/3.2 romitoorazio@gmail.com';
 const annualForms = new Set(['10-K', '10-K/A', '20-F', '20-F/A', '40-F', '40-F/A']);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Number(value) || 0));
@@ -80,18 +80,9 @@ async function requestJson(url, timeoutMs = 30000) {
   throw lastError;
 }
 
-function findFact(facts, names) {
-  for (const namespace of Object.values(facts || {})) {
-    for (const name of names) {
-      if (namespace?.[name]) return namespace[name];
-    }
-  }
-  return undefined;
-}
-
 function entries(fact) {
   return Object.entries(fact?.units || {}).flatMap(([unit, values]) =>
-    (Array.isArray(values) ? values : []).map((value) => ({ ...value, unit })),
+    (Array.isArray(values) ? values : []).map((item) => ({ ...item, unit })),
   );
 }
 
@@ -109,8 +100,33 @@ function annualSeries(fact) {
   return [...byEnd.values()].sort((a, b) => String(b.end).localeCompare(String(a.end))).slice(0, 6);
 }
 
-const latest = (fact) => annualSeries(fact)[0];
-const value = (metric) => Number.isFinite(Number(metric?.val)) ? Number(metric.val) : undefined;
+function bestFact(facts, names) {
+  let selected;
+  let selectedEnd = '';
+  let selectedCount = -1;
+  for (const namespace of Object.values(facts || {})) {
+    for (const name of names) {
+      const fact = namespace?.[name];
+      if (!fact) continue;
+      const series = annualSeries(fact);
+      const latestEnd = String(series[0]?.end || '');
+      if (latestEnd > selectedEnd || (latestEnd === selectedEnd && series.length > selectedCount)) {
+        selected = fact;
+        selectedEnd = latestEnd;
+        selectedCount = series.length;
+      }
+    }
+  }
+  return selected;
+}
+
+function metricForPeriod(fact, targetEnd) {
+  const series = annualSeries(fact);
+  if (!targetEnd) return series[0];
+  return series.find((item) => item.end === targetEnd) || series.find((item) => String(item.end) < String(targetEnd));
+}
+
+const numericValue = (metric) => Number.isFinite(Number(metric?.val)) ? Number(metric.val) : undefined;
 const percentage = (numerator, denominator) => Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0
   ? round((numerator / denominator) * 100, 1)
   : undefined;
@@ -125,36 +141,44 @@ function cagr(series) {
   return round((Math.pow(Number(newest.val) / Number(oldest.val), 1 / years) - 1) * 100, 1);
 }
 
-function debtValue(facts) {
-  const total = value(latest(findFact(facts, candidates.debtTotal)));
-  const current = value(latest(findFact(facts, candidates.debtCurrent)));
-  const noncurrent = value(latest(findFact(facts, candidates.debtNoncurrent)));
+function debtValue(facts, targetEnd) {
+  const total = numericValue(metricForPeriod(bestFact(facts, candidates.debtTotal), targetEnd));
+  const current = numericValue(metricForPeriod(bestFact(facts, candidates.debtCurrent), targetEnd));
+  const noncurrent = numericValue(metricForPeriod(bestFact(facts, candidates.debtNoncurrent), targetEnd));
   if (Number.isFinite(current) && Number.isFinite(noncurrent)) return current + noncurrent;
   return Number.isFinite(total) ? total : Number.isFinite(noncurrent) ? noncurrent : current;
 }
 
-function financialsFrom(companyFacts, price) {
+function financialsFrom(companyFacts, market) {
   const facts = companyFacts?.facts || {};
-  const revenueFact = findFact(facts, candidates.revenue);
+  const revenueFact = bestFact(facts, candidates.revenue);
   const revenueSeries = annualSeries(revenueFact);
   const revenueMetric = revenueSeries[0];
-  const epsMetric = latest(findFact(facts, candidates.dilutedEps));
-  const revenue = value(revenueMetric);
-  const netIncome = value(latest(findFact(facts, candidates.netIncome)));
-  const operatingIncome = value(latest(findFact(facts, candidates.operatingIncome)));
-  const operatingCashFlow = value(latest(findFact(facts, candidates.operatingCashFlow)));
-  const capexRaw = value(latest(findFact(facts, candidates.capitalExpenditure)));
+  const targetEnd = revenueMetric?.end;
+  const metric = (names) => metricForPeriod(bestFact(facts, names), targetEnd);
+  const epsMetric = metric(candidates.dilutedEps);
+  const revenue = numericValue(revenueMetric);
+  const netIncome = numericValue(metric(candidates.netIncome));
+  const operatingIncome = numericValue(metric(candidates.operatingIncome));
+  const operatingCashFlow = numericValue(metric(candidates.operatingCashFlow));
+  const capexRaw = numericValue(metric(candidates.capitalExpenditure));
   const capitalExpenditure = Number.isFinite(capexRaw) ? Math.abs(capexRaw) : undefined;
   const freeCashFlow = Number.isFinite(operatingCashFlow) && Number.isFinite(capitalExpenditure)
     ? operatingCashFlow - capitalExpenditure
     : undefined;
-  const cash = value(latest(findFact(facts, candidates.cash)));
-  const debt = debtValue(facts);
-  const equity = value(latest(findFact(facts, candidates.equity)));
-  const dilutedEps = value(epsMetric);
+  const cash = numericValue(metric(candidates.cash));
+  const debt = debtValue(facts, targetEnd);
+  const equity = numericValue(metric(candidates.equity));
+  const dilutedEps = numericValue(epsMetric);
+  const reportingCurrency = revenueMetric?.unit || epsMetric?.unit?.split('/')[0];
+  const epsCurrency = epsMetric?.unit?.split('/')[0];
+  const price = Number(market?.price);
+  const priceCurrency = market?.currency;
+  const comparablePrice = Number.isFinite(price) && epsCurrency && priceCurrency === epsCurrency;
+
   return {
-    currency: revenueMetric?.unit || epsMetric?.unit?.split('/')[0],
-    fiscalYear: revenueMetric?.end ? new Date(revenueMetric.end).getUTCFullYear() : undefined,
+    currency: reportingCurrency,
+    fiscalYear: targetEnd ? new Date(targetEnd).getUTCFullYear() : undefined,
     revenue,
     revenueGrowth3YPercent: cagr(revenueSeries),
     netIncome,
@@ -171,7 +195,7 @@ function financialsFrom(companyFacts, price) {
     debtToEquity: Number.isFinite(debt) && Number.isFinite(equity) && equity !== 0 ? round(debt / equity, 2) : undefined,
     dilutedEps,
     price: Number.isFinite(price) ? price : undefined,
-    priceToEarnings: Number.isFinite(price) && Number.isFinite(dilutedEps) && dilutedEps > 0 ? round(price / dilutedEps, 1) : undefined,
+    priceToEarnings: comparablePrice && dilutedEps > 0 ? round(price / dilutedEps, 1) : undefined,
   };
 }
 
@@ -181,9 +205,9 @@ function score(financials, sector, hasFiling) {
   const dataCompleteness = Math.round((required.filter((item) => Number.isFinite(item)).length / required.length) * 100);
 
   let profitability = 48;
-  if (Number.isFinite(financials.operatingMarginPercent)) profitability += financials.operatingMarginPercent * 0.9;
-  if (Number.isFinite(financials.netMarginPercent)) profitability += financials.netMarginPercent * 0.7;
-  if (Number.isFinite(financials.freeCashFlowMarginPercent)) profitability += financials.freeCashFlowMarginPercent * 0.7;
+  if (Number.isFinite(financials.operatingMarginPercent)) profitability += financials.operatingMarginPercent * 0.75;
+  if (Number.isFinite(financials.netMarginPercent)) profitability += financials.netMarginPercent * 0.55;
+  if (Number.isFinite(financials.freeCashFlowMarginPercent)) profitability += financials.freeCashFlowMarginPercent * 0.55;
   if (Number(financials.netIncome) < 0) profitability -= 18;
   if (Number(financials.freeCashFlow) < 0) profitability -= 14;
   profitability = Math.round(clamp(profitability));
@@ -269,7 +293,7 @@ async function main() {
   const previous = await readJson(reportPath, { companies: [], version: 0 });
   const snapshot = await readJson(snapshotPath, { markets: [], providers: [], warnings: [] });
   const previousMap = new Map((previous.companies || []).map((company) => [company.ticker, company]));
-  const priceMap = new Map((snapshot.markets || []).map((market) => [String(market.symbol || '').toUpperCase(), Number(market.price)]));
+  const marketMap = new Map((snapshot.markets || []).map((market) => [String(market.symbol || '').toUpperCase(), { price: Number(market.price), currency: market.currency }]));
   const companies = [];
   const warnings = [];
   let liveSuccesses = 0;
@@ -281,24 +305,29 @@ async function main() {
         requestJson(`https://data.sec.gov/submissions/CIK${target.cik}.json`),
       ]);
       const filing = filingFrom(submissions, target.cik);
-      const financials = financialsFrom(companyFacts, priceMap.get(target.ticker));
+      const financials = financialsFrom(companyFacts, marketMap.get(target.ticker));
       const scores = score(financials, target.sector, Boolean(filing));
       const text = narrative(financials, scores, target.sector);
+      const absurdMargin = Math.abs(Number(financials.operatingMarginPercent)) > 150 || Math.abs(Number(financials.netMarginPercent)) > 150;
+      if (absurdMargin) {
+        scores.overall = Math.min(scores.overall, 35);
+        scores.quality = Math.min(scores.quality, 35);
+      }
       companies.push({
         ticker: target.ticker,
         name: companyFacts?.entityName || target.name,
         cik: target.cik,
         sector: target.sector,
-        status: scores.dataCompleteness >= 70 ? 'operativo' : scores.dataCompleteness >= 40 ? 'parziale' : 'errore',
+        status: absurdMargin ? 'errore' : scores.dataCompleteness >= 70 ? 'operativo' : scores.dataCompleteness >= 40 ? 'parziale' : 'errore',
         observedAt: now.toISOString(),
         source: 'SEC EDGAR Company Facts',
         filing,
         financials,
         scores,
-        decision: decision(scores),
+        decision: absurdMargin ? 'DATI INSUFFICIENTI' : decision(scores),
         thesis: text.thesis,
         risks: text.risks,
-        warnings: scores.dataCompleteness < 70 ? ['Punteggio ridotto per dati fondamentali incompleti.'] : [],
+        warnings: [...(scores.dataCompleteness < 70 ? ['Punteggio ridotto per dati fondamentali incompleti.'] : []), ...(absurdMargin ? ['Controllo qualità fallito: margini non plausibili, punteggio bloccato.'] : [])],
       });
       liveSuccesses += 1;
     } catch (error) {
@@ -322,7 +351,7 @@ async function main() {
     source: {
       name: 'SEC EDGAR Company Facts',
       state: sourceState,
-      detail: `${liveSuccesses}/${universe.length} società aggiornate dal vivo; copertura disponibile ${covered}/${universe.length}.`,
+      detail: `${liveSuccesses}/${universe.length} società aggiornate dal vivo; copertura validata ${covered}/${universe.length}.`,
       ...(liveSuccesses ? { lastSuccessAt: now.toISOString() } : {}),
     },
     universeSize: universe.length,
@@ -331,9 +360,10 @@ async function main() {
     averageScore,
     methodology: [
       'Bilanci annuali 10-K, 20-F e 40-F pubblicati su SEC EDGAR.',
+      'Tutte le metriche sono riallineate allo stesso periodo fiscale prima del calcolo.',
       'Crescita dei ricavi, margini, free cash flow, cassa, debito e patrimonio netto.',
-      'Valutazione indicativa tramite P/E quando prezzo ed EPS sono confrontabili.',
-      'Penalizzazione automatica per dati mancanti, società pre-profitto e valutazioni estreme.',
+      'P/E calcolato solo quando prezzo ed EPS usano la stessa valuta.',
+      'Controllo qualità blocca margini impossibili e dati non coerenti.',
       'Screening quantitativo da verificare: nessun ordine viene inviato al broker.',
     ],
     companies,
@@ -366,7 +396,7 @@ async function main() {
   snapshot.warnings = [...new Set(snapshot.warnings)].slice(0, 30);
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
   await writeFile(path.join(historyDir, `${now.toISOString().slice(0, 10)}.json`), `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Fenice Fundamental Research: ${liveSuccesses}/${universe.length} live, coverage ${coveragePercent}%, average ${averageScore}.`);
+  console.log(`Fenice Fundamental Research: ${liveSuccesses}/${universe.length} live, validated ${covered}/${universe.length}, average ${averageScore}.`);
 }
 
 main().catch((error) => {
