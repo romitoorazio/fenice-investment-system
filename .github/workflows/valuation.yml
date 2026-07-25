@@ -1,0 +1,65 @@
+name: Fenice DCF Valuation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-dcf-engine.mjs"
+      - "lib/dcf.ts"
+      - "components/DcfEngine.tsx"
+      - "app/api/dcf/**"
+      - "app/valuation/**"
+      - "data/fundamental-research.json"
+      - "data/terminal-intelligence.json"
+      - "package.json"
+      - ".github/workflows/valuation.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-dcf-valuation
+  cancel-in-progress: true
+
+jobs:
+  valuation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build DCF scenarios
+        run: npm run dcf
+
+      - name: Validate DCF report
+        run: |
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('data/dcf-analysis.json'));if(!Array.isArray(d.companies)||!Number.isFinite(d.coveragePercent)||!d.source)process.exit(1);if(d.companyCount<8||d.availableCount<4)process.exit(1);for(const c of d.companies.filter(x=>x.status==='disponibile')){if(!Array.isArray(c.scenarios)||c.scenarios.length!==3||!Number.isFinite(c.fairValueBase)||!Number.isFinite(c.confidence))process.exit(1)};console.log('DCF companies:',d.companyCount,'available',d.availableCount,'coverage',d.coveragePercent)"
+
+      - name: Commit DCF analysis
+        run: |
+          if git diff --quiet -- data/dcf-analysis.json; then
+            echo "No DCF changes to commit"
+            exit 0
+          fi
+          git config user.name "fenice-valuation-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dcf-analysis.json
+          git commit -m "Update Fenice DCF analysis"
+          git pull --rebase origin main
+          git push origin main
