@@ -26,6 +26,8 @@ export type MarketReading = {
   risk: number;
   source: string;
   observedAt?: string;
+  updatedAt?: string;
+  classification?: string;
 };
 
 export type DiscoverySignal = {
@@ -68,6 +70,15 @@ export type AutonomySnapshot = {
   macro: MacroReading[];
   discoveries: DiscoverySignal[];
   warnings: string[];
+  dataQuality?: number;
+  freshness?: {
+    generatedAt?: string | null;
+    checkedAt?: string;
+    freshReadings?: number;
+    totalReadings?: number;
+    status?: "near-real-time" | "aggiornato" | "stale";
+  };
+  reliability?: Record<string, unknown>;
   executionPolicy: {
     autonomousAnalysis: true;
     autonomousTrading: false;
