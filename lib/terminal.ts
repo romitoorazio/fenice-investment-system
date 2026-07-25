@@ -93,6 +93,8 @@ export type UnifiedAsset = {
   valuationScore?: number;
   riskScore: number;
   dataCompleteness: number;
+  rawUnifiedScore?: number;
+  rawConfidence?: number;
   unifiedScore: number;
   confidence: number;
   decision: TerminalDecision;
@@ -127,6 +129,7 @@ export type TerminalAlert = {
 export type TerminalReport = {
   version: number;
   generatedAt: string;
+  validatedAt?: string;
   mode: "live" | "partial" | "bootstrap";
   capitalEuro: number;
   source: {
