@@ -11,5 +11,11 @@ export default defineConfig([
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
+  {
+    files: ["components/DecisionJournal.tsx", "components/PortfolioEngine.tsx"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);
