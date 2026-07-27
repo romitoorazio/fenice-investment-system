@@ -21,13 +21,13 @@ function repairGdeltUrl(value) {
   if (!url.hostname.endsWith("gdeltproject.org")) return url;
 
   const mode = url.searchParams.get("mode")?.toLowerCase();
-  if (mode === "artlist") {
+  if (mode === "artlist" && !url.searchParams.get("query")) {
     url.searchParams.set(
       "query",
       '"initial public offering" OR "funding round" OR "FDA approval" OR breakthrough OR quantum OR fusion OR CRISPR',
     );
     url.searchParams.set("maxrecords", "30");
-  } else {
+  } else if (!url.searchParams.get("query")) {
     url.searchParams.set(
       "query",
       '"armed conflict" OR sanctions OR tariffs OR "central bank" OR inflation OR recession OR election OR cyberattack',
@@ -100,4 +100,5 @@ if (!completed) {
   throw new Error("Il motore principale non ha completato il rapporto entro il limite previsto.");
 }
 
+await import("./enrich-broad-news.mjs");
 await import("./postprocess-snapshot.mjs");
