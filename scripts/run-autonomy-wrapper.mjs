@@ -101,4 +101,5 @@ if (!completed) {
 }
 
 await import("./enrich-broad-news.mjs");
+await import("./enrich-primary-events.mjs");
 await import("./postprocess-snapshot.mjs");
