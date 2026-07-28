@@ -20,11 +20,15 @@ export type DataHubProviderSummary = {
   healthScore: number;
 };
 
+export type DataHubOperatingStatus = "operativo" | "degradato" | "bloccato";
+
 export type GlobalDataHub = {
   generatedAt: string;
   checkedAt: string;
   mode: AutonomySnapshot["mode"];
   headline: string;
+  operatingStatus: DataHubOperatingStatus;
+  signalGenerationAllowed: boolean;
   healthScore: number;
   freshnessScore: number;
   coverageScore: number;
@@ -35,6 +39,8 @@ export type GlobalDataHub = {
   uniqueSources: number;
   assetClasses: DataHubAssetClass[];
   providers: DataHubProviderSummary[];
+  blockers: string[];
+  recommendations: string[];
   warnings: string[];
 };
 
@@ -121,6 +127,27 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     clamp(freshnessScore * 0.35 + coverageScore * 0.25 + sourceDiversityScore * 0.2 + providerScore * 0.2),
   );
 
+  const blockers = [
+    ...(totalInstruments === 0 ? ["Nessuno strumento disponibile."] : []),
+    ...(freshnessScore < 40 ? ["Freschezza dati inferiore alla soglia minima del 40%."] : []),
+    ...(sources.size < 2 ? ["Manca la conferma da almeno due fonti indipendenti."] : []),
+    ...(healthScore < 45 ? ["Salute complessiva del Data Hub inferiore alla soglia minima."] : []),
+  ];
+
+  const signalGenerationAllowed = blockers.length === 0;
+  const operatingStatus: DataHubOperatingStatus = !signalGenerationAllowed
+    ? "bloccato"
+    : healthScore >= 75 && freshnessScore >= 70
+      ? "operativo"
+      : "degradato";
+
+  const recommendations = [
+    ...(freshnessScore < 70 ? ["Aggiornare i feed di mercato prima della prossima analisi."] : []),
+    ...(sources.size < 4 ? ["Aumentare la diversità delle fonti per ridurre il rischio di dati errati."] : []),
+    ...(providers.some((provider) => provider.state === "errore") ? ["Ripristinare i provider in errore o sostituirli con una fonte alternativa."] : []),
+    ...(assetClasses.length < 6 ? ["Ampliare la copertura ad almeno sei classi di attività."] : []),
+  ];
+
   const warnings = [
     ...snapshot.warnings,
     ...(totalInstruments === 0 ? ["Nessuno strumento disponibile nel Global Data Hub."] : []),
@@ -134,6 +161,8 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     checkedAt: new Date(now).toISOString(),
     mode: snapshot.mode,
     headline: snapshot.headline,
+    operatingStatus,
+    signalGenerationAllowed,
     healthScore,
     freshnessScore,
     coverageScore,
@@ -144,6 +173,8 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     uniqueSources: sources.size,
     assetClasses,
     providers,
+    blockers: [...new Set(blockers)],
+    recommendations: [...new Set(recommendations)],
     warnings: [...new Set(warnings)].slice(0, 20),
   };
 }
