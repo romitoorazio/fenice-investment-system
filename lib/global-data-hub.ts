@@ -1,4 +1,5 @@
 import type { AutonomySnapshot, MarketReading, ProviderState } from "./autonomy";
+import { assessOperatingStatus, DATA_QUALITY_POLICY } from "./data-quality-policy";
 
 export type DataHubAssetClass = {
   name: string;
@@ -44,8 +45,6 @@ export type GlobalDataHub = {
   warnings: string[];
 };
 
-const DAY_MS = 86_400_000;
-
 function clamp(value: number, min = 0, max = 100) {
   return Math.min(max, Math.max(min, value));
 }
@@ -62,14 +61,14 @@ function observedTimestamp(reading: MarketReading) {
 
 function isFresh(reading: MarketReading, now: number) {
   const timestamp = observedTimestamp(reading);
-  return timestamp !== null && now - timestamp <= DAY_MS;
+  return timestamp !== null && now - timestamp <= DATA_QUALITY_POLICY.freshnessWindowMs;
 }
 
 function providerHealth(state: ProviderState, lastSuccessAt?: string) {
   const base = state === "operativo" ? 100 : state === "parziale" ? 65 : state === "non configurato" ? 25 : 10;
   const lastSuccess = validTimestamp(lastSuccessAt);
   if (lastSuccess === null) return base;
-  const ageDays = (Date.now() - lastSuccess) / DAY_MS;
+  const ageDays = (Date.now() - lastSuccess) / DATA_QUALITY_POLICY.freshnessWindowMs;
   return Math.round(clamp(base - Math.max(0, ageDays - 1) * 5));
 }
 
@@ -127,32 +126,41 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     clamp(freshnessScore * 0.35 + coverageScore * 0.25 + sourceDiversityScore * 0.2 + providerScore * 0.2),
   );
 
-  const blockers = [
-    ...(totalInstruments === 0 ? ["Nessuno strumento disponibile."] : []),
-    ...(freshnessScore < 40 ? ["Freschezza dati inferiore alla soglia minima del 40%."] : []),
-    ...(sources.size < 2 ? ["Manca la conferma da almeno due fonti indipendenti."] : []),
-    ...(healthScore < 45 ? ["Salute complessiva del Data Hub inferiore alla soglia minima."] : []),
-  ];
-
-  const signalGenerationAllowed = blockers.length === 0;
-  const operatingStatus: DataHubOperatingStatus = !signalGenerationAllowed
-    ? "bloccato"
-    : healthScore >= 75 && freshnessScore >= 70
-      ? "operativo"
-      : "degradato";
+  const assessment = assessOperatingStatus({
+    healthScore,
+    freshnessScore,
+    sourceCount: sources.size,
+    instrumentCount: totalInstruments,
+  });
 
   const recommendations = [
-    ...(freshnessScore < 70 ? ["Aggiornare i feed di mercato prima della prossima analisi."] : []),
-    ...(sources.size < 4 ? ["Aumentare la diversità delle fonti per ridurre il rischio di dati errati."] : []),
-    ...(providers.some((provider) => provider.state === "errore") ? ["Ripristinare i provider in errore o sostituirli con una fonte alternativa."] : []),
-    ...(assetClasses.length < 6 ? ["Ampliare la copertura ad almeno sei classi di attività."] : []),
+    ...(freshnessScore < DATA_QUALITY_POLICY.healthyFreshness
+      ? ["Aggiornare i feed di mercato prima della prossima analisi."]
+      : []),
+    ...(sources.size < DATA_QUALITY_POLICY.recommendedIndependentSources
+      ? ["Aumentare la diversità delle fonti per ridurre il rischio di dati errati."]
+      : []),
+    ...(providers.some((provider) => provider.state === "errore")
+      ? ["Ripristinare i provider in errore o sostituirli con una fonte alternativa."]
+      : []),
+    ...(assetClasses.length < DATA_QUALITY_POLICY.recommendedAssetClasses
+      ? [`Ampliare la copertura ad almeno ${DATA_QUALITY_POLICY.recommendedAssetClasses} classi di attività.`]
+      : []),
   ];
 
   const warnings = [
     ...snapshot.warnings,
     ...(totalInstruments === 0 ? ["Nessuno strumento disponibile nel Global Data Hub."] : []),
-    ...(freshnessScore < 60 ? ["Meno del 60% degli strumenti dispone di dati osservati nelle ultime 24 ore."] : []),
-    ...(sources.size < 3 ? ["Diversità delle fonti insufficiente: servono almeno tre fonti indipendenti."] : []),
+    ...(freshnessScore < DATA_QUALITY_POLICY.warningFreshness
+      ? [
+          `Meno del ${DATA_QUALITY_POLICY.warningFreshness}% degli strumenti dispone di dati osservati nella finestra di freschezza prevista.`,
+        ]
+      : []),
+    ...(sources.size < DATA_QUALITY_POLICY.warningIndependentSources
+      ? [
+          `Diversità delle fonti insufficiente: servono almeno ${DATA_QUALITY_POLICY.warningIndependentSources} fonti indipendenti.`,
+        ]
+      : []),
     ...(providers.some((provider) => provider.state === "errore") ? ["Uno o più provider risultano in errore."] : []),
   ];
 
@@ -161,8 +169,8 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     checkedAt: new Date(now).toISOString(),
     mode: snapshot.mode,
     headline: snapshot.headline,
-    operatingStatus,
-    signalGenerationAllowed,
+    operatingStatus: assessment.operatingStatus,
+    signalGenerationAllowed: assessment.signalGenerationAllowed,
     healthScore,
     freshnessScore,
     coverageScore,
@@ -173,8 +181,8 @@ export function buildGlobalDataHub(snapshot: AutonomySnapshot): GlobalDataHub {
     uniqueSources: sources.size,
     assetClasses,
     providers,
-    blockers: [...new Set(blockers)],
+    blockers: [...new Set(assessment.blockers)],
     recommendations: [...new Set(recommendations)],
-    warnings: [...new Set(warnings)].slice(0, 20),
+    warnings: [...new Set(warnings)].slice(0, DATA_QUALITY_POLICY.maximumWarnings),
   };
 }
