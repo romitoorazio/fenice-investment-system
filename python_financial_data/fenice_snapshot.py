@@ -1,7 +1,7 @@
-"""Costruisce uno snapshot JSON compatibile con il Global Data Hub di Fenice.
+"""Genera lo snapshot operativo del Global Data Hub di Fenice.
 
-Lo script usa il modulo ``financial_data.py`` e normalizza dati di mercato e
-macroeconomici in un contratto stabile. Non esegue operazioni di trading.
+Il modulo raccoglie dati gratuiti, calcola indicatori tecnici trasparenti e
+produce candidati da approfondire. Non invia ordini e non garantisce rendimenti.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import math
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 from typing import Any, Iterable
 
 import pandas as pd
@@ -27,15 +28,29 @@ from financial_data import (
 
 LOGGER = logging.getLogger("fenice.snapshot")
 
-
 DEFAULT_MARKETS = [
     {"symbol": "AAPL", "name": "Apple", "assetClass": "Azioni", "market": "USA"},
     {"symbol": "MSFT", "name": "Microsoft", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "NVDA", "name": "NVIDIA", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "GOOGL", "name": "Alphabet", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "AMZN", "name": "Amazon", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "META", "name": "Meta", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "TSLA", "name": "Tesla", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "LLY", "name": "Eli Lilly", "assetClass": "Azioni", "market": "USA"},
+    {"symbol": "NVO", "name": "Novo Nordisk", "assetClass": "Azioni", "market": "Europa"},
+    {"symbol": "ENI.MI", "name": "Eni", "assetClass": "Azioni", "market": "Italia"},
+    {"symbol": "ISP.MI", "name": "Intesa Sanpaolo", "assetClass": "Azioni", "market": "Italia"},
     {"symbol": "^GSPC", "name": "S&P 500", "assetClass": "Indici", "market": "USA"},
-    {"symbol": "^FTMIB", "name": "FTSE MIB", "assetClass": "Indici", "market": "Italia"},
+    {"symbol": "^IXIC", "name": "Nasdaq Composite", "assetClass": "Indici", "market": "USA"},
+    {"symbol": "^STOXX50E", "name": "Euro Stoxx 50", "assetClass": "Indici", "market": "Europa"},
+    {"symbol": "FTSEMIB.MI", "name": "FTSE MIB", "assetClass": "Indici", "market": "Italia"},
+    {"symbol": "EEM", "name": "Mercati emergenti", "assetClass": "ETF", "market": "Globale"},
+    {"symbol": "TLT", "name": "Treasury USA lunga scadenza", "assetClass": "Obbligazioni", "market": "USA"},
     {"symbol": "EURUSD=X", "name": "EUR/USD", "assetClass": "Forex", "market": "Globale"},
     {"symbol": "GC=F", "name": "Oro", "assetClass": "Materie prime", "market": "Globale"},
+    {"symbol": "CL=F", "name": "Petrolio WTI", "assetClass": "Materie prime", "market": "Globale"},
     {"symbol": "BTC-USD", "name": "Bitcoin", "assetClass": "Criptovalute", "market": "Globale"},
+    {"symbol": "ETH-USD", "name": "Ethereum", "assetClass": "Criptovalute", "market": "Globale"},
 ]
 
 DEFAULT_MACRO = [
@@ -68,67 +83,106 @@ def finite_number(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def latest_valid_row(data: pd.DataFrame) -> tuple[pd.Timestamp, pd.Series]:
-    cleaned = data.dropna(how="all")
-    if cleaned.empty:
-        raise EmptyDataError("Il DataFrame non contiene righe utilizzabili.")
-    return cleaned.index[-1], cleaned.iloc[-1]
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
+    return max(minimum, min(maximum, value))
 
 
-def score_market(change_percent: float | None) -> tuple[int, int]:
-    """Restituisce score opportunità e rischio conservativi da 0 a 100.
+def percentage_return(series: pd.Series, periods: int) -> float | None:
+    clean = pd.to_numeric(series, errors="coerce").dropna()
+    if len(clean) <= periods or clean.iloc[-periods - 1] == 0:
+        return None
+    return float((clean.iloc[-1] / clean.iloc[-periods - 1] - 1) * 100)
 
-    È solo una normalizzazione tecnica iniziale: non rappresenta un consiglio
-    finanziario e sarà sostituita dal Discovery Engine multi-fattore.
-    """
 
-    if change_percent is None:
-        return 50, 60
-    opportunity = round(max(0, min(100, 50 + change_percent * 4)))
-    risk = round(max(10, min(100, 45 + abs(change_percent) * 5)))
-    return opportunity, risk
+def calculate_metrics(data: pd.DataFrame) -> dict[str, float | None]:
+    close = pd.to_numeric(data.get("Close"), errors="coerce").dropna()
+    if close.empty:
+        raise EmptyDataError("Serie prezzi priva di chiusure utilizzabili.")
+
+    daily_returns = close.pct_change().dropna()
+    volatility = None
+    if len(daily_returns) >= 20:
+        volatility = float(daily_returns.tail(20).std() * math.sqrt(252) * 100)
+
+    rolling_peak = close.cummax()
+    drawdown = ((close / rolling_peak) - 1) * 100
+    max_drawdown = float(drawdown.tail(60).min()) if not drawdown.empty else None
+
+    sma20 = float(close.tail(20).mean()) if len(close) >= 20 else None
+    sma50 = float(close.tail(50).mean()) if len(close) >= 50 else None
+    price = float(close.iloc[-1])
+
+    return {
+        "price": price,
+        "return1d": percentage_return(close, 1),
+        "return5d": percentage_return(close, 5),
+        "return20d": percentage_return(close, 20),
+        "volatility20d": volatility,
+        "maxDrawdown60d": max_drawdown,
+        "distanceSma20": ((price / sma20) - 1) * 100 if sma20 else None,
+        "distanceSma50": ((price / sma50) - 1) * 100 if sma50 else None,
+    }
+
+
+def score_market(metrics: dict[str, float | None]) -> tuple[int, int, str]:
+    r5 = metrics["return5d"] or 0
+    r20 = metrics["return20d"] or 0
+    d20 = metrics["distanceSma20"] or 0
+    d50 = metrics["distanceSma50"] or 0
+    volatility = metrics["volatility20d"] if metrics["volatility20d"] is not None else 45
+    drawdown = abs(metrics["maxDrawdown60d"] or 0)
+
+    momentum = clamp(50 + r5 * 1.5 + r20 * 0.8)
+    trend = clamp(50 + d20 * 1.5 + d50)
+    risk = clamp(20 + volatility * 0.75 + drawdown * 1.2, 10, 100)
+    opportunity = clamp(momentum * 0.45 + trend * 0.35 + (100 - risk) * 0.20)
+
+    if opportunity >= 70 and risk <= 65:
+        classification = "candidato-prioritario"
+    elif opportunity >= 58:
+        classification = "da-monitorare"
+    else:
+        classification = "osservazione"
+
+    return round(opportunity), round(risk), classification
 
 
 def build_market_reading(definition: dict[str, str]) -> dict[str, Any]:
     symbol = definition["symbol"]
-    data = download_market_history(symbol, period="5d", interval="1d", save_csv=False)
-    timestamp, row = latest_valid_row(data)
-
-    close = finite_number(row.get("Close"))
-    open_value = finite_number(row.get("Open"))
-    change_percent = None
-    if close is not None and open_value not in (None, 0):
-        change_percent = ((close - open_value) / open_value) * 100
-
-    score, risk = score_market(change_percent)
-    observed_at = pd.Timestamp(timestamp).to_pydatetime().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+    data = download_market_history(symbol, period="6mo", interval="1d", save_csv=False)
+    metrics = calculate_metrics(data)
+    score, risk, classification = score_market(metrics)
+    timestamp = pd.Timestamp(data.dropna(how="all").index[-1])
+    observed_at = timestamp.to_pydatetime().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
 
     return {
         "symbol": symbol,
         "name": definition.get("name", symbol),
         "assetClass": definition.get("assetClass", "Non classificato"),
         "market": definition.get("market"),
-        "price": close,
+        "price": metrics["price"],
         "currency": definition.get("currency"),
-        "changePercent": round(change_percent, 4) if change_percent is not None else None,
+        "changePercent": round(metrics["return1d"], 4) if metrics["return1d"] is not None else None,
         "score": score,
         "risk": risk,
         "source": "Yahoo Finance",
         "observedAt": observed_at,
-        "classification": "market-observation",
+        "classification": classification,
+        "metrics": {key: round(value, 4) if value is not None else None for key, value in metrics.items()},
     }
 
 
 def build_macro_reading(definition: dict[str, str]) -> dict[str, Any]:
     series_id = definition["seriesId"]
     data = get_fred_series(series_id, save_csv=False)
-    timestamp, row = latest_valid_row(data)
-    value = finite_number(row.iloc[0])
-
+    cleaned = data.dropna(how="all")
+    if cleaned.empty:
+        raise EmptyDataError(f"FRED non ha restituito dati per {series_id}.")
+    timestamp, row = cleaned.index[-1], cleaned.iloc[-1]
     return {
         "id": series_id,
         "label": definition.get("label", series_id),
-        "value": value,
+        "value": finite_number(row.iloc[0]),
         "date": pd.Timestamp(timestamp).date().isoformat(),
         "unit": definition.get("unit", ""),
         "source": "FRED",
@@ -138,13 +192,87 @@ def build_macro_reading(definition: dict[str, str]) -> dict[str, Any]:
 def load_config(path: Path | None) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     if path is None:
         return DEFAULT_MARKETS, DEFAULT_MACRO
-
     payload = json.loads(path.read_text(encoding="utf-8"))
     markets = payload.get("markets", DEFAULT_MARKETS)
     macro = payload.get("macro", DEFAULT_MACRO)
     if not isinstance(markets, list) or not isinstance(macro, list):
         raise ValueError("La configurazione deve contenere liste 'markets' e 'macro'.")
     return markets, macro
+
+
+def provider_state(successes: int, requested: int, configured: bool = True) -> str:
+    if not configured:
+        return "non configurato"
+    if successes == 0:
+        return "errore"
+    if successes < requested:
+        return "parziale"
+    return "operativo"
+
+
+def calculate_pulse(markets: list[dict[str, Any]], macro: list[dict[str, Any]], provider_count: int) -> dict[str, Any]:
+    if not markets:
+        return {
+            "verdict": "ATTENDERE",
+            "opportunity": 0,
+            "risk": 100,
+            "confidence": 0,
+            "marketMomentum": 0,
+            "macroHealth": 0,
+            "discoveryHeat": 0,
+        }
+
+    opportunities = [int(item["score"]) for item in markets]
+    risks = [int(item["risk"]) for item in markets]
+    positive = [item for item in markets if (item.get("metrics", {}).get("return20d") or 0) > 0]
+    candidates = [item for item in markets if item["score"] >= 65 and item["risk"] <= 70]
+
+    opportunity = round(mean(opportunities))
+    risk = round(mean(risks))
+    momentum = round(len(positive) / len(markets) * 100)
+    confidence = round(clamp(35 + min(len(markets), 40) * 1.2 + min(provider_count, 4) * 8 + (10 if macro else 0)))
+    discovery_heat = round(len(candidates) / len(markets) * 100)
+    macro_health = 50 if not macro else round(clamp(50 + len(macro) * 5))
+
+    if confidence < 55 or risk >= 75:
+        verdict = "PROTEGGERE CAPITALE"
+    elif opportunity >= 62 and discovery_heat >= 10:
+        verdict = "VALUTARE"
+    else:
+        verdict = "ATTENDERE"
+
+    return {
+        "verdict": verdict,
+        "opportunity": opportunity,
+        "risk": risk,
+        "confidence": confidence,
+        "marketMomentum": momentum,
+        "macroHealth": macro_health,
+        "discoveryHeat": discovery_heat,
+    }
+
+
+def build_discoveries(markets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ranked = sorted(markets, key=lambda item: (item["score"] - item["risk"] * 0.35), reverse=True)
+    discoveries = []
+    for item in ranked:
+        if item["score"] < 58:
+            continue
+        discoveries.append(
+            {
+                "id": f"market-{item['symbol']}",
+                "name": item["name"],
+                "category": "CRYPTO" if item["assetClass"] == "Criptovalute" else "NEWS",
+                "signal": f"Score {item['score']}/100, rischio {item['risk']}/100. Verificare fondamentali, valutazione e notizie prima di decidere.",
+                "score": item["score"],
+                "risk": item["risk"],
+                "date": item["observedAt"],
+                "source": item["source"],
+            }
+        )
+        if len(discoveries) >= 10:
+            break
+    return discoveries
 
 
 def build_snapshot(
@@ -155,68 +283,75 @@ def build_snapshot(
     warnings: list[str] = []
     markets: list[dict[str, Any]] = []
     macro: list[dict[str, Any]] = []
+    market_defs = list(market_definitions)
+    macro_defs = list(macro_definitions)
 
-    yahoo_success = False
-    for definition in market_definitions:
+    for definition in market_defs:
         try:
             markets.append(build_market_reading(definition))
-            yahoo_success = True
         except (FinancialDataError, ValueError, KeyError) as exc:
             warnings.append(f"Yahoo {definition.get('symbol', '?')}: {exc}")
 
-    fred_success = False
     fred_configured = True
-    for definition in macro_definitions:
+    for definition in macro_defs:
         try:
             macro.append(build_macro_reading(definition))
-            fred_success = True
-        except MissingApiKeyError as exc:
+        except MissingApiKeyError:
             fred_configured = False
-            warnings.append(str(exc))
             break
         except (FinancialDataError, ValueError, KeyError) as exc:
             warnings.append(f"FRED {definition.get('seriesId', '?')}: {exc}")
 
+    yahoo_state = provider_state(len(markets), len(market_defs))
+    fred_state = provider_state(len(macro), len(macro_defs), fred_configured)
     providers = [
         ProviderStatus(
             id="yahoo-finance",
             name="Yahoo Finance",
-            state="operativo" if yahoo_success else "errore",
-            coverage=["azioni", "indici", "ETF", "forex", "materie prime", "crypto"],
-            detail=f"{len(markets)} strumenti acquisiti.",
-            lastSuccessAt=generated_at if yahoo_success else None,
+            state=yahoo_state,
+            coverage=["azioni", "indici", "ETF", "obbligazioni", "forex", "materie prime", "crypto"],
+            detail=f"{len(markets)} strumenti acquisiti su {len(market_defs)} richiesti.",
+            lastSuccessAt=generated_at if markets else None,
         ),
         ProviderStatus(
             id="fred",
             name="FRED",
-            state="operativo" if fred_success else ("non configurato" if not fred_configured else "errore"),
+            state=fred_state,
             coverage=["tassi", "inflazione", "moneta", "macroeconomia"],
-            detail=f"{len(macro)} serie acquisite." if fred_success else "API key assente o feed non disponibile.",
-            lastSuccessAt=generated_at if fred_success else None,
+            detail=(
+                f"{len(macro)} serie acquisite su {len(macro_defs)} richieste."
+                if fred_configured
+                else "Chiave API non configurata: provider escluso senza classificarlo come errore tecnico."
+            ),
+            lastSuccessAt=generated_at if macro else None,
         ),
     ]
 
-    mode = "live" if yahoo_success and fred_success else "partial" if markets or macro else "bootstrap"
+    active_provider_count = sum(provider.state in {"operativo", "parziale"} for provider in providers)
+    mode = "live" if all(provider.state == "operativo" for provider in providers) else "partial" if markets or macro else "bootstrap"
+    pulse = calculate_pulse(markets, macro, active_provider_count)
+    discoveries = build_discoveries(markets)
 
     return {
-        "version": 1,
+        "version": 2,
         "generatedAt": generated_at,
         "mode": mode,
-        "headline": "Snapshot globale aggiornato automaticamente dai provider gratuiti.",
-        "pulse": {
-            "verdict": "ATTENDERE",
-            "opportunity": 0,
-            "risk": 0,
-            "confidence": 0,
-            "marketMomentum": 0,
-            "macroHealth": 0,
-            "discoveryHeat": 0,
+        "headline": "Fenice analizza mercati globali, classifica opportunità e protegge il capitale con controlli di qualità.",
+        "investmentMandate": {
+            "startingCapital": 10000,
+            "targetCapital": 100000,
+            "currency": "EUR",
+            "horizonYears": 10,
+            "targetType": "obiettivo ambizioso non garantito",
+            "capitalPreservationFirst": True,
         },
+        "pulse": pulse,
         "providers": [asdict(provider) for provider in providers],
         "markets": markets,
         "macro": macro,
-        "discoveries": [],
+        "discoveries": discoveries,
         "warnings": list(dict.fromkeys(warnings)),
+        "dataQuality": pulse["confidence"],
         "executionPolicy": {
             "autonomousAnalysis": True,
             "autonomousTrading": False,
@@ -226,11 +361,10 @@ def build_snapshot(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Genera uno snapshot JSON per Fenice Investment System.")
+    parser = argparse.ArgumentParser(description="Genera lo snapshot JSON per Fenice Investment System.")
     parser.add_argument("--config", type=Path, help="File JSON opzionale con mercati e serie macro.")
     parser.add_argument("--output", type=Path, default=Path("output/fenice-snapshot.json"))
     args = parser.parse_args()
-
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
     try:
