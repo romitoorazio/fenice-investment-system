@@ -15,6 +15,12 @@ function stateTone(state: GlobalDataHub["providers"][number]["state"]) {
   return "border-rose-400/30 bg-rose-400/10 text-rose-300";
 }
 
+function operatingTone(status: GlobalDataHub["operatingStatus"]) {
+  if (status === "operativo") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
+  if (status === "degradato") return "border-amber-400/30 bg-amber-400/10 text-amber-200";
+  return "border-rose-400/30 bg-rose-400/10 text-rose-200";
+}
+
 export default function GlobalDataHubPanel() {
   const [data, setData] = useState<GlobalDataHub | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +66,30 @@ export default function GlobalDataHubPanel() {
         <header>
           <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Fenice Intelligence Layer</p>
           <h1 className="mt-2 text-3xl font-black">Global Data Hub</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Unifica lo stato delle fonti, misura la qualità dei dati e rende visibili copertura, freschezza e dipendenze prima che Fenice generi segnali.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Unifica lo stato delle fonti, misura la qualità dei dati e blocca i segnali quando le informazioni non sono abbastanza affidabili.</p>
         </header>
+
+        <section className={`rounded-2xl border p-5 ${operatingTone(data.operatingStatus)}`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em]">Controllo di sicurezza</p>
+              <h2 className="mt-2 text-2xl font-black capitalize">Hub {data.operatingStatus}</h2>
+              <p className="mt-2 text-sm opacity-80">
+                {data.signalGenerationAllowed
+                  ? "I dati superano le soglie minime. Fenice può elaborare segnali, mantenendo la conferma umana obbligatoria."
+                  : "La generazione di nuovi segnali è sospesa finché i dati non tornano sopra le soglie minime."}
+              </p>
+            </div>
+            <span className="rounded-full border border-current/20 px-4 py-2 text-xs font-black uppercase">
+              Segnali {data.signalGenerationAllowed ? "abilitati" : "bloccati"}
+            </span>
+          </div>
+          {data.blockers.length > 0 && (
+            <div className="mt-4 space-y-2 border-t border-current/15 pt-4">
+              {data.blockers.map((blocker) => <p key={blocker} className="text-sm">• {blocker}</p>)}
+            </div>
+          )}
+        </section>
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {metrics.map(([label, score]) => (
@@ -102,6 +130,8 @@ export default function GlobalDataHubPanel() {
             ))}
           </div>
         </section>
+
+        {data.recommendations.length > 0 && <section className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-5"><h2 className="font-black text-cyan-300">Azioni automatiche consigliate</h2><div className="mt-3 space-y-2">{data.recommendations.map((item) => <p key={item} className="text-sm leading-6 text-slate-300">• {item}</p>)}</div></section>}
 
         {data.warnings.length > 0 && <section className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-5"><h2 className="font-black text-amber-300">Avvisi qualità dati</h2><div className="mt-3 space-y-2">{data.warnings.map((warning) => <p key={warning} className="text-sm leading-6 text-slate-300">• {warning}</p>)}</div></section>}
 
