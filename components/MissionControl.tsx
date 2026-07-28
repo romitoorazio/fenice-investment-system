@@ -24,15 +24,19 @@ function actionStyle(action: RankedAsset["action"]) {
   return { label: "SCARTA", tone: "border-rose-400/30 bg-rose-400/10 text-rose-300" };
 }
 
-export default function MissionControl() {
-  const [data, setData] = useState<MissionControlData | null>(null);
+export default function MissionControl({ initialData }: { initialData: MissionControlData }) {
+  const [data, setData] = useState<MissionControlData>(initialData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+
     async function load() {
       try {
-        const response = await fetch("/api/mission", { cache: "no-store" });
+        const timeout = window.setTimeout(() => controller.abort(), 12_000);
+        const response = await fetch("/api/mission", { cache: "no-store", signal: controller.signal });
+        window.clearTimeout(timeout);
         if (!response.ok) throw new Error("Mission API non disponibile");
         const next = (await response.json()) as MissionControlData;
         if (active) {
@@ -40,27 +44,31 @@ export default function MissionControl() {
           setError(null);
         }
       } catch (reason) {
-        if (active) setError(reason instanceof Error ? reason.message : "Mission API non disponibile");
+        if (active) setError(reason instanceof Error ? reason.message : "Aggiornamento dati non disponibile");
       }
     }
+
     void load();
     const timer = window.setInterval(() => void load(), 5 * 60 * 1000);
     return () => {
       active = false;
+      controller.abort();
       window.clearInterval(timer);
     };
   }, []);
 
-  const topAssets = useMemo(() => data?.rankedAssets.slice(0, 6) ?? [], [data]);
-
-  if (error && !data) return <main className="min-h-screen bg-slate-950 p-6 text-white">Errore: {error}</main>;
-  if (!data) return <main className="min-h-screen bg-slate-950 p-6 text-white">Fenice sta elaborando i dati…</main>;
-
+  const topAssets = useMemo(() => data.rankedAssets.slice(0, 6), [data]);
   const cashAmount = data.capital;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-28 pt-6 text-white sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
+        {error ? (
+          <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
+            I dati visibili sono l’ultima versione disponibile. Aggiornamento in tempo reale temporaneamente non riuscito.
+          </div>
+        ) : null}
+
         <header className="flex items-center justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Fenice AI</p>
