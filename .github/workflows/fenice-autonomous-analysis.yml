@@ -1,0 +1,57 @@
+name: Fenice Autonomous Analysis
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-autonomous-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Fenice autonomous analysis
+        run: npm run analyze
+
+      - name: Validate generated snapshot
+        run: |
+          node -e 'const fs=require("fs"); const p="data/latest-snapshot.json"; const x=JSON.parse(fs.readFileSync(p,"utf8")); if(!x.generatedAt||!Array.isArray(x.markets)||!Array.isArray(x.discoveries)||!Array.isArray(x.providers)) process.exit(1); console.log(`Snapshot valido: ${x.markets.length} mercati, ${x.discoveries.length} eventi, ${x.providers.length} fonti`);'
+
+      - name: Commit refreshed intelligence
+        run: |
+          if git diff --quiet -- data/latest-snapshot.json; then
+            echo "Nessun cambiamento nei dati Fenice."
+            exit 0
+          fi
+          git config user.name "Fenice Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/latest-snapshot.json
+          git commit -m "data: refresh Fenice intelligence snapshot"
+          git pull --rebase origin main
+          git push origin HEAD:main
