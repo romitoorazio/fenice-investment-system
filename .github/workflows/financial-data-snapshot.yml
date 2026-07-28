@@ -6,12 +6,16 @@ on:
     - cron: "15 5 * * 1-5"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: financial-data-snapshot
+  cancel-in-progress: false
 
 jobs:
   build-snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -20,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -31,16 +37,32 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate Fenice snapshot
+      - name: Generate snapshot used by Fenice
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
-        run: python fenice_snapshot.py --config fenice_config.example.json --output output/fenice-snapshot.json
+        run: python fenice_snapshot.py --config fenice_config.example.json --output ../data/latest-snapshot.json
 
-      - name: Upload snapshot artifact
+      - name: Validate generated JSON
+        run: python -m json.tool ../data/latest-snapshot.json > /dev/null
+
+      - name: Publish updated snapshot
+        working-directory: .
+        run: |
+          git config user.name "fenice-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/latest-snapshot.json
+          if git diff --cached --quiet; then
+            echo "Nessuna variazione da pubblicare."
+          else
+            git commit -m "data: refresh global financial snapshot"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload audit artifact
         uses: actions/upload-artifact@v4
         with:
           name: fenice-financial-snapshot
-          path: python_financial_data/output/fenice-snapshot.json
+          path: data/latest-snapshot.json
           if-no-files-found: error
           retention-days: 14
