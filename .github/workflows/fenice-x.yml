@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-x
+  group: fenice-data-writers
   cancel-in-progress: false
 
 jobs:
@@ -53,6 +53,10 @@ jobs:
           git config user.name "fenice-autopilot[bot]"
           git config user.email "fenice-autopilot[bot]@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || git commit -m "data: refresh Fenice intelligence"
+          if git diff --cached --quiet; then
+            echo "No intelligence changes to commit"
+            exit 0
+          fi
+          git commit -m "data: refresh Fenice intelligence"
           git pull --rebase origin main
           git push origin HEAD:main
