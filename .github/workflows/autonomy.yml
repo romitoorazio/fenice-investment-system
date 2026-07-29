@@ -75,13 +75,32 @@ jobs:
 
       - name: Commit data history
         run: |
-          if git diff --quiet -- data; then
-            echo "No data changes to commit"
-            exit 0
-          fi
           git config user.name "fenice-foundation-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
-          git commit -m "Update Fenice Foundation data"
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+          generated_dir="$(mktemp -d)"
+          cp -a data "$generated_dir/data"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            rm -rf data
+            cp -a "$generated_dir/data" data
+            git add data
+
+            if git diff --cached --quiet; then
+              echo "No data changes to commit"
+              exit 0
+            fi
+
+            git commit -m "Update Fenice Foundation data"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish Foundation data after 3 attempts"
+          exit 1
