@@ -52,11 +52,30 @@ jobs:
         run: |
           git config user.name "fenice-autopilot[bot]"
           git config user.email "fenice-autopilot[bot]@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then
-            echo "No intelligence changes to commit"
-            exit 0
-          fi
-          git commit -m "data: refresh Fenice intelligence"
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+          generated_dir="$(mktemp -d)"
+          cp -a data "$generated_dir/data"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            rm -rf data
+            cp -a "$generated_dir/data" data
+            git add data
+
+            if git diff --cached --quiet; then
+              echo "No intelligence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh Fenice intelligence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish generated intelligence after 3 attempts"
+          exit 1
