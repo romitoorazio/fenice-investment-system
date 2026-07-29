@@ -59,7 +59,7 @@ export default function CapitalGoalPanel() {
             {money.format(plan.input.initialCapital)} → {money.format(plan.input.targetCapital)}
           </h2>
           <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-            Orizzonte {plan.input.horizonYears} anni. Per raggiungere l'obiettivo senza nuovi versamenti servirebbe un rendimento composto medio del {decimal.format(plan.requiredAnnualReturnPercent)}% annuo.
+            Orizzonte {plan.input.horizonYears} anni. Per raggiungere l’obiettivo senza nuovi versamenti servirebbe un rendimento composto medio del {decimal.format(plan.requiredAnnualReturnPercent)}% annuo.
           </p>
         </div>
         <div className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.07] px-5 py-4">
