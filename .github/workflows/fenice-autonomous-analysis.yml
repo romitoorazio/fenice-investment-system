@@ -44,13 +44,31 @@ jobs:
 
       - name: Commit refreshed intelligence
         run: |
-          if git diff --quiet -- data/latest-snapshot.json; then
-            echo "Nessun cambiamento nei dati Fenice."
-            exit 0
-          fi
           git config user.name "Fenice Automation"
           git config user.email "actions@users.noreply.github.com"
-          git add data/latest-snapshot.json
-          git commit -m "data: refresh Fenice intelligence snapshot"
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+          generated_file="$(mktemp)"
+          cp data/latest-snapshot.json "$generated_file"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_file" data/latest-snapshot.json
+            git add data/latest-snapshot.json
+
+            if git diff --cached --quiet; then
+              echo "Nessun cambiamento nei dati Fenice."
+              exit 0
+            fi
+
+            git commit -m "data: refresh Fenice intelligence snapshot"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish autonomous snapshot after 3 attempts"
+          exit 1
