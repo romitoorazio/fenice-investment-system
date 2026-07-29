@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-autonomous-analysis
+  group: fenice-data-writers
   cancel-in-progress: false
 
 jobs:
@@ -28,12 +28,12 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --package-lock=false
 
       - name: Run Fenice autonomous analysis
         run: npm run analyze
