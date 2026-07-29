@@ -81,7 +81,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Stato attuale</p>
           <h2 className="mt-3 text-3xl font-black text-amber-300 sm:text-5xl">NON INVESTIRE ANCORA</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-            Il portafoglio reale è ancora vuoto e non è stato scelto l'intermediario. Fenice continua a studiare i mercati, ma fino al completamento della configurazione mostra solo candidati e simulazioni.
+            Il portafoglio reale è ancora vuoto e non è stato scelto l’intermediario. Fenice continua a studiare i mercati, ma fino al completamento della configurazione mostra solo candidati e simulazioni.
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 p-4">
@@ -123,7 +123,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
         <section>
           <div className="mb-3">
             <h2 className="text-xl font-black">Candidati da monitorare</h2>
-            <p className="mt-1 text-xs text-slate-500">Nessun importo è operativo finché non scegliamo l'intermediario.</p>
+            <p className="mt-1 text-xs text-slate-500">Nessun importo è operativo finché non scegliamo l’intermediario.</p>
           </div>
           <div className="space-y-3">
             {topAssets.map((asset, index) => {
