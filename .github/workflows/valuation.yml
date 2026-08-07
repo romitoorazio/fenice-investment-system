@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-data-writers
+  group: fenice-dcf-valuation
   cancel-in-progress: false
 
 jobs:
@@ -82,6 +82,7 @@ jobs:
             fi
 
             echo "Push attempt $attempt failed because main advanced; retrying"
+            sleep $((attempt * 2))
           done
 
           echo "Unable to publish DCF analysis after 3 attempts"
