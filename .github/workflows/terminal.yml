@@ -27,7 +27,7 @@ permissions:
 
 concurrency:
   group: fenice-world-terminal
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   terminal:
@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -58,13 +59,33 @@ jobs:
 
       - name: Commit terminal intelligence
         run: |
-          if git diff --quiet -- data; then
-            echo "No terminal changes to commit"
-            exit 0
-          fi
           git config user.name "fenice-terminal-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
-          git commit -m "Update Fenice World Terminal data"
-          git pull --rebase origin main
-          git push origin main
+
+          generated_dir="$(mktemp -d)"
+          cp -a data "$generated_dir/data"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            rm -rf data
+            cp -a "$generated_dir/data" data
+            git add data
+
+            if git diff --cached --quiet; then
+              echo "No terminal changes to commit"
+              exit 0
+            fi
+
+            git commit -m "Update Fenice World Terminal data"
+            if git push origin HEAD:main; then
+              echo "Terminal intelligence published"
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish Terminal data after 3 attempts"
+          exit 1
