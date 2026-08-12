@@ -2,7 +2,7 @@
   "version": 44,
   "generatedAt": "2026-08-11T23:58:17.690Z",
   "mode": "partial",
-  "headline": "31 strumenti osservati, 13 segnali emergenti e 0 indicatori macroeconomici.",
+  "headline": "31 strumenti, 13 segnali, 3 indicatori e 7 fonti controllate.",
   "pulse": {
     "verdict": "ATTENDERE",
     "opportunity": 45,
@@ -28,6 +28,17 @@
       ],
       "detail": "2 gruppi di dati acquisiti.",
       "lastSuccessAt": "2026-08-11T23:58:17.690Z"
+    },
+    {
+      "id": "ecb",
+      "name": "Banca Centrale Europea",
+      "state": "operativo",
+      "coverage": [
+        "tassi area euro",
+        "politica monetaria BCE"
+      ],
+      "detail": "Tasso ufficiale acquisito dal portale dati BCE.",
+      "lastSuccessAt": "2026-08-11T23:58:39.533Z"
     },
     {
       "id": "coingecko",
@@ -79,6 +90,17 @@
         "10-12B"
       ],
       "detail": "HTTP 403"
+    },
+    {
+      "id": "worldbank",
+      "name": "World Bank",
+      "state": "operativo",
+      "coverage": [
+        "PIL mondiale",
+        "inflazione mondiale"
+      ],
+      "detail": "2/2 indicatori acquisiti.",
+      "lastSuccessAt": "2026-08-11T23:58:38.930Z"
     }
   ],
   "markets": [
@@ -486,7 +508,32 @@
       "observedAt": "2026-08-11T23:54:20.000Z"
     }
   ],
-  "macro": [],
+  "macro": [
+    {
+      "id": "WORLD_GDP_GROWTH",
+      "label": "Crescita PIL mondiale",
+      "value": 2.92127318539153,
+      "date": "2025",
+      "unit": "%",
+      "source": "World Bank"
+    },
+    {
+      "id": "WORLD_INFLATION",
+      "label": "Inflazione mondiale",
+      "value": 3.0414132155654,
+      "date": "2025",
+      "unit": "%",
+      "source": "World Bank"
+    },
+    {
+      "id": "ECB_DEPOSIT_RATE",
+      "label": "Tasso di riferimento BCE",
+      "value": 2.4,
+      "date": "2026-08-11",
+      "unit": "%",
+      "source": "BCE Data Portal"
+    }
+  ],
   "discoveries": [
     {
       "id": "cg-trending-dogbull",
@@ -632,5 +679,17 @@
     "autonomousAnalysis": true,
     "autonomousTrading": false,
     "humanConfirmationRequired": true
+  },
+  "foundation": {
+    "version": 1,
+    "job": "intraday",
+    "startedAt": "2026-08-11T23:58:17.663Z",
+    "completedAt": "2026-08-11T23:58:39.540Z",
+    "sourceHealth": {
+      "healthy": 2,
+      "total": 2
+    },
+    "immutableHistory": true,
+    "tradingDisabled": true
   }
 }
