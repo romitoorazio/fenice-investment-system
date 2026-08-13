@@ -6,7 +6,7 @@
   "source": {
     "name": "Fenice Technical, Valuation and Strategy Engine",
     "state": "operativo",
-    "detail": "19/19 strumenti tecnici validati; 12 collegati ai fondamentali. Freschi/aggiornati 19/19; alert nuovi 3.",
+    "detail": "19/19 strumenti tecnici validati; 12 collegati ai fondamentali.",
     "lastSuccessAt": "2026-08-13T03:04:29.904Z"
   },
   "universeSize": 19,
@@ -23,10 +23,7 @@
     "Costi simulati pari allo 0.1% per ogni cambio di posizione.",
     "Valutazione relativa solo quando prezzo ed EPS sono positivi e nella stessa valuta.",
     "Società pre-commerciali valutate separatamente e sempre classificate come speculative.",
-    "L’allocazione è una proposta di studio: Fenice non invia ordini al broker.",
-    "La freschezza applica una penalità automatica a punteggio e confidenza; i fine settimana sono gestiti con soglie specifiche per dati giornalieri.",
-    "Gli strumenti in ATTENDI o EVITA non ricevono capitale nel portafoglio modello.",
-    "I cambi di decisione, segnale, punteggio e prezzo vengono registrati nell’Alert Center."
+    "L’allocazione è una proposta di studio: Fenice non invia ordini al broker."
   ],
   "portfolio": [
     {
@@ -34,28 +31,28 @@
       "label": "Nucleo diversificato",
       "targetPercent": 50,
       "targetAmountEuro": 5000,
-      "rationale": "ETF, obbligazioni e strumenti ampi realmente eleggibili."
+      "rationale": "ETF, obbligazioni e strumenti ampi con limiti di concentrazione."
     },
     {
       "id": "growth",
       "label": "Crescita selezionata",
-      "targetPercent": 15,
-      "targetAmountEuro": 1500,
-      "rationale": "Azioni con decisione ACCUMULA o MANTIENI e limiti di concentrazione."
+      "targetPercent": 35,
+      "targetAmountEuro": 3500,
+      "rationale": "Azioni mature o in crescita con conferma fondamentale e tecnica."
     },
     {
       "id": "speculative",
       "label": "Opportunità speculative",
       "targetPercent": 5,
       "targetAmountEuro": 500,
-      "rationale": "Biotech pre-commerciali e crypto: massimo 2,5% per strumento e 5% complessivo."
+      "rationale": "Biotech pre-commerciali e crypto con tetto massimo rigoroso."
     },
     {
       "id": "reserve",
       "label": "Riserva strategica",
-      "targetPercent": 30,
-      "targetAmountEuro": 3000,
-      "rationale": "Liquidità liberata dagli strumenti in ATTENDI/EVITA e dai limiti di rischio."
+      "targetPercent": 10,
+      "targetAmountEuro": 1000,
+      "rationale": "Liquidità non assegnata o liberata dai limiti di rischio e concentrazione."
     }
   ],
   "assets": [
@@ -73,9 +70,9 @@
       "unifiedScore": 86,
       "confidence": 98,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 7,
-      "targetAmountEuro": 700,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "non confrontabile",
         "method": "Multiplo utili normalizzato",
@@ -182,11 +179,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
@@ -206,9 +199,9 @@
       "unifiedScore": 79,
       "confidence": 88,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 7,
-      "targetAmountEuro": 700,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "non confrontabile",
         "method": "Multiplo utili normalizzato",
@@ -315,11 +308,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
@@ -337,9 +326,9 @@
       "unifiedScore": 77,
       "confidence": 98,
       "decision": "ACCUMULA",
-      "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 17.2,
-      "targetAmountEuro": 1720,
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 10,
+      "targetAmountEuro": 1000,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -442,11 +431,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -462,9 +447,9 @@
       "unifiedScore": 77,
       "confidence": 98,
       "decision": "ACCUMULA",
-      "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 17.2,
-      "targetAmountEuro": 1720,
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 10,
+      "targetAmountEuro": 1000,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -567,11 +552,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -590,9 +571,9 @@
       "unifiedScore": 75,
       "confidence": 98,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 1,
-      "targetAmountEuro": 100,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -707,11 +688,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -732,9 +709,9 @@
       "unifiedScore": 75,
       "confidence": 98,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -849,11 +826,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -871,9 +844,9 @@
       "unifiedScore": 74,
       "confidence": 98,
       "decision": "ACCUMULA",
-      "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 15.6,
-      "targetAmountEuro": 1560,
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 10,
+      "targetAmountEuro": 1000,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -976,11 +949,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -999,9 +968,9 @@
       "unifiedScore": 69,
       "confidence": 98,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -1116,11 +1085,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -1140,10 +1105,10 @@
       "dataCompleteness": 100,
       "unifiedScore": 66,
       "confidence": 98,
-      "decision": "ATTENDI",
-      "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 5.8,
+      "targetAmountEuro": 580,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -1258,11 +1223,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -1282,8 +1243,8 @@
       "dataCompleteness": 100,
       "unifiedScore": 65,
       "confidence": 98,
-      "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -1400,11 +1361,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -1425,7 +1382,7 @@
       "unifiedScore": 57,
       "confidence": 98,
       "decision": "ATTENDI",
-      "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -1542,11 +1499,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
@@ -1564,9 +1517,9 @@
       "unifiedScore": 53,
       "confidence": 98,
       "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 10,
+      "targetAmountEuro": 1000,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1669,11 +1622,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -1689,9 +1638,9 @@
       "unifiedScore": 48,
       "confidence": 98,
       "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 10,
+      "targetAmountEuro": 1000,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1794,11 +1743,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -1816,7 +1761,7 @@
       "unifiedScore": 48,
       "confidence": 93,
       "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -1923,11 +1868,7 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Valutazione non calcolabile con sufficiente affidabilità."
@@ -1947,9 +1888,9 @@
       "unifiedScore": 43,
       "confidence": 93,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.7,
-      "targetAmountEuro": 170,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 2.5,
+      "targetAmountEuro": 250,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2055,11 +1996,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
@@ -2080,9 +2017,9 @@
       "unifiedScore": 33,
       "confidence": 98,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.7,
-      "targetAmountEuro": 170,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 2.5,
+      "targetAmountEuro": 250,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2188,11 +2125,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
@@ -2211,7 +2144,7 @@
       "unifiedScore": 32,
       "confidence": 98,
       "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "reason": "Rapporto rischio/rendimento insufficiente secondo i dati disponibili.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -2316,11 +2249,7 @@
             "transactionCostPercent": 0.1,
             "observations": 729
           }
-        ],
-        "freshness": {
-          "ageHours": 3.1,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -2336,7 +2265,7 @@
       "unifiedScore": 29,
       "confidence": 98,
       "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "reason": "Rapporto rischio/rendimento insufficiente secondo i dati disponibili.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -2441,11 +2370,7 @@
             "transactionCostPercent": 0.1,
             "observations": 729
           }
-        ],
-        "freshness": {
-          "ageHours": 3.1,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
     },
@@ -2463,9 +2388,9 @@
       "unifiedScore": 21,
       "confidence": 93,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.6,
-      "targetAmountEuro": 160,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 0,
+      "targetAmountEuro": 0,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2571,11 +2496,7 @@
             "transactionCostPercent": 0.1,
             "observations": 500
           }
-        ],
-        "freshness": {
-          "ageHours": 13.6,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
@@ -2586,24 +2507,6 @@
   "warnings": [
     "I prezzi gratuiti possono essere ritardati e non sostituiscono un feed ufficiale di borsa.",
     "I risultati dei backtest sono storici, includono ipotesi semplificate e non garantiscono rendimenti futuri.",
-    "Fair value e punteggi sono scenari quantitativi da sottoporre a verifica umana.",
-    "Area speculativa al 5.1%, sopra il limite 5%."
-  ],
-  "allocationCheck": {
-    "investedPercent": 70,
-    "reservePercent": 30,
-    "totalPercent": 100,
-    "valid": true
-  },
-  "guardrails": {
-    "maxCoreWeightPercent": 17.2,
-    "maxGrowthWeightPercent": 7,
-    "maxSpeculativeWeightPercent": 1.7,
-    "cryptoTotalPercent": 0,
-    "speculativeTotalPercent": 5,
-    "violations": []
-  },
-  "freshAssetCount": 19,
-  "freshnessStatus": "aggiornato",
-  "alertsCount": 3
+    "Fair value e punteggi sono scenari quantitativi da sottoporre a verifica umana."
+  ]
 }
