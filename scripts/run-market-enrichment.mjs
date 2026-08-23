@@ -4,34 +4,19 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const snapshotPath = path.join(root, 'data', 'latest-snapshot.json');
+const universePath = path.join(root, 'data', 'global-universe.json');
 const now = new Date();
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Number(value) || 0));
 const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-const universe = [
-  ['SPY', 'S&P 500 ETF', 'ETF'],
-  ['QQQ', 'Nasdaq 100 ETF', 'ETF'],
-  ['IWM', 'Russell 2000 ETF', 'ETF'],
-  ['GLD', 'Oro ETF', 'Materie prime'],
-  ['TLT', 'Treasury 20+ Year ETF', 'Obbligazioni'],
-  ['AAPL', 'Apple', 'Azioni'],
-  ['MSFT', 'Microsoft', 'Azioni'],
-  ['NVDA', 'NVIDIA', 'Azioni'],
-  ['GOOGL', 'Alphabet', 'Azioni'],
-  ['AMZN', 'Amazon', 'Azioni'],
-  ['META', 'Meta Platforms', 'Azioni'],
-  ['TSM', 'Taiwan Semiconductor', 'Semiconduttori'],
-  ['ASML', 'ASML Holding', 'Semiconduttori'],
-  ['CRSP', 'CRISPR Therapeutics', 'Biotech'],
-  ['RXRX', 'Recursion Pharmaceuticals', 'AI Biotech'],
-  ['NTLA', 'Intellia Therapeutics', 'Biotech'],
-];
+const universeFile = JSON.parse(await readFile(universePath, 'utf8'));
+const universe = Array.isArray(universeFile.instruments) ? universeFile.instruments : [];
 
 const stableSymbols = new Set(['USDT', 'USDC', 'DAI', 'USDE', 'USDS', 'USD1', 'USDG', 'USYC', 'PYUSD', 'FDUSD', 'TUSD', 'USDP', 'RLUSD', 'EURC', 'EURT']);
 const majorCrypto = new Set(['BTC', 'ETH']);
 const establishedCrypto = new Set(['SOL', 'BNB', 'LINK', 'XRP', 'ADA', 'AVAX', 'DOT']);
 const speculativeCrypto = new Set(['DOGE', 'SHIB', 'PEPE', 'WIF', 'BONK']);
-const megaCaps = new Set(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSM', 'ASML']);
+const megaCaps = new Set(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSM', 'ASML', 'AVGO']);
 
 async function fetchJson(url, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -41,7 +26,7 @@ async function fetchJson(url, timeoutMs = 15000) {
       signal: controller.signal,
       headers: {
         accept: 'application/json,text/plain,*/*',
-        'user-agent': 'Mozilla/5.0 FeniceInvestmentSystem/2.1',
+        'user-agent': 'Mozilla/5.0 FeniceInvestmentSystem/3.0',
       },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -51,32 +36,41 @@ async function fetchJson(url, timeoutMs = 15000) {
   }
 }
 
-function scoreTraditional(symbol, assetClass, changePercent = 0) {
+function scoreTraditional(instrument, changePercent = 0) {
+  const { symbol, assetClass, sector = '', themes = [] } = instrument;
+  const thematicGrowth = themes.some(theme => ['ai', 'cybersecurity', 'robotics', 'nuclear', 'gene-editing', 'agritech', 'grid', 'space'].includes(theme));
+  const defensive = ['consumer-staples', 'government-bonds', 'gold'].includes(sector);
   const base = assetClass === 'ETF'
-    ? 63
+    ? 62
     : assetClass === 'Semiconduttori'
-      ? 61
+      ? 62
       : assetClass === 'Azioni'
-        ? (megaCaps.has(symbol) ? 60 : 56)
+        ? (megaCaps.has(symbol) ? 61 : thematicGrowth ? 58 : 55)
         : assetClass === 'AI Biotech'
-          ? 55
+          ? 56
           : assetClass === 'Biotech'
-            ? 51
+            ? 53
             : assetClass === 'Obbligazioni'
               ? 57
-              : 56;
+              : assetClass === 'Materie prime'
+                ? 56
+                : 54;
+
   const riskBase = assetClass === 'Biotech' || assetClass === 'AI Biotech'
-    ? 69
+    ? 68
     : assetClass === 'Semiconduttori'
       ? 58
       : assetClass === 'Azioni'
-        ? 54
+        ? thematicGrowth ? 58 : defensive ? 45 : 53
         : assetClass === 'ETF'
-          ? 44
-          : 48;
+          ? 43
+          : assetClass === 'Obbligazioni'
+            ? 40
+            : 50;
+
   return {
-    score: Math.round(clamp(base + clamp(changePercent, -6, 6) * 1.4, 30, 78)),
-    risk: Math.round(clamp(riskBase + Math.abs(changePercent) * 2.2, 30, 90)),
+    score: Math.round(clamp(base + clamp(changePercent, -6, 6) * 1.25, 28, 82)),
+    risk: Math.round(clamp(riskBase + Math.abs(changePercent) * 2.1, 28, 92)),
   };
 }
 
@@ -97,7 +91,8 @@ function scoreCrypto(item) {
   };
 }
 
-async function fetchYahooReading(symbol, name, assetClass) {
+async function fetchYahooReading(instrument) {
+  const { symbol, name, assetClass, region, sector, themes } = instrument;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=15m&range=5d&events=div%2Csplits`;
   const data = await fetchJson(url);
   const result = data?.chart?.result?.[0];
@@ -109,7 +104,7 @@ async function fetchYahooReading(symbol, name, assetClass) {
   const previousClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? finiteCloses.at(-2));
   if (!Number.isFinite(price)) throw new Error('Prezzo non valido');
   const changePercent = Number.isFinite(previousClose) && previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0;
-  const scored = scoreTraditional(symbol, assetClass, changePercent);
+  const scored = scoreTraditional(instrument, changePercent);
   const observedAt = meta.regularMarketTime
     ? new Date(Number(meta.regularMarketTime) * 1000).toISOString()
     : result.timestamp?.length
@@ -119,7 +114,10 @@ async function fetchYahooReading(symbol, name, assetClass) {
     symbol,
     name,
     assetClass,
-    market: meta.exchangeName || 'Mercato USA',
+    region,
+    sector,
+    themes,
+    market: meta.exchangeName || region || 'Mercato globale',
     price,
     currency: meta.currency || 'USD',
     changePercent: Math.round(changePercent * 100) / 100,
@@ -132,15 +130,16 @@ async function fetchYahooReading(symbol, name, assetClass) {
 async function collectTraditional() {
   const readings = [];
   const failures = [];
-  for (let index = 0; index < universe.length; index += 4) {
-    const batch = universe.slice(index, index + 4);
-    const results = await Promise.allSettled(batch.map(([symbol, name, assetClass]) => fetchYahooReading(symbol, name, assetClass)));
+  const batchSize = 6;
+  for (let index = 0; index < universe.length; index += batchSize) {
+    const batch = universe.slice(index, index + batchSize);
+    const results = await Promise.allSettled(batch.map(instrument => fetchYahooReading(instrument)));
     results.forEach((result, offset) => {
-      const symbol = batch[offset][0];
+      const symbol = batch[offset]?.symbol || 'unknown';
       if (result.status === 'fulfilled') readings.push(result.value);
       else failures.push(`${symbol}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
     });
-    if (index + 4 < universe.length) await sleep(450);
+    if (index + batchSize < universe.length) await sleep(500);
   }
   return { readings, failures };
 }
@@ -160,8 +159,10 @@ function normalizeMarkets(markets) {
     let item = { ...raw, symbol };
     if (item.assetClass === 'Criptovaluta') item = scoreCrypto(item);
     else {
-      const scored = scoreTraditional(symbol, item.assetClass, Number(item.changePercent || 0));
-      item = { ...item, ...scored };
+      const catalog = universe.find(entry => entry.symbol === symbol);
+      const enriched = catalog ? { ...catalog, ...item, symbol } : item;
+      const scored = scoreTraditional(enriched, Number(enriched.changePercent || 0));
+      item = { ...enriched, ...scored };
     }
     const existing = bySymbol.get(symbol);
     if (!existing || sourcePriority(item.source) > sourcePriority(existing.source) || (sourcePriority(item.source) === sourcePriority(existing.source) && item.score > existing.score)) {
@@ -204,10 +205,11 @@ function recalculateQuality(snapshot) {
     const date = new Date(item.observedAt || 0).getTime();
     return Number.isFinite(date) && Date.now() - date <= 36 * 60 * 60 * 1000;
   }).length;
-  const marketCoverage = clamp((traditional / 16) * 70 + (Math.min(nonStableCrypto, 12) / 12) * 30, 0, 100) / 100;
+  const targetTraditional = Math.max(20, universe.length);
+  const marketCoverage = clamp((traditional / targetTraditional) * 85 + (Math.min(nonStableCrypto, 12) / 12) * 15, 0, 100) / 100;
   const macroCoverage = clamp(macro / 7, 0, 1);
   const freshness = snapshot.markets.length ? clamp(fresh / snapshot.markets.length, 0, 1) : 0;
-  const quality = Math.round(clamp((providerScore * 0.42 + marketCoverage * 0.28 + macroCoverage * 0.15 + freshness * 0.15) * 100));
+  const quality = Math.round(clamp((providerScore * 0.38 + marketCoverage * 0.32 + macroCoverage * 0.15 + freshness * 0.15) * 100));
   snapshot.dataQuality = quality;
   snapshot.pulse = snapshot.pulse || {};
   snapshot.pulse.confidence = quality;
@@ -228,28 +230,35 @@ snapshot.warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings : [];
 
 const { readings, failures } = await collectTraditional();
 snapshot.markets.push(...readings);
+const regions = [...new Set(readings.map(item => item.region).filter(Boolean))];
+const sectors = [...new Set(readings.map(item => item.sector).filter(Boolean))];
 updateProvider(snapshot, {
   id: 'market-enrichment',
-  name: 'Market Enrichment',
-  state: readings.length >= 12 ? 'operativo' : readings.length ? 'parziale' : 'errore',
-  coverage: ['ETF', 'azioni globali', 'semiconduttori', 'biotech', 'oro', 'obbligazioni'],
-  detail: `${readings.length}/${universe.length} strumenti tradizionali acquisiti nel secondo canale prezzi.`,
+  name: 'Global Market Radar',
+  state: readings.length >= Math.max(20, Math.floor(universe.length * 0.7)) ? 'operativo' : readings.length ? 'parziale' : 'errore',
+  coverage: ['azioni globali', 'ETF regionali e tematici', 'semiconduttori', 'biotech', 'agritech', 'energia', 'difesa', 'robotica', 'nucleare', 'cybersecurity', 'materie prime', 'obbligazioni'],
+  detail: `${readings.length}/${universe.length} strumenti acquisiti; ${regions.length} regioni e ${sectors.length} settori coperti.`,
   ...(readings.length ? { lastSuccessAt: now.toISOString() } : {}),
 });
 
 snapshot.markets = normalizeMarkets(snapshot.markets);
 simplifyWarnings(snapshot);
-if (failures.length && readings.length < 12) snapshot.warnings.push(`Secondo canale prezzi parziale: ${failures.slice(0, 3).join('; ')}.`);
+if (failures.length && readings.length < Math.max(20, Math.floor(universe.length * 0.7))) {
+  snapshot.warnings.push(`Radar globale parziale: ${failures.slice(0, 5).join('; ')}.`);
+}
 recalculateQuality(snapshot);
 snapshot.reliability = {
   ...(snapshot.reliability || {}),
   marketEnrichmentAt: now.toISOString(),
   marketEnrichmentReadings: readings.length,
+  globalUniverseSize: universe.length,
+  regionsCovered: regions.length,
+  sectorsCovered: sectors.length,
   traditionalMarkets: snapshot.markets.filter(item => item.assetClass !== 'Criptovaluta').length,
   cryptoMarkets: snapshot.markets.filter(item => item.assetClass === 'Criptovaluta' && item.classification !== 'stablecoin').length,
   stablecoinsExcludedFromRanking: snapshot.markets.filter(item => item.classification === 'stablecoin').length,
   cadence: 'hourly',
 };
-snapshot.headline = `${snapshot.markets.length} strumenti, ${(snapshot.discoveries || []).length} segnali emergenti, ${(snapshot.macro || []).length} indicatori macro e ${snapshot.providers.filter(item => item.state === 'operativo').length} fonti operative.`;
+snapshot.headline = `${snapshot.markets.length} strumenti, ${regions.length} regioni, ${sectors.length} settori, ${(snapshot.discoveries || []).length} segnali emergenti e ${snapshot.providers.filter(item => item.state === 'operativo').length} fonti operative.`;
 await writeFile(snapshotPath, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
-console.log('Fenice market enrichment completed', { readings: readings.length, quality: snapshot.dataQuality, freshness: snapshot.freshness.status });
+console.log('Fenice global market radar completed', { universe: universe.length, readings: readings.length, regions: regions.length, sectors: sectors.length, quality: snapshot.dataQuality, freshness: snapshot.freshness.status });
