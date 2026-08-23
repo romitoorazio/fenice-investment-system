@@ -1,19 +1,19 @@
 {
-  "version": 422,
-  "generatedAt": "2026-08-23T02:06:14.810Z",
+  "version": 423,
+  "generatedAt": "2026-08-23T03:26:42.906Z",
   "mode": "live",
   "capitalEuro": 10000,
   "source": {
     "name": "Fenice Technical, Valuation and Strategy Engine",
     "state": "operativo",
     "detail": "19/19 strumenti tecnici validati; 12 collegati ai fondamentali. Freschi/aggiornati 19/19; alert nuovi 1.",
-    "lastSuccessAt": "2026-08-23T02:06:14.810Z"
+    "lastSuccessAt": "2026-08-23T03:26:42.906Z"
   },
   "universeSize": 19,
   "assetCount": 19,
   "coveragePercent": 100,
   "averageUnifiedScore": 60,
-  "dataQuality": 94,
+  "dataQuality": 95,
   "marketRegime": "PROTEGGERE CAPITALE",
   "methodology": [
     "Storico giornaliero fino a due anni, indicatori calcolati solo con dati disponibili fino alla data osservata.",
@@ -32,8 +32,8 @@
     {
       "id": "core",
       "label": "Nucleo diversificato",
-      "targetPercent": 55,
-      "targetAmountEuro": 5500,
+      "targetPercent": 55.1,
+      "targetAmountEuro": 5510,
       "rationale": "ETF, obbligazioni e strumenti ampi con limiti di concentrazione."
     },
     {
@@ -53,8 +53,8 @@
     {
       "id": "reserve",
       "label": "Riserva strategica",
-      "targetPercent": 14.9,
-      "targetAmountEuro": 1490,
+      "targetPercent": 14.8,
+      "targetAmountEuro": 1480,
       "rationale": "Liquidità non assegnata perché strumenti in ATTENDI/EVITA o limiti di concentrazione impediscono l’investimento completo."
     }
   ],
@@ -71,7 +71,7 @@
       "riskScore": 63,
       "dataCompleteness": 100,
       "unifiedScore": 82,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "MANTIENI",
       "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
       "targetWeightPercent": 6,
@@ -184,13 +184,138 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
       "warnings": [
         "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
       ]
+    },
+    {
+      "symbol": "SPY",
+      "name": "S&P 500 ETF",
+      "assetClass": "ETF",
+      "price": 765.72,
+      "currency": "USD",
+      "technicalScore": 78,
+      "riskScore": 31,
+      "dataCompleteness": 100,
+      "unifiedScore": 76,
+      "confidence": 94,
+      "decision": "ACCUMULA",
+      "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
+      "targetWeightPercent": 15.8,
+      "targetAmountEuro": 1580,
+      "valuation": {
+        "status": "non applicabile",
+        "method": "Nessuna analisi fondamentale collegata",
+        "score": 50,
+        "confidence": 100,
+        "rationale": [
+          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
+        ],
+        "warnings": []
+      },
+      "technical": {
+        "symbol": "SPY",
+        "yahooSymbol": "SPY",
+        "name": "S&P 500 ETF",
+        "assetClass": "ETF",
+        "market": "USA",
+        "currency": "USD",
+        "observedAt": "2026-08-21T13:30:00.000Z",
+        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
+        "status": "operativo",
+        "price": 765.72,
+        "returns": {
+          "oneMonthPercent": 3.7,
+          "threeMonthPercent": 3.4,
+          "sixMonthPercent": 11.7,
+          "oneYearPercent": 21.3
+        },
+        "indicators": {
+          "sma20": 762.33,
+          "sma50": 751.56,
+          "sma200": 704.98,
+          "rsi14": 57.6,
+          "volatility20Percent": 13.1,
+          "atr14Percent": 0.8,
+          "distance52WeekHighPercent": -1.6,
+          "maxDrawdown1YPercent": -8.9
+        },
+        "scores": {
+          "trend": 97,
+          "momentum": 58,
+          "risk": 31,
+          "technical": 78,
+          "dataCompleteness": 100
+        },
+        "signal": "FORTE",
+        "reasons": [
+          "Prezzo sopra la media mobile a 200 giorni.",
+          "Trend intermedio superiore al trend di lungo periodo.",
+          "RSI equilibrato (57.6).",
+          "Momentum: 3.7% a un mese e 11.7% a sei mesi.",
+          "Drawdown massimo nell’ultimo anno: -8.9%."
+        ],
+        "warnings": [],
+        "strategies": [
+          {
+            "id": "buy-hold",
+            "label": "Compra e mantieni",
+            "totalReturnPercent": 40.8,
+            "annualizedReturnPercent": 18.8,
+            "benchmarkAnnualizedReturnPercent": 18.9,
+            "excessAnnualizedReturnPercent": -0.1,
+            "maxDrawdownPercent": -18.8,
+            "volatilityPercent": 16.7,
+            "sharpe": 1.12,
+            "trades": 1,
+            "winRatePercent": 100,
+            "exposurePercent": 100,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          },
+          {
+            "id": "trend-50-200",
+            "label": "Trend 50/200",
+            "totalReturnPercent": 20.4,
+            "annualizedReturnPercent": 9.8,
+            "benchmarkAnnualizedReturnPercent": 18.9,
+            "excessAnnualizedReturnPercent": -9.1,
+            "maxDrawdownPercent": -6.6,
+            "volatilityPercent": 8.8,
+            "sharpe": 1.12,
+            "trades": 2,
+            "winRatePercent": 100,
+            "exposurePercent": 55.4,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          },
+          {
+            "id": "tactical-20-50",
+            "label": "Tattica 20/50 + RSI",
+            "totalReturnPercent": -6.8,
+            "annualizedReturnPercent": -3.5,
+            "benchmarkAnnualizedReturnPercent": 18.9,
+            "excessAnnualizedReturnPercent": -22.4,
+            "maxDrawdownPercent": -14.9,
+            "volatilityPercent": 7.2,
+            "sharpe": 0.14,
+            "trades": 43,
+            "winRatePercent": 51.2,
+            "exposurePercent": 42.8,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          }
+        ],
+        "freshness": {
+          "ageHours": 37.9,
+          "status": "quasi in tempo reale"
+        }
+      },
+      "warnings": []
     },
     {
       "symbol": "NVDA",
@@ -205,7 +330,7 @@
       "riskScore": 57,
       "dataCompleteness": 100,
       "unifiedScore": 76,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "MANTIENI",
       "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
       "targetWeightPercent": 5,
@@ -326,7 +451,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -346,7 +471,7 @@
       "riskScore": 57,
       "dataCompleteness": 87,
       "unifiedScore": 76,
-      "confidence": 83,
+      "confidence": 85,
       "decision": "ACCUMULA",
       "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
       "targetWeightPercent": 5,
@@ -459,7 +584,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -468,20 +593,20 @@
       ]
     },
     {
-      "symbol": "SPY",
-      "name": "S&P 500 ETF",
+      "symbol": "IWM",
+      "name": "Russell 2000 ETF",
       "assetClass": "ETF",
-      "price": 765.72,
+      "price": 299.96,
       "currency": "USD",
       "technicalScore": 78,
-      "riskScore": 31,
+      "riskScore": 33,
       "dataCompleteness": 100,
       "unifiedScore": 75,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "ACCUMULA",
       "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 19,
-      "targetAmountEuro": 1900,
+      "targetWeightPercent": 15.3,
+      "targetAmountEuro": 1530,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -493,36 +618,36 @@
         "warnings": []
       },
       "technical": {
-        "symbol": "SPY",
-        "yahooSymbol": "SPY",
-        "name": "S&P 500 ETF",
+        "symbol": "IWM",
+        "yahooSymbol": "IWM",
+        "name": "Russell 2000 ETF",
         "assetClass": "ETF",
         "market": "USA",
         "currency": "USD",
         "observedAt": "2026-08-21T13:30:00.000Z",
         "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
         "status": "operativo",
-        "price": 765.72,
+        "price": 299.96,
         "returns": {
-          "oneMonthPercent": 3.7,
-          "threeMonthPercent": 3.4,
-          "sixMonthPercent": 11.7,
-          "oneYearPercent": 21.3
+          "oneMonthPercent": 2.7,
+          "threeMonthPercent": 6.4,
+          "sixMonthPercent": 13.8,
+          "oneYearPercent": 34.5
         },
         "indicators": {
-          "sma20": 762.33,
-          "sma50": 751.56,
-          "sma200": 704.98,
-          "rsi14": 57.6,
-          "volatility20Percent": 13.1,
-          "atr14Percent": 0.8,
-          "distance52WeekHighPercent": -1.6,
-          "maxDrawdown1YPercent": -8.9
+          "sma20": 298.6,
+          "sma50": 296.65,
+          "sma200": 269.12,
+          "rsi14": 55.9,
+          "volatility20Percent": 15.6,
+          "atr14Percent": 1.1,
+          "distance52WeekHighPercent": -1.7,
+          "maxDrawdown1YPercent": -11
         },
         "scores": {
           "trend": 97,
-          "momentum": 58,
-          "risk": 31,
+          "momentum": 60,
+          "risk": 33,
           "technical": 78,
           "dataCompleteness": 100
         },
@@ -530,22 +655,22 @@
         "reasons": [
           "Prezzo sopra la media mobile a 200 giorni.",
           "Trend intermedio superiore al trend di lungo periodo.",
-          "RSI equilibrato (57.6).",
-          "Momentum: 3.7% a un mese e 11.7% a sei mesi.",
-          "Drawdown massimo nell’ultimo anno: -8.9%."
+          "RSI equilibrato (55.9).",
+          "Momentum: 2.7% a un mese e 13.8% a sei mesi.",
+          "Drawdown massimo nell’ultimo anno: -11%."
         ],
         "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
             "label": "Compra e mantieni",
-            "totalReturnPercent": 40.8,
-            "annualizedReturnPercent": 18.8,
-            "benchmarkAnnualizedReturnPercent": 18.9,
+            "totalReturnPercent": 43.4,
+            "annualizedReturnPercent": 19.9,
+            "benchmarkAnnualizedReturnPercent": 20,
             "excessAnnualizedReturnPercent": -0.1,
-            "maxDrawdownPercent": -18.8,
-            "volatilityPercent": 16.7,
-            "sharpe": 1.12,
+            "maxDrawdownPercent": -27.5,
+            "volatilityPercent": 21.3,
+            "sharpe": 0.96,
             "trades": 1,
             "winRatePercent": 100,
             "exposurePercent": 100,
@@ -555,38 +680,38 @@
           {
             "id": "trend-50-200",
             "label": "Trend 50/200",
-            "totalReturnPercent": 20.4,
-            "annualizedReturnPercent": 9.8,
-            "benchmarkAnnualizedReturnPercent": 18.9,
-            "excessAnnualizedReturnPercent": -9.1,
-            "maxDrawdownPercent": -6.6,
-            "volatilityPercent": 8.8,
-            "sharpe": 1.12,
+            "totalReturnPercent": 32.9,
+            "annualizedReturnPercent": 15.4,
+            "benchmarkAnnualizedReturnPercent": 20,
+            "excessAnnualizedReturnPercent": -4.6,
+            "maxDrawdownPercent": -11.1,
+            "volatilityPercent": 13.6,
+            "sharpe": 1.13,
             "trades": 2,
             "winRatePercent": 100,
-            "exposurePercent": 55.4,
+            "exposurePercent": 52.6,
             "transactionCostPercent": 0.1,
             "observations": 500
           },
           {
             "id": "tactical-20-50",
             "label": "Tattica 20/50 + RSI",
-            "totalReturnPercent": -6.8,
-            "annualizedReturnPercent": -3.5,
-            "benchmarkAnnualizedReturnPercent": 18.9,
-            "excessAnnualizedReturnPercent": -22.4,
-            "maxDrawdownPercent": -14.9,
-            "volatilityPercent": 7.2,
-            "sharpe": 0.14,
-            "trades": 43,
-            "winRatePercent": 51.2,
-            "exposurePercent": 42.8,
+            "totalReturnPercent": 12,
+            "annualizedReturnPercent": 5.9,
+            "benchmarkAnnualizedReturnPercent": 20,
+            "excessAnnualizedReturnPercent": -14.1,
+            "maxDrawdownPercent": -9.2,
+            "volatilityPercent": 10.4,
+            "sharpe": 0.93,
+            "trades": 34,
+            "winRatePercent": 44.1,
+            "exposurePercent": 39,
             "transactionCostPercent": 0.1,
             "observations": 500
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -605,7 +730,7 @@
       "riskScore": 68,
       "dataCompleteness": 100,
       "unifiedScore": 75,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "MANTIENI",
       "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
       "targetWeightPercent": 4.9,
@@ -726,138 +851,13 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
-    },
-    {
-      "symbol": "IWM",
-      "name": "Russell 2000 ETF",
-      "assetClass": "ETF",
-      "price": 299.96,
-      "currency": "USD",
-      "technicalScore": 78,
-      "riskScore": 33,
-      "dataCompleteness": 100,
-      "unifiedScore": 74,
-      "confidence": 93,
-      "decision": "ACCUMULA",
-      "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 18.3,
-      "targetAmountEuro": 1830,
-      "valuation": {
-        "status": "non applicabile",
-        "method": "Nessuna analisi fondamentale collegata",
-        "score": 50,
-        "confidence": 100,
-        "rationale": [
-          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
-        ],
-        "warnings": []
-      },
-      "technical": {
-        "symbol": "IWM",
-        "yahooSymbol": "IWM",
-        "name": "Russell 2000 ETF",
-        "assetClass": "ETF",
-        "market": "USA",
-        "currency": "USD",
-        "observedAt": "2026-08-21T13:30:00.000Z",
-        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
-        "status": "operativo",
-        "price": 299.96,
-        "returns": {
-          "oneMonthPercent": 2.7,
-          "threeMonthPercent": 6.4,
-          "sixMonthPercent": 13.8,
-          "oneYearPercent": 34.5
-        },
-        "indicators": {
-          "sma20": 298.6,
-          "sma50": 296.65,
-          "sma200": 269.12,
-          "rsi14": 55.9,
-          "volatility20Percent": 15.6,
-          "atr14Percent": 1.1,
-          "distance52WeekHighPercent": -1.7,
-          "maxDrawdown1YPercent": -11
-        },
-        "scores": {
-          "trend": 97,
-          "momentum": 60,
-          "risk": 33,
-          "technical": 78,
-          "dataCompleteness": 100
-        },
-        "signal": "FORTE",
-        "reasons": [
-          "Prezzo sopra la media mobile a 200 giorni.",
-          "Trend intermedio superiore al trend di lungo periodo.",
-          "RSI equilibrato (55.9).",
-          "Momentum: 2.7% a un mese e 13.8% a sei mesi.",
-          "Drawdown massimo nell’ultimo anno: -11%."
-        ],
-        "warnings": [],
-        "strategies": [
-          {
-            "id": "buy-hold",
-            "label": "Compra e mantieni",
-            "totalReturnPercent": 43.4,
-            "annualizedReturnPercent": 19.9,
-            "benchmarkAnnualizedReturnPercent": 20,
-            "excessAnnualizedReturnPercent": -0.1,
-            "maxDrawdownPercent": -27.5,
-            "volatilityPercent": 21.3,
-            "sharpe": 0.96,
-            "trades": 1,
-            "winRatePercent": 100,
-            "exposurePercent": 100,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          },
-          {
-            "id": "trend-50-200",
-            "label": "Trend 50/200",
-            "totalReturnPercent": 32.9,
-            "annualizedReturnPercent": 15.4,
-            "benchmarkAnnualizedReturnPercent": 20,
-            "excessAnnualizedReturnPercent": -4.6,
-            "maxDrawdownPercent": -11.1,
-            "volatilityPercent": 13.6,
-            "sharpe": 1.13,
-            "trades": 2,
-            "winRatePercent": 100,
-            "exposurePercent": 52.6,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          },
-          {
-            "id": "tactical-20-50",
-            "label": "Tattica 20/50 + RSI",
-            "totalReturnPercent": 12,
-            "annualizedReturnPercent": 5.9,
-            "benchmarkAnnualizedReturnPercent": 20,
-            "excessAnnualizedReturnPercent": -14.1,
-            "maxDrawdownPercent": -9.2,
-            "volatilityPercent": 10.4,
-            "sharpe": 0.93,
-            "trades": 34,
-            "winRatePercent": 44.1,
-            "exposurePercent": 39,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          }
-        ],
-        "freshness": {
-          "ageHours": 36.6,
-          "status": "quasi in tempo reale"
-        }
-      },
-      "warnings": []
     },
     {
       "symbol": "QQQ",
@@ -868,12 +868,12 @@
       "technicalScore": 77,
       "riskScore": 36,
       "dataCompleteness": 100,
-      "unifiedScore": 73,
-      "confidence": 93,
+      "unifiedScore": 74,
+      "confidence": 94,
       "decision": "ACCUMULA",
       "reason": "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.",
-      "targetWeightPercent": 17.7,
-      "targetAmountEuro": 1770,
+      "targetWeightPercent": 14.8,
+      "targetAmountEuro": 1480,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -978,7 +978,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -997,7 +997,7 @@
       "riskScore": 57,
       "dataCompleteness": 100,
       "unifiedScore": 70,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "MANTIENI",
       "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
       "targetWeightPercent": 4.1,
@@ -1118,7 +1118,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -1139,7 +1139,7 @@
       "riskScore": 65,
       "dataCompleteness": 100,
       "unifiedScore": 66,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "ATTENDI",
       "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
       "targetWeightPercent": 0,
@@ -1260,7 +1260,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -1281,7 +1281,7 @@
       "riskScore": 66,
       "dataCompleteness": 100,
       "unifiedScore": 66,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "ATTENDI",
       "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
       "targetWeightPercent": 0,
@@ -1402,7 +1402,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -1419,12 +1419,12 @@
       "technicalScore": 65,
       "riskScore": 48,
       "dataCompleteness": 100,
-      "unifiedScore": 62,
-      "confidence": 93,
-      "decision": "ATTENDI",
-      "reason": "Il quadro complessivo non offre ancora una convergenza sufficiente per un nuovo ingresso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "unifiedScore": 63,
+      "confidence": 94,
+      "decision": "MANTIENI",
+      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
+      "targetWeightPercent": 9.2,
+      "targetAmountEuro": 920,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1529,7 +1529,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -1548,7 +1548,7 @@
       "riskScore": 52,
       "dataCompleteness": 100,
       "unifiedScore": 57,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "ATTENDI",
       "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
       "targetWeightPercent": 0,
@@ -1669,13 +1669,138 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
       "warnings": [
         "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
+    },
+    {
+      "symbol": "TLT",
+      "name": "Treasury 20+ Year ETF",
+      "assetClass": "Obbligazioni",
+      "price": 82.05,
+      "currency": "USD",
+      "technicalScore": 33,
+      "riskScore": 28,
+      "dataCompleteness": 100,
+      "unifiedScore": 47,
+      "confidence": 94,
+      "decision": "EVITA",
+      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "targetWeightPercent": 0,
+      "targetAmountEuro": 0,
+      "valuation": {
+        "status": "non applicabile",
+        "method": "Nessuna analisi fondamentale collegata",
+        "score": 50,
+        "confidence": 100,
+        "rationale": [
+          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
+        ],
+        "warnings": []
+      },
+      "technical": {
+        "symbol": "TLT",
+        "yahooSymbol": "TLT",
+        "name": "Treasury 20+ Year ETF",
+        "assetClass": "Obbligazioni",
+        "market": "USA",
+        "currency": "USD",
+        "observedAt": "2026-08-21T13:30:00.000Z",
+        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
+        "status": "operativo",
+        "price": 82.05,
+        "returns": {
+          "oneMonthPercent": -0.9,
+          "threeMonthPercent": -1.4,
+          "sixMonthPercent": -6.1,
+          "oneYearPercent": -1.2
+        },
+        "indicators": {
+          "sma20": 82.45,
+          "sma50": 83.85,
+          "sma200": 85.1,
+          "rsi14": 49,
+          "volatility20Percent": 12.1,
+          "atr14Percent": 0.8,
+          "distance52WeekHighPercent": -7.6,
+          "maxDrawdown1YPercent": -8.4
+        },
+        "scores": {
+          "trend": 3,
+          "momentum": 48,
+          "risk": 28,
+          "technical": 33,
+          "dataCompleteness": 100
+        },
+        "signal": "NEGATIVO",
+        "reasons": [
+          "Prezzo sotto la media mobile a 200 giorni.",
+          "Trend intermedio ancora inferiore al trend di lungo periodo.",
+          "RSI equilibrato (49).",
+          "Momentum: -0.9% a un mese e -6.1% a sei mesi.",
+          "Drawdown massimo nell’ultimo anno: -8.4%."
+        ],
+        "warnings": [],
+        "strategies": [
+          {
+            "id": "buy-hold",
+            "label": "Compra e mantieni",
+            "totalReturnPercent": -8.5,
+            "annualizedReturnPercent": -4.4,
+            "benchmarkAnnualizedReturnPercent": -4.3,
+            "excessAnnualizedReturnPercent": 0,
+            "maxDrawdownPercent": -14.8,
+            "volatilityPercent": 11.6,
+            "sharpe": -0.32,
+            "trades": 1,
+            "winRatePercent": 0,
+            "exposurePercent": 100,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          },
+          {
+            "id": "trend-50-200",
+            "label": "Trend 50/200",
+            "totalReturnPercent": -7.2,
+            "annualizedReturnPercent": -3.7,
+            "benchmarkAnnualizedReturnPercent": -4.3,
+            "excessAnnualizedReturnPercent": 0.6,
+            "maxDrawdownPercent": -9.4,
+            "volatilityPercent": 4.7,
+            "sharpe": -0.63,
+            "trades": 7,
+            "winRatePercent": 0,
+            "exposurePercent": 28,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          },
+          {
+            "id": "tactical-20-50",
+            "label": "Tattica 20/50 + RSI",
+            "totalReturnPercent": -3.9,
+            "annualizedReturnPercent": -2,
+            "benchmarkAnnualizedReturnPercent": -4.3,
+            "excessAnnualizedReturnPercent": 2.3,
+            "maxDrawdownPercent": -10.7,
+            "volatilityPercent": 5,
+            "sharpe": 0.19,
+            "trades": 28,
+            "winRatePercent": 50,
+            "exposurePercent": 16.2,
+            "transactionCostPercent": 0.1,
+            "observations": 500
+          }
+        ],
+        "freshness": {
+          "ageHours": 37.9,
+          "status": "quasi in tempo reale"
+        }
+      },
+      "warnings": []
     },
     {
       "symbol": "BIOX",
@@ -1689,7 +1814,7 @@
       "riskScore": 97,
       "dataCompleteness": 93,
       "unifiedScore": 47,
-      "confidence": 87,
+      "confidence": 89,
       "decision": "EVITA",
       "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
       "targetWeightPercent": 0,
@@ -1800,7 +1925,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -1809,141 +1934,16 @@
       ]
     },
     {
-      "symbol": "TLT",
-      "name": "Treasury 20+ Year ETF",
-      "assetClass": "Obbligazioni",
-      "price": 82.05,
-      "currency": "USD",
-      "technicalScore": 33,
-      "riskScore": 28,
-      "dataCompleteness": 100,
-      "unifiedScore": 46,
-      "confidence": 93,
-      "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
-      "valuation": {
-        "status": "non applicabile",
-        "method": "Nessuna analisi fondamentale collegata",
-        "score": 50,
-        "confidence": 100,
-        "rationale": [
-          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
-        ],
-        "warnings": []
-      },
-      "technical": {
-        "symbol": "TLT",
-        "yahooSymbol": "TLT",
-        "name": "Treasury 20+ Year ETF",
-        "assetClass": "Obbligazioni",
-        "market": "USA",
-        "currency": "USD",
-        "observedAt": "2026-08-21T13:30:00.000Z",
-        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
-        "status": "operativo",
-        "price": 82.05,
-        "returns": {
-          "oneMonthPercent": -0.9,
-          "threeMonthPercent": -1.4,
-          "sixMonthPercent": -6.1,
-          "oneYearPercent": -1.2
-        },
-        "indicators": {
-          "sma20": 82.45,
-          "sma50": 83.85,
-          "sma200": 85.1,
-          "rsi14": 49,
-          "volatility20Percent": 12.1,
-          "atr14Percent": 0.8,
-          "distance52WeekHighPercent": -7.6,
-          "maxDrawdown1YPercent": -8.4
-        },
-        "scores": {
-          "trend": 3,
-          "momentum": 48,
-          "risk": 28,
-          "technical": 33,
-          "dataCompleteness": 100
-        },
-        "signal": "NEGATIVO",
-        "reasons": [
-          "Prezzo sotto la media mobile a 200 giorni.",
-          "Trend intermedio ancora inferiore al trend di lungo periodo.",
-          "RSI equilibrato (49).",
-          "Momentum: -0.9% a un mese e -6.1% a sei mesi.",
-          "Drawdown massimo nell’ultimo anno: -8.4%."
-        ],
-        "warnings": [],
-        "strategies": [
-          {
-            "id": "buy-hold",
-            "label": "Compra e mantieni",
-            "totalReturnPercent": -8.5,
-            "annualizedReturnPercent": -4.4,
-            "benchmarkAnnualizedReturnPercent": -4.3,
-            "excessAnnualizedReturnPercent": 0,
-            "maxDrawdownPercent": -14.8,
-            "volatilityPercent": 11.6,
-            "sharpe": -0.32,
-            "trades": 1,
-            "winRatePercent": 0,
-            "exposurePercent": 100,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          },
-          {
-            "id": "trend-50-200",
-            "label": "Trend 50/200",
-            "totalReturnPercent": -7.2,
-            "annualizedReturnPercent": -3.7,
-            "benchmarkAnnualizedReturnPercent": -4.3,
-            "excessAnnualizedReturnPercent": 0.6,
-            "maxDrawdownPercent": -9.4,
-            "volatilityPercent": 4.7,
-            "sharpe": -0.63,
-            "trades": 7,
-            "winRatePercent": 0,
-            "exposurePercent": 28,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          },
-          {
-            "id": "tactical-20-50",
-            "label": "Tattica 20/50 + RSI",
-            "totalReturnPercent": -3.9,
-            "annualizedReturnPercent": -2,
-            "benchmarkAnnualizedReturnPercent": -4.3,
-            "excessAnnualizedReturnPercent": 2.3,
-            "maxDrawdownPercent": -10.7,
-            "volatilityPercent": 5,
-            "sharpe": 0.19,
-            "trades": 28,
-            "winRatePercent": 50,
-            "exposurePercent": 16.2,
-            "transactionCostPercent": 0.1,
-            "observations": 500
-          }
-        ],
-        "freshness": {
-          "ageHours": 36.6,
-          "status": "quasi in tempo reale"
-        }
-      },
-      "warnings": []
-    },
-    {
       "symbol": "BTC",
       "name": "Bitcoin",
       "assetClass": "Criptovaluta",
-      "price": 77107.36,
+      "price": 77011.21,
       "currency": "USD",
       "technicalScore": 59,
       "riskScore": 89,
       "dataCompleteness": 100,
       "unifiedScore": 44,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "EVITA",
       "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
       "targetWeightPercent": 0,
@@ -1968,21 +1968,21 @@
         "observedAt": "2026-08-23T00:00:00.000Z",
         "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
         "status": "operativo",
-        "price": 77107.36,
+        "price": 77011.21,
         "returns": {
-          "oneMonthPercent": 22.9,
-          "threeMonthPercent": 20,
-          "sixMonthPercent": 1.8,
-          "oneYearPercent": -14.6
+          "oneMonthPercent": 22.7,
+          "threeMonthPercent": 19.9,
+          "sixMonthPercent": 1.7,
+          "oneYearPercent": -14.7
         },
         "indicators": {
-          "sma20": 66051.02,
-          "sma50": 64861.82,
-          "sma200": 68980.96,
-          "rsi14": 82.2,
-          "volatility20Percent": 40,
+          "sma20": 66046.21,
+          "sma50": 64859.9,
+          "sma200": 68980.48,
+          "rsi14": 81.8,
+          "volatility20Percent": 40.1,
           "atr14Percent": 2.7,
-          "distance52WeekHighPercent": -20.4,
+          "distance52WeekHighPercent": -20.5,
           "maxDrawdown1YPercent": -39.6
         },
         "scores": {
@@ -1996,8 +1996,8 @@
         "reasons": [
           "Prezzo sopra la media mobile a 200 giorni.",
           "Trend intermedio ancora inferiore al trend di lungo periodo.",
-          "RSI elevato (82.2): possibile eccesso di breve.",
-          "Momentum: 22.9% a un mese e 1.8% a sei mesi.",
+          "RSI elevato (81.8): possibile eccesso di breve.",
+          "Momentum: 22.7% a un mese e 1.7% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -39.6%."
         ],
         "warnings": [],
@@ -2005,8 +2005,8 @@
           {
             "id": "buy-hold",
             "label": "Compra e mantieni",
-            "totalReturnPercent": 20.2,
-            "annualizedReturnPercent": 6.6,
+            "totalReturnPercent": 20,
+            "annualizedReturnPercent": 6.5,
             "benchmarkAnnualizedReturnPercent": 6.6,
             "excessAnnualizedReturnPercent": 0,
             "maxDrawdownPercent": -53.1,
@@ -2040,7 +2040,7 @@
             "totalReturnPercent": 10.8,
             "annualizedReturnPercent": 3.6,
             "benchmarkAnnualizedReturnPercent": 6.6,
-            "excessAnnualizedReturnPercent": -3,
+            "excessAnnualizedReturnPercent": -2.9,
             "maxDrawdownPercent": -15.7,
             "volatilityPercent": 14.6,
             "sharpe": 0.49,
@@ -2052,7 +2052,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 2.1,
+          "ageHours": 3.4,
           "status": "quasi in tempo reale"
         }
       },
@@ -2070,7 +2070,7 @@
       "riskScore": 88,
       "dataCompleteness": 93,
       "unifiedScore": 43,
-      "confidence": 87,
+      "confidence": 89,
       "decision": "SPECULATIVA",
       "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
       "targetWeightPercent": 1.7,
@@ -2182,7 +2182,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -2195,13 +2195,13 @@
       "symbol": "ETH",
       "name": "Ethereum",
       "assetClass": "Criptovaluta",
-      "price": 2418.42,
+      "price": 2414.25,
       "currency": "USD",
       "technicalScore": 59,
       "riskScore": 100,
       "dataCompleteness": 100,
-      "unifiedScore": 39,
-      "confidence": 93,
+      "unifiedScore": 40,
+      "confidence": 94,
       "decision": "EVITA",
       "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
       "targetWeightPercent": 0,
@@ -2226,21 +2226,21 @@
         "observedAt": "2026-08-23T00:00:00.000Z",
         "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
         "status": "operativo",
-        "price": 2418.42,
+        "price": 2414.25,
         "returns": {
-          "oneMonthPercent": 31.2,
-          "threeMonthPercent": 39,
-          "sixMonthPercent": 2.9,
-          "oneYearPercent": -22.4
+          "oneMonthPercent": 31,
+          "threeMonthPercent": 38.8,
+          "sixMonthPercent": 2.7,
+          "oneYearPercent": -22.5
         },
         "indicators": {
-          "sma20": 1988.16,
-          "sma50": 1906.75,
-          "sma200": 2005.37,
-          "rsi14": 81,
-          "volatility20Percent": 66.2,
-          "atr14Percent": 3.6,
-          "distance52WeekHighPercent": -27.9,
+          "sma20": 1987.95,
+          "sma50": 1906.66,
+          "sma200": 2005.35,
+          "rsi14": 80.5,
+          "volatility20Percent": 66.4,
+          "atr14Percent": 3.7,
+          "distance52WeekHighPercent": -28,
           "maxDrawdown1YPercent": -53.4
         },
         "scores": {
@@ -2254,8 +2254,8 @@
         "reasons": [
           "Prezzo sopra la media mobile a 200 giorni.",
           "Trend intermedio ancora inferiore al trend di lungo periodo.",
-          "RSI elevato (81): possibile eccesso di breve.",
-          "Momentum: 31.2% a un mese e 2.9% a sei mesi.",
+          "RSI elevato (80.5): possibile eccesso di breve.",
+          "Momentum: 31% a un mese e 2.7% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -53.4%."
         ],
         "warnings": [],
@@ -2263,9 +2263,9 @@
           {
             "id": "buy-hold",
             "label": "Compra e mantieni",
-            "totalReturnPercent": -12.6,
+            "totalReturnPercent": -12.8,
             "annualizedReturnPercent": -4.6,
-            "benchmarkAnnualizedReturnPercent": -4.5,
+            "benchmarkAnnualizedReturnPercent": -4.6,
             "excessAnnualizedReturnPercent": 0,
             "maxDrawdownPercent": -67.6,
             "volatilityPercent": 58.2,
@@ -2281,7 +2281,7 @@
             "label": "Trend 50/200",
             "totalReturnPercent": 15.3,
             "annualizedReturnPercent": 5,
-            "benchmarkAnnualizedReturnPercent": -4.5,
+            "benchmarkAnnualizedReturnPercent": -4.6,
             "excessAnnualizedReturnPercent": 9.6,
             "maxDrawdownPercent": -38.2,
             "volatilityPercent": 25,
@@ -2297,8 +2297,8 @@
             "label": "Tattica 20/50 + RSI",
             "totalReturnPercent": 13.6,
             "annualizedReturnPercent": 4.5,
-            "benchmarkAnnualizedReturnPercent": -4.5,
-            "excessAnnualizedReturnPercent": 9,
+            "benchmarkAnnualizedReturnPercent": -4.6,
+            "excessAnnualizedReturnPercent": 9.1,
             "maxDrawdownPercent": -31.3,
             "volatilityPercent": 27,
             "sharpe": 0.38,
@@ -2310,7 +2310,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 2.1,
+          "ageHours": 3.4,
           "status": "quasi in tempo reale"
         }
       },
@@ -2328,7 +2328,7 @@
       "riskScore": 98,
       "dataCompleteness": 100,
       "unifiedScore": 36,
-      "confidence": 93,
+      "confidence": 94,
       "decision": "SPECULATIVA",
       "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
       "targetWeightPercent": 1.7,
@@ -2440,7 +2440,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -2461,7 +2461,7 @@
       "riskScore": 100,
       "dataCompleteness": 93,
       "unifiedScore": 29,
-      "confidence": 87,
+      "confidence": 89,
       "decision": "SPECULATIVA",
       "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
       "targetWeightPercent": 1.7,
@@ -2573,7 +2573,7 @@
           }
         ],
         "freshness": {
-          "ageHours": 36.6,
+          "ageHours": 37.9,
           "status": "quasi in tempo reale"
         }
       },
@@ -2590,13 +2590,13 @@
     "Area speculativa al 5.1%, sopra il limite 5%."
   ],
   "allocationCheck": {
-    "investedPercent": 85.1,
-    "reservePercent": 14.9,
+    "investedPercent": 85.2,
+    "reservePercent": 14.8,
     "totalPercent": 100,
     "valid": true
   },
   "guardrails": {
-    "maxCoreWeightPercent": 19,
+    "maxCoreWeightPercent": 15.8,
     "maxGrowthWeightPercent": 6,
     "maxSpeculativeWeightPercent": 1.7,
     "cryptoTotalPercent": 0,
