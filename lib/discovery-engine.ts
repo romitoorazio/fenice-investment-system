@@ -7,6 +7,9 @@ export type DiscoveryCandidate = {
   category: string;
   source: string;
   observedAt: string | null;
+  region?: string;
+  sector?: string;
+  themes?: string[];
   opportunityScore: number;
   riskScore: number;
   confidenceScore: number;
@@ -47,7 +50,8 @@ function marketCandidate(asset: MarketReading): DiscoveryCandidate {
   const opportunity = clamp(asset.score);
   const risk = clamp(asset.risk);
   const sourceConfidence = /SEC|FRED|FDA|EDGAR|official/i.test(asset.source) ? 92 : /Alpha Vantage|CoinGecko/i.test(asset.source) ? 82 : 72;
-  const confidence = Math.round(clamp(freshness * 0.45 + sourceConfidence * 0.35 + (asset.price != null ? 20 : 5)));
+  const classificationBonus = asset.region && asset.sector ? 4 : asset.region || asset.sector ? 2 : 0;
+  const confidence = Math.round(clamp(freshness * 0.43 + sourceConfidence * 0.34 + (asset.price != null ? 19 : 5) + classificationBonus));
   const priority = Math.round(clamp(opportunity * 0.5 + (100 - risk) * 0.25 + confidence * 0.25));
   const blockers = [
     ...(risk >= 78 ? ["Rischio superiore alla soglia Fenice."] : []),
@@ -65,6 +69,9 @@ function marketCandidate(asset: MarketReading): DiscoveryCandidate {
     `Punteggio opportunità ${Math.round(opportunity)}/100.`,
     `Rischio ${Math.round(risk)}/100.`,
     `Confidenza dati ${confidence}/100.`,
+    ...(asset.region ? [`Regione: ${asset.region}.`] : []),
+    ...(asset.sector ? [`Settore: ${asset.sector}.`] : []),
+    ...(asset.themes?.length ? [`Temi: ${asset.themes.slice(0, 4).join(", ")}.`] : []),
     ...(asset.changePercent != null ? [`Variazione osservata ${asset.changePercent.toFixed(2)}%.`] : []),
     `Fonte: ${asset.source}.`,
   ];
@@ -75,13 +82,16 @@ function marketCandidate(asset: MarketReading): DiscoveryCandidate {
     category: asset.assetClass,
     source: asset.source,
     observedAt: asset.observedAt ?? asset.updatedAt ?? null,
+    region: asset.region,
+    sector: asset.sector,
+    themes: asset.themes,
     opportunityScore: Math.round(opportunity),
     riskScore: Math.round(risk),
     confidenceScore: confidence,
     priorityScore: priority,
     status,
     thesis: status === "PRIORITARIA"
-      ? "Convergenza favorevole tra opportunità, rischio e qualità dei dati: merita analisi fondamentale e catalizzatori."
+      ? "Convergenza favorevole tra opportunità, rischio e qualità dei dati: merita analisi fondamentale, valutazione e catalizzatori."
       : status === "DA STUDIARE"
         ? "Profilo interessante, ma servono conferme aggiuntive prima di considerare un ingresso."
         : status === "OSSERVARE"
@@ -135,11 +145,14 @@ export function buildDiscoveryReport(snapshot: AutonomySnapshot): DiscoveryRepor
     ...snapshot.discoveries.map(signalCandidate),
   ]
     .sort((a, b) => b.priorityScore - a.priorityScore || a.riskScore - b.riskScore)
-    .slice(0, 50);
+    .slice(0, 80);
 
   const averageConfidence = candidates.length
     ? Math.round(candidates.reduce((sum, item) => sum + item.confidenceScore, 0) / candidates.length)
     : 0;
+
+  const regions = new Set(candidates.map((item) => item.region).filter(Boolean));
+  const sectors = new Set(candidates.map((item) => item.sector).filter(Boolean));
 
   return {
     generatedAt: snapshot.generatedAt ?? new Date().toISOString(),
@@ -153,12 +166,15 @@ export function buildDiscoveryReport(snapshot: AutonomySnapshot): DiscoveryRepor
       ...snapshot.warnings,
       ...(snapshot.discoveries.length === 0 ? ["Nessun evento esterno strutturato disponibile: il ranking usa prevalentemente dati di mercato."] : []),
       ...(averageConfidence < 60 ? ["Confidenza media Discovery inferiore al 60%."] : []),
+      ...(regions.size < 3 ? ["Copertura geografica ancora troppo concentrata."] : []),
+      ...(sectors.size < 8 ? ["Copertura settoriale ancora insufficiente per un vero radar globale."] : []),
     ])].slice(0, 15),
     methodology: [
+      "Fenice cerca opportunità cross-settore e cross-regione: nessun tema ha diritto automatico al capitale.",
       "Nessun candidato viene promosso usando una sola metrica.",
-      "La priorità combina opportunità, rischio, freschezza e affidabilità della fonte.",
+      "La priorità combina opportunità, rischio, freschezza, classificazione e affidabilità della fonte.",
       "Rischio elevato o dati insufficienti bloccano automaticamente la promozione.",
-      "PRIORITARIA significa da approfondire, non da comprare automaticamente.",
+      "PRIORITARIA significa da approfondire con fondamentali, valutazione e catalizzatori, non da comprare automaticamente.",
     ],
   };
 }
