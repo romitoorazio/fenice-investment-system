@@ -75,6 +75,15 @@ function classAdjustment(asset: MarketReading) {
   return 0;
 }
 
+function thematicAdjustment(asset: MarketReading) {
+  const themes = asset.themes ?? [];
+  const sector = asset.sector ?? "";
+  const strategic = new Set(["ai", "cybersecurity", "robotics", "nuclear", "uranium", "grid", "agritech", "gene-editing", "space", "defense", "power-infrastructure"]);
+  const strategicThemes = themes.filter((theme) => strategic.has(theme)).length;
+  const diversificationBoost = ["financials", "consumer-staples", "agriculture", "energy", "utilities", "government-bonds", "gold"].includes(sector) ? 2 : 0;
+  return Math.min(4, strategicThemes * 1.2) + diversificationBoost;
+}
+
 function actionFor(conviction: number, risk: number): RankedAsset["action"] {
   if (risk >= 78 || conviction < 35) return "EVITA";
   if (conviction >= 72 && risk <= 55) return "ACCUMULA";
@@ -86,17 +95,18 @@ function rankAsset(asset: MarketReading): RankedAsset {
   const momentum = clamp((asset.changePercent ?? 0) * 2 + 50);
   const conviction = Math.round(
     clamp(
-      asset.score * 0.55 +
+      asset.score * 0.52 +
         (100 - asset.risk) * 0.3 +
-        momentum * 0.15 +
-        classAdjustment(asset) -
+        momentum * 0.13 +
+        classAdjustment(asset) +
+        thematicAdjustment(asset) -
         freshnessPenalty(asset),
     ),
   );
   const action = actionFor(conviction, asset.risk);
   const reason =
     action === "ACCUMULA"
-      ? "Punteggio elevato, rischio sotto controllo, dati sufficientemente freschi e momentum favorevole."
+      ? "Convergenza elevata tra opportunità, rischio, freschezza e qualità: candidato per ingresso progressivo dopo verifica."
       : action === "MANTIENI"
         ? "Tesi valida e rischio accettabile, ma il margine non giustifica un aumento deciso."
         : action === "ATTENDI"
@@ -112,31 +122,55 @@ function selectDiversifiedAssets(markets: MarketReading[]) {
     .map(rankAsset)
     .sort((a, b) => b.conviction - a.conviction || a.risk - b.risk);
 
-  const core = ranked
-    .filter((asset) => ["ETF", "Obbligazioni", "Materie prime"].includes(asset.assetClass))
-    .slice(0, 3);
-  const growth = ranked
-    .filter((asset) => !["ETF", "Obbligazioni", "Materie prime", "Criptovaluta"].includes(asset.assetClass))
-    .slice(0, 6);
-  const crypto = ranked
-    .filter((asset) => asset.assetClass === "Criptovaluta")
-    .slice(0, 3);
+  const selected: RankedAsset[] = [];
+  const selectedKeys = new Set<string>();
+  const sectorCount = new Map<string, number>();
+  const regionCount = new Map<string, number>();
+  const classCount = new Map<string, number>();
 
-  const selected = [...core, ...growth, ...crypto];
-  const selectedKeys = new Set(selected.map((asset) => `${asset.symbol}:${asset.source}`));
+  const canAdd = (asset: RankedAsset) => {
+    const key = `${asset.symbol}:${asset.source}`;
+    if (selectedKeys.has(key)) return false;
+    const sector = asset.sector || asset.assetClass || "other";
+    const region = asset.region || "unknown";
+    const assetClass = asset.assetClass || "other";
+    if ((sectorCount.get(sector) ?? 0) >= 3) return false;
+    if (region === "US" && (regionCount.get(region) ?? 0) >= 7) return false;
+    if (assetClass === "Criptovaluta" && (classCount.get(assetClass) ?? 0) >= 2) return false;
+    return true;
+  };
+
+  const add = (asset: RankedAsset) => {
+    const key = `${asset.symbol}:${asset.source}`;
+    selected.push(asset);
+    selectedKeys.add(key);
+    const sector = asset.sector || asset.assetClass || "other";
+    const region = asset.region || "unknown";
+    const assetClass = asset.assetClass || "other";
+    sectorCount.set(sector, (sectorCount.get(sector) ?? 0) + 1);
+    regionCount.set(region, (regionCount.get(region) ?? 0) + 1);
+    classCount.set(assetClass, (classCount.get(assetClass) ?? 0) + 1);
+  };
+
+  const preferredGroups = [
+    ranked.filter((asset) => ["ETF", "Obbligazioni", "Materie prime"].includes(asset.assetClass)),
+    ranked.filter((asset) => !["ETF", "Obbligazioni", "Materie prime", "Criptovaluta"].includes(asset.assetClass)),
+    ranked.filter((asset) => asset.assetClass === "Criptovaluta"),
+  ];
+
+  for (const group of preferredGroups) {
+    for (const asset of group) {
+      if (selected.length >= 12) break;
+      if (canAdd(asset)) add(asset);
+    }
+  }
 
   for (const asset of ranked) {
     if (selected.length >= 12) break;
-    const key = `${asset.symbol}:${asset.source}`;
-    if (selectedKeys.has(key)) continue;
-    if (asset.assetClass === "Criptovaluta" && selected.filter((item) => item.assetClass === "Criptovaluta").length >= 3) continue;
-    selected.push(asset);
-    selectedKeys.add(key);
+    if (canAdd(asset)) add(asset);
   }
 
-  return selected
-    .sort((a, b) => b.conviction - a.conviction || a.risk - b.risk)
-    .slice(0, 12);
+  return selected.sort((a, b) => b.conviction - a.conviction || a.risk - b.risk).slice(0, 12);
 }
 
 export function buildMissionControl(snapshot: AutonomySnapshot): MissionControl {
@@ -158,24 +192,24 @@ export function buildMissionControl(snapshot: AutonomySnapshot): MissionControl 
   const buckets: MissionBucket[] = [
     {
       id: "core",
-      label: "Nucleo diversificato",
+      label: "Nucleo globale diversificato",
       targetPercent: corePercent,
       targetAmount: Math.round((CAPITAL * corePercent) / 100),
-      rationale: "ETF globali e strumenti ampi per sostenere la crescita composta.",
+      rationale: "ETF, mercati ampi e strumenti diversificanti per sostenere la crescita composta.",
     },
     {
       id: "growth",
-      label: "Opportunità ad alto potenziale",
+      label: "Migliori opportunità globali",
       targetPercent: growthPercent,
       targetAmount: Math.round((CAPITAL * growthPercent) / 100),
-      rationale: "AI, biotech, robotica, energia e altri temi selezionati dal motore.",
+      rationale: "Qualsiasi settore può entrare: AI, biotech, energia, difesa, agritech, robotica, infrastrutture e opportunità speciali.",
     },
     {
       id: "reserve",
       label: "Riserva strategica",
       targetPercent: cashTargetPercent,
       targetAmount: Math.round((CAPITAL * cashTargetPercent) / 100),
-      rationale: "Liquidità per correzioni, sostituzioni e nuove opportunità.",
+      rationale: "Liquidità per correzioni, sostituzioni e nuove opportunità ad alta convinzione.",
     },
   ];
 
@@ -187,10 +221,11 @@ export function buildMissionControl(snapshot: AutonomySnapshot): MissionControl 
   const nextActions = [
     `Mantenere la liquidità obiettivo al ${cashTargetPercent}%.`,
     accumula > 0
-      ? `Valutare ingressi progressivi su ${accumula} strumenti con segnale ACCUMULA.`
-      : "Non forzare nuovi ingressi finché non emerge un segnale ACCUMULA.",
+      ? `Approfondire ${accumula} strumenti con segnale ACCUMULA prima di qualunque ordine.`
+      : "Non forzare nuovi ingressi finché non emerge un segnale ACCUMULA verificato.",
+    "Non concentrare il portafoglio in un unico settore o narrativa, anche quando domina il momentum.",
     "Limitare ogni singola posizione ad alto rischio al 5-7% del capitale totale.",
-    "Riesaminare il piano dopo ogni aggiornamento trimestrale o variazione strutturale del rischio.",
+    "Riesaminare il piano dopo trimestrali, dati macro, shock geopolitici o variazioni strutturali del rischio.",
   ];
 
   const warnings = [
