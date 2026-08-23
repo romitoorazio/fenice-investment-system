@@ -28,6 +28,9 @@ export type MarketReading = {
   observedAt?: string;
   updatedAt?: string;
   classification?: string;
+  region?: string;
+  sector?: string;
+  themes?: string[];
 };
 
 export type DiscoverySignal = {
@@ -87,26 +90,32 @@ export type AutonomySnapshot = {
 };
 
 export const autonomousCoverage = [
-  "Azioni globali e nuove quotazioni",
-  "ETF e fondi quotati",
+  "Azioni globali: USA, Europa, Asia, mercati emergenti e nuove quotazioni",
+  "ETF regionali, settoriali, obbligazionari e tematici",
   "Indici azionari e volatilità",
-  "Obbligazioni, rendimenti e curve dei tassi",
+  "Obbligazioni, rendimenti, credito e curve dei tassi",
   "Forex e valute",
-  "Materie prime ed energia",
+  "Materie prime: energia, metalli e agricoltura",
   "Criptovalute e token emergenti",
-  "Opzioni e derivati dove disponibili",
-  "IPO, spin-off, fusioni e delisting",
+  "Opzioni e derivati dove disponibili, solo come segnali di mercato",
+  "IPO, spin-off, fusioni, acquisizioni e delisting",
   "Depositi SEC S-1, F-1, 8-A e 10-12B",
   "Indicatori macroeconomici e banche centrali",
   "Notizie e rischio geopolitico globale",
-  "Biotech: studi clinici e segnali FDA",
+  "Biotech: studi clinici, FDA, pipeline e solidità finanziaria",
   "Società private e pre-IPO da notizie e round di finanziamento",
-  "Temi emergenti: AI, robotica, energia, spazio, agritech e medicina",
+  "AI, semiconduttori, cloud, cybersecurity e software",
+  "Robotica, automazione, difesa, spazio e infrastrutture",
+  "Energia, nucleare, rete elettrica e transizione energetica",
+  "Agritech, fertilizzanti, sementi, acqua e sicurezza alimentare",
+  "Healthcare, consumer, finanziari e opportunità speciali",
 ] as const;
 
 export const autonomousPrinciples = [
-  "Il motore cerca continuamente nuovi strumenti e segnali, ma assegna sempre una qualità e un rischio.",
+  "Fenice parte da un universo globale e non favorisce un settore solo perché è di moda.",
+  "Il motore cerca continuamente nuovi strumenti e segnali, ma assegna sempre qualità, rischio e confidenza.",
   "Una nuova società o moneta non viene considerata investibile solo perché è nuova o cresce velocemente.",
   "I dati provenienti da una sola fonte non possono generare un segnale forte.",
-  "Il software non possiede credenziali di broker e non può inviare ordini.",
+  "PRIORITARIA o ACCUMULA significa da verificare e pianificare, non ordine automatico.",
+  "Il software non possiede credenziali di broker e non può inviare ordini senza decisione umana.",
 ] as const;
