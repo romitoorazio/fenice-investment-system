@@ -17,6 +17,7 @@ on:
     paths:
       - "scripts/**"
       - "components/**"
+      - "data/global-universe.json"
       - "lib/autonomy.ts"
       - "lib/mission.ts"
       - "lib/research.ts"
@@ -55,6 +56,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Validate global universe
+        run: |
+          node -e "const fs=require('fs');const u=JSON.parse(fs.readFileSync('data/global-universe.json'));if(!Array.isArray(u.instruments)||u.instruments.length<40)process.exit(1);const s=new Set(u.instruments.map(x=>x.symbol));if(s.size!==u.instruments.length)process.exit(1);console.log('Global universe:',u.instruments.length,'instruments')"
 
       - name: Collect and validate sources
         env:
