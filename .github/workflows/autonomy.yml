@@ -34,7 +34,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-foundation
+  group: fenice-data-writer
   cancel-in-progress: false
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
@@ -66,6 +66,7 @@ jobs:
           FENICE_JOB: ${{ inputs.job || (github.event.schedule == '37 5 * * *' && 'daily') || 'intraday' }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
