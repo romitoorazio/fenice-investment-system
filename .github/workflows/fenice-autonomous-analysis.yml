@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-autonomous-analysis
+  group: fenice-data-writer
   cancel-in-progress: false
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
 
     steps:
       - name: Checkout
