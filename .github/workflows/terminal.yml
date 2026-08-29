@@ -9,6 +9,9 @@ on:
     paths:
       - "scripts/run-terminal-engine.mjs"
       - "scripts/postprocess-terminal-intelligence.mjs"
+      - "scripts/finalize-terminal-allocation.mjs"
+      - "scripts/run-dcf-engine.mjs"
+      - "scripts/run-investment-committee.mjs"
       - "lib/terminal.ts"
       - "lib/terminal-runtime.ts"
       - "components/TerminalEngine.tsx"
@@ -18,7 +21,9 @@ on:
       - "app/api/alerts/**"
       - "app/terminal/**"
       - "app/alerts/**"
+      - "app/committee/**"
       - "data/fundamental-research.json"
+      - "data/global-source-health.json"
       - "package.json"
       - ".github/workflows/terminal.yml"
 
@@ -26,13 +31,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-world-terminal
+  group: fenice-data-writer
   cancel-in-progress: false
 
 jobs:
   terminal:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -44,18 +49,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Build and validate technical intelligence
+      - name: Build technical intelligence, DCF and Investment Committee
         run: npm run terminal
 
       - name: Validate terminal report and guardrails
         run: |
           node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);if(t.assetCount<10||t.coveragePercent<50)process.exit(1);if(!t.allocationCheck?.valid||Math.abs(t.allocationCheck.totalPercent-100)>.2)process.exit(1);if(t.guardrails?.violations?.length)process.exit(1);for(const a of t.assets){if(!a.technical||!a.technical.freshness||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1);if(['ATTENDI','EVITA'].includes(a.decision)&&a.targetWeightPercent>0)process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore,'freshness',t.freshnessStatus,'invested',t.allocationCheck.investedPercent,'reserve',t.allocationCheck.reservePercent)"
           node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('data/terminal-alerts.json'));const s=JSON.parse(fs.readFileSync('data/terminal-state.json'));if(!Array.isArray(a.alerts)||!s.assets)process.exit(1);console.log('Alerts stored:',a.alerts.length,'state assets:',Object.keys(s.assets).length)"
+          node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/investment-committee.json'));if(!Array.isArray(c.topDecisions)||!Array.isArray(c.allDecisions)||!Number.isFinite(c.dataQuality)||!c.executionGate||!c.goal)process.exit(1);for(const d of c.allDecisions){if(!Number.isFinite(d.committeeScore)||!Number.isFinite(d.confidence)||!Number.isFinite(d.riskScore)||!d.scorecard||!d.entryPlan||!Array.isArray(d.bearCase)||!Array.isArray(d.invalidation))process.exit(1)};if(c.executionGate==='BLOCCATO'&&c.proposedFirstTrancheEuro>0)process.exit(1);console.log('Committee:',c.candidateCount,'BUY',c.buyCandidateCount,'gate',c.executionGate,'quality',c.dataQuality,'tranche',c.proposedFirstTrancheEuro)"
 
       - name: Commit terminal intelligence
         run: |
@@ -77,7 +83,7 @@ jobs:
               exit 0
             fi
 
-            git commit -m "Update Fenice World Terminal data"
+            git commit -m "Update Fenice World Terminal and Investment Committee"
             if git push origin HEAD:main; then
               echo "Terminal intelligence published"
               exit 0
