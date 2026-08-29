@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: financial-data-snapshot
+  group: fenice-data-writer
   cancel-in-progress: false
 
 jobs:
@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -51,13 +52,32 @@ jobs:
         run: |
           git config user.name "fenice-data-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/latest-snapshot.json
-          if git diff --cached --quiet; then
-            echo "Nessuna variazione da pubblicare."
-          else
+
+          generated_file="$(mktemp)"
+          cp data/latest-snapshot.json "$generated_file"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_file" data/latest-snapshot.json
+            git add data/latest-snapshot.json
+
+            if git diff --cached --quiet; then
+              echo "Nessuna variazione da pubblicare."
+              exit 0
+            fi
+
             git commit -m "data: refresh global financial snapshot"
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish financial snapshot after 3 attempts"
+          exit 1
 
       - name: Upload audit artifact
         uses: actions/upload-artifact@v4
