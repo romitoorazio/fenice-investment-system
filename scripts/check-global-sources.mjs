@@ -89,19 +89,10 @@ async function probe(source) {
   const endpoints = endpointsFor(source);
   if (!endpoints.length) {
     return {
-      id: source.id,
-      name: source.name,
-      category: source.category,
-      authority: source.authority,
-      critical: Boolean(source.critical),
-      status: "unconfigured",
-      checkedAt: now.toISOString(),
-      latencyMs: null,
-      httpStatus: null,
-      detail: `Manca il secret ${source.secret}.`,
-      regions: source.regions,
-      endpointUsed: null,
-      attempts: 0,
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "unconfigured", checkedAt: now.toISOString(),
+      latencyMs: null, httpStatus: null, detail: `Manca il secret ${source.secret}.`,
+      regions: source.regions, endpointUsed: null, attempts: 0,
     };
   }
 
@@ -114,21 +105,11 @@ async function probe(source) {
       if (!best || (result.ok && !best.ok) || result.bytes > best.bytes) best = { ...result, endpoint };
       if (result.ok) {
         return {
-          id: source.id,
-          name: source.name,
-          category: source.category,
-          authority: source.authority,
-          critical: Boolean(source.critical),
-          status: attempt === 1 ? "healthy" : "degraded",
-          checkedAt: now.toISOString(),
-          latencyMs: result.latencyMs,
-          httpStatus: result.httpStatus,
+          id: source.id, name: source.name, category: source.category, authority: source.authority,
+          critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
+          checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions,
-          endpointUsed: endpoint,
-          attempts,
-          bytes: result.bytes,
-          contentType: result.contentType,
+          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -136,21 +117,12 @@ async function probe(source) {
   }
 
   return {
-    id: source.id,
-    name: source.name,
-    category: source.category,
-    authority: source.authority,
-    critical: Boolean(source.critical),
-    status: "failed",
-    checkedAt: now.toISOString(),
-    latencyMs: best?.latencyMs ?? null,
-    httpStatus: best?.httpStatus ?? null,
+    id: source.id, name: source.name, category: source.category, authority: source.authority,
+    critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
+    latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions,
-    endpointUsed: best?.endpoint ?? null,
-    attempts,
-    bytes: best?.bytes ?? 0,
-    contentType: best?.contentType ?? "",
+    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
 
@@ -176,6 +148,7 @@ const reliabilityScore = weightedPossible ? Math.round((weightedEarned / weighte
 const criticalSources = results.filter(source => source.critical);
 const criticalReady = criticalSources.filter(source => source.status === "healthy" || source.status === "degraded").length;
 const criticalFailures = criticalSources.filter(source => source.status === "failed" || source.status === "unconfigured").map(source => source.id);
+const gate = criticalFailures.length === 0 && reliabilityScore >= 80 ? "GREEN" : reliabilityScore >= 65 ? "AMBER" : "RED";
 
 const report = {
   version: registry.version,
@@ -183,15 +156,18 @@ const report = {
   totalSources: results.length,
   summary: counts,
   reliabilityScore,
+  qualityScore: reliabilityScore,
+  gate,
+  institutionalGate: gate,
   critical: {
     ready: criticalReady,
     total: criticalSources.length,
     failures: criticalFailures,
-    gate: criticalFailures.length === 0 && reliabilityScore >= 80 ? "green" : reliabilityScore >= 65 ? "amber" : "red",
+    gate,
   },
   sources: results,
 };
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 await writeFile(outputPath, serialized, "utf8");
 await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(":", "-")}.json`), serialized, "utf8");
-console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${report.critical.gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
+console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
