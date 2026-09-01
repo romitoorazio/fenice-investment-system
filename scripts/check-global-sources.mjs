@@ -9,6 +9,7 @@ const historyDir = path.join(root, "data", "source-history");
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 const now = new Date();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const defaultSecUserAgent = "FeniceInvestmentSystem/2.2 (research-only; contact: romitoorazio@users.noreply.github.com)";
 
 function expandEndpoint(source, endpoint) {
   const secretValue = source.secret ? process.env[source.secret] : undefined;
@@ -47,13 +48,20 @@ async function request(source, endpoint, attempt) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
   try {
+    const isSec = source.id === "sec";
+    const secUserAgent = process.env.SEC_USER_AGENT?.trim() || defaultSecUserAgent;
     const headers = {
       accept: source.id === "ema" ? "application/rss+xml,application/xml,text/html,*/*" : "application/json,text/csv,text/plain,*/*",
       "accept-encoding": "gzip, deflate",
-      "user-agent": source.id === "sec"
-        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.1 contact:https://github.com/romitoorazio/fenice-investment-system")
-        : "FeniceInvestmentSystem/2.1 (+https://github.com/romitoorazio/fenice-investment-system)",
+      "user-agent": isSec
+        ? secUserAgent
+        : "FeniceInvestmentSystem/2.2 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
+    if (isSec) {
+      headers["accept-language"] = "en-US,en;q=0.9";
+      headers.from = secUserAgent.includes("@") ? secUserAgent.match(/[\w.+-]+@[\w.-]+/)?.[0] || "" : "";
+      if (!headers.from) delete headers.from;
+    }
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
     const text = await response.text();
@@ -170,4 +178,6 @@ const report = {
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 await writeFile(outputPath, serialized, "utf8");
 await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(":", "-")}.json`), serialized, "utf8");
+const unhealthy = results.filter(source => source.status === "failed" || source.status === "unconfigured");
 console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
+for (const source of unhealthy) console.log(`SOURCE_FAIL id=${source.id} critical=${source.critical} status=${source.status} http=${source.httpStatus ?? "n/a"} detail=${source.detail} endpoint=${source.endpointUsed || "n/a"}`);
