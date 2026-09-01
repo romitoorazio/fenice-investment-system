@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { evaluateExecutionGate, liveTradingMustRemainBlocked } from './lib/execution-gate.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -226,6 +227,7 @@ const fundamentals = await readJson('fundamental-research.json', { companies: []
 const dcf = await readJson('dcf-analysis.json', { companies: [] });
 const snapshot = await readJson('latest-snapshot.json', { discoveries: [], warnings: [] });
 const sourceHealth = await readJson('global-source-health.json', { qualityScore: null, gate: 'UNKNOWN' });
+const governance = await readJson('decision-governance.json', { guardrails: { blockAutonomousTrading: true, requireHumanConfirmation: true } });
 
 const fundamentalBySymbol = new Map((fundamentals.companies || []).map((item) => [String(item.ticker).toUpperCase(), item]));
 const dcfBySymbol = new Map((dcf.companies || []).map((item) => [String(item.symbol).toUpperCase(), item]));
@@ -248,13 +250,14 @@ const candidates = (terminal.assets || [])
 
 const buyCandidates = candidates.filter((item) => item.decision === 'COMPRA');
 const firstTrancheEuro = buyCandidates.reduce((sum, item) => sum + Number(item.entryPlan.firstTrancheEuro || 0), 0);
-const sourceGate = sourceHealth.gate || sourceHealth.institutionalGate || 'UNKNOWN';
-const executionGate = dataQuality < 65 || sourceGate === 'RED' ? 'BLOCCATO' : buyCandidates.length ? 'PRONTO_CON_CONFERMA' : 'ATTENDERE';
+const sourceGate = String(sourceHealth.gate || sourceHealth.institutionalGate || 'UNKNOWN').toUpperCase();
+const executionGate = evaluateExecutionGate({ dataQuality, sourceGate, buyCandidateCount: buyCandidates.length, governance });
+const liveTradingBlocked = liveTradingMustRemainBlocked(governance);
 
 const report = {
-  version: 1,
+  version: 2,
   generatedAt: now.toISOString(),
-  engine: 'Fenice Investment Committee v1',
+  engine: 'Fenice Investment Committee v2',
   capitalEuro: CAPITAL,
   goal: {
     targetEuro: GOAL,
@@ -266,16 +269,17 @@ const report = {
   dataQuality,
   sourceGate,
   executionGate,
+  liveTradingBlocked,
   candidateCount: candidates.length,
   buyCandidateCount: buyCandidates.length,
   proposedFirstTrancheEuro: executionGate === 'PRONTO_CON_CONFERMA' ? Math.min(Math.round(CAPITAL * 0.15), firstTrancheEuro) : 0,
   committeeRules: [
-    'Nessun BUY con confidenza dati insufficiente o source gate RED.',
+    'Nessun BUY operativo finché il source gate non è GREEN e la qualità dati non è almeno 75/100.',
     'Il DCF profondamente sotto il prezzo blocca il BUY anche se trend e qualità sono forti.',
     'Ogni BUY deve avere peso massimo, prima tranche, tesi contraria e condizioni di invalidazione.',
     'Le posizioni speculative restano piccole anche quando il potenziale teorico è elevato.',
     'Fenice confronta ogni candidato con le alternative globali e può decidere di investire zero euro.',
-    'Nessun ordine viene trasmesso automaticamente al broker.',
+    'Nessun ordine viene trasmesso automaticamente al broker; la conferma umana resta obbligatoria.',
   ],
   topDecisions: candidates.slice(0, 12),
   allDecisions: candidates,
@@ -284,6 +288,7 @@ const report = {
     ...(dcf.coveragePercent < 70 ? [`Copertura DCF ancora limitata al ${dcf.coveragePercent || 0}%.`] : []),
     ...(sourceGate !== 'GREEN' ? [`Institutional Source Gate: ${sourceGate}.`] : []),
     ...(dataQuality < 75 ? [`Qualità dati Investment Committee ${dataQuality}/100: mantenere prudenza.`] : []),
+    ...(!liveTradingBlocked ? ['ERRORE SICUREZZA: il blocco del trading autonomo non risulta attivo.'] : []),
   ],
 };
 
@@ -291,4 +296,4 @@ await mkdir(historyDir, { recursive: true });
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 await writeFile(outputPath, serialized, 'utf8');
 await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(':', '-')}.json`), serialized, 'utf8');
-console.log(`Fenice Investment Committee: ${candidates.length} candidati, BUY ${buyCandidates.length}, gate ${executionGate}, qualità ${dataQuality}.`);
+console.log(`Fenice Investment Committee: ${candidates.length} candidati, BUY ${buyCandidates.length}, gate ${executionGate}, qualità ${dataQuality}, live trading ${liveTradingBlocked ? 'BLOCKED' : 'UNSAFE'}.`);
