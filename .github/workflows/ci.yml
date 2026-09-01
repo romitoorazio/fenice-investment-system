@@ -3,7 +3,7 @@ name: Fenice Production CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, automation/fenice-certification-hardening-20260901]
     paths-ignore:
       - "data/history/**"
       - "**/*.md"
@@ -33,6 +33,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Regression tests
+        run: npm test
 
       - name: Lint
         run: npm run lint
