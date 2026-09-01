@@ -16,6 +16,18 @@ function expandEndpoint(source, endpoint) {
   return endpoint.replace("{key}", encodeURIComponent(secretValue || ""));
 }
 
+function redactEndpoint(source, endpoint) {
+  if (!endpoint) return null;
+  let safe = endpoint;
+  const secretValue = source.secret ? process.env[source.secret] : undefined;
+  if (secretValue) {
+    safe = safe.replaceAll(secretValue, "[REDACTED]");
+    safe = safe.replaceAll(encodeURIComponent(secretValue), "[REDACTED]");
+  }
+  safe = safe.replace(/([?&](?:api[_-]?key|apikey|key|token|access[_-]?token)=)[^&#]*/gi, "$1[REDACTED]");
+  return safe;
+}
+
 function endpointsFor(source) {
   return [source.endpoint, ...(source.fallbackEndpoints || [])]
     .map(endpoint => expandEndpoint(source, endpoint))
@@ -109,7 +121,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: redactEndpoint(source, endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +133,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: redactEndpoint(source, best?.endpoint ?? null), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
