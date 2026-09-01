@@ -1,0 +1,44 @@
+name: Fenice Certification Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'automation/fenice-certification-hardening-*'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Sanitize persisted source metadata
+        run: node scripts/sanitize-source-health.mjs
+
+      - name: Validate deterministic certification gates
+        run: node scripts/validate-certification-gates.mjs
