@@ -34,6 +34,12 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Safety baseline
+        run: npm run safety:verify
+
       - name: Lint
         run: npm run lint
 
@@ -52,6 +58,8 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/decision-governance.json',
+            'data/global-source-health.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -73,5 +81,9 @@ jobs:
           }
           const research = JSON.parse(fs.readFileSync('data/fundamental-research.json', 'utf8'));
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
-          console.log('Critical datasets are structurally valid');
+          const governance = JSON.parse(fs.readFileSync('data/decision-governance.json', 'utf8'));
+          if (governance?.guardrails?.blockAutonomousTrading !== true || governance?.guardrails?.requireHumanConfirmation !== true) {
+            throw new Error('Unsafe governance: live/autonomous execution guardrails are not enforced');
+          }
+          console.log('Critical datasets and execution guardrails are structurally valid');
           NODE
