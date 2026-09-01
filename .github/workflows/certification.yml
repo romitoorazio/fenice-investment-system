@@ -37,5 +37,8 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Sanitize persisted source metadata
+        run: node scripts/sanitize-source-health.mjs
+
       - name: Validate deterministic certification gates
         run: node scripts/validate-certification-gates.mjs
