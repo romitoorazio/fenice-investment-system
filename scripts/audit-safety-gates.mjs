@@ -8,6 +8,7 @@ const fail = (message) => {
 
 const governance = readJson('data/decision-governance.json');
 const quality = readJson('data/intelligence-quality.json');
+const sourceHealth = readJson('data/global-source-health.json');
 
 if (governance?.guardrails?.blockAutonomousTrading !== true) {
   fail('blockAutonomousTrading must remain true');
@@ -44,6 +45,15 @@ if (!Number.isFinite(maxWeight) || maxWeight <= 0 || maxWeight > 10) {
 const minSources = governance?.guardrails?.minIndependentSources;
 if (!Number.isInteger(minSources) || minSources < 2) {
   fail('minIndependentSources must be at least 2');
+}
+
+const credentialParam = /[?&](?:api[_-]?key|apikey|key|token|access[_-]?token)=([^&#]+)/i;
+for (const source of sourceHealth?.sources || []) {
+  if (typeof source?.endpointUsed !== 'string') continue;
+  const match = source.endpointUsed.match(credentialParam);
+  if (match && !/^\[REDACTED\]$/i.test(decodeURIComponent(match[1]))) {
+    fail(`published source health contains an unredacted credential for ${source.id || 'unknown source'}`);
+  }
 }
 
 if (!process.exitCode) {
