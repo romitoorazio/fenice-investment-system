@@ -37,6 +37,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Safety gates
+        run: npm run safety:audit
+
+      - name: Fenice readiness certification
+        run: npm run readiness:check
+
       - name: TypeScript and production build
         run: npm run build
 
