@@ -19,6 +19,7 @@ ok((sources.critical?.failures || []).length === 0, `critical source failures=${
 ok(Number(sources.critical?.ready) === Number(sources.critical?.total), `critical ready=${sources.critical?.ready}/${sources.critical?.total}`);
 // Non-critical providers may fail transiently; 90+ is required while the critical set remains complete.
 ok(Number(sources.qualityScore) >= 90, `source quality=${sources.qualityScore}`);
+ok(committee.sourceGate === 'GREEN', `committee source gate=${committee.sourceGate}`);
 ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
 
 // Global scanner: meaningful multi-asset breadth and deterministic scores.
