@@ -1,0 +1,62 @@
+name: Fenice Certification Live Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [automation/fenice-certification-hardening-v7]
+    paths:
+      - "scripts/validate-certification.mjs"
+      - "scripts/check-global-sources.mjs"
+      - "data/global-source-registry.json"
+      - "package.json"
+      - ".github/workflows/certification-live.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-certification-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout hardening branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Probe authoritative sources
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: npm run sources:check
+
+      - name: Require all critical sources GREEN
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          if (h.gate !== 'GREEN' || h.critical?.gate !== 'GREEN') throw new Error(`source gate ${h.gate}/${h.critical?.gate}`);
+          if ((h.critical?.failures || []).length) throw new Error(`critical failures: ${h.critical.failures.join(',')}`);
+          if (Number(h.critical?.ready) !== Number(h.critical?.total)) throw new Error(`critical ready ${h.critical?.ready}/${h.critical?.total}`);
+          if (Number(h.qualityScore) < 90) throw new Error(`source quality ${h.qualityScore}`);
+          console.log(`Sources GREEN: quality ${h.qualityScore}, critical ${h.critical.ready}/${h.critical.total}`);
+          NODE
+
+      - name: Recompute terminal, committee and decision ledger
+        run: npm run terminal
+
+      - name: Run final fail-closed certification
+        run: npm run certify
