@@ -16,6 +16,23 @@ function expandEndpoint(source, endpoint) {
   return endpoint.replace("{key}", encodeURIComponent(secretValue || ""));
 }
 
+function redactEndpoint(value) {
+  if (!value || typeof value !== "string") return value;
+  try {
+    const url = new URL(value);
+    const sensitive = /^(api[_-]?key|key|token|access[_-]?token|secret|password)$/i;
+    for (const name of [...url.searchParams.keys()]) {
+      if (sensitive.test(name)) url.searchParams.set(name, "[REDACTED]");
+    }
+    return url.toString();
+  } catch {
+    return value.replace(
+      /([?&](?:api[_-]?key|key|token|access[_-]?token|secret|password)=)[^&#\s]+/gi,
+      "$1[REDACTED]",
+    );
+  }
+}
+
 function endpointsFor(source) {
   return [source.endpoint, ...(source.fallbackEndpoints || [])]
     .map(endpoint => expandEndpoint(source, endpoint))
@@ -54,6 +71,10 @@ async function request(source, endpoint, attempt) {
         ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.1 contact:https://github.com/romitoorazio/fenice-investment-system")
         : "FeniceInvestmentSystem/2.1 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
+    if (source.id === "sec") {
+      headers.host = new URL(endpoint).host;
+      headers["accept-language"] = "en-US,en;q=0.9";
+    }
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
     const text = await response.text();
@@ -109,7 +130,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: redactEndpoint(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +142,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: redactEndpoint(best?.endpoint ?? null), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
