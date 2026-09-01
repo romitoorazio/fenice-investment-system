@@ -34,7 +34,7 @@ function payloadLooksValid(source, text, contentType) {
   const trimmed = text.trim();
   if (trimmed.length < 8) return false;
   if (/text\/html/i.test(contentType) && /access denied|forbidden|captcha|temporarily unavailable/i.test(trimmed.slice(0, 1500))) return false;
-  if (source.id === "sec") return /cik|tickers|filings|entityType/i.test(trimmed);
+  if (source.id === "sec") return /cik|tickers|filings|entityType|facts|companyfacts/i.test(trimmed);
   if (source.id === "openfda") return /meta|results/i.test(trimmed);
   if (source.id === "clinical-trials") return /studies|protocolSection/i.test(trimmed);
   if (source.id === "fred") return /seriess|series/i.test(trimmed);
@@ -51,9 +51,12 @@ async function request(source, endpoint, attempt) {
       accept: source.id === "ema" ? "application/rss+xml,application/xml,text/html,*/*" : "application/json,text/csv,text/plain,*/*",
       "accept-encoding": "gzip, deflate",
       "user-agent": source.id === "sec"
-        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.1 contact:https://github.com/romitoorazio/fenice-investment-system")
+        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/3.2 romitoorazio@gmail.com")
         : "FeniceInvestmentSystem/2.1 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
+    if (source.id === "sec") {
+      headers.host = new URL(endpoint).host;
+    }
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
     const text = await response.text();
