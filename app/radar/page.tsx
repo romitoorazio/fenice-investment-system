@@ -129,7 +129,7 @@ export default function RadarPage() {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Come leggere Score 2.0</p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
               <p><strong className="text-white">Fenice:</strong> qualità complessiva del candidato nel regime corrente.</p>
-              <p><strong className="text-white">Readiness:</strong> qualità del timing d'ingresso; penalizza anche rialzi troppo verticali.</p>
+              <p><strong className="text-white">Readiness:</strong> qualità del timing d&apos;ingresso; penalizza anche rialzi troppo verticali.</p>
               <p><strong className="text-white">Confidenza:</strong> qualità e freschezza dei dati disponibili.</p>
               <p><strong className="text-white">Rischio:</strong> resta un freno autonomo: una grande opportunità non cancella un rischio estremo.</p>
             </div>
