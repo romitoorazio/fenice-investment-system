@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/check-global-sources.mjs"
+      - "scripts/sanitize-source-health.mjs"
       - "data/global-source-registry.json"
       - ".github/workflows/global-sources.yml"
 
@@ -43,9 +44,12 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: npm run sources:check
 
+      - name: Sanitize persisted source metadata
+        run: node scripts/sanitize-source-health.mjs
+
       - name: Validate source health gate
         run: |
-          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('data/global-source-health.json'));if(!Array.isArray(h.sources)||!Number.isFinite(h.qualityScore)||!h.gate)process.exit(1);if(!['GREEN','AMBER','RED'].includes(h.gate))process.exit(1);console.log('Source gate',h.gate,'quality',h.qualityScore,'healthy',h.summary?.healthy,'failed',h.summary?.failed,'unconfigured',h.summary?.unconfigured)"
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('data/global-source-health.json'));if(!Array.isArray(h.sources)||!Number.isFinite(h.qualityScore)||!h.gate)process.exit(1);if(!['GREEN','AMBER','RED'].includes(h.gate))process.exit(1);const leak=(h.sources||[]).some(s=>/[?&](?:api[_-]?key|key|token|access[_-]?token|secret|password)=(?!%5BREDACTED%5D|\[REDACTED\])/i.test(String(s.endpointUsed||'')));if(leak)process.exit(1);console.log('Source gate',h.gate,'quality',h.qualityScore,'healthy',h.summary?.healthy,'failed',h.summary?.failed,'unconfigured',h.summary?.unconfigured)"
 
       - name: Commit source health data
         run: |
