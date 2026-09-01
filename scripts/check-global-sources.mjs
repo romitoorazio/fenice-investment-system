@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sanitizeEndpoint } from "./lib/sanitize-endpoint.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registryPath = path.join(root, "data", "global-source-registry.json");
@@ -14,6 +15,11 @@ function expandEndpoint(source, endpoint) {
   const secretValue = source.secret ? process.env[source.secret] : undefined;
   if (source.auth === "api-key" && !secretValue) return null;
   return endpoint.replace("{key}", encodeURIComponent(secretValue || ""));
+}
+
+function persistedEndpoint(source, endpoint) {
+  const secretValue = source.secret ? process.env[source.secret] : undefined;
+  return sanitizeEndpoint(endpoint, { secrets: secretValue ? [secretValue] : [] });
 }
 
 function endpointsFor(source) {
@@ -51,8 +57,8 @@ async function request(source, endpoint, attempt) {
       accept: source.id === "ema" ? "application/rss+xml,application/xml,text/html,*/*" : "application/json,text/csv,text/plain,*/*",
       "accept-encoding": "gzip, deflate",
       "user-agent": source.id === "sec"
-        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.1 contact:https://github.com/romitoorazio/fenice-investment-system")
-        : "FeniceInvestmentSystem/2.1 (+https://github.com/romitoorazio/fenice-investment-system)",
+        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.2 contact:fenice-investment-system@users.noreply.github.com")
+        : "FeniceInvestmentSystem/2.2 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
@@ -109,7 +115,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: persistedEndpoint(source, endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +127,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: persistedEndpoint(source, best?.endpoint ?? null), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
