@@ -7,7 +7,11 @@ on:
     paths:
       - "scripts/validate-certification.mjs"
       - "scripts/check-global-sources.mjs"
+      - "scripts/run-global-universe-expansion.mjs"
+      - "scripts/finalize-terminal-allocation.mjs"
+      - "scripts/enforce-committee-governance.mjs"
       - "data/global-source-registry.json"
+      - "data/global-universe.json"
       - "package.json"
       - ".github/workflows/certification-live.yml"
 
@@ -55,7 +59,7 @@ jobs:
           console.log(`Sources GREEN: quality ${h.qualityScore}, critical ${h.critical.ready}/${h.critical.total}`);
           NODE
 
-      - name: Recompute terminal, committee and decision ledger
+      - name: Recompute global terminal, committee and decision ledger
         run: npm run terminal
 
       - name: Run final fail-closed certification
