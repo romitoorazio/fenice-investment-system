@@ -52,6 +52,9 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/decision-governance.json',
+            'data/decision-ledger.json',
+            'data/global-source-health.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -74,4 +77,35 @@ jobs:
           const research = JSON.parse(fs.readFileSync('data/fundamental-research.json', 'utf8'));
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
+          NODE
+
+      - name: Enforce paper-only trading guardrails
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const governance = JSON.parse(fs.readFileSync('data/decision-governance.json', 'utf8'));
+          const guardrails = governance.guardrails || {};
+          if (guardrails.blockAutonomousTrading !== true) throw new Error('Autonomous trading must remain blocked');
+          if (guardrails.requireHumanConfirmation !== true) throw new Error('Human confirmation must remain mandatory');
+          const prohibited = Array.isArray(governance.prohibitedActions) ? governance.prohibitedActions.join(' ').toLowerCase() : '';
+          if (!prohibited.includes('ordini') || !prohibited.includes('broker')) {
+            throw new Error('Governance must explicitly prohibit order transmission and broker connection');
+          }
+          console.log('Paper-only trading guardrails enforced');
+          NODE
+
+      - name: Prevent secrets in published source health
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const health = fs.readFileSync('data/global-source-health.json', 'utf8');
+          const parsed = JSON.parse(health);
+          for (const source of parsed.sources || []) {
+            const endpoint = String(source.endpointUsed || '');
+            const matches = [...endpoint.matchAll(/[?&](api[_-]?key|apikey|token|access[_-]?token|key)=([^&#]+)/gi)];
+            for (const match of matches) {
+              if (match[2] !== '[REDACTED]') throw new Error(`Possible secret persisted for source ${source.id}`);
+            }
+          }
+          console.log('No API credentials persisted in source-health endpoints');
           NODE
