@@ -7,6 +7,7 @@ const quality = readJson('data/intelligence-quality.json');
 const committee = readJson('data/investment-committee.json');
 const ledger = readJson('data/decision-ledger.json');
 const terminal = readJson('data/terminal-state.json');
+const sourceHealth = readJson('data/global-source-health.json');
 
 const failures = [];
 const warnings = [];
@@ -31,6 +32,19 @@ for (const d of committee?.topDecisions ?? []) {
   if (quality?.policy?.autonomousTrading === false) {
     pass(d?.entryPlan?.orderMode === 'NESSUN ORDINE' && Number(d?.entryPlan?.firstTrancheEuro ?? 0) === 0,
       `SAFETY: ${d?.symbol ?? 'unknown'} exposes an executable entry while live trading is locked.`);
+  }
+}
+
+// Prevent generated health artifacts from publishing credentials. The source
+// checker must persist only sanitized URLs; actual secrets may exist in memory
+// during requests but never in repository artifacts or logs.
+const sensitiveParam = /[?&](?:api[-_]?key|apikey|key|token|access[-_]?token|secret|client[-_]?secret)=([^&#\s]+)/i;
+for (const source of sourceHealth?.sources ?? []) {
+  const endpoint = String(source?.endpointUsed ?? '');
+  const match = endpoint.match(sensitiveParam);
+  if (match) {
+    pass(match[1] === 'REDACTED',
+      `SECURITY: source health artifact exposes a credential-like query value for ${source?.name ?? source?.id ?? 'unknown'}.`);
   }
 }
 
