@@ -30,29 +30,36 @@ if (mode === 'live') {
   ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
 }
 
-ok(Array.isArray(terminal.assets) && terminal.assets.length >= 15, `terminal coverage=${terminal.assets?.length || 0}`);
-const classes = new Set(terminal.assets.map((asset) => asset.assetClass).filter(Boolean));
-ok(classes.size >= 5, `asset classes=${classes.size}`);
-for (const asset of terminal.assets) {
-  ok(asset.symbol && finite(asset.unifiedScore) && finite(asset.riskScore), `invalid score structure ${asset.symbol || '?'}`);
-  ok(asset.technical && typeof asset.technical === 'object', `technical missing ${asset.symbol}`);
-}
-
 ok(governance.guardrails?.requireHumanConfirmation === true, 'human confirmation not mandatory');
 ok(governance.guardrails?.blockAutonomousTrading === true, 'autonomous trading not blocked');
 ok(governance.guardrails?.blockSignalWhenDataDivergent === true, 'data divergence not blocking');
 ok(governance.guardrails?.blockSignalWhenSourceStale === true, 'stale data not blocking');
 ok(finite(governance.guardrails?.maxSingleAssetWeightPercent) && Number(governance.guardrails.maxSingleAssetWeightPercent) <= 10, 'single-asset limit invalid');
 ok(Number(governance.guardrails?.minIndependentSources || 0) >= 2, 'independent-source minimum too low');
+const maxSingleAssetWeight = Number(governance.guardrails.maxSingleAssetWeightPercent);
 const prohibited = (governance.prohibitedActions || []).join(' ').toLowerCase();
 ok(prohibited.includes('ordini') && prohibited.includes('broker'), 'order/broker veto not explicit');
+
+ok(Array.isArray(terminal.assets) && terminal.assets.length >= 15, `terminal coverage=${terminal.assets?.length || 0}`);
+const classes = new Set(terminal.assets.map((asset) => asset.assetClass).filter(Boolean));
+ok(classes.size >= 5, `asset classes=${classes.size}`);
+for (const asset of terminal.assets) {
+  ok(asset.symbol && finite(asset.unifiedScore) && finite(asset.riskScore), `invalid score structure ${asset.symbol || '?'}`);
+  ok(asset.technical && typeof asset.technical === 'object', `technical missing ${asset.symbol}`);
+  ok(Number(asset.targetWeightPercent || 0) <= maxSingleAssetWeight + 0.001, `terminal allocation exceeds governance cap ${asset.symbol}`);
+  if (['ATTENDI', 'EVITA'].includes(String(asset.decision || ''))) {
+    ok(Number(asset.targetWeightPercent || 0) === 0, `ineligible terminal allocation ${asset.symbol}:${asset.decision}`);
+    ok(Number(asset.targetAmountEuro || 0) === 0, `ineligible terminal amount ${asset.symbol}:${asset.decision}`);
+  }
+}
+ok((terminal.guardrails?.violations || []).length === 0, `terminal guardrail violations=${(terminal.guardrails?.violations || []).join(';')}`);
+
 ok(committee.executionGate !== 'LIVE', 'LIVE execution forbidden during certification');
 ok(Number(committee.proposedFirstTrancheEuro || 0) === 0 || committee.executionGate !== 'LIVE', 'real tranche cannot be executable');
-
 ok(Array.isArray(committee.allDecisions) && committee.allDecisions.length >= 15, `committee coverage=${committee.allDecisions?.length || 0}`);
 for (const decision of committee.allDecisions) {
   ok(decision.symbol && finite(decision.committeeScore) && finite(decision.confidence) && finite(decision.riskScore), `invalid committee decision ${decision.symbol || '?'}`);
-  ok(finite(decision.maxWeightPercent) && Number(decision.maxWeightPercent) <= 10, `invalid max weight ${decision.symbol}`);
+  ok(finite(decision.maxWeightPercent) && Number(decision.maxWeightPercent) <= maxSingleAssetWeight + 0.001, `committee max weight exceeds governance ${decision.symbol}`);
   ok(Array.isArray(decision.invalidation) && decision.invalidation.length >= 2, `missing invalidation ${decision.symbol}`);
   if (decision.decision !== 'COMPRA') {
     ok(decision.entryPlan?.orderMode === 'NESSUN ORDINE', `order proposed without COMPRA ${decision.symbol}`);
@@ -77,6 +84,7 @@ console.log(JSON.stringify({
   committeeDataQuality: mode === 'live' ? committee.dataQuality : null,
   terminalAssets: terminal.assets.length,
   assetClasses: classes.size,
+  maxSingleAssetWeightPercent: maxSingleAssetWeight,
   ledgerRecords: ledger.recordCount,
   checkpointedRecords: checkpointed,
   liveTradingLocked: true,
