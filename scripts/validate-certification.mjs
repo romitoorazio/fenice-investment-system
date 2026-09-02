@@ -28,6 +28,10 @@ if (mode === 'live') {
   }
   ok(committee.sourceGate === 'GREEN', `committee source gate=${committee.sourceGate}`);
   ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
+  ok(Number(terminal.assetCount || terminal.assets?.length || 0) >= 40, `global terminal coverage too small=${terminal.assetCount || terminal.assets?.length || 0}`);
+  ok(Number(terminal.globalCoverage?.configured || 0) >= 50, `global configured universe=${terminal.globalCoverage?.configured || 0}`);
+  ok((terminal.globalCoverage?.regions || []).length >= 5, `global regions=${(terminal.globalCoverage?.regions || []).length}`);
+  ok((terminal.globalCoverage?.sectors || []).length >= 10, `global sectors=${(terminal.globalCoverage?.sectors || []).length}`);
 }
 
 ok(governance.guardrails?.requireHumanConfirmation === true, 'human confirmation not mandatory');
@@ -83,6 +87,8 @@ console.log(JSON.stringify({
   criticalSources: mode === 'live' ? `${sources.critical.ready}/${sources.critical.total}` : null,
   committeeDataQuality: mode === 'live' ? committee.dataQuality : null,
   terminalAssets: terminal.assets.length,
+  globalRegions: mode === 'live' ? (terminal.globalCoverage?.regions || []).length : null,
+  globalSectors: mode === 'live' ? (terminal.globalCoverage?.sectors || []).length : null,
   assetClasses: classes.size,
   maxSingleAssetWeightPercent: maxSingleAssetWeight,
   ledgerRecords: ledger.recordCount,
