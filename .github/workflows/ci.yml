@@ -76,5 +76,7 @@ jobs:
           console.log('Critical datasets are structurally valid');
           NODE
 
-      - name: Fenice fail-closed certification gate
+      - name: Fenice deterministic fail-closed gate
+        env:
+          FENICE_CERT_MODE: static
         run: npm run certify
