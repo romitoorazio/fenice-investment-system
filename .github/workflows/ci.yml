@@ -75,3 +75,12 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Enforce institutional source gate in CI fixture
+        run: node scripts/enforce-institutional-gate.mjs
+
+      - name: Validate source credential hygiene
+        run: npm run security:secrets
+
+      - name: Validate permanent safety invariants
+        run: npm run safety:validate

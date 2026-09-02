@@ -9,11 +9,27 @@ const historyDir = path.join(root, "data", "source-history");
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 const now = new Date();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const defaultSecUserAgent = "FeniceInvestmentSystem/2.2 (research-only; contact: romitoorazio@users.noreply.github.com)";
 
 function expandEndpoint(source, endpoint) {
   const secretValue = source.secret ? process.env[source.secret] : undefined;
   if (source.auth === "api-key" && !secretValue) return null;
   return endpoint.replace("{key}", encodeURIComponent(secretValue || ""));
+}
+
+function redactEndpoint(endpoint) {
+  if (!endpoint) return null;
+  try {
+    const url = new URL(endpoint);
+    for (const key of ["api_key", "apikey", "key", "token", "access_token"]) {
+      if (url.searchParams.has(key)) url.searchParams.set(key, "REDACTED");
+    }
+    return url.toString();
+  } catch {
+    return String(endpoint)
+      .replace(/([?&](?:api_key|apikey|key|token|access_token)=)[^&]+/gi, "$1REDACTED")
+      .replace(/([A-Za-z0-9_-]{24,})/g, "REDACTED");
+  }
 }
 
 function endpointsFor(source) {
@@ -47,13 +63,20 @@ async function request(source, endpoint, attempt) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
   try {
+    const isSec = source.id === "sec";
+    const secUserAgent = process.env.SEC_USER_AGENT?.trim() || defaultSecUserAgent;
     const headers = {
       accept: source.id === "ema" ? "application/rss+xml,application/xml,text/html,*/*" : "application/json,text/csv,text/plain,*/*",
       "accept-encoding": "gzip, deflate",
-      "user-agent": source.id === "sec"
-        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.1 contact:https://github.com/romitoorazio/fenice-investment-system")
-        : "FeniceInvestmentSystem/2.1 (+https://github.com/romitoorazio/fenice-investment-system)",
+      "user-agent": isSec
+        ? secUserAgent
+        : "FeniceInvestmentSystem/2.2 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
+    if (isSec) {
+      headers["accept-language"] = "en-US,en;q=0.9";
+      headers.from = secUserAgent.includes("@") ? secUserAgent.match(/[\w.+-]+@[\w.-]+/)?.[0] || "" : "";
+      if (!headers.from) delete headers.from;
+    }
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
     const text = await response.text();
@@ -109,7 +132,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: redactEndpoint(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +144,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: redactEndpoint(best?.endpoint), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
@@ -170,4 +193,6 @@ const report = {
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 await writeFile(outputPath, serialized, "utf8");
 await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(":", "-")}.json`), serialized, "utf8");
+const unhealthy = results.filter(source => source.status === "failed" || source.status === "unconfigured");
 console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
+for (const source of unhealthy) console.log(`SOURCE_FAIL id=${source.id} critical=${source.critical} status=${source.status} http=${source.httpStatus ?? "n/a"} detail=${source.detail} endpoint=${source.endpointUsed || "n/a"}`);
