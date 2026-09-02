@@ -79,5 +79,8 @@ jobs:
       - name: Enforce institutional source gate in CI fixture
         run: node scripts/enforce-institutional-gate.mjs
 
+      - name: Validate source credential hygiene
+        run: npm run security:secrets
+
       - name: Validate permanent safety invariants
         run: npm run safety:validate
