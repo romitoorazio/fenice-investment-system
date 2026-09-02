@@ -40,6 +40,9 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Catalyst relevance regression tests
+        run: npm run test:cert
+
       - name: Validate published datasets
         run: |
           node - <<'NODE'
