@@ -76,6 +76,9 @@ jobs:
           console.log('Critical datasets are structurally valid');
           NODE
 
+      - name: Reapply allocation guardrails deterministically
+        run: node scripts/finalize-terminal-allocation.mjs
+
       - name: Fenice deterministic fail-closed gate
         env:
           FENICE_CERT_MODE: static
