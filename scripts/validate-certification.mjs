@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 const read = async (name) => JSON.parse(await readFile(new URL(`../data/${name}`, import.meta.url), 'utf8'));
 const ok = (condition, message) => { if (!condition) throw new Error(message); };
 const finite = (value) => Number.isFinite(Number(value));
+const mode = (process.env.FENICE_CERT_MODE || 'live').toLowerCase();
+ok(mode === 'static' || mode === 'live', `invalid certification mode=${mode}`);
 
 const [sources, committee, governance, terminal, ledger] = await Promise.all([
   read('global-source-health.json'),
@@ -12,17 +14,21 @@ const [sources, committee, governance, terminal, ledger] = await Promise.all([
   read('decision-ledger.json'),
 ]);
 
-ok(sources.gate === 'GREEN', `source gate=${sources.gate}`);
-ok(sources.critical?.gate === 'GREEN', `critical gate=${sources.critical?.gate}`);
-ok((sources.critical?.failures || []).length === 0, `critical source failures=${(sources.critical?.failures || []).join(',')}`);
-ok(Number(sources.critical?.ready) === Number(sources.critical?.total), `critical ready=${sources.critical?.ready}/${sources.critical?.total}`);
-ok(Number(sources.qualityScore) >= 90, `source quality=${sources.qualityScore}`);
-for (const source of sources.sources || []) {
-  const endpoint = String(source.endpointUsed || '');
-  ok(!/[?&](?:api_key|apikey|key|token|access_token)=(?!REDACTED(?:&|$))[^&]+/i.test(endpoint), `credential leak in source health ${source.id || '?'}`);
+if (mode === 'live') {
+  ok(sources.gate === 'GREEN', `source gate=${sources.gate}`);
+  ok(sources.critical?.gate === 'GREEN', `critical gate=${sources.critical?.gate}`);
+  ok((sources.critical?.failures || []).length === 0, `critical source failures=${(sources.critical?.failures || []).join(',')}`);
+  ok(Number(sources.critical?.ready) === Number(sources.critical?.total), `critical ready=${sources.critical?.ready}/${sources.critical?.total}`);
+  ok(Number(sources.qualityScore) >= 90, `source quality=${sources.qualityScore}`);
+  const sourceAgeMs = Date.now() - new Date(sources.generatedAt).getTime();
+  ok(Number.isFinite(sourceAgeMs) && sourceAgeMs >= 0 && sourceAgeMs <= 60 * 60 * 1000, `source health stale ageMs=${sourceAgeMs}`);
+  for (const source of sources.sources || []) {
+    const endpoint = String(source.endpointUsed || '');
+    ok(!/[?&](?:api_key|apikey|key|token|access_token)=(?!REDACTED(?:&|$))[^&]+/i.test(endpoint), `credential leak in source health ${source.id || '?'}`);
+  }
+  ok(committee.sourceGate === 'GREEN', `committee source gate=${committee.sourceGate}`);
+  ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
 }
-ok(committee.sourceGate === 'GREEN', `committee source gate=${committee.sourceGate}`);
-ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
 
 ok(Array.isArray(terminal.assets) && terminal.assets.length >= 15, `terminal coverage=${terminal.assets?.length || 0}`);
 const classes = new Set(terminal.assets.map((asset) => asset.assetClass).filter(Boolean));
@@ -64,10 +70,11 @@ for (const record of ledger.records.slice(0, 100)) {
 
 console.log(JSON.stringify({
   certification: 'PASS',
-  sourceGate: sources.gate,
-  sourceQuality: sources.qualityScore,
-  criticalSources: `${sources.critical.ready}/${sources.critical.total}`,
-  committeeDataQuality: committee.dataQuality,
+  mode,
+  sourceGate: mode === 'live' ? sources.gate : 'LIVE_GATE_REQUIRED_SEPARATELY',
+  sourceQuality: mode === 'live' ? sources.qualityScore : null,
+  criticalSources: mode === 'live' ? `${sources.critical.ready}/${sources.critical.total}` : null,
+  committeeDataQuality: mode === 'live' ? committee.dataQuality : null,
   terminalAssets: terminal.assets.length,
   assetClasses: classes.size,
   ledgerRecords: ledger.recordCount,
