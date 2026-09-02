@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sanitizeCatalystDecision } from '../lib/catalyst-relevance.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -11,6 +12,7 @@ const governance = JSON.parse(await readFile(governancePath, 'utf8'));
 const cap = Math.min(8, Math.max(0, Number(governance.guardrails?.maxSingleAssetWeightPercent ?? 8)));
 
 function harden(decision) {
+  sanitizeCatalystDecision(decision);
   decision.maxWeightPercent = Math.min(Number(decision.maxWeightPercent || 0), cap);
   if (decision.entryPlan) {
     decision.entryPlan.firstTranchePercent = Math.min(Number(decision.entryPlan.firstTranchePercent || 0), decision.maxWeightPercent);
@@ -46,7 +48,8 @@ committee.committeeRules = [...new Set([
   ...(committee.committeeRules || []),
   `Nessun candidato può superare il ${cap}% del capitale senza revisione esplicita della governance.`,
   'Il live trading resta bloccato: ogni piano è solo preparatorio finché il broker non viene configurato esplicitamente.',
+  'I catalizzatori vengono mantenuti solo quando l’evidenza cita in modo univoco il simbolo o il nome distintivo dell’emittente.',
 ])];
 
 await writeFile(committeePath, `${JSON.stringify(committee, null, 2)}\n`, 'utf8');
-console.log(`Committee governance enforced: max single asset ${cap}%, live trading locked.`);
+console.log(`Committee governance enforced: max single asset ${cap}%, live trading locked, catalyst evidence sanitized.`);
