@@ -9,6 +9,22 @@ const historyDir = path.join(root, "data", "source-history");
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 const now = new Date();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const sensitiveParam = /^(api[-_]?key|apikey|key|token|access[-_]?token|secret|client[-_]?secret)$/i;
+
+function sanitizeEndpoint(endpoint) {
+  if (!endpoint) return null;
+  try {
+    const url = new URL(endpoint);
+    for (const key of [...url.searchParams.keys()]) {
+      if (sensitiveParam.test(key)) url.searchParams.set(key, "REDACTED");
+    }
+    return url.toString();
+  } catch {
+    return String(endpoint)
+      .replace(/([?&](?:api[-_]?key|apikey|key|token|access[-_]?token|secret|client[-_]?secret)=)[^&#\s]+/gi, "$1REDACTED")
+      .replace(/\{key\}/gi, "REDACTED");
+  }
+}
 
 function expandEndpoint(source, endpoint) {
   const secretValue = source.secret ? process.env[source.secret] : undefined;
@@ -109,7 +125,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: sanitizeEndpoint(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +137,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: sanitizeEndpoint(best?.endpoint), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
