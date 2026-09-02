@@ -76,5 +76,8 @@ jobs:
           console.log('Critical datasets are structurally valid');
           NODE
 
+      - name: Enforce institutional source gate in CI fixture
+        run: node scripts/enforce-institutional-gate.mjs
+
       - name: Validate permanent safety invariants
         run: npm run safety:validate
