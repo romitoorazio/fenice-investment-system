@@ -1,6 +1,6 @@
 {
   "name": "fenice-investment-system",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,15 +10,17 @@
     "analyze": "node scripts/run-autonomy-wrapper.mjs",
     "foundation": "node scripts/run-reliability-layer.mjs && node scripts/run-market-enrichment.mjs && node scripts/run-fundamental-engine.mjs && node scripts/postprocess-fundamental-research.mjs",
     "fundamentals": "node scripts/run-fundamental-engine.mjs && node scripts/postprocess-fundamental-research.mjs",
-    "terminal": "node scripts/run-terminal-engine.mjs && node scripts/postprocess-terminal-intelligence.mjs && node scripts/finalize-terminal-allocation.mjs && node scripts/run-dcf-engine.mjs && node scripts/run-investment-committee.mjs && node scripts/run-decision-ledger.mjs",
-    "committee": "node scripts/run-investment-committee.mjs && node scripts/run-decision-ledger.mjs",
+    "terminal": "node scripts/run-terminal-engine.mjs && node scripts/run-global-universe-expansion.mjs && node scripts/postprocess-terminal-intelligence.mjs && node scripts/finalize-terminal-allocation.mjs && node scripts/run-dcf-engine.mjs && node scripts/run-investment-committee.mjs && node scripts/enforce-committee-governance.mjs && node scripts/run-decision-ledger.mjs",
+    "committee": "node scripts/run-investment-committee.mjs && node scripts/enforce-committee-governance.mjs && node scripts/run-decision-ledger.mjs",
     "ledger": "node scripts/run-decision-ledger.mjs",
     "dcf": "node scripts/run-dcf-engine.mjs",
     "strategies": "node scripts/run-strategy-lab.mjs && node scripts/finalize-strategy-lab.mjs",
     "sources:check": "node scripts/check-global-sources.mjs",
     "instruments:validate": "node scripts/validate-instrument-master.mjs",
     "knowledge:build": "node scripts/run-knowledge-engine.mjs",
-    "report:validate": "node scripts/validate-generated-report.mjs"
+    "report:validate": "node scripts/validate-generated-report.mjs",
+    "test:cert": "node scripts/test-catalyst-relevance.mjs && node scripts/test-secret-hygiene.mjs",
+    "certify": "node scripts/validate-certification.mjs"
   },
   "dependencies": {
     "next": "16.2.10",

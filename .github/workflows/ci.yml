@@ -40,6 +40,9 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Catalyst relevance regression tests
+        run: npm run test:cert
+
       - name: Validate published datasets
         run: |
           node - <<'NODE'
@@ -75,3 +78,13 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Reapply risk governance deterministically
+        run: |
+          node scripts/finalize-terminal-allocation.mjs
+          node scripts/enforce-committee-governance.mjs
+
+      - name: Fenice deterministic fail-closed gate
+        env:
+          FENICE_CERT_MODE: static
+        run: npm run certify

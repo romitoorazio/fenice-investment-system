@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'terminal-intelligence.json');
+const governancePath = path.join(root, 'data', 'decision-governance.json');
 const round = (value, digits = 1) => {
   const factor = 10 ** digits;
   return Math.round((Number(value) || 0) * factor) / factor;
@@ -28,16 +29,43 @@ function trim(assets, maximum) {
   }
 }
 
+function capEach(assets, maximum) {
+  for (const asset of assets) {
+    asset.targetWeightPercent = round(Math.min(Number(asset.targetWeightPercent || 0), maximum));
+  }
+}
+
 const report = JSON.parse(await readFile(reportPath, 'utf8'));
+let governance = { guardrails: { maxSingleAssetWeightPercent: 8 } };
+try {
+  governance = JSON.parse(await readFile(governancePath, 'utf8'));
+} catch {
+  // Fail conservative when governance is unavailable.
+}
+const globalSingleAssetCap = Math.min(8, Math.max(0, Number(governance.guardrails?.maxSingleAssetWeightPercent ?? 8)));
 const policy = /CAUTO|DIFENSIVO|ATTENDERE/i.test(String(report.marketRegime || '')) || Number(report.dataQuality) < 60
   ? { core: 55, growth: 15, speculative: 5 }
   : /OFFENSIVO/i.test(String(report.marketRegime || '')) && Number(report.dataQuality) >= 75
     ? { core: 50, growth: 35, speculative: 5 }
     : { core: 55, growth: 25, speculative: 5 };
 
-trim(report.assets.filter((asset) => category(asset) === 'core'), policy.core);
-trim(report.assets.filter((asset) => category(asset) === 'growth'), policy.growth);
-trim(report.assets.filter((asset) => category(asset) === 'speculative'), policy.speculative);
+// ATTENDI/EVITA must never carry a target allocation. They remain research candidates only.
+for (const asset of report.assets) {
+  if (['ATTENDI', 'EVITA'].includes(String(asset.decision || ''))) {
+    asset.targetWeightPercent = 0;
+    asset.targetAmountEuro = 0;
+  }
+}
+
+const coreAssets = report.assets.filter((asset) => category(asset) === 'core');
+const growthAssets = report.assets.filter((asset) => category(asset) === 'growth');
+const speculativeAssets = report.assets.filter((asset) => category(asset) === 'speculative');
+capEach(coreAssets, globalSingleAssetCap);
+capEach(growthAssets, Math.min(globalSingleAssetCap, 7));
+capEach(speculativeAssets, Math.min(globalSingleAssetCap, 2.5));
+trim(coreAssets, policy.core);
+trim(growthAssets, policy.growth);
+trim(speculativeAssets, policy.speculative);
 trim(report.assets.filter((asset) => asset.assetClass === 'Criptovaluta'), 5);
 
 for (const asset of report.assets) {
@@ -54,7 +82,7 @@ const invested = round(totals.core + totals.growth + totals.speculative);
 const reserve = round(Math.max(0, 100 - invested));
 const capital = Number(report.capitalEuro || 10_000);
 report.portfolio = [
-  { id: 'core', label: 'Nucleo diversificato', targetPercent: totals.core, targetAmountEuro: Math.round(capital * totals.core / 100), rationale: 'ETF, obbligazioni e strumenti ampi realmente eleggibili.' },
+  { id: 'core', label: 'Nucleo diversificato', targetPercent: totals.core, targetAmountEuro: Math.round(capital * totals.core / 100), rationale: 'ETF, obbligazioni e strumenti ampi realmente eleggibili, entro il limite globale per singolo asset.' },
   { id: 'growth', label: 'Crescita selezionata', targetPercent: totals.growth, targetAmountEuro: Math.round(capital * totals.growth / 100), rationale: 'Azioni con decisione ACCUMULA o MANTIENI e limiti di concentrazione.' },
   { id: 'speculative', label: 'Opportunità speculative', targetPercent: totals.speculative, targetAmountEuro: Math.round(capital * totals.speculative / 100), rationale: 'Biotech pre-commerciali e crypto: massimo 2,5% per strumento e 5% complessivo.' },
   { id: 'reserve', label: 'Riserva strategica', targetPercent: reserve, targetAmountEuro: Math.round(capital * reserve / 100), rationale: 'Liquidità liberata dagli strumenti in ATTENDI/EVITA e dai limiti di rischio.' },
@@ -68,21 +96,25 @@ const violations = [];
 const maxCore = Math.max(0, ...core.map((asset) => asset.targetWeightPercent));
 const maxGrowth = Math.max(0, ...growth.map((asset) => asset.targetWeightPercent));
 const maxSpeculative = Math.max(0, ...speculative.map((asset) => asset.targetWeightPercent));
-if (maxCore > 20.001) violations.push('Limite singola posizione core superato.');
-if (maxGrowth > 7.001) violations.push('Limite singola posizione growth superato.');
-if (maxSpeculative > 2.501) violations.push('Limite singola posizione speculativa superato.');
+const ineligibleAllocated = report.assets.filter((asset) => ['ATTENDI', 'EVITA'].includes(String(asset.decision || '')) && Number(asset.targetWeightPercent || 0) > 0.001);
+if (maxCore > globalSingleAssetCap + 0.001) violations.push('Limite globale singola posizione core superato.');
+if (maxGrowth > Math.min(globalSingleAssetCap, 7) + 0.001) violations.push('Limite singola posizione growth superato.');
+if (maxSpeculative > Math.min(globalSingleAssetCap, 2.5) + 0.001) violations.push('Limite singola posizione speculativa superato.');
 if (cryptoTotal > 5.001) violations.push('Limite crypto complessivo superato.');
 if (totals.speculative > 5.001) violations.push('Limite area speculativa superato.');
+if (ineligibleAllocated.length) violations.push(`Allocazione presente su segnali ATTENDI/EVITA: ${ineligibleAllocated.map((asset) => asset.symbol).join(', ')}.`);
 if (!report.allocationCheck.valid) violations.push('Allocazione totale diversa dal 100%.');
 report.guardrails = {
+  maxSingleAssetWeightPercent: globalSingleAssetCap,
   maxCoreWeightPercent: round(maxCore),
   maxGrowthWeightPercent: round(maxGrowth),
   maxSpeculativeWeightPercent: round(maxSpeculative),
   cryptoTotalPercent: cryptoTotal,
   speculativeTotalPercent: totals.speculative,
+  ineligibleAllocatedCount: ineligibleAllocated.length,
   violations,
 };
-report.warnings = [...new Set((report.warnings || []).filter((warning) => !/Limite area speculativa superato|Limite crypto complessivo superato/.test(warning)).concat(violations))];
+report.warnings = [...new Set((report.warnings || []).filter((warning) => !/Limite area speculativa superato|Limite crypto complessivo superato|Allocazione presente su segnali ATTENDI\/EVITA/.test(warning)).concat(violations))];
 
 await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-console.log(`Allocazione finalizzata: investito ${invested}%, riserva ${reserve}%, speculativo ${totals.speculative}%, violazioni ${violations.length}.`);
+console.log(`Allocazione finalizzata: investito ${invested}%, riserva ${reserve}%, cap singolo ${globalSingleAssetCap}%, violazioni ${violations.length}.`);
