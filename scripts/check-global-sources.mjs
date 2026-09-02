@@ -16,6 +16,23 @@ function expandEndpoint(source, endpoint) {
   return endpoint.replace("{key}", encodeURIComponent(secretValue || ""));
 }
 
+function redactEndpoint(endpoint) {
+  if (!endpoint) return null;
+  try {
+    const url = new URL(endpoint);
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(api[_-]?key|apikey|key|token|access[_-]?token|secret)$/i.test(key)) {
+        url.searchParams.set(key, "REDACTED");
+      }
+    }
+    return url.toString();
+  } catch {
+    return String(endpoint)
+      .replace(/([?&](?:api[_-]?key|apikey|key|token|access[_-]?token|secret)=)[^&\s]+/gi, "$1REDACTED")
+      .replace(/[A-Za-z0-9_-]{24,}/g, "REDACTED");
+  }
+}
+
 function endpointsFor(source) {
   return [source.endpoint, ...(source.fallbackEndpoints || [])]
     .map(endpoint => expandEndpoint(source, endpoint))
@@ -109,7 +126,7 @@ async function probe(source) {
           critical: Boolean(source.critical), status: attempt === 1 ? "healthy" : "degraded",
           checkedAt: now.toISOString(), latencyMs: result.latencyMs, httpStatus: result.httpStatus,
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
-          regions: source.regions, endpointUsed: endpoint, attempts, bytes: result.bytes, contentType: result.contentType,
+          regions: source.regions, endpointUsed: redactEndpoint(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
       if (attempt < 3) await sleep(700 * attempt);
@@ -121,7 +138,7 @@ async function probe(source) {
     critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(),
     latencyMs: best?.latencyMs ?? null, httpStatus: best?.httpStatus ?? null,
     detail: best?.detail || "Nessun endpoint ha restituito un payload valido.",
-    regions: source.regions, endpointUsed: best?.endpoint ?? null, attempts,
+    regions: source.regions, endpointUsed: redactEndpoint(best?.endpoint), attempts,
     bytes: best?.bytes ?? 0, contentType: best?.contentType ?? "",
   };
 }
