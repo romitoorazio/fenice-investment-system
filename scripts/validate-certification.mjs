@@ -17,6 +17,10 @@ ok(sources.critical?.gate === 'GREEN', `critical gate=${sources.critical?.gate}`
 ok((sources.critical?.failures || []).length === 0, `critical source failures=${(sources.critical?.failures || []).join(',')}`);
 ok(Number(sources.critical?.ready) === Number(sources.critical?.total), `critical ready=${sources.critical?.ready}/${sources.critical?.total}`);
 ok(Number(sources.qualityScore) >= 90, `source quality=${sources.qualityScore}`);
+for (const source of sources.sources || []) {
+  const endpoint = String(source.endpointUsed || '');
+  ok(!/[?&](?:api_key|apikey|key|token|access_token)=(?!REDACTED(?:&|$))[^&]+/i.test(endpoint), `credential leak in source health ${source.id || '?'}`);
+}
 ok(committee.sourceGate === 'GREEN', `committee source gate=${committee.sourceGate}`);
 ok(Number(committee.dataQuality) >= 90, `committee data quality=${committee.dataQuality}`);
 
