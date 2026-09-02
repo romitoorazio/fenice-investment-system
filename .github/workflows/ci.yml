@@ -52,6 +52,9 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/intelligence-quality.json',
+            'data/investment-committee.json',
+            'data/decision-ledger.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -75,3 +78,6 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Fenice certification gate
+        run: npm run certify
