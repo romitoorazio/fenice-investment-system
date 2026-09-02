@@ -75,3 +75,13 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Enforce safety invariants
+        run: npm run safety:validate
+
+      - name: Check generated-data secret hygiene
+        run: npm run security:secrets
+
+      - name: Produce certification audit report
+        continue-on-error: true
+        run: npm run certification:audit
