@@ -43,26 +43,24 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: npm run sources:check
 
-      - name: Enforce production source health gate
+      - name: Verify persisted credential redaction
         run: |
           node - <<'NODE'
           const fs = require('fs');
           const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
-          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
-            throw new Error('Invalid global source health report');
+          const sensitive = /([?&](?:api_key|apikey|key|token|access_token)=)(?!REDACTED(?:&|$))[^&\s]+/i;
+          for (const source of h.sources || []) {
+            const endpoint = String(source.endpointUsed || '');
+            if (sensitive.test(endpoint)) {
+              throw new Error(`Credential-like value persisted in endpointUsed for ${source.id || 'unknown source'}`);
+            }
           }
-          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
-            throw new Error(`Unknown source gate: ${h.gate}`);
-          }
-          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
-          const criticalReady = Number(h.critical?.ready || 0);
-          const criticalTotal = Number(h.critical?.total || 0);
-          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
-          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
-            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
-          }
+          console.log('Persisted source endpoints are redacted.');
           NODE
 
+      # Publish the fresh, already-redacted health report even when the source gate is
+      # AMBER/RED. Certification must see the current failure instead of a stale GREEN
+      # (or an older report that predates credential redaction).
       - name: Commit source health data
         run: |
           git config user.name "fenice-source-bot"
@@ -97,3 +95,23 @@ jobs:
 
           echo "Unable to publish source health after 3 attempts"
           exit 1
+
+      - name: Enforce production source health gate
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
+            throw new Error('Invalid global source health report');
+          }
+          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
+            throw new Error(`Unknown source gate: ${h.gate}`);
+          }
+          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
+          const criticalReady = Number(h.critical?.ready || 0);
+          const criticalTotal = Number(h.critical?.total || 0);
+          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
+          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
+            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+          }
+          NODE
