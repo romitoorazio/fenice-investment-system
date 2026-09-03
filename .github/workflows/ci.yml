@@ -40,6 +40,9 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Source checker security invariants
+        run: node scripts/test-source-health-security.mjs
+
       - name: Validate published datasets
         run: |
           node - <<'NODE'
