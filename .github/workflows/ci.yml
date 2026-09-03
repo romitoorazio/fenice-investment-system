@@ -40,6 +40,10 @@ jobs:
       - name: Certification regressions
         run: npm run test:certification
 
+      - name: Strict release readiness gate
+        if: github.ref == 'refs/heads/agent/fenice-certification-hardening-v2' || github.head_ref == 'agent/fenice-certification-hardening-v2'
+        run: npm run test:release-readiness
+
       - name: TypeScript and production build
         run: npm run build
 
