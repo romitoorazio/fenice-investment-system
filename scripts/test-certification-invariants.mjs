@@ -23,11 +23,21 @@ const ledger = await readJson('decision-ledger.json');
 const sourceHealth = await readJson('global-source-health.json');
 const sourceRegistry = await readJson('global-source-registry.json');
 const committeeSource = await readFile(path.join(root, 'scripts', 'run-investment-committee-v2.mjs'), 'utf8');
+const safetySource = await readFile(path.join(root, 'scripts', 'enforce-committee-safety.mjs'), 'utf8');
+const packageJson = await readJson('../package.json');
 
-// Certification invariant: a non-GREEN institutional source gate can never arm execution.
+// Certification invariant: all supported committee entrypoints must pass through the fail-closed safety veto.
 assert(
-  /sourceGate\s*!==\s*['"]GREEN['"]/.test(committeeSource),
-  'Risk veto regression: committee v2 must explicitly block execution whenever sourceGate is not GREEN',
+  /sourceGate\s*!==\s*['"]GREEN['"]/.test(safetySource),
+  'Risk veto regression: safety layer must explicitly block execution whenever sourceGate is not GREEN',
+);
+assert(
+  packageJson.scripts?.terminal?.includes('enforce-committee-safety.mjs') && packageJson.scripts?.committee?.includes('enforce-committee-safety.mjs'),
+  'Risk veto regression: terminal and committee commands must execute the safety layer before the decision ledger',
+);
+assert(
+  packageJson.scripts.terminal.indexOf('enforce-committee-safety.mjs') < packageJson.scripts.terminal.indexOf('run-decision-ledger.mjs'),
+  'Risk veto regression: safety layer must run before the decision ledger',
 );
 
 assert(Array.isArray(sourceRegistry.sources) && sourceRegistry.sources.length >= 10, 'Global source registry coverage is insufficient');
@@ -79,10 +89,12 @@ for (const record of ledger.records) {
   }
 }
 
-// There is no broker/live execution contract in certification mode. The committee may only propose a plan.
+// There is no broker/live execution contract in certification mode. GREEN only clears analysis preparation.
 assert(
   /Nessun ordine viene trasmesso automaticamente al broker/.test(committeeSource),
   'Broker-transmission safety rule is missing from committee v2',
 );
+assert(/liveTrading\s*=\s*['"]DISABILITATO['"]/.test(safetySource), 'Live trading must remain explicitly disabled');
+assert(/brokerTransmission\s*=\s*false/.test(safetySource), 'Broker transmission must remain explicitly disabled');
 
 console.log(`Certification invariants OK: ${criticalSources.length} critical sources, ${ledger.records.length} ledger records, gate ${sourceHealth.gate}.`);
