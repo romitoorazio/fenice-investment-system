@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isCatalystRelevant } from '../lib/catalyst-relevance.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -47,16 +48,7 @@ function valuationScore(asset, dcf) {
 }
 
 function catalystFor(asset, discoveries) {
-  const symbol = String(asset.symbol || '').toLowerCase();
-  const nameTokens = String(asset.name || '')
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((token) => token.length >= 5)
-    .slice(0, 3);
-  const matches = discoveries.filter((item) => {
-    const text = `${item.name || ''} ${item.signal || ''}`.toLowerCase();
-    return text.includes(symbol) || nameTokens.some((token) => text.includes(token));
-  });
+  const matches = discoveries.filter((item) => isCatalystRelevant(asset, item));
   const recent = matches.filter((item) => freshnessScore(item.date) >= 65);
   const score = Math.round(clamp(48 + Math.min(28, recent.length * 7) + Math.min(10, matches.length * 2)));
   return {
