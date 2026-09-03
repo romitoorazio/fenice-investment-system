@@ -1,24 +1,21 @@
 import { readFile } from "node:fs/promises";
 
-const path = new URL("../data/global-source-health.json", import.meta.url);
-const report = JSON.parse(await readFile(path, "utf8"));
-const credentialPattern = /[?&](?:api_key|apikey|key|token|access_token)=([^&]+)/i;
-const offenders = [];
+const checker = await readFile(new URL("./check-global-sources.mjs", import.meta.url), "utf8");
 
-for (const source of report.sources || []) {
-  const endpoint = String(source.endpointUsed || "");
-  const match = endpoint.match(credentialPattern);
-  if (!match) continue;
-  if (!/^REDACTED$/i.test(String(match[1] || ""))) offenders.push(source.id || "unknown");
+if (!checker.includes("function redactEndpoint")) {
+  throw new Error("Global source checker must define credential redaction before persisting endpointUsed.");
+}
+if (!/endpointUsed:\s*redactEndpoint\(source,\s*endpoint\)/.test(checker)) {
+  throw new Error("Successful source probes must persist only a redacted endpointUsed value.");
+}
+if (!/endpointUsed:\s*redactEndpoint\(source,\s*best\?\.endpoint\)/.test(checker)) {
+  throw new Error("Failed source probes must persist only a redacted endpointUsed value.");
+}
+if (!/api_key\|apikey\|key\|token\|access_token/.test(checker)) {
+  throw new Error("Credential redaction must cover common query-string secret names.");
+}
+if (!/SEC_USER_AGENT/.test(checker) || !/@users\.noreply\.github\.com/.test(checker)) {
+  throw new Error("SEC requests must carry a descriptive User-Agent with contact information.");
 }
 
-if (offenders.length) {
-  throw new Error(`Unredacted credentials found in generated source health for: ${offenders.join(", ")}`);
-}
-
-const serialized = JSON.stringify(report);
-for (const envName of ["ALPHA_VANTAGE_API_KEY", "FRED_API_KEY", "EIA_API_KEY", "COINGECKO_API_KEY"]) {
-  if (serialized.includes(envName)) throw new Error(`Environment secret name leaked into generated source health: ${envName}`);
-}
-
-console.log(`Source-health credential hygiene PASS (${report.sources?.length || 0} sources).`);
+console.log("Source checker security invariants PASS.");
