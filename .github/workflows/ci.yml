@@ -3,7 +3,7 @@ name: Fenice Production CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, agent/fenice-certification-hardening-v2]
     paths-ignore:
       - "data/history/**"
       - "**/*.md"
@@ -37,11 +37,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Certification regressions
+        run: npm run test:certification
+
       - name: TypeScript and production build
         run: npm run build
 
-      - name: Source checker security invariants
-        run: node scripts/test-source-health-security.mjs
+      - name: Verify persisted source-health artifacts contain no credentials
+        run: |
+          node scripts/sanitize-source-health.mjs
+          if ! git diff --quiet -- data/global-source-health.json data/source-history; then
+            echo "Persisted source-health artifacts required sanitization. Commit only redacted artifacts."
+            git diff -- data/global-source-health.json data/source-history
+            exit 1
+          fi
 
       - name: Validate published datasets
         run: |
