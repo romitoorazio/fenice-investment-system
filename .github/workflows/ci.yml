@@ -3,7 +3,7 @@ name: Fenice Production CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, fenice-certification]
     paths-ignore:
       - "data/history/**"
       - "**/*.md"
@@ -75,3 +75,6 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Fenice certification gate
+        run: npm run certify
