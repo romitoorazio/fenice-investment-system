@@ -3,7 +3,7 @@ name: Fenice Production CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, agent/fenice-certification-hardening-v5]
     paths-ignore:
       - "data/history/**"
       - "**/*.md"
@@ -37,11 +37,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Certification safety regressions
+        run: npm run test:safety
+
       - name: TypeScript and production build
         run: npm run build
-
-      - name: Source checker security invariants
-        run: node scripts/test-source-health-security.mjs
 
       - name: Validate published datasets
         run: |
@@ -55,6 +55,9 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/investment-committee.json',
+            'data/global-source-health.json',
+            'data/decision-ledger.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
