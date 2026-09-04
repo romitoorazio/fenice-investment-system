@@ -16,7 +16,13 @@ if (!/endpointUsed:\s*redactEndpoint\(source,\s*best\?\.endpoint\)/.test(checker
 if (!/api_key\|apikey\|key\|token\|access_token/.test(checker)) {
   throw new Error("Credential redaction must cover common query-string secret names.");
 }
-if (!/SEC_USER_AGENT/.test(checker) || !/@users\.noreply\.github\.com/.test(checker)) {
+
+// SEC asks automated clients to identify themselves with a descriptive User-Agent
+// and contact information. Validate the invariant without coupling the test to one
+// specific mailbox/provider so an intentionally updated contact does not break CI.
+const hasSecUserAgentOverride = /SEC_USER_AGENT/.test(checker);
+const hasDescriptiveSecFallback = /FeniceInvestmentSystem\/3\.2\s+[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(checker);
+if (!hasSecUserAgentOverride || !hasDescriptiveSecFallback) {
   throw new Error("SEC requests must carry a descriptive User-Agent with contact information.");
 }
 
