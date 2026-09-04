@@ -69,8 +69,8 @@ async function request(source, endpoint, attempt) {
       accept: source.id === "ema" ? "application/rss+xml,application/xml,text/html,*/*" : "application/json,text/csv,text/plain,*/*",
       "accept-encoding": "gzip, deflate",
       "user-agent": source.id === "sec"
-        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/2.2 romitoorazio@users.noreply.github.com")
-        : "FeniceInvestmentSystem/2.2 (+https://github.com/romitoorazio/fenice-investment-system)",
+        ? (process.env.SEC_USER_AGENT || "FeniceInvestmentSystem/3.2 romitoorazio@gmail.com")
+        : "FeniceInvestmentSystem/3.2 (+https://github.com/romitoorazio/fenice-investment-system)",
     };
     if (source.id === "coingecko" && process.env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     const response = await fetch(endpoint, { headers, signal: controller.signal, redirect: "follow" });
@@ -130,8 +130,9 @@ async function probe(source) {
           regions: source.regions, endpointUsed: redactEndpoint(source, endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
-      if (attempt < 3) await sleep(700 * attempt);
+      if (attempt < 3) await sleep((source.id === "sec" ? 1500 : 700) * attempt);
     }
+    if (source.id === "sec") await sleep(1200);
   }
 
   return {
