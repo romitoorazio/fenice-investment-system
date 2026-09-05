@@ -1,0 +1,40 @@
+name: Sanitize persisted source-health artifacts
+
+on:
+  push:
+    branches: [agent/fenice-certification-hardening-v2]
+    paths:
+      - "data/global-source-health.json"
+      - "data/source-history/**"
+      - "scripts/sanitize-source-health.mjs"
+      - ".github/workflows/sanitize-source-health.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sanitize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fenice-certification-hardening-v2
+          fetch-depth: 1
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Sanitize persisted artifacts
+        run: node scripts/sanitize-source-health.mjs
+      - name: Commit redacted artifacts if needed
+        run: |
+          if git diff --quiet -- data/global-source-health.json data/source-history; then
+            echo "Artifacts already redacted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/global-source-health.json data/source-history
+          git commit -m "Sanitize persisted source-health credentials"
+          git push origin HEAD:agent/fenice-certification-hardening-v2
