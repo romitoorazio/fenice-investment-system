@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/check-global-sources.mjs"
+      - "scripts/sanitize-source-health.mjs"
       - "data/global-source-registry.json"
       - ".github/workflows/global-sources.yml"
 
@@ -43,26 +44,31 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: npm run sources:check
 
-      - name: Enforce production source health gate
+      - name: Sanitize persisted source-health artifacts
+        run: node scripts/sanitize-source-health.mjs
+
+      - name: Verify persisted credential redaction
         run: |
           node - <<'NODE'
           const fs = require('fs');
-          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
-          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
-            throw new Error('Invalid global source health report');
+          const path = require('path');
+          const sensitive = /([?&](?:api_key|apikey|key|token|access_token)=)(?!REDACTED(?:&|$))[^&\s]+/i;
+          const files = ['data/global-source-health.json'];
+          const history = 'data/source-history';
+          if (fs.existsSync(history)) {
+            for (const name of fs.readdirSync(history)) {
+              if (name.endsWith('.json')) files.push(path.join(history, name));
+            }
           }
-          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
-            throw new Error(`Unknown source gate: ${h.gate}`);
+          for (const file of files) {
+            const raw = fs.readFileSync(file, 'utf8');
+            if (sensitive.test(raw)) throw new Error(`Credential-like value persisted in ${file}`);
           }
-          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
-          const criticalReady = Number(h.critical?.ready || 0);
-          const criticalTotal = Number(h.critical?.total || 0);
-          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
-          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
-            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
-          }
+          console.log(`Persisted source artifacts are redacted (${files.length} files checked).`);
           NODE
 
+      # Publish the fresh, redacted health report even when the source gate is
+      # AMBER/RED. Certification must see current failures instead of stale data.
       - name: Commit source health data
         run: |
           git config user.name "fenice-source-bot"
@@ -97,3 +103,23 @@ jobs:
 
           echo "Unable to publish source health after 3 attempts"
           exit 1
+
+      - name: Enforce production source health gate
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
+            throw new Error('Invalid global source health report');
+          }
+          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
+            throw new Error(`Unknown source gate: ${h.gate}`);
+          }
+          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
+          const criticalReady = Number(h.critical?.ready || 0);
+          const criticalTotal = Number(h.critical?.total || 0);
+          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
+          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
+            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+          }
+          NODE
