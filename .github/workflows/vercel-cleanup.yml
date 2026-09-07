@@ -48,7 +48,7 @@ jobs:
 
           if [[ "$EXECUTE" != "true" ]]; then
             echo "execute=false" >> "$GITHUB_OUTPUT"
-            echo "Cleanup request is disabled; nothing to do."
+            echo "Cleanup request is disabled; nothing to delete."
             exit 0
           fi
 
@@ -60,7 +60,6 @@ jobs:
           echo "execute=true" >> "$GITHUB_OUTPUT"
 
       - name: Require Vercel token
-        if: steps.request.outputs.execute == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -68,6 +67,21 @@ jobs:
             echo "Missing GitHub Actions secret VERCEL_TOKEN. No deployments were touched."
             exit 1
           fi
+
+      - name: Verify Vercel access read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+          CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
+          RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"
+          if [[ ! "$CURRENT" =~ ^dpl_ || "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
+            echo "Vercel preflight failed: production alias/project could not be validated."
+            exit 1
+          fi
+          echo "Vercel preflight OK. Current Fenice production: $CURRENT"
 
       - name: Resolve current production deployment
         if: steps.request.outputs.execute == 'true'
