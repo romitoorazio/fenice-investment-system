@@ -1,0 +1,176 @@
+name: Fenice Vercel Cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".ops/vercel-cleanup-request.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-vercel-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_TEAM_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP
+      VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By
+      VERCEL_PRODUCTION_ALIAS: fenice-investment-system.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate cleanup request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "execute=false" >> "$GITHUB_OUTPUT"
+            echo "Manual workflow_dispatch is intentionally dry-run only. Cleanup from ChatGPT is triggered by the guarded request file."
+            exit 0
+          fi
+
+          test -f .ops/vercel-cleanup-request.json
+          EXECUTE="$(jq -r '.execute // false' .ops/vercel-cleanup-request.json)"
+          MODE="$(jq -r '.mode // ""' .ops/vercel-cleanup-request.json)"
+          PROJECT="$(jq -r '.project // ""' .ops/vercel-cleanup-request.json)"
+          CONFIRM="$(jq -r '.confirmation // ""' .ops/vercel-cleanup-request.json)"
+
+          if [[ "$EXECUTE" != "true" ]]; then
+            echo "execute=false" >> "$GITHUB_OUTPUT"
+            echo "Cleanup request is disabled; nothing to do."
+            exit 0
+          fi
+
+          if [[ "$MODE" != "keep-current-production-only" || "$PROJECT" != "fenice-investment-system" || "$CONFIRM" != "DELETE_OLD_FENICE_DEPLOYMENTS" ]]; then
+            echo "Invalid cleanup guard values. Refusing to delete anything."
+            exit 1
+          fi
+
+          echo "execute=true" >> "$GITHUB_OUTPUT"
+
+      - name: Require Vercel token
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "Missing GitHub Actions secret VERCEL_TOKEN. No deployments were touched."
+            exit 1
+          fi
+
+      - name: Resolve current production deployment
+        if: steps.request.outputs.execute == 'true'
+        id: production
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+
+          KEEP_ID="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
+          RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"
+
+          if [[ ! "$KEEP_ID" =~ ^dpl_ ]]; then
+            echo "Could not resolve a valid current production deployment. Refusing cleanup."
+            exit 1
+          fi
+
+          if [[ "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
+            echo "Production alias resolved to an unexpected project. Refusing cleanup."
+            exit 1
+          fi
+
+          echo "keep_id=$KEEP_ID" >> "$GITHUB_OUTPUT"
+          echo "Protected current production deployment: $KEEP_ID"
+
+      - name: Delete every other Fenice deployment
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEEP_ID="${{ steps.production.outputs.keep_id }}"
+          UNTIL=""
+          DELETED=0
+          PAGES=0
+
+          while true; do
+            PAGES=$((PAGES + 1))
+            if (( PAGES > 100 )); then
+              echo "Pagination safety limit reached."
+              exit 1
+            fi
+
+            URL="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&limit=100"
+            if [[ -n "$UNTIL" ]]; then
+              URL="${URL}&until=${UNTIL}"
+            fi
+
+            RESPONSE="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "$URL")"
+
+            mapfile -t IDS < <(printf '%s' "$RESPONSE" | jq -r --arg keep "$KEEP_ID" \
+              '.deployments[]? | (.uid // .id // empty) | select(. != "" and . != $keep)')
+
+            for ID in "${IDS[@]}"; do
+              if [[ ! "$ID" =~ ^dpl_ ]]; then
+                echo "Unexpected deployment id '$ID'; refusing to continue."
+                exit 1
+              fi
+
+              BODY_FILE="$(mktemp)"
+              HTTP_CODE="$(curl --silent --show-error \
+                -o "$BODY_FILE" \
+                -w '%{http_code}' \
+                -X DELETE \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_TEAM_ID}")"
+
+              if [[ "$HTTP_CODE" != "200" ]]; then
+                echo "Delete failed for $ID (HTTP $HTTP_CODE):"
+                cat "$BODY_FILE"
+                rm -f "$BODY_FILE"
+                exit 1
+              fi
+
+              rm -f "$BODY_FILE"
+              DELETED=$((DELETED + 1))
+              echo "Deleted $ID"
+            done
+
+            NEXT="$(printf '%s' "$RESPONSE" | jq -r '.pagination.next // empty')"
+            if [[ -z "$NEXT" || "$NEXT" == "null" || "$NEXT" == "$UNTIL" ]]; then
+              break
+            fi
+            UNTIL="$NEXT"
+          done
+
+          echo "Cleanup complete. Deleted $DELETED deployment(s). Kept current production: $KEEP_ID"
+
+      - name: Final safety check
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+          CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
+          EXPECTED="${{ steps.production.outputs.keep_id }}"
+          if [[ "$CURRENT" != "$EXPECTED" ]]; then
+            echo "Production alias changed unexpectedly after cleanup."
+            exit 1
+          fi
+          echo "Production is intact: $CURRENT"
