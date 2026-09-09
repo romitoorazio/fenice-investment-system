@@ -78,3 +78,6 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Fenice fail-closed certification gate
+        run: npm run certify
