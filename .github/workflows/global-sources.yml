@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/check-global-sources.mjs"
+      - "scripts/test-source-health-security.mjs"
       - "data/global-source-registry.json"
       - ".github/workflows/global-sources.yml"
 
@@ -43,27 +44,10 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: npm run sources:check
 
-      - name: Enforce production source health gate
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
-          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
-            throw new Error('Invalid global source health report');
-          }
-          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
-            throw new Error(`Unknown source gate: ${h.gate}`);
-          }
-          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
-          const criticalReady = Number(h.critical?.ready || 0);
-          const criticalTotal = Number(h.critical?.total || 0);
-          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
-          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
-            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
-          }
-          NODE
+      - name: Verify persisted source-health security
+        run: node scripts/test-source-health-security.mjs
 
-      - name: Commit source health data
+      - name: Commit current source health data
         run: |
           git config user.name "fenice-source-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -83,17 +67,38 @@ jobs:
 
             if git diff --cached --quiet; then
               echo "No source health changes"
-              exit 0
+              break
             fi
 
             git commit -m "Update global source health"
             if git push origin HEAD:main; then
-              exit 0
+              break
             fi
 
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to publish source health after 3 attempts"
+              exit 1
+            fi
             echo "Push race detected, retrying ($attempt/3)"
             sleep $((attempt * 2))
           done
 
-          echo "Unable to publish source health after 3 attempts"
-          exit 1
+      - name: Enforce production source health gate
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const h = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          if (!Array.isArray(h.sources) || !Number.isFinite(h.qualityScore) || !h.gate) {
+            throw new Error('Invalid global source health report');
+          }
+          if (!['GREEN', 'AMBER', 'RED'].includes(h.gate)) {
+            throw new Error(`Unknown source gate: ${h.gate}`);
+          }
+          const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
+          const criticalReady = Number(h.critical?.ready || 0);
+          const criticalTotal = Number(h.critical?.total || 0);
+          console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
+          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
+            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+          }
+          NODE
