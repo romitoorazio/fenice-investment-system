@@ -6,14 +6,14 @@
   "source": {
     "name": "Fenice Technical, Valuation and Strategy Engine",
     "state": "operativo",
-    "detail": "19/19 strumenti tecnici validati; 12 collegati ai fondamentali. Freschi/aggiornati 2/19; alert nuovi 22.",
+    "detail": "19/19 strumenti tecnici validati; 12 collegati ai fondamentali.",
     "lastSuccessAt": "2026-09-09T00:23:01.261Z"
   },
   "universeSize": 19,
   "assetCount": 19,
   "coveragePercent": 100,
-  "averageUnifiedScore": 54,
-  "dataQuality": 73,
+  "averageUnifiedScore": 61,
+  "dataQuality": 98,
   "marketRegime": "ATTENDERE",
   "methodology": [
     "Storico giornaliero fino a due anni, indicatori calcolati solo con dati disponibili fino alla data osservata.",
@@ -23,39 +23,36 @@
     "Costi simulati pari allo 0.1% per ogni cambio di posizione.",
     "Valutazione relativa solo quando prezzo ed EPS sono positivi e nella stessa valuta.",
     "Società pre-commerciali valutate separatamente e sempre classificate come speculative.",
-    "L’allocazione è una proposta di studio: Fenice non invia ordini al broker.",
-    "La freschezza applica una penalità automatica a punteggio e confidenza; i fine settimana sono gestiti con soglie specifiche per dati giornalieri.",
-    "Gli strumenti in ATTENDI o EVITA non ricevono capitale nel portafoglio modello.",
-    "I cambi di decisione, segnale, punteggio e prezzo vengono registrati nell’Alert Center."
+    "L’allocazione è una proposta di studio: Fenice non invia ordini al broker."
   ],
   "portfolio": [
     {
       "id": "core",
       "label": "Nucleo diversificato",
-      "targetPercent": 40,
-      "targetAmountEuro": 4000,
-      "rationale": "ETF, obbligazioni e strumenti ampi realmente eleggibili."
+      "targetPercent": 55,
+      "targetAmountEuro": 5500,
+      "rationale": "ETF, obbligazioni e strumenti ampi con limiti di concentrazione."
     },
     {
       "id": "growth",
       "label": "Crescita selezionata",
-      "targetPercent": 15,
-      "targetAmountEuro": 1500,
-      "rationale": "Azioni con decisione ACCUMULA o MANTIENI e limiti di concentrazione."
+      "targetPercent": 25,
+      "targetAmountEuro": 2500,
+      "rationale": "Azioni mature o in crescita con conferma fondamentale e tecnica."
     },
     {
       "id": "speculative",
       "label": "Opportunità speculative",
       "targetPercent": 5,
       "targetAmountEuro": 500,
-      "rationale": "Biotech pre-commerciali e crypto: massimo 2,5% per strumento e 5% complessivo."
+      "rationale": "Biotech pre-commerciali e crypto con tetto massimo rigoroso."
     },
     {
       "id": "reserve",
       "label": "Riserva strategica",
-      "targetPercent": 40,
-      "targetAmountEuro": 4000,
-      "rationale": "Liquidità liberata dagli strumenti in ATTENDI/EVITA e dai limiti di rischio."
+      "targetPercent": 15,
+      "targetAmountEuro": 1500,
+      "rationale": "Liquidità non assegnata o liberata dai limiti di rischio e concentrazione."
     }
   ],
   "assets": [
@@ -70,12 +67,12 @@
       "technicalScore": 60,
       "riskScore": 56,
       "dataCompleteness": 100,
-      "unifiedScore": 73,
-      "confidence": 87,
-      "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 6.8,
-      "targetAmountEuro": 680,
+      "unifiedScore": 81,
+      "confidence": 97,
+      "decision": "ACCUMULA",
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "non confrontabile",
         "method": "Multiplo utili normalizzato",
@@ -132,9 +129,7 @@
           "Momentum: 0.6% a un mese e 33.1% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -22%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -184,15 +179,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
       ]
     },
     {
@@ -206,12 +196,12 @@
       "technicalScore": 76,
       "riskScore": 52,
       "dataCompleteness": 87,
-      "unifiedScore": 72,
-      "confidence": 77,
-      "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 6.6,
-      "targetAmountEuro": 660,
+      "unifiedScore": 80,
+      "confidence": 87,
+      "decision": "ACCUMULA",
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "non confrontabile",
         "method": "Multiplo utili normalizzato",
@@ -268,9 +258,7 @@
           "Momentum: 2.6% a un mese e 27.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -21.5%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -320,15 +308,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
       ]
     },
     {
@@ -343,12 +326,12 @@
       "valuationScore": 57,
       "riskScore": 54,
       "dataCompleteness": 100,
-      "unifiedScore": 70,
-      "confidence": 87,
-      "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 1.6,
-      "targetAmountEuro": 160,
+      "unifiedScore": 78,
+      "confidence": 97,
+      "decision": "ACCUMULA",
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -413,9 +396,7 @@
           "Momentum: 0.2% a un mese e 22.7% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -34.5%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -465,15 +446,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -485,12 +461,12 @@
       "technicalScore": 77,
       "riskScore": 29,
       "dataCompleteness": 100,
-      "unifiedScore": 69,
-      "confidence": 87,
-      "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 20,
-      "targetAmountEuro": 2000,
+      "unifiedScore": 77,
+      "confidence": 97,
+      "decision": "ACCUMULA",
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 11,
+      "targetAmountEuro": 1100,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -543,9 +519,7 @@
           "Momentum: 0.2% a un mese e 15.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -8.9%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -595,15 +569,9 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
-      "warnings": [
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
-      ]
+      "warnings": []
     },
     {
       "symbol": "QQQ",
@@ -614,12 +582,12 @@
       "technicalScore": 77,
       "riskScore": 32,
       "dataCompleteness": 100,
-      "unifiedScore": 68,
-      "confidence": 87,
-      "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 20,
-      "targetAmountEuro": 2000,
+      "unifiedScore": 76,
+      "confidence": 97,
+      "decision": "ACCUMULA",
+      "reason": "Fondamentali, trend, rischio e valutazione offrono una convergenza positiva; eventuale ingresso solo graduale.",
+      "targetWeightPercent": 11,
+      "targetAmountEuro": 1100,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -672,9 +640,7 @@
           "Momentum: 0.6% a un mese e 20.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -12%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -724,15 +690,9 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
-      "warnings": [
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
-      ]
+      "warnings": []
     },
     {
       "symbol": "NVDA",
@@ -746,12 +706,12 @@
       "valuationScore": 34,
       "riskScore": 60,
       "dataCompleteness": 100,
-      "unifiedScore": 68,
-      "confidence": 87,
+      "unifiedScore": 76,
+      "confidence": 97,
       "decision": "MANTIENI",
-      "reason": "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -816,9 +776,7 @@
           "Momentum: 5.2% a un mese e 29.7% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -20.2%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -868,15 +826,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -891,12 +844,12 @@
       "valuationScore": 65,
       "riskScore": 59,
       "dataCompleteness": 100,
-      "unifiedScore": 63,
-      "confidence": 87,
-      "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "unifiedScore": 71,
+      "confidence": 97,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -961,9 +914,7 @@
           "Momentum: 4.6% a un mese e -4.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -32.5%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -1013,15 +964,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -1036,12 +982,12 @@
       "valuationScore": 46,
       "riskScore": 49,
       "dataCompleteness": 100,
-      "unifiedScore": 62,
-      "confidence": 87,
-      "decision": "ATTENDI",
-      "reason": "Il quadro complessivo non offre ancora una convergenza sufficiente per un nuovo ingresso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "unifiedScore": 70,
+      "confidence": 97,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 4.2,
+      "targetAmountEuro": 420,
       "valuation": {
         "status": "disponibile",
         "method": "Multiplo utili normalizzato per crescita e qualità",
@@ -1106,9 +1052,7 @@
           "Momentum: -5.3% a un mese e 13.6% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -21%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -1158,15 +1102,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -1178,12 +1117,12 @@
       "technicalScore": 61,
       "riskScore": 31,
       "dataCompleteness": 100,
-      "unifiedScore": 58,
-      "confidence": 87,
-      "decision": "ATTENDI",
-      "reason": "Il quadro complessivo non offre ancora una convergenza sufficiente per un nuovo ingresso.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "unifiedScore": 66,
+      "confidence": 97,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
+      "targetWeightPercent": 11,
+      "targetAmountEuro": 1100,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1236,9 +1175,7 @@
           "Momentum: -0.8% a un mese e 18.5% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -11%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -1288,15 +1225,9 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
-      "warnings": [
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
-      ]
+      "warnings": []
     },
     {
       "symbol": "AMZN",
@@ -1310,10 +1241,10 @@
       "valuationScore": 35,
       "riskScore": 52,
       "dataCompleteness": 100,
-      "unifiedScore": 58,
-      "confidence": 87,
-      "decision": "ATTENDI",
-      "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
+      "unifiedScore": 66,
+      "confidence": 97,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -1380,9 +1311,7 @@
           "Momentum: -5.1% a un mese e 21.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -21.7%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -1432,15 +1361,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -1455,10 +1379,10 @@
       "valuationScore": 8,
       "riskScore": 48,
       "dataCompleteness": 100,
-      "unifiedScore": 57,
-      "confidence": 87,
-      "decision": "ATTENDI",
-      "reason": "La valutazione indica un margine di sicurezza insufficiente nonostante altri fattori positivi.",
+      "unifiedScore": 65,
+      "confidence": 97,
+      "decision": "MANTIENI",
+      "reason": "Tesi complessivamente valida, ma il margine di sicurezza o il momentum non giustificano un aumento deciso.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -1525,9 +1449,7 @@
           "Momentum: 2.5% a un mese e 24.5% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -13.8%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -1577,15 +1499,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Il fair value è uno scenario quantitativo, non una previsione certa del prezzo."
       ]
     },
     {
@@ -1600,9 +1517,9 @@
       "unifiedScore": 53,
       "confidence": 97,
       "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 2.5,
+      "targetAmountEuro": 250,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1705,11 +1622,128 @@
             "transactionCostPercent": 0.1,
             "observations": 729
           }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "symbol": "TLT",
+      "name": "Treasury 20+ Year ETF",
+      "assetClass": "Obbligazioni",
+      "price": 82.21,
+      "currency": "USD",
+      "technicalScore": 39,
+      "riskScore": 28,
+      "dataCompleteness": 100,
+      "unifiedScore": 52,
+      "confidence": 97,
+      "decision": "ATTENDI",
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 11,
+      "targetAmountEuro": 1100,
+      "valuation": {
+        "status": "non applicabile",
+        "method": "Nessuna analisi fondamentale collegata",
+        "score": 50,
+        "confidence": 100,
+        "rationale": [
+          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
         ],
-        "freshness": {
-          "ageHours": 0.4,
-          "status": "quasi in tempo reale"
-        }
+        "warnings": []
+      },
+      "technical": {
+        "symbol": "TLT",
+        "yahooSymbol": "TLT",
+        "name": "Treasury 20+ Year ETF",
+        "assetClass": "Obbligazioni",
+        "market": "USA",
+        "currency": "USD",
+        "observedAt": "2026-09-04T13:30:00.000Z",
+        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
+        "status": "operativo",
+        "price": 82.21,
+        "returns": {
+          "oneMonthPercent": 0,
+          "threeMonthPercent": -2.2,
+          "sixMonthPercent": -4.9,
+          "oneYearPercent": -1.4
+        },
+        "indicators": {
+          "sma20": 82.12,
+          "sma50": 82.93,
+          "sma200": 84.59,
+          "rsi14": 60.3,
+          "volatility20Percent": 10.4,
+          "atr14Percent": 0.8,
+          "distance52WeekHighPercent": -7.1,
+          "maxDrawdown1YPercent": -8.4
+        },
+        "scores": {
+          "trend": 17,
+          "momentum": 48,
+          "risk": 28,
+          "technical": 39,
+          "dataCompleteness": 100
+        },
+        "signal": "DEBOLE",
+        "reasons": [
+          "Prezzo sotto la media mobile a 200 giorni.",
+          "Trend intermedio ancora inferiore al trend di lungo periodo.",
+          "RSI equilibrato (60.3).",
+          "Momentum: 0% a un mese e -4.9% a sei mesi.",
+          "Drawdown massimo nell’ultimo anno: -8.4%."
+        ],
+        "warnings": [],
+        "strategies": [
+          {
+            "id": "buy-hold",
+            "label": "Compra e mantieni",
+            "totalReturnPercent": -10.3,
+            "annualizedReturnPercent": -5.4,
+            "benchmarkAnnualizedReturnPercent": -5.3,
+            "excessAnnualizedReturnPercent": 0,
+            "maxDrawdownPercent": -14.8,
+            "volatilityPercent": 11.5,
+            "sharpe": -0.42,
+            "trades": 1,
+            "winRatePercent": 0,
+            "exposurePercent": 100,
+            "transactionCostPercent": 0.1,
+            "observations": 499
+          },
+          {
+            "id": "trend-50-200",
+            "label": "Trend 50/200",
+            "totalReturnPercent": -7.2,
+            "annualizedReturnPercent": -3.7,
+            "benchmarkAnnualizedReturnPercent": -5.3,
+            "excessAnnualizedReturnPercent": 1.6,
+            "maxDrawdownPercent": -9.4,
+            "volatilityPercent": 4.7,
+            "sharpe": -0.63,
+            "trades": 7,
+            "winRatePercent": 0,
+            "exposurePercent": 28.1,
+            "transactionCostPercent": 0.1,
+            "observations": 499
+          },
+          {
+            "id": "tactical-20-50",
+            "label": "Tattica 20/50 + RSI",
+            "totalReturnPercent": -3.9,
+            "annualizedReturnPercent": -2,
+            "benchmarkAnnualizedReturnPercent": -5.3,
+            "excessAnnualizedReturnPercent": 3.3,
+            "maxDrawdownPercent": -10.7,
+            "volatilityPercent": 5,
+            "sharpe": 0.19,
+            "trades": 28,
+            "winRatePercent": 50,
+            "exposurePercent": 16.2,
+            "transactionCostPercent": 0.1,
+            "observations": 499
+          }
+        ]
       },
       "warnings": []
     },
@@ -1725,9 +1759,9 @@
       "unifiedScore": 51,
       "confidence": 97,
       "decision": "ATTENDI",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 2.5,
+      "targetAmountEuro": 250,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -1830,142 +1864,9 @@
             "transactionCostPercent": 0.1,
             "observations": 729
           }
-        ],
-        "freshness": {
-          "ageHours": 0.4,
-          "status": "quasi in tempo reale"
-        }
+        ]
       },
       "warnings": []
-    },
-    {
-      "symbol": "TLT",
-      "name": "Treasury 20+ Year ETF",
-      "assetClass": "Obbligazioni",
-      "price": 82.21,
-      "currency": "USD",
-      "technicalScore": 39,
-      "riskScore": 28,
-      "dataCompleteness": 100,
-      "unifiedScore": 44,
-      "confidence": 87,
-      "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
-      "valuation": {
-        "status": "non applicabile",
-        "method": "Nessuna analisi fondamentale collegata",
-        "score": 50,
-        "confidence": 100,
-        "rationale": [
-          "ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari."
-        ],
-        "warnings": []
-      },
-      "technical": {
-        "symbol": "TLT",
-        "yahooSymbol": "TLT",
-        "name": "Treasury 20+ Year ETF",
-        "assetClass": "Obbligazioni",
-        "market": "USA",
-        "currency": "USD",
-        "observedAt": "2026-09-04T13:30:00.000Z",
-        "source": "Yahoo Finance chart (query1.finance.yahoo.com)",
-        "status": "operativo",
-        "price": 82.21,
-        "returns": {
-          "oneMonthPercent": 0,
-          "threeMonthPercent": -2.2,
-          "sixMonthPercent": -4.9,
-          "oneYearPercent": -1.4
-        },
-        "indicators": {
-          "sma20": 82.12,
-          "sma50": 82.93,
-          "sma200": 84.59,
-          "rsi14": 60.3,
-          "volatility20Percent": 10.4,
-          "atr14Percent": 0.8,
-          "distance52WeekHighPercent": -7.1,
-          "maxDrawdown1YPercent": -8.4
-        },
-        "scores": {
-          "trend": 17,
-          "momentum": 48,
-          "risk": 28,
-          "technical": 39,
-          "dataCompleteness": 100
-        },
-        "signal": "DEBOLE",
-        "reasons": [
-          "Prezzo sotto la media mobile a 200 giorni.",
-          "Trend intermedio ancora inferiore al trend di lungo periodo.",
-          "RSI equilibrato (60.3).",
-          "Momentum: 0% a un mese e -4.9% a sei mesi.",
-          "Drawdown massimo nell’ultimo anno: -8.4%."
-        ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
-        "strategies": [
-          {
-            "id": "buy-hold",
-            "label": "Compra e mantieni",
-            "totalReturnPercent": -10.3,
-            "annualizedReturnPercent": -5.4,
-            "benchmarkAnnualizedReturnPercent": -5.3,
-            "excessAnnualizedReturnPercent": 0,
-            "maxDrawdownPercent": -14.8,
-            "volatilityPercent": 11.5,
-            "sharpe": -0.42,
-            "trades": 1,
-            "winRatePercent": 0,
-            "exposurePercent": 100,
-            "transactionCostPercent": 0.1,
-            "observations": 499
-          },
-          {
-            "id": "trend-50-200",
-            "label": "Trend 50/200",
-            "totalReturnPercent": -7.2,
-            "annualizedReturnPercent": -3.7,
-            "benchmarkAnnualizedReturnPercent": -5.3,
-            "excessAnnualizedReturnPercent": 1.6,
-            "maxDrawdownPercent": -9.4,
-            "volatilityPercent": 4.7,
-            "sharpe": -0.63,
-            "trades": 7,
-            "winRatePercent": 0,
-            "exposurePercent": 28.1,
-            "transactionCostPercent": 0.1,
-            "observations": 499
-          },
-          {
-            "id": "tactical-20-50",
-            "label": "Tattica 20/50 + RSI",
-            "totalReturnPercent": -3.9,
-            "annualizedReturnPercent": -2,
-            "benchmarkAnnualizedReturnPercent": -5.3,
-            "excessAnnualizedReturnPercent": 3.3,
-            "maxDrawdownPercent": -10.7,
-            "volatilityPercent": 5,
-            "sharpe": 0.19,
-            "trades": 28,
-            "winRatePercent": 50,
-            "exposurePercent": 16.2,
-            "transactionCostPercent": 0.1,
-            "observations": 499
-          }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
-      },
-      "warnings": [
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
-      ]
     },
     {
       "symbol": "GLD",
@@ -1976,12 +1877,12 @@
       "technicalScore": 40,
       "riskScore": 49,
       "dataCompleteness": 100,
-      "unifiedScore": 40,
-      "confidence": 87,
-      "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
-      "targetWeightPercent": 0,
-      "targetAmountEuro": 0,
+      "unifiedScore": 48,
+      "confidence": 97,
+      "decision": "ATTENDI",
+      "reason": "Il quadro non è abbastanza forte o coerente per un nuovo ingresso.",
+      "targetWeightPercent": 11,
+      "targetAmountEuro": 1100,
       "valuation": {
         "status": "non applicabile",
         "method": "Nessuna analisi fondamentale collegata",
@@ -2034,9 +1935,7 @@
           "Momentum: 4.4% a un mese e -14.1% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -26.4%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -2086,15 +1985,9 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
-      "warnings": [
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
-      ]
+      "warnings": []
     },
     {
       "symbol": "BIOX",
@@ -2107,10 +2000,10 @@
       "technicalScore": 36,
       "riskScore": 100,
       "dataCompleteness": 93,
-      "unifiedScore": 38,
-      "confidence": 82,
+      "unifiedScore": 46,
+      "confidence": 92,
       "decision": "EVITA",
-      "reason": "Il quadro tecnico non conferma ancora la tesi fondamentale o la valutazione.",
+      "reason": "Rapporto rischio/rendimento insufficiente secondo i dati disponibili.",
       "targetWeightPercent": 0,
       "targetAmountEuro": 0,
       "valuation": {
@@ -2167,9 +2060,7 @@
           "Momentum: 20.6% a un mese e -19% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -88.1%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -2219,15 +2110,10 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
-        "Valutazione non calcolabile con sufficiente affidabilità.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Valutazione non calcolabile con sufficiente affidabilità."
       ]
     },
     {
@@ -2241,12 +2127,12 @@
       "technicalScore": 59,
       "riskScore": 91,
       "dataCompleteness": 93,
-      "unifiedScore": 33,
-      "confidence": 82,
+      "unifiedScore": 41,
+      "confidence": 92,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.7,
-      "targetAmountEuro": 170,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 0,
+      "targetAmountEuro": 0,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2302,9 +2188,7 @@
           "Momentum: 8% a un mese e -1.3% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -42.3%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -2354,16 +2238,11 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
-        "Non viene prodotto un fair value tradizionale.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Non viene prodotto un fair value tradizionale."
       ]
     },
     {
@@ -2377,12 +2256,12 @@
       "technicalScore": 39,
       "riskScore": 100,
       "dataCompleteness": 100,
-      "unifiedScore": 27,
-      "confidence": 87,
+      "unifiedScore": 35,
+      "confidence": 97,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.7,
-      "targetAmountEuro": 170,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 0,
+      "targetAmountEuro": 0,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2438,9 +2317,7 @@
           "Momentum: 14.2% a un mese e 4.9% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -58.2%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -2490,16 +2367,11 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
-        "Non viene prodotto un fair value tradizionale.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Non viene prodotto un fair value tradizionale."
       ]
     },
     {
@@ -2513,12 +2385,12 @@
       "technicalScore": 53,
       "riskScore": 100,
       "dataCompleteness": 93,
-      "unifiedScore": 20,
-      "confidence": 82,
+      "unifiedScore": 28,
+      "confidence": 92,
       "decision": "SPECULATIVA",
-      "reason": "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.",
-      "targetWeightPercent": 1.6,
-      "targetAmountEuro": 160,
+      "reason": "Società pre-commerciale o asset ad alta incertezza: posizione eventuale molto piccola e subordinata a catalizzatori verificati.",
+      "targetWeightPercent": 0,
+      "targetAmountEuro": 0,
       "valuation": {
         "status": "non applicabile",
         "method": "Società pre-commerciale",
@@ -2574,9 +2446,7 @@
           "Momentum: 13.3% a un mese e -5.2% a sei mesi.",
           "Drawdown massimo nell’ultimo anno: -71.3%."
         ],
-        "warnings": [
-          "Prezzo giornaliero ritardato di circa 106.9 ore."
-        ],
+        "warnings": [],
         "strategies": [
           {
             "id": "buy-hold",
@@ -2626,41 +2496,17 @@
             "transactionCostPercent": 0.1,
             "observations": 499
           }
-        ],
-        "freshness": {
-          "ageHours": 106.9,
-          "status": "ritardato"
-        }
+        ]
       },
       "warnings": [
         "Punteggio specifico per società pre-commerciale: non comparabile direttamente con aziende mature.",
-        "Non viene prodotto un fair value tradizionale.",
-        "Prezzo giornaliero ritardato di circa 106.9 ore."
+        "Non viene prodotto un fair value tradizionale."
       ]
     }
   ],
   "warnings": [
     "I prezzi gratuiti possono essere ritardati e non sostituiscono un feed ufficiale di borsa.",
     "I risultati dei backtest sono storici, includono ipotesi semplificate e non garantiscono rendimenti futuri.",
-    "Fair value e punteggi sono scenari quantitativi da sottoporre a verifica umana.",
-    "Area speculativa al 5.1%, sopra il limite 5%.",
-    "17 strumenti hanno dati ritardati."
-  ],
-  "allocationCheck": {
-    "investedPercent": 60,
-    "reservePercent": 40,
-    "totalPercent": 100,
-    "valid": true
-  },
-  "guardrails": {
-    "maxCoreWeightPercent": 20,
-    "maxGrowthWeightPercent": 6.8,
-    "maxSpeculativeWeightPercent": 1.7,
-    "cryptoTotalPercent": 0,
-    "speculativeTotalPercent": 5,
-    "violations": []
-  },
-  "freshAssetCount": 2,
-  "freshnessStatus": "ritardato",
-  "alertsCount": 22
+    "Fair value e punteggi sono scenari quantitativi da sottoporre a verifica umana."
+  ]
 }
