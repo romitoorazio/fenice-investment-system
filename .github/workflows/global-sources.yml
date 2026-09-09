@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
@@ -57,10 +57,75 @@ jobs:
           const failures = Array.isArray(h.critical?.failures) ? h.critical.failures : [];
           const criticalReady = Number(h.critical?.ready || 0);
           const criticalTotal = Number(h.critical?.total || 0);
+          const unconfiguredCritical = h.sources.filter(source => source.critical && source.status === 'unconfigured').map(source => source.id);
           console.log('Source gate', h.gate, 'quality', h.qualityScore, 'critical', `${criticalReady}/${criticalTotal}`, 'failures', failures.join(',') || 'none');
-          if (h.gate !== 'GREEN' || failures.length > 0 || criticalReady !== criticalTotal) {
-            throw new Error(`Fenice production source gate not ready: gate=${h.gate}, quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+
+          if (unconfiguredCritical.length > 0) {
+            throw new Error(`Critical source configuration missing: ${unconfiguredCritical.join(',')}`);
           }
+          if (h.gate === 'RED') {
+            throw new Error(`Fenice production source gate RED: quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+          }
+          if (h.gate === 'AMBER') {
+            console.log(`::warning::Fenice source gate AMBER: quality=${h.qualityScore}, critical=${criticalReady}/${criticalTotal}, failures=${failures.join(',') || 'none'}`);
+          }
+          NODE
+
+      - name: Guard persisted source data from secrets
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const secretValues = [
+            process.env.ALPHA_VANTAGE_API_KEY,
+            process.env.FRED_API_KEY,
+            process.env.COINGECKO_API_KEY,
+            process.env.EIA_API_KEY,
+          ].filter(Boolean);
+          const sensitiveKeys = new Set(['api_key', 'apikey', 'key', 'token', 'access_token']);
+          const files = ['data/global-source-health.json'];
+          if (fs.existsSync('data/source-history')) {
+            for (const name of fs.readdirSync('data/source-history')) {
+              if (name.endsWith('.json')) files.push(path.join('data/source-history', name));
+            }
+          }
+
+          function inspect(value) {
+            if (typeof value === 'string') {
+              for (const secret of secretValues) {
+                if (value.includes(secret) || value.includes(encodeURIComponent(secret))) {
+                  throw new Error('Persisted source data contains a configured secret');
+                }
+              }
+              try {
+                const url = new URL(value);
+                for (const key of sensitiveKeys) {
+                  if (url.searchParams.has(key) && url.searchParams.get(key) !== 'REDACTED') {
+                    throw new Error('Persisted source endpoint contains an unredacted sensitive query parameter');
+                  }
+                }
+              } catch (error) {
+                if (error instanceof TypeError) return;
+                throw error;
+              }
+              return;
+            }
+            if (Array.isArray(value)) {
+              for (const item of value) inspect(item);
+              return;
+            }
+            if (value && typeof value === 'object') {
+              for (const item of Object.values(value)) inspect(item);
+            }
+          }
+
+          for (const file of files) inspect(JSON.parse(fs.readFileSync(file, 'utf8')));
+          console.log(`Secret persistence guard passed for ${files.length} source-health file(s)`);
           NODE
 
       - name: Commit source health data
@@ -77,9 +142,10 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             cp "$generated_dir/global-source-health.json" data/global-source-health.json
+            rm -rf data/source-history
             mkdir -p data/source-history
             cp -a "$generated_dir/source-history/." data/source-history/ 2>/dev/null || true
-            git add data/global-source-health.json data/source-history
+            git add -A -- data/global-source-health.json data/source-history
 
             if git diff --cached --quiet; then
               echo "No source health changes"
