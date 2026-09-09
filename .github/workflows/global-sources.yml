@@ -15,6 +15,7 @@ permissions:
   contents: write
 
 concurrency:
+  # Shared by Fenice data writers: serialize commits to main and avoid overwriting generated datasets.
   group: fenice-data-writer
   cancel-in-progress: false
 
