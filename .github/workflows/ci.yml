@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Repository secret scan
+        run: node scripts/scan-repository-secrets.mjs
+
       - name: Lint
         run: npm run lint
 
