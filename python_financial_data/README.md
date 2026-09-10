@@ -76,13 +76,13 @@ cp .env.example .env
 Aprire `.env` e compilare:
 
 ```dotenv
-FRED_API_KEY=LA_TUA_CHIAVE_FRED
-ALPHA_VANTAGE_API_KEY=LA_TUA_CHIAVE_ALPHA_VANTAGE
+FRED_API_KEY=REDACTED
+ALPHA_VANTAGE_API_KEY=REDACTED
 FINANCIAL_DATA_OUTPUT_DIR=output
 FINANCIAL_DATA_HTTP_TIMEOUT=30
 ```
 
-Non pubblicare mai il file `.env` e non inserire le chiavi direttamente nel codice.
+Sostituire `REDACTED` solo nel file `.env` locale con le proprie chiavi. Non pubblicare mai il file `.env` e non inserire le chiavi direttamente nel codice.
 
 ## 4. Esecuzione
 
