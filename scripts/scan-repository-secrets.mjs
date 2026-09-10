@@ -15,11 +15,11 @@ const rules = [
   },
   {
     id: 'github-token',
-    re: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b/g,
+    re: /\b(?:(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,})\b/g,
   },
   {
     id: 'generic-secret-assignment',
-    re: /\b(?:api[_-]?key|apikey|access[_-]?token|auth[_-]?token|secret|client[_-]?secret|password)\b\s*[:=]\s*["']?([A-Za-z0-9_\-\.]{16,})["']?/gi,
+    re: /\b(?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|access[_-]?token|auth[_-]?token|client[_-]?secret|secret|password)\b\s*[:=]\s*["']?([A-Za-z0-9_\-\.]{16,})["']?/gi,
   },
   {
     id: 'secret-query-param',
