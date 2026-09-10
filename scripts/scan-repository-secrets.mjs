@@ -33,6 +33,9 @@ function isSafeValue(value = '') {
   if (/^(?:REDACTED|MASKED|REMOVED|EXAMPLE|CHANGEME|YOUR[_-].*|DUMMY|PLACEHOLDER)$/i.test(normalized)) return true;
   if (/^\$\{\{\s*secrets\.[A-Z0-9_]+\s*\}\}$/i.test(normalized)) return true;
   if (/^(?:process\.env\.|os\.environ|env\.)/i.test(normalized)) return true;
+  // Runtime interpolation is not a committed credential. This permits values such as
+  // ${encodeURIComponent(key)} while still rejecting literal query-string secrets.
+  if (/^\$\{[^}]+\}/.test(normalized)) return true;
   return false;
 }
 
