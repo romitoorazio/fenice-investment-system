@@ -27,15 +27,25 @@ const rules = [
   },
 ];
 
+function isRuntimeInterpolation(value = '') {
+  const normalized = value.trim();
+  if (!normalized.startsWith('${')) return false;
+  const end = normalized.indexOf('}');
+  if (end < 3) return false;
+  // A query-string credential assembled exclusively from a runtime expression is
+  // safe to commit. Permit only template punctuation after the closing brace so
+  // `${env.KEY}literal-secret` is still rejected.
+  const remainder = normalized.slice(end + 1).replace(/[`),;\]}]+$/g, '');
+  return remainder.length === 0;
+}
+
 function isSafeValue(value = '') {
   const normalized = value.trim();
   if (!normalized) return true;
   if (/^(?:REDACTED|MASKED|REMOVED|EXAMPLE|CHANGEME|YOUR[_-].*|DUMMY|PLACEHOLDER)$/i.test(normalized)) return true;
   if (/^\$\{\{\s*secrets\.[A-Z0-9_]+\s*\}\}$/i.test(normalized)) return true;
   if (/^(?:process\.env\.|os\.environ|env\.)/i.test(normalized)) return true;
-  // Runtime interpolation is not a committed credential. This permits values such as
-  // ${encodeURIComponent(key)} while still rejecting literal query-string secrets.
-  if (/^\$\{[^}]+\}/.test(normalized)) return true;
+  if (isRuntimeInterpolation(normalized)) return true;
   return false;
 }
 
