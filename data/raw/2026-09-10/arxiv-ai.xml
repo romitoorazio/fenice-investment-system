@@ -2,1052 +2,952 @@
 <feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
   <id>https://arxiv.org/api/TnhcVtSwV+8GwMuj8NQl7DRfRQ8</id>
   <title>arXiv Query: search_query=cat:cs.AI OR cat:cs.LG OR cat:q-bio.GN OR cat:quant-ph&amp;id_list=&amp;start=0&amp;max_results=40</title>
-  <updated>2026-09-10T00:14:00Z</updated>
+  <updated>2026-09-10T01:10:20Z</updated>
   <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+OR+(cat:cs.LG+OR+(cat:q-bio.GN+OR+cat:quant-ph))&amp;start=0&amp;max_results=40&amp;id_list=" type="application/atom+xml"/>
   <opensearch:itemsPerPage>40</opensearch:itemsPerPage>
-  <opensearch:totalResults>587332</opensearch:totalResults>
+  <opensearch:totalResults>587652</opensearch:totalResults>
   <opensearch:startIndex>0</opensearch:startIndex>
   <entry>
-    <id>http://arxiv.org/abs/2609.09158v1</id>
-    <title>TANGO: Humanoid Navigation in Cluttered Environments with a Whole-Body Vision-Language-Action Model</title>
-    <updated>2026-09-08T17:59:55Z</updated>
-    <link href="https://arxiv.org/abs/2609.09158v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09158v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We study the problem of navigating cluttered indoor environments with a humanoid robot. Unlike conventional methods that model navigation as a 2D path planning problem, humanoid traversal in cluttered environments requires continuous geometry-aware whole-body adaptation, including coordinated arm placement, torso adjustment, and gait modulation for collision-free movement through complex 3D spaces. We introduce TANGO, the first whole-body vision-language navigation framework for language-conditioned humanoid traversal in cluttered environments. Given a natural-language instruction and egocentric RGB observations, TANGO directly predicts 29-DoF joint-space actions for downstream whole-body control. We train TANGO entirely in simulation by synthesizing diverse collision-free traversal behaviors via global path planning, kinematic whole-body motion generation, obstacle-aware motion editing, and RL-based tracking. This pipeline provides dynamically feasible action supervision for learning language-conditioned whole-body policies. In extensive simulation experiments, TANGO demonstrates state-of-the-art performance in vision-language navigation, while outperforming strong modular baselines in navigating challenging scenes requiring obstacle negotiation. Lastly, we deploy TANGO zero-shot on a Unitree G1 humanoid robot, and observe robust language-guided traversal in cluttered real-world scenes without training on any real-world navigation data.</summary>
-    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:59:55Z</published>
-    <arxiv:primary_category term="cs.RO"/>
-    <author>
-      <name>Anqi Li</name>
-    </author>
-    <author>
-      <name>Yuxin Chen</name>
-    </author>
-    <author>
-      <name>Zhaobo Li</name>
-    </author>
-    <author>
-      <name>Zhuo Cao</name>
-    </author>
-    <author>
-      <name>Junli Ren</name>
-    </author>
-    <author>
-      <name>Masayoshi Tomizuka</name>
-    </author>
-    <author>
-      <name>Dhruv Shah</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09157v1</id>
-    <title>Learning Length-Extrapolatable Recurrent Models</title>
-    <updated>2026-09-08T17:59:53Z</updated>
-    <link href="https://arxiv.org/abs/2609.09157v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09157v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Recurrent models provide a natural path to long-context modeling, yet models trained with backpropagation through time (BPTT) often fail beyond their training horizon. Classical analyses emphasize gradients that vanish or explode along temporal paths. However, dense per-token losses can still train a shared recurrent rule despite severe decay, showing that decay alone does not determine whether learning fails. We instead study state credit: the signal through which future losses reach earlier recurrent states before contributing to parameter updates. Accordingly, we intervene directly on state credit and propose Credit Stabilization through Time (CST). During backward propagation, CST locally rescales the state-credit signal to stabilize its norm without rotating the component being corrected, while leaving the forward computation unchanged. Because controlled synthetic tasks and real data exhibit different credit dynamics, we specialize CST to each regime. In both settings, CST improves performance beyond the training horizon, with gains observed at up to 128x the training length.</summary>
+    <id>http://arxiv.org/abs/2609.10364v1</id>
+    <title>OmniMed-FL: A Robust Multimodal Federated Learning Framework for Clinical Diagnosis</title>
+    <updated>2026-09-09T15:56:26Z</updated>
+    <link href="https://arxiv.org/abs/2609.10364v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10364v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Simultaneous assessment of medical imaging and patient records is often required in clinical diagnosis. However, standard machine learning algorithms cannot analyze these data types together. Meanwhile, compliance with HIPAA and GDPR can constrain centralized aggregation of sensitive patient data. This leaves a crucial void of secure fusion of visual and textual context across distant networks. Thus, we present OmniMed-FL, a controlled systems study of multimodal federated learning for five-class clinical condition classification (Normal, Pneumonia, COVID-19, Pleural Effusion, Cardiomegaly). Our proxy corpus pairs 3,000 public chest radiographs with 3,000 class-conditioned synthetic notes, matched by class, not by patient. The framework benchmarks eight fusion strategies, three initializations, four missing-text imputation rules, and matched federated baselines under non-IID Dirichlet partitioning across 3 to 20 hospital clients. As all notes are synthetic and pairing is not patient-level, these are descriptive proxy comparisons, not estimates of diagnostic performance or deployment readiness. Within those limits with clients ($K=5$) and severe skew ($α=0.1$), local-only training achieves a macro-F1 score of 0.297, FedAvg achieves $0.662\pm0.074$, FedProx $0.737\pm0.085$, a matched FedMME-style one-shot ensemble $0.647\pm0.080$, and our SCAFFOLD-AdamW adaptation $0.070\pm0.015$, the 0.075 FedProx-FedAvg gap falling inside the wider of the two two-seed standard deviations. Over a $4\times3$ grid, label skew costs up to 0.27 F1 whereas a near-sevenfold client increase costs at most 0.10, while bidirectional volume grows linearly to 183.5 GiB at $K=20$. Multimodal fusion leads on both corpora, scoring 0.956 against 0.934 for text and 0.664 for images on the synthetic corpus and 0.906 against 0.880 and 0.737 on the radiograph corpus, for $2.3\times$ the model state of text alone.</summary>
     <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:59:53Z</published>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:56:26Z</published>
+    <arxiv:comment>Accepted in IEEE Globecom 2026, E-Health</arxiv:comment>
     <arxiv:primary_category term="cs.LG"/>
     <author>
-      <name>Hanwen Jiang</name>
+      <name>Ayush Debnath</name>
+    </author>
+    <author>
+      <name>Ruelia Saha</name>
+    </author>
+    <author>
+      <name>Sudip Misra</name>
     </author>
   </entry>
   <entry>
-    <id>http://arxiv.org/abs/2609.09153v1</id>
-    <title>Procedural Graphs: Self-Evolving Execution Structures for LLM Agents</title>
-    <updated>2026-09-08T17:59:41Z</updated>
-    <link href="https://arxiv.org/abs/2609.09153v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09153v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Large language models are increasingly deployed as agents that plan over long horizons and act through external tools. Most agents select actions through unconstrained generation over an accumulating history, leaving implicit the procedural knowledge of what to do, in what order, and under which conditions. As trajectories lengthen, agents can lose track of their objectives, invoke tools out of order, and repeat unproductive actions. We introduce the Procedural Graph: just as a knowledge graph organizes factual knowledge into (entity, relation, entity) triplets for what-is questions, a Procedural Graph organizes procedural knowledge into (procedure, relation, procedure) triplets for what-to-do questions. At each decision step, the framework localizes the agent's active node, and a guidance model translates the surrounding subgraph into step-level situational guidance that biases the solver's next action without dictating it. The graph is self-evolving: an LLM refiner contrasts failed trajectories with successful ones and edits the graph's topology and attributes, committing edits that preserve or improve held-out validation performance while retaining rejected ones to discourage repetition. Starting from a minimal skeleton, the loop builds graphs that match or surpass hand-designed ones. It can also repair a flawed expert prior. Across multiple datasets, task types, and LLMs, the Procedural Graph delivers consistent gains over memory-based baselines, and self-evolution further improves performance without manual engineering.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.MA" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:59:41Z</published>
-    <arxiv:comment>36 pages including references and appendices, 6 figures, 11 tables</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Yuxing Lu</name>
-    </author>
-    <author>
-      <name>Yicheng Chen</name>
-    </author>
-    <author>
-      <name>Shanchan Wu</name>
-    </author>
-    <author>
-      <name>Sercan Ö. Arık</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09152v1</id>
-    <title>Silver Rate Is (Almost) Optimal for Gradient Descent Acceleration</title>
-    <updated>2026-09-08T17:59:38Z</updated>
-    <link href="https://arxiv.org/abs/2609.09152v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09152v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We study how far gradient descent (GD) can be accelerated by predetermined nonnegative stepsizes in smooth convex optimization. Writing $p_{\mathrm{sil}}=\log_2(1+\sqrt{2})$, we prove an $Ω\left(n^{-p_{\mathrm{sil}}-O(\sqrt{\log\log n/\log n})}\right)$ non-anytime lower bound. In the anytime setting, every infinite nonnegative schedule has infinitely many horizons with error $Ω\left(n^{-\frac{2p_{\mathrm{sil}}}{1+p_{\mathrm{sil}}}-O(\sqrt{\log\log n/\log n})}\right)$. Together with the silver-schedule upper bound [Altschuler and Parrilo, 2025] and the anytime upper bound [Zhang et al., 2025], our results determine the optimal polynomial convergence exponents in both settings.</summary>
-    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <id>http://arxiv.org/abs/2609.10357v1</id>
+    <title>A Later Test Set Is Not a New Domain: Pretraining Familiarity Survives a Contamination-Free Hold-Out</title>
+    <updated>2026-09-09T15:52:55Z</updated>
+    <link href="https://arxiv.org/abs/2609.10357v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10357v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Time-series foundation models are evaluated almost exclusively on public archives that predate them, so a strong score cannot be separated from having seen the test set during pretraining. The obvious remedy is a hold-out that postdates the models. We build one: thirteen forecasters -- four classical, three trained per dataset, six pretrained -- on seven groups drawn from five domains, every observation published after the last model was released, and every dataset rebuildable without an API key. Under this protocol pretrained models win 5 of 7 groups, lose one to a Theta baseline, and on daily exchange rates are indistinguishable from a seasonal naive forecast, along with every other method tested.
+  We then ask what separates the wins from the losses, and report a negative result: the two intrinsic properties one would reach for -- seasonal strength and spectral entropy, measured on the input window -- do not account for the pattern, and seasonal strength is if anything negatively associated with the advantage. What does track it is corpus familiarity. Our largest gain (28% lower MASE than the best classical method, on weekly Wikipedia pageviews) falls on Wikipedia pageviews, the domain TimesFM's authors describe as the bulk of its pretraining corpus, at the same granularities and differing only in time window. Within the pretrained family, where every model forecasts identical series so that series difficulty cancels, the TimesFM family outranks the Chronos family by -0.53 ranks on Wikipedia against -0.09 everywhere else (1,500 vs. 754 series, Mann-Whitney p &lt; 1e-5). We conclude that a temporal hold-out removes memorisation of a window but not familiarity with a domain, that benchmarks therefore need domain hold-outs stated relative to disclosed corpora, and that the practitioner's question is less which model is better than whether their domain is one the model was raised on.</summary>
     <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:59:38Z</published>
-    <arxiv:comment>29 pages, 1 figure</arxiv:comment>
-    <arxiv:primary_category term="math.OC"/>
-    <author>
-      <name>Yuhan Ye</name>
-    </author>
-    <author>
-      <name>Kaizhao Liu</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09147v1</id>
-    <title>Green's Functions from Sample-based Krylov Quantum Diagonalization: An Impurity Solver for Dynamical Mean-Field Theory</title>
-    <updated>2026-09-08T17:59:00Z</updated>
-    <link href="https://arxiv.org/abs/2609.09147v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09147v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We generalize the sample-based Krylov quantum diagonalization (SKQD) method from ground-state calculations to the evaluation of single-particle Green's functions. By constructing and sampling unitary Krylov subspaces in the N +/- 1 particle-number sectors and evaluating all sector-connecting overlaps classically, the approach reconstructs the Green's function via a Lanczos continued fraction while retaining the shallow-circuit, ancilla-free character of SKQD. The quantum device is required only to prepare and sample short-time evolutions. Applied to the particle-hole-symmetric single-impurity Anderson model in chain geometry, with the discrete bath representation used in dynamical mean-field theory (DMFT), the method recovers the spectral function using a relatively small fraction of the full Hilbert space. Across a range of interaction strengths that spans the metal-insulator transition, the main spectral features are reproduced. These results suggest that SKQD-based Green's-function calculations may allow DMFT impurity solvers with a larger number of bath sites on near-term quantum hardware than is currently practical.</summary>
-    <category term="cond-mat.str-el" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cond-mat.mtrl-sci" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:59:00Z</published>
-    <arxiv:comment>20 pages, 10 figures</arxiv:comment>
-    <arxiv:primary_category term="cond-mat.str-el"/>
-    <author>
-      <name>Jay Patel</name>
-    </author>
-    <author>
-      <name>Chakradhar Rangi</name>
-    </author>
-    <author>
-      <name>Ka-Ming Tam</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09140v1</id>
-    <title>NOAH: Learning the Full Patient Journey. A Longitudinal Multimodal Time-Aware Model for Representation and Forecasting</title>
-    <updated>2026-09-08T17:56:13Z</updated>
-    <link href="https://arxiv.org/abs/2609.09140v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09140v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>The digitization of healthcare has generated vast, longitudinal, and multimodal patient records over a lifetime, yet fully exploiting these data to represent and predict patient state trajectories remains a critical challenge. Current AI models often struggle to capture the complex, irregular temporal dynamics and inherent stochasticity of real-world multimodal patient data. Existing AI approaches for modeling longitudinal patient records are predominantly discriminative, limited to a few modalities, constrained by closed categorical vocabularies, treating time as a monotonic inductive bias, or they are limited in forecasting future patient states. We introduce NOAH, a time-aware, task-agnostic, generative transformer model representing and forecasting the full multimodal patient journey. NOAH features a novel bidirectional time integration and a variational latent space to capture the continuous evolution of patient states and the stochasticity of clinical trajectories. Built from over 559 million clinical events from 431,000 hospital visits of 299,000 patients across the MIMIC dataset family, NOAH natively processes medical images, time-series and numeric signals, categorical events, as well as structured and unstructured clinical records. NOAH is the first truly holistic generative model in its field, enabling autoregressive forecasting with optional time control, zero-shot classification, and counterfactual intervention simulation. It generates highly informative and predictive patient state representations that demonstrate strong performance in probing for clinical outcomes, 15 ICD chapters, and 29 comorbidities, as well as in time-to-event prediction. Seamlessly handling diverse modalities and complex temporal dynamics, NOAH provides a versatile, task-agnostic, scalable foundation for intelligent predictive systems in personalized clinical care and digital medicine.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:56:13Z</published>
+    <published>2026-09-09T15:52:55Z</published>
+    <arxiv:comment>11 pages, 2 figures, 5 tables. Code, data fetchers and per-series results: https://github.com/mahdinaser/tsfm-bench</arxiv:comment>
     <arxiv:primary_category term="cs.LG"/>
     <author>
-      <name>Tobias Susetzky</name>
+      <name>Mahdi Naser Moghadasi</name>
+      <arxiv:affiliation>BrightMind AI</arxiv:affiliation>
     </author>
     <author>
-      <name>Raphael Rehms</name>
-    </author>
-    <author>
-      <name>Dmitrii Seletkov</name>
-    </author>
-    <author>
-      <name>Özgün Turgut</name>
-    </author>
-    <author>
-      <name>Michelle Espranita Liman</name>
-    </author>
-    <author>
-      <name>Lisa Steinhelfer</name>
-    </author>
-    <author>
-      <name>Rickmer Braren</name>
-    </author>
-    <author>
-      <name>Daniel Rueckert</name>
+      <name>Faezeh Ghaderi</name>
+      <arxiv:affiliation>University of Texas at Arlington</arxiv:affiliation>
     </author>
   </entry>
   <entry>
-    <id>http://arxiv.org/abs/2609.09139v1</id>
-    <title>Large-scale dynamics of integrable quenches</title>
-    <updated>2026-09-08T17:56:05Z</updated>
-    <link href="https://arxiv.org/abs/2609.09139v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09139v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>The Ballistic Macroscopic Fluctuation Theory (BMFT) is a path-integral based approach to treat large-scale correlations in interacting integrable systems which, so far, has only been applied to quasi-equilibrium settings. In this paper we extend this approach to integrable quench problems and, to illustrate it, we compute the time evolution of the full-counting-statistics (FCS) of a conserved charge. We identify the relevant path integral, solve it via saddle-point, and obtain a set of partial differential equations describing the dynamics of the FCS. We solve these equations explicitly for free fermionic systems and for the interacting cellular automaton Rule 54. In both cases, we recover the known exact results. For Rule 54, our construction moreover completes the solution across the entire ballistic window.</summary>
-    <category term="cond-mat.stat-mech" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:56:05Z</published>
-    <arxiv:comment>32 pages 5 fihures</arxiv:comment>
-    <arxiv:primary_category term="cond-mat.stat-mech"/>
-    <author>
-      <name>David X. Horvath</name>
-    </author>
-    <author>
-      <name>Bruno Bertini</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09137v1</id>
-    <title>A Data-Driven Framework for Identifying and Prioritizing RPA Opportunities in Healthcare Processes</title>
-    <updated>2026-09-08T17:55:28Z</updated>
-    <link href="https://arxiv.org/abs/2609.09137v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09137v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Robotic Process Automation (RPA) is widely used to reduce administrative burden in United States hospitals, yet an estimated 30-50% of RPA initiatives underperform because processes are selected informally, without a repeatable method to catalogue candidates, prioritize them, match each to an automation tier -- a Python bot, an open-source orchestrator such as n8n, or an enterprise platform such as UiPath -- and forecast financial return before committing resources. We propose a four-module, data-driven framework unifying these decisions: a Process Taxonomy of twenty recurring hospital processes across five value streams; a Prioritization module deriving an Automation Suitability Index from an Analytic Hierarchy Process matrix with an explicit consistency check; a Tool-Tier Selection module recommending the least-cost technology sufficient for a process complexity, integration, and compliance profile; and a Return-on-Investment module quantifying labor savings, error-cost avoidance, payback, and net present value. Applied to a synthetic portfolio spanning all twenty processes, plus a reference data-flow architecture linking it to hospital EHR/payer/ERP systems: 12 of 20 clear the prioritization threshold; the ranking is robust to +/-20% weight perturbation (Spearman correlation 0.83, top-5 set preserved 97.7%, 2,000 Monte Carlo trials); an Automation Risk Index flags four qualifying processes as Critical risk; a budget-constrained portfolio optimization shows diminishing marginal NPV as spend scales from $400K to $1.03M; and a second Monte Carlo analysis shows portfolio NPV stays positive at its 5th percentile. The framework is a conceptual synthesis of the literature rather than an instrument calibrated on primary hospital data; we discuss HIPAA governance and a research agenda for empirical validation. A supplementary Python implementation accompanies the paper.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:55:28Z</published>
-    <arxiv:comment>21 pages, 2 figures, 14 tables</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Maria Alejandra Gomez</name>
-    </author>
-    <author>
-      <name>Juan Manuel Castillo</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09135v1</id>
-    <title>Entropy-Regularized Rank-Masked Policy Optimization for Test-Time Reinforcement Learning in Code Generation</title>
-    <updated>2026-09-08T17:54:13Z</updated>
-    <link href="https://arxiv.org/abs/2609.09135v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09135v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Existing methods for test-time reinforcement learning (TTRL) derive rewards from answer-level self-voting on unlabeled test-time tasks with canonical answers, but this breaks down for code generation because programs cannot be compared by surface form and therefore do not directly provide a usable training signal. To make TTRL applicable to code generation, we propose probe-driven TTRL, which constructs output-free probe inputs from the problem statement, executes candidate programs on these probes, and defines a Probe Consensus Reward (PCR) from the resulting behavioral agreement. PCR provides a behavioral training signal for open-vocabulary programs, but it is not a fully reliable verifier and remains susceptible to reward hacking through spurious consensus. We therefore introduce Entropy-Regularized Rank-Masked Policy Optimization (ERPO), which converts low PCR into conservative negative updates through rank masking and controls policy drift with an entropy ceiling. On coding benchmarks, ERPO substantially improves pass@1 and pass@k in both in-domain adaptation and zero-shot transfer.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:54:13Z</published>
-    <arxiv:comment>Accepted to EMNLP 2026 Main Conference. 15 pages, 4 figures, 11 tables</arxiv:comment>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Jiacheng Xu</name>
-    </author>
-    <author>
-      <name>Feng Chen</name>
-    </author>
-    <author>
-      <name>Xiuneng Xu</name>
-    </author>
-    <author>
-      <name>Bo An</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09134v1</id>
-    <title>Co-Evolving Harnesses and Models: On-Policy Correction Helps Weaker Models Catch Up Where Imitation Fails</title>
-    <updated>2026-09-08T17:53:49Z</updated>
-    <link href="https://arxiv.org/abs/2609.09134v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09134v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Agent harnesses (the system prompt, tool set, execution hooks, and context-management scaffolding around a model) are a critical determinant of agentic task success. Automated harness evolution can enable smaller models to perform well on domain-specific tasks at a fraction of frontier-model cost. Since both the harness and model weights shape behavior, we ask how harness evolution and lightweight fine-tuning should be combined. Across seven enterprise agent tasks, we first evolve a harness with the weaker model, then find that a stronger expert often uses it more effectively, suggesting expert supervision could close the remaining gap. However, training the weaker model on the expert's complete trajectories under the evolved harness backfires: performance regresses on all seven tasks by 4 to 30 points across Qwen3-Coder and Gemma 4, even though the same procedure helps under the unevolved harness. Our analysis shows that imitation transfers knowledge and increases scaffold usage, but disrupts model-harness fit: the weaker model adopts the expert's planning strategy without the competence to execute it and no longer matches the harness evolved around its native planning style. We therefore develop an on-policy expert-correction pipeline, automated by a meta-level MLE agent, that localizes the failing turn in the weaker model's own rollout and asks the expert to rewrite only that turn. This preserves the model's planning style and combines the gains of harness evolution and model adaptation. Our results identify and resolve a source of contention between harness and weight updates, yielding a compatibility-preserving recipe for economical co-evolution on domain-specific enterprise tasks.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:53:49Z</published>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Zhou Yu</name>
-    </author>
-    <author>
-      <name>Bin Bi</name>
-    </author>
-    <author>
-      <name>Shiva Kumar Pentyala</name>
-    </author>
-    <author>
-      <name>Shubham Mehrotra</name>
-    </author>
-    <author>
-      <name>Sougata Chaudhuri</name>
-    </author>
-    <author>
-      <name>Shilpa Bhagavath</name>
-    </author>
-    <author>
-      <name>Zeyuan Chen</name>
-    </author>
-    <author>
-      <name>Ran Xu</name>
-    </author>
-    <author>
-      <name>Phil Mui</name>
-    </author>
-    <author>
-      <name>James Zhu</name>
-    </author>
-    <author>
-      <name>Sitaram Asur</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09133v1</id>
-    <title>ExecCritic: Learn to Test, Test to Improve for Coding Agents</title>
-    <updated>2026-09-08T17:53:37Z</updated>
-    <link href="https://arxiv.org/abs/2609.09133v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09133v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Execution feedback can guide coding agents toward correct repository repairs, but only when the tests capture the behavior requested by the issue. Agent-generated tests can encode incomplete or incorrect behavioral targets; when the same trajectory writes both the patch and the test, their errors can agree and create false confidence. We introduce ExecCritic, combining a test--verify--revise scaffold with a role-specific reinforcement learning recipe for training agents within it. The scaffold separates test construction from source-code repair: a Test agent independently generates repository-native tests, a fail-closed harness qualifies and freezes them, and a Repair agent revises source code from their execution feedback without changing the tests. Both roles use Qwen-3.5-35B-A3B as the backbone and are trained separately. In Learn to Test, the Test agent learns to produce behaviorally valid tests that distinguish correct from incorrect patches. In Test to Improve, the Repair agent learns both direct task resolution and feedback-guided revision. On SWE-bench Verified, test quality determines whether feedback helps: holding the base Repair agent fixed, tests from the base Test agent reduce resolved rate from a no-test baseline of 61.2% to 57.3%, whereas tests from GPT-5.6-sol raise it to 65.3%. Role-specific post-training raises the Qwen Test agent's Base-to-Gold success from 22.2% to 62.2%; composing the two post-trained Qwen agents reaches 72.6%, an 11.4-point gain over the original no-test baseline without stronger-model or Oracle feedback at evaluation time. Code is publicly available at https://github.com/MSR-Orchard/execcritic.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:53:37Z</published>
-    <arxiv:comment>35 pages</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Leitian Tao</name>
-    </author>
-    <author>
-      <name>Baolin Peng</name>
-    </author>
-    <author>
-      <name>Haorui Wang</name>
-    </author>
-    <author>
-      <name>Hang Wang</name>
-    </author>
-    <author>
-      <name>Hao Cheng</name>
-    </author>
-    <author>
-      <name>Wenlin Yao</name>
-    </author>
-    <author>
-      <name>Qianhui Wu</name>
-    </author>
-    <author>
-      <name>Tao Ge</name>
-    </author>
-    <author>
-      <name>Sharon Li</name>
-    </author>
-    <author>
-      <name>Jianfeng Gao</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09132v1</id>
-    <title>Near-optimal synthesis of non-Gaussian phase gates via qubit-oscillator Rabi control</title>
-    <updated>2026-09-08T17:53:18Z</updated>
-    <link href="https://arxiv.org/abs/2609.09132v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09132v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Non-Gaussian gates remain a key bottleneck for universal continuous-variable (CV) quantum computation because the nonlinearities they require are difficult to engineer. To address this challenge, we develop an efficient qubit-oscillator Rabi synthesis scheme for polynomial phase gates, with a total interaction time that scales polylogarithmically with the inverse target error \(\varepsilon\). Specifically, for a class of readily preparable initial states, we show that a degree-\(R\) phase gate can be approximated by an analytically constructed Rabi sequence with total time \(O(\log^{(R-1)/2+o(1)}(1/\varepsilon))\). This construction requires no numerical optimization and therefore extends naturally to arbitrarily large multimode systems. We further establish a total-time lower bound of \(Ω(\log^{(R-1)/2}(1/\varepsilon))\), showing that the synthesis is near optimal. As applications, we use this scheme to simulate representative CV quantum dynamics and implement a CV quantum algorithm for solving linear partial differential equations. These results establish qubit-oscillator Rabi control as an efficient, analytically compilable, and near-optimal primitive for CV quantum information processing.</summary>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:53:18Z</published>
-    <arxiv:comment>39 pages</arxiv:comment>
-    <arxiv:primary_category term="quant-ph"/>
-    <author>
-      <name>Zhen Yang</name>
-    </author>
-    <author>
-      <name>Shan Jin</name>
-    </author>
-    <author>
-      <name>Zi-Wen Liu</name>
-    </author>
-    <author>
-      <name>Xiaoting Wang</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09130v1</id>
-    <title>Nearly Tight Rademacher Bounds for Sparsely Activated Neural Networks</title>
-    <updated>2026-09-08T17:53:03Z</updated>
-    <link href="https://arxiv.org/abs/2609.09130v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09130v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>An input may activate few hidden units even when different inputs collectively use an entire network. We study the statistical complexity of this input-dependent sparsity in the one-hidden-layer ReLU model of Awasthi et al. (COLT 2024). For width $s$, at most $k$ active units per input, and effective weight and bias bounds $W,B$, every size-$m$ sample in the class's fixed radius-$R$ input domain satisfies $\mathcal{R}(S)\le CWR\min\{k,\sqrt{sk/m}\log^{3/2}(2m)\}+kB/\sqrt m$. A support-preserving cover and a single normalized chaining argument remove the previous explicit dimension factor, up to logarithms. Lower bounds on appropriate i.i.d. marginals match up to those logarithms, showing how changing active units across inputs retains a width dependence. The input domain matters: zero-bias networks sparse on the entire ball have at most $2k$ nonzero units and complexity $O(kWR/\sqrt m)$, whereas bias bounds comparable to $WR$ restore the worst-case rate on that same domain in only logarithmic dimension. A spherical-cap construction proves the latter claim without assuming sparsity merely on the sampling support. For a specified normalized bounded loss and biases comparable to $WR$, we also obtain agnostic minimax excess-risk bounds of order $\min\{1,\sqrt{s/(km)}\}$ up to logarithms.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:53:03Z</published>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Xiaoyu Li</name>
-    </author>
-    <author>
-      <name>Zhizhou Sha</name>
-    </author>
-    <author>
-      <name>Jiaojiao Jiang</name>
-    </author>
-    <author>
-      <name>Junbin Gao</name>
-    </author>
-    <author>
-      <name>Andi Han</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09129v1</id>
-    <title>Anderson orthogonality scaling in the Rabi-driven heavy Fermi polaron</title>
-    <updated>2026-09-08T17:52:39Z</updated>
-    <link href="https://arxiv.org/abs/2609.09129v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09129v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>The Anderson orthogonality catastrophe (AOC) is a paradigmatic many-body phenomenon in which a local perturbation induces a macroscopic response of a Fermi sea. We probe signatures of the AOC by coherently driving heavy Fermi polarons in an ultracold $^6$Li-$^{133}$Cs mixture. We observe a power-law dependence of the measured Rabi frequency on the drive strength, with exponents consistent with AOC predictions. Finite-temperature simulations quantitatively reproduce the observed scaling, indicating that AOC signatures persist beyond the idealized zero-temperature, infinite-mass limit. The damping of the Rabi oscillations provides access to polaron dephasing and reveals a nonmonotonic drive dependence, qualitatively consistent with current theories. Our results establish coherently driven impurities as a versatile probe of quantum many-body dynamics through local coherent control.</summary>
-    <category term="cond-mat.quant-gas" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:52:39Z</published>
-    <arxiv:primary_category term="cond-mat.quant-gas"/>
-    <author>
-      <name>Michael Rautenberg</name>
-    </author>
-    <author>
-      <name>Tobias Krom</name>
-    </author>
-    <author>
-      <name>Eugen Dizer</name>
-    </author>
-    <author>
-      <name>Olivier Bleu</name>
-    </author>
-    <author>
-      <name>Eleonora Lippi</name>
-    </author>
-    <author>
-      <name>Tilman Enss</name>
-    </author>
-    <author>
-      <name>Manfred Salmhofer</name>
-    </author>
-    <author>
-      <name>Lauriane Chomaz</name>
-    </author>
-    <author>
-      <name>Matthias Weidemüller</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09126v1</id>
-    <title>A Generalization of Amari's Bayesian Duality</title>
-    <updated>2026-09-08T17:51:08Z</updated>
-    <link href="https://arxiv.org/abs/2609.09126v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09126v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Amari's contributions to information geometry and machine learning are well known. Here, we revisit Amari's work on Bayesian duality which has not received as much attention. We connect Amari's Bayesian duality to a convex duality of Bayes' rule. Using this connection, we present a generalization of Amari's Bayesian duality and discuss its relevance for modern artificial intelligence.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:51:08Z</published>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Mohammad Emtiyaz Khan</name>
-    </author>
-    <author>
-      <name>Thomas Möllenhoff</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09125v1</id>
-    <title>Few-body bound states in the anyon-Hubbard model</title>
-    <updated>2026-09-08T17:50:59Z</updated>
-    <link href="https://arxiv.org/abs/2609.09125v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09125v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Quantum statistics in low-dimensional systems predicts anyonic particles with fractional exchange statistics which are neither that of bosons nor fermions. While anyons are typically found in two dimensions as excitations of topologically-ordered states of matter, anyon-like exchange statistics has also been discussed in one dimension, for instance, in the context of the anyon-Hubbard model (AHM), the physics of which has recently been observed in experiment [Kwan et al., arXiv:2306.01737; Dhar et al., arXiv:2412.21131; and Bakkali-Hassani et al., arXiv:2602.20421]. The AHM can be formulated in terms of bosons featuring density-dependent Peierls phases, described by a statistical phase angle $θ$, which controls asymmetric transport and the formation of dynamically bound pairs at finite momentum. Here, we show theoretically that the AHM also hosts exact two-body bound states in the continuum (BICs) for arbitrary $θ\neq 0$, and genuine three- and four-body bound states. Unlike conventional bound states stabilized by attractive (or repulsive) interactions, which are energetically localized with a large effective mass, these clusters here are bound by a purely kinematic mechanism endowing them with fast chiral transport properties. We provide a simple variational approximation to the three-body bound states and explain their binding mechanism. Moreover, we show that the signatures of three-body bound states in the AHM can be directly probed experimentally from the expansion dynamics starting from three localized particles.</summary>
-    <category term="cond-mat.quant-gas" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cond-mat.mes-hall" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cond-mat.str-el" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:50:59Z</published>
-    <arxiv:comment>12 + 32 pages, 9 + 10 figures. Comments are welcome</arxiv:comment>
-    <arxiv:primary_category term="cond-mat.quant-gas"/>
-    <author>
-      <name>Isaac Tesfaye</name>
-    </author>
-    <author>
-      <name>Christina Mascherbauer</name>
-    </author>
-    <author>
-      <name>Joyce Kwan</name>
-    </author>
-    <author>
-      <name>Perrin Segura</name>
-    </author>
-    <author>
-      <name>Yanfei Li</name>
-    </author>
-    <author>
-      <name>Markus Greiner</name>
-    </author>
-    <author>
-      <name>Luis Santos</name>
-    </author>
-    <author>
-      <name>André Eckardt</name>
-    </author>
-    <author>
-      <name>Brice Bakkali-Hassani</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09124v1</id>
-    <title>Canonical Color as a Lens into Concept Decodability in Vision Encoders and VLMs</title>
-    <updated>2026-09-08T17:50:09Z</updated>
-    <link href="https://arxiv.org/abs/2609.09124v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09124v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Visual encoders construct a representation of the image input for Vision-Language models. How much conceptual, as opposed to immediately visible, information does this representation contain? We use canonical color as a controlled test case to ask whether vision encoders make canonical-color information linearly accessible, even when color is removed from the input image. We construct a dataset of objects with canonical colors, and probe vision encoders for both color and object identity using color and grayscale images. We find that canonical color remains decodable from grayscale images, and is tied to predicted object identity, indicating a conceptual link. Extending this analysis to full VLMs, we find that VLM post-training can have a surprisingly large effect on color decodability in the vision encoder. Overall, canonical color provides a usefully controllable lens for tracing object-level conceptual semantic information in vision encoders and VLMs.</summary>
-    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:50:09Z</published>
-    <arxiv:comment>12 pages, 7 figures. Accepted to EMNLP 2026</arxiv:comment>
-    <arxiv:primary_category term="cs.CV"/>
-    <author>
-      <name>Xiaofu Chen</name>
-    </author>
-    <author>
-      <name>Stella Frank</name>
-    </author>
-    <author>
-      <name>Yova Kementchedjhieva</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09119v1</id>
-    <title>DeCAL: Towards Physically-Grounded Dexterous Vision-Language-Action Models via Contact-Aware Latent Co-Imagination</title>
-    <updated>2026-09-08T17:47:43Z</updated>
-    <link href="https://arxiv.org/abs/2609.09119v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09119v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Dexterous manipulation involves contact-rich and fine-grained interactions with the physical world, posing significant challenges for existing vision-language-action (VLA) models due to severe visual occlusions and complex contact dynamics. While recent works have incorporated tactile sensing into robotic manipulation, most approaches still rely on homogeneous multimodal fusion, lacking adaptive tactile integration and explicit modeling of physical dynamics. In this work, we present DeCAL, a physically-grounded dexterous vision-language-action model that unifies understanding, imagination and action generation for contact-rich dexterous manipulation. Built upon a Mixture-of-Transformers (MoT) architecture, DeCAL leverages specialized experts for each capability while enabling efficient information flow among them. To effectively leverage tactile information, we introduce Adaptive Visuo-Tactile Fusion that dynamically regulates tactile interactions via a contact-aware gating strategy. Furthermore, we propose Visuo-Tactile Latent Co-Imagination to jointly model visual and tactile dynamics, equipping the policy with implicit physical world knowledge. Experimental results show that DeCAL consistently achieves state-of-the-art performance across all tasks, attaining a 71% average success rate and an 83.4% progress success rate, while also demonstrating strong generalization to unseen scenarios. The website is available at https://aureleopku.github.io/DeCAL.</summary>
-    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:47:43Z</published>
-    <arxiv:primary_category term="cs.RO"/>
-    <author>
-      <name>Yankai Fu</name>
-    </author>
-    <author>
-      <name>Ning Chen</name>
-    </author>
-    <author>
-      <name>Junkai Zhao</name>
-    </author>
-    <author>
-      <name>Heng Zhang</name>
-    </author>
-    <author>
-      <name>Guocai Yao</name>
-    </author>
-    <author>
-      <name>Pengwei Wang</name>
-    </author>
-    <author>
-      <name>Zhongyuan Wang</name>
-    </author>
-    <author>
-      <name>Shanghang Zhang</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09116v1</id>
-    <title>When Does Scale-Invariant Optimization Become Unstable? An Exact Schedule Law with Weight Decay</title>
-    <updated>2026-09-08T17:46:17Z</updated>
-    <link href="https://arxiv.org/abs/2609.09116v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09116v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Normalization renders large parts of neural networks effectively scale invariant, inducing a hidden feedback loop in which learning-rate schedules and weight decay interact through the parameter norm to control the effective step taken by the optimizer. We show that this interaction is governed by an exact discrete-time law: a single scalar quantity captures all schedule and decay forcing, while norm growth induces an opposing geometric self-quenching effect. This yields a sharp boundary that cleanly separates contraction- and expansion-dominated effective learning rate regimes. To understand the underlying mechanism, we provide exact analysis of a fully solved normalized regression model where the dynamics reduce to two dimensions and show that the balance point is intrinsically unstable, implying that constant learning rate with weight decay cannot stably maintain an interior equilibrium and instead produces recurrent behavior driven by discrete-time Jacobian structure. We further extend this perspective across optimizers through unified homogeneous-optimizer framework that reveals a structural dichotomy in self-quenching strength, providing a first-principles explanation for why adaptive methods exhibit systematically weaker stabilization under normalization.
-  Across dynamical systems and neural networks (MLP, CNN, GPT2 / MNIST, CIFAR, wikiText, OpenWebText), the predicted law holds with high precision and enables direct control of training via the identified scalar, with performance peaking sharply at the predicted boundary. Together, these results isolate a single governing quantity for scale-invariant optimization, providing a precise and actionable lens on training dynamics, optimizer behavior, and schedule design in modern deep learning. Code is available in https://github.com/shasanamin/normalized-optimization-dynamics.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:46:17Z</published>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Hasan Amin</name>
-    </author>
-    <author>
-      <name>Wei-Kai Chang</name>
-    </author>
-    <author>
-      <name>Rajiv Khanna</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09115v1</id>
-    <title>MeClear: Cooperative Game-Theoretic Attribution and Risk-Aware Memory Clearance for Long-Horizon LLM Agents</title>
-    <updated>2026-09-08T17:46:00Z</updated>
-    <link href="https://arxiv.org/abs/2609.09115v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09115v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Long horizon Large Language Model (LLM) agents rely on external memory systems to preserve user preferences and task knowledge across extended interactions. Conventional retrieval mechanisms optimize semantic compatibility rather than downstream utility, frequently introducing outdated, misleading, or conflicting evidence into the active context. We present MeClear, a task conditioned memory clearance framework that identifies memories featuring negative downstream utility through cooperative attribution and selectively suppresses them from agent execution. MeClear combines Leave One Out screening with sampled cooperative Shapley attribution to distribute utility across interacting evidence, effectively resolving redundant conflict masking where single removal evaluations fail. Utilizing attribution rankings, MeClear executes a query scoped minimal clearance strategy over a nested filtration, verifying task recovery on the cleared context without permanently altering the persistent memory bank. Comprehensive experimental evaluations across ten long dialogue memory pools demonstrate that MeClear achieves a target recall of 85.9% and an overall task recovery rate of 82.3%, representing a 25.5 percentage point improvement over Leave One Out (LOO) baselines.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:46:00Z</published>
-    <arxiv:comment>15 pages, 12 figures</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Boyu Yang</name>
-    </author>
-    <author>
-      <name>Jiazheng Sun</name>
-    </author>
-    <author>
-      <name>Zilong Lu</name>
-    </author>
-    <author>
-      <name>Zhi Qiu</name>
-    </author>
-    <author>
-      <name>Xin Peng</name>
-    </author>
-    <author>
-      <name>Jun Zheng</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09113v1</id>
-    <title>SAEScientist-Bench: Can AI Agents Conduct Autonomous SAE Interpretability Research?</title>
-    <updated>2026-09-08T17:45:09Z</updated>
-    <link href="https://arxiv.org/abs/2609.09113v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09113v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>While research on recursive self-improvement (RSI) has predominantly automated model training pipelines, reliable autonomous development demands a missing pillar: post-hoc monitoring and auditing to understand what models learn and ensure safe alignment. Mechanistic interpretability tools are essential to bridge this gap, among which Sparse Autoencoders (SAEs) serve as a cornerstone by isolating interpretable features for model inspection and steering. In this paper, we introduce SAEScientist-Bench to evaluate whether AI agents can act as scientists utilizing SAE tools for autonomous mechanistic discovery. Given a target concept, an agent designs contrastive probes and navigates a Gemma Scope dictionary of 131K+ features in Gemma-2-9B-IT to discover the optimal feature, evaluated against curated expert reference features anchored on Neuronpedia across activation rank, concept selectivity on contrastive texts, and causal steering. Across 10 agent configurations and 20 tasks, frontier agents demonstrate genuine discovery capabilities and lead different evaluation dimensions, but remain well behind the expert baseline, approaching expert levels on separating target concepts from contrastive controls while lagging substantially in causal generation steering. Further analysis reveals that although agents can design contrasts to rule out spurious candidates, they frequently misinterpret experimental measurements. These results establish experimental model understanding as a measurable capability for closed-loop autonomous AI R&amp;D. Our code is available at https://github.com/Trae1ounG/SAEScientist.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:45:09Z</published>
-    <arxiv:comment>Preprint. Work in Progress</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Yuqiao Tan</name>
-    </author>
-    <author>
-      <name>Shizhu He</name>
-    </author>
-    <author>
-      <name>Jun Zhao</name>
-    </author>
-    <author>
-      <name>Kang Liu</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09099v1</id>
-    <title>Curriculum Learning as Transport: Understanding Curricula with Wasserstein Geodesics</title>
-    <updated>2026-09-08T17:39:16Z</updated>
-    <link href="https://arxiv.org/abs/2609.09099v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09099v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Curriculum learning is governed by several coupled design choices---how difficulty is defined, how examples are ordered, how much exposure each level receives, and how quickly training moves across levels---making it hard to isolate what actually helps. We present Wasserstein curriculum paths, a simple transport-based framework that decouples these factors by representing curricula as trajectories of training distributions over discrete difficulty levels. Across a calibrated synthetic suite with 12 tasks and 33 difficulty axes, we use this framework to isolate the effects of ordering, matched exposure, endpoint smoothness, and pacing under fixed training budgets. We find that curriculum effects are strongly context-dependent: no single strategy dominates across tasks, difficulty axes, and budgets, and curricula mainly change where a fixed budget is spent most effectively. Within this framework, easy-to-hard ordering improves hard-level performance relative to exposure-matched static sampling, showing that the benefit is not explained by cumulative exposure alone. We further show that endpoint smoothness and pacing substantially affect where along the difficulty spectrum a curriculum is effective. Finally, we show that the same transport view naturally supports extensions to learned pacing through geometry and to structured difficulty spaces beyond one-dimensional orderings.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:39:16Z</published>
-    <arxiv:comment>COLM 2026</arxiv:comment>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Changho Shin</name>
-    </author>
-    <author>
-      <name>David Alvarez-Melis</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09094v1</id>
-    <title>The Surprising Effectiveness of Approximate Value Iteration in Self-Play</title>
-    <updated>2026-09-08T17:37:19Z</updated>
-    <link href="https://arxiv.org/abs/2609.09094v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09094v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Combining search with function approximation has driven major advances in game-playing programs, making self-play algorithms more competitive than ever. Still, the computational overhead of the most popular methods, based on Monte Carlo Tree Search (MCTS), can be substantial. In this work, we investigate whether simpler methods remain competitive in non-trivial, moderately sized games such as Connect Four, Hex(7x7) and synthetic games. We train a minimal self-play implementation of Approximate Value Iteration (AVI) and use ground-truth oracles for exact evaluation. Contrary to expectations, our results demonstrate the surprising effectiveness of AVI: it learns more accurate value functions than those learned by AlphaZero, while its one-step-lookahead greedy policies remain competitive with MCTS-based policies at substantially lower training and inference costs. Preliminary experiments on Othello and Go(9x9) show that AVI trains stably on larger games and learns effective value functions. These findings suggest that the success of MCTS-based methods may have eclipsed simpler approaches that have become increasingly practical with modern deep-learning tools.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:37:19Z</published>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Raphael Boige</name>
-    </author>
-    <author>
-      <name>Amine Boumaza</name>
-    </author>
-    <author>
-      <name>Bruno Scherrer</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09091v1</id>
-    <title>Impossibility of One-Way One-Round Quantum 4-Coloring via Matrix-Space Stability</title>
-    <updated>2026-09-08T17:35:18Z</updated>
-    <link href="https://arxiv.org/abs/2609.09091v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09091v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We show that one-way one-round quantum LOCAL algorithms cannot $4$-color directed cycles with high probability, even with unbounded local computation and quantum message length. This is the first lower bound in the high-probability quantum LOCAL setting that goes beyond the non-signaling and bounded-dependence models, exploiting the structure of distributed quantum algorithms.
-  Our proof connects distributed quantum computing with noncommutative extremal combinatorics by identifying local collision probabilities with the weighted multiplicative energy of matrix-space decompositions. We obtain our lower bound by proving a dimension-independent weighted stability theorem for a directed noncommutative analogue of Mantel's theorem.</summary>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.DC" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:35:18Z</published>
-    <arxiv:primary_category term="quant-ph"/>
-    <author>
-      <name>Tom Gur</name>
-    </author>
-    <author>
-      <name>Longcheng Li</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09090v1</id>
-    <title>Measuring LLM Sycophancy under Sustained Multi-Turn Pressure</title>
-    <updated>2026-09-08T17:35:04Z</updated>
-    <link href="https://arxiv.org/abs/2609.09090v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09090v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Large language models (LLMs) may abandon correct positions when users push back, exhibiting a failure mode known as sycophancy. Existing evaluations typically use short, pre-specified conversations and may therefore miss failures that emerge under sustained, adaptive disagreement. We introduce SPINE, a benchmark in which an LLM proxy plays a persistent but mistaken user and adaptively challenges a target model for up to 25 turns. We evaluate four production systems and three Olmo3-7b variants on 100 false-presupposition and 100 unethical-query items. Our experimental results show that collapse rates increase with conversation length for every model, short-horizon protocols underestimate sycophancy and resistance under sustained pressure remains unreliable across current models. By analyzing models with accessible reasoning traces, we surprisingly found that the correct position often remains represented in a reasoning trace when the response concedes, suggesting that the model chooses to please a user and sycophancy is not due to lack of knowledge or ignorance. Ablations show that adaptive LLM proxy exposes more sycophantic collapse than pre-generated scripts. Among all tactics, emotional appeals is the most associated with inducing LLM sycophantic behavior. The code and data are released at https://anonymous.4open.science/r/SPINE</summary>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:35:04Z</published>
-    <arxiv:primary_category term="cs.CL"/>
-    <author>
-      <name>Leyuan Tang</name>
-    </author>
-    <author>
-      <name>Kangda Wei</name>
-    </author>
-    <author>
-      <name>Tianyu Jiang</name>
-    </author>
-    <author>
-      <name>Ruihong Huang</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09082v1</id>
-    <title>GoDeep: Annotation-Free Open-Vocabulary 3D Scene Understanding via Language-Space Lifting</title>
-    <updated>2026-09-08T17:31:51Z</updated>
-    <link href="https://arxiv.org/abs/2609.09082v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09082v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Open vocabulary 3D semantic segmentation methods typically lift CLIP features into 3D. This embeds points in a joint vision-language space known to behave like a bag-of-words on compositional tasks. Furthermore, even annotation free variants often require a large 3D training corpus and a dedicated 3D encoder per domain. Instead we use a vision-language model purely as a translator. It produces structured, entity-level descriptions of each posed image. These descriptions are grounded, projected, and aggregated directly in a general-purpose, language-only embedding space, with no 3D training corpus or encoder required. On ScanNet++, our pipeline is competitive with strong annotation free baselines trained on ScanNet. On a 5-building cultural heritage benchmark, raw scores initially favor a CLIP-based variant, but a single systematic vocabulary correction reverses this ranking. An effect confirmed by a second, independent correction on a different class, indicating that language-space embeddings track physical content more faithfully. This fidelity extends to genuinely out-of-vocabulary (OOV) objects on ScanNet++ proving that language-space embeddings separate presence from absence objects far more sharply than CLIP-based embeddings do. GoDeep also localize these OOV objects within the scene, all without any 2D-3D annotation. Because every representation remains discrete text, predictions are also explainable at the point level. Finally, exploiting both a heuristic weighting, that favors precise over merely frequent observations and GoDeep's explainability property, we propose an aggregation strategy, as a proof of concept, that favors finer elements localization.</summary>
-    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:31:51Z</published>
-    <arxiv:primary_category term="cs.CV"/>
-    <author>
-      <name>Thodoris Betsas</name>
-    </author>
-    <author>
-      <name>Anastasios Doulamis</name>
-    </author>
-    <author>
-      <name>Andreas Georgopoulos</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09081v1</id>
-    <title>Everything in Moderation: Per-Domain Coverage Optima and Alignment-Resistant Domain Gaps in Multi-Domain Mid-Training</title>
-    <updated>2026-09-08T17:31:38Z</updated>
-    <link href="https://arxiv.org/abs/2609.09081v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09081v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Mid-training, the stage between pre-training and alignment, is where a model's per-domain data composition is typically set by data availability rather than principled design. We ask what that decision buys, and whether a later alignment pass can undo it. In a controlled logical-reasoning setting (Qwen3-8B-Base, with a 4B replication; five semantically rule-disjoint KOR-Bench domains) we train 30 allocations spanning the five-domain simplex, 24 sweep configurations plus six withheld from the fit, at five seeds each. Three findings emerge. First, every domain has an interior coverage optimum: the moderate band ($10\%$-$40\%$) is best for all five domains, and a calibrated permutation test for quadratic interiority gives $P\approx0.010$; the fitted mid-training-only curves, with 8B peaks between $9.9\%$ and $35.1\%$, reproduce for curve shape but not peak location. Second, the gaps survive a fixed-budget alignment pass: compensatory SFT raises 116/120 cells (mean $+4.32\%$) yet bridges $0/240$ pairs at a $5\%$ threshold and $30/240$ at a $10\%$ ratio, an equal-budget uniform control behaves almost identically, and a permutation null would bridge $13.8\pm3.3$ and $77.9\pm8.5$ pairs ($P&lt;0.001$). Third, zero coverage collapses mid-training-only accuracy, though a FineWeb-Edu-only control shows the collapse is commingled with generic drift. An exploratory $θ^*$ allocation attains the largest full-pipeline gain ($+4.36\%$ vs. $+0.80\%$/$+0.64\%$\,pp) but is marginal under Welch test.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:31:38Z</published>
-    <arxiv:comment>About to commit to ICLR</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Yunpeng Xu</name>
-    </author>
-    <author>
-      <name>Kun Zheng</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09075v1</id>
-    <title>ThinkPrior: Zero-Rollout Difficulty Priors for Cold-Start Prompt Selection in RLVR</title>
-    <updated>2026-09-08T17:30:12Z</updated>
-    <link href="https://arxiv.org/abs/2609.09075v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09075v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>In reinforcement learning with verifiable rewards (RLVR) trained with group relative policy optimization (GRPO), the KL-free reward-advantage term studied here depends on within-group reward variation. If all rollouts in a group are correct or all are wrong, their group-relative advantages are identically zero; these zero-advantage silent groups provide no reward-advantage gradient, yet uniform sampling spends 39% of a run's rollouts on them. History-based prompt selection must first spend target-policy rollouts to estimate difficulty, creating a cold start with rollout waste; ThinkPrior instead uses an external anchor in one offline pass to construct a zero-rollout difficulty prior before the first target-policy rollout. The verifier-scored anchor pass rate supplies an external-anchor initialization for a Beta posterior; ThinkPrior selects by expected learnability and then updates from training outcomes, changing neither the loss nor the optimizer. On Qwen2.5-Math-7B across sixteen seeds, ThinkPrior more than halves early silent groups and cuts wasted rollouts through step 30 by nearly a fifth, while we detect no difference in final accuracy. On this 250-prompt pool the fixed-budget result is a reallocation rather than a net saving. The measured ThinkPrior+DAPO composition reduces generated rollouts by 10.6% while both arms retain the same 3840-rollout update budget. The prior requires no target-policy rollout before the first selection, but the posterior thereafter uses target-policy outcomes.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:30:12Z</published>
-    <arxiv:comment>13 pages, 3 figures, 5 tables. Project page: https://shatianming5.github.io/thinkprior/</arxiv:comment>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Tommy Sha</name>
-    </author>
-    <author>
-      <name>Skylar Zhai</name>
-    </author>
-    <author>
-      <name>Siqi Zhao</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09070v1</id>
-    <title>Performance of Clinical AI System and Physicians and Frontier Language Models in primary care diagnostics</title>
-    <updated>2026-09-08T17:25:47Z</updated>
-    <link href="https://arxiv.org/abs/2609.09070v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09070v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Clinical AI evaluation should encompass diagnosis and management after adaptive information gathering. We compared Doctorina, eight physicians and four standalone frontier language models in 150 synthetic Polish-language primary-care consultations. Doctorina achieved 82.0% Top-1 concordance versus 57.0% for physicians (difference, 25.0 percentage points; 95% confidence interval, 17.7-32.7) and 97.3% versus 85.0% primary-or-reference-differential concordance. Across 149 case pairs, normalized workup and treatment scores were 89.4 versus 66.9 and 83.7 versus 61.2. Doctorina had the highest diagnostic point estimates among all six groups; Kimi K3 ranked next, while Claude Opus 5 led the closely spaced management estimates of Opus, Doctorina and Kimi. A second Doctorina execution reproduced the advantages over physicians across all outcomes. Doctorina's advantage over physicians therefore extended from primary-diagnosis selection to higher-rated diagnostic workup and initial treatment after adaptive consultation.</summary>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:25:47Z</published>
-    <arxiv:primary_category term="cs.CL"/>
-    <author>
-      <name>Andy Nkansah</name>
-    </author>
-    <author>
-      <name>Hanna Plotnitskaya</name>
-    </author>
-    <author>
-      <name>Stanislau Salavei</name>
-    </author>
-    <author>
-      <name>Anna Kozlova</name>
-    </author>
-    <author>
-      <name>Piotr Gibas</name>
-    </author>
-    <author>
-      <name>Julian Milek</name>
-    </author>
-    <author>
-      <name>Viktar Harbachou</name>
-    </author>
-    <author>
-      <name>Aleksey Ropan</name>
-    </author>
-    <author>
-      <name>Pavel Satalkin</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09068v1</id>
-    <title>Renormalization of One-Dimensional Semirelativistic Bosons with Contact Interactions</title>
-    <updated>2026-09-08T17:22:36Z</updated>
-    <link href="https://arxiv.org/abs/2609.09068v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09068v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We study one-dimensional spinless bosons with semirelativistic spinless-Salpeter dispersion and attractive pairwise contact interactions. Because the dispersion becomes linear at large momentum, the contact interaction is marginal by power counting and produces a logarithmic ultraviolet divergence. We construct the renormalized many-body theory using an enlarged Fock space and a Schur-complement representation of the resolvent, eliminating the bare coupling in favor of the physical zero-total-momentum two-body bound-state energy. The resulting cutoff-independent resolvent defines a self-adjoint Hamiltonian in each fixed particle-number sector. We treat the two-body problem explicitly and show, in the norm-resolvent sense, that the nonrelativistic limit reproduces the attractive Lieb--Liniger Hamiltonian. We also formulate a mean-field approximation directly within the renormalized theory. In the massless and deeply bound large-particle-number regimes, it predicts an exponentially increasing binding scale whose exponent is determined by a one-dimensional variational problem.</summary>
-    <category term="cond-mat.quant-gas" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="math-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:22:36Z</published>
-    <arxiv:comment>49 pages</arxiv:comment>
-    <arxiv:primary_category term="cond-mat.quant-gas"/>
-    <author>
-      <name>Fatih Erman</name>
-    </author>
-    <author>
-      <name>O. Teoman Turgut</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09062v1</id>
-    <title>Multi-Task Learning for Sparsely-Labeled Time Series: A Case Study on Cold-Hardiness Modeling</title>
-    <updated>2026-09-08T17:17:25Z</updated>
-    <link href="https://arxiv.org/abs/2609.09062v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09062v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We present a real-world case study of multi-task learning (MTL) for temporal process modeling from limited data with temporally sparse labels. Specifically, we investigate multi-task learning for the important agricultural problem of predicting grape cold hardiness, which is the temperature at which lethal freezing occurs. Cold hardiness changes in response to weather and is difficult to measure directly in the field. Thus, growers rely on predictions to decide when to apply costly frost mitigation measures. We apply recurrent neural networks (RNNs) for daily cold-hardiness prediction from time series weather data. A major challenge is that the cold hardiness response varies across plant cultivars and ground-truth data for each cultivar is temporally sparse and limited. To address this challenge, we investigate multi-task learning (MTL) approaches for combining data, where different tasks correspond to different cultivars. We develop a variety of MTL architectures and evaluate them in both MTL and transfer learning settings. Our results show significant differences between architectures and that certain architectures are able to consistently outperform single-task learning and state-of-the-art scientific models. Additionally, we show similar results for the qualitatively different, but related, task of budbreak prediction. Further, improved accuracy for budbreak and cold hardiness is achieved by a single MTL model that simultaneously learns both tasks.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:17:25Z</published>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Aseem Saxena</name>
-    </author>
-    <author>
-      <name>Paola Pesántez-Cabrera</name>
-    </author>
-    <author>
-      <name>Jonathan Magby</name>
-    </author>
-    <author>
-      <name>Markus Keller</name>
-    </author>
-    <author>
-      <name>Alan Fern</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09059v1</id>
-    <title>PlayTrain: An Efficient Reinforcement Learning Framework for LLM-Generated Adaptable JavaScript Games</title>
-    <updated>2026-09-08T17:15:39Z</updated>
-    <link href="https://arxiv.org/abs/2609.09059v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09059v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>While many video-game environments (VGEs) have played crucial roles in advancing reinforcement learning (RL), developing novel VGEs or modifying existing ones to support new features, has been a laborious process requiring extensive hand-coding. Here we present PlayTrain, an RL framework that combines the abilities of large language models (LLMs) to robustly generate JavaScript (JS) games from a minimal human prompt, and an efficient pipeline that can run any JS game in a standard 'gym' environment. Not only are recent LLMs particularly good at writing JS code, but the JS format also allows users to easily play generated VGEs, while PlayTrain enables us to train RL agents on the exact same games. We demonstrate multiple use cases of PlayTrain, including cloning well-known Atari and ProcGen games in simple JS, where PlayTrain trains pixel-based agents end-to-end at over 1M agent-decisions per second on a single GPU node; and creating modified versions thereof (e.g., that support novel test sets, procedural generation logics, or game dynamics). Through PlayTrain, we reimagine RL VGE development: all we need is a single JS file, generated and modified through an LLM. We discuss promising future RL research directions that PlayTrain unlocks.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:15:39Z</published>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Ryan Truong</name>
-    </author>
-    <author>
-      <name>Lance Ying</name>
-    </author>
-    <author>
-      <name>Samuel J. Gershman</name>
-    </author>
-    <author>
-      <name>Kazuki Irie</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09056v1</id>
-    <title>Time-Varying Data as Sheaves: an Invitation to Narratives</title>
-    <updated>2026-09-08T17:12:24Z</updated>
-    <link href="https://arxiv.org/abs/2609.09056v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09056v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Modern science and engineering increasingly rely on time-varying data, yet the mathematical tools used to model temporal phenomena are often developed within separate disciplines, obscuring common principles and limiting the transfer of ideas across fields. This chapter presents the theory of narratives, an abstract framework for time-varying objects of any mathematical kind that supports both theoretical investigations and applications. To illustrate this perspective, the chapter develops three vignettes, each illustrating a different research direction. The first addresses a general concern: What information loss can occur when switching between different representations of temporal data? The second concerns structural and algorithmic approaches: How can we systematically decompose time-varying data into simple pieces and obtain invariants describing its structural complexity? The third is an application to control theory: How can we model multi-agent systems with switching communication topologies? More important than any individual vignette, the central message of this invitation is that a suitable abstract perspective can organize and guide research across remarkably diverse mathematical and scientific domains.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.MA" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="math.CT" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:12:24Z</published>
-    <arxiv:comment>42 pages, 7 figures. Book chapter</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Wilmer Leal</name>
-    </author>
-    <author>
-      <name>Benjamin Merlin Bumpus</name>
-    </author>
-    <author>
-      <name>Jana K. Nickel</name>
-    </author>
-    <author>
-      <name>Johan García</name>
-    </author>
-    <author>
-      <name>James Fairbanks</name>
-    </author>
-    <author>
-      <name>Warren Dixon</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09054v1</id>
-    <title>Training-Free Task Vectors for LLM Behavioral Control</title>
-    <updated>2026-09-08T17:10:28Z</updated>
-    <link href="https://arxiv.org/abs/2609.09054v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09054v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Task vectors enable post-training model editing by identifying semantically meaningful directions in weight space, typically computed as the difference between a fine-tuned model and its pretrained initialization. However, this reliance on fine-tuning makes discovering such directions costly and limits the practicality of post-training model editing. To address this limitation, we introduce Training-Free Task Vectors (TFTVs), a novel method to compute task-vector-like directions without requiring fine-tuning. Our method maps activation steering vectors to rank-one weight-space edits using only forward-pass statistics, while satisfying arithmetic properties that directly support learning via addition, forgetting via subtraction, and the composition of multiple edits. Empirically, we evaluate TFTVs on large language model behavioral control tasks and show that they consistently amplify, suppress, and compose target behaviors while preserving general knowledge and problem-solving skills. We also validate our method against other editing and steering baselines, experimentally demonstrating that TFTVs achieve stronger trait control with better or competitive utility preservation. We hope our work opens new directions for the community in post-training model editing and broader training-free model control. Code is available on the project website: tftv-llm.github.io.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:10:28Z</published>
-    <arxiv:primary_category term="cs.LG"/>
-    <author>
-      <name>Gabriel J. Perin</name>
-    </author>
-    <author>
-      <name>Lucas Boscaini</name>
-    </author>
-    <author>
-      <name>André Araujo</name>
-    </author>
-    <author>
-      <name>Nina S. T. Hirata</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09048v1</id>
-    <title>The Audit Decides the Verdict: Instrument Effects Rival Demographic Bias in LLM Decision Audits</title>
-    <updated>2026-09-08T17:08:53Z</updated>
-    <link href="https://arxiv.org/abs/2609.09048v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09048v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Whether a language model looks demographically biased can depend on how the audit asks its question. A charitable-aid benchmark reports that the same models favor minority applicants when rating requests one at a time and penalize some when ranking side by side. We test whether that reversal generalizes to hiring, lending, and medical triage: 40,726 requests to five models, applications differing only in the applicant's name, and a primary test fixed before collection. It does not. None of 36 planned contrasts survives correction. The rating advantage keeps its sign at roughly half the published size, and a precision extension bounds any hiring ranking penalty below the published effect, though the lending and triage ranking floors sit above that margin, so the exclusion is conclusive for hiring ranking and for rating in all three domains only. Planted disparities tracking their injected sizes and a directional replication on the original aid materials bound these nulls. The audit is livelier than the demographics: models recognize transparent audits nearly always, tie every identical-content comparison whether the varying detail is race or a hobby, and reward first-listed candidates as much as any demographic effect we measure. Audit verdicts reflect audit construction more than demographic bias.</summary>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <id>http://arxiv.org/abs/2609.10350v1</id>
+    <title>Cyber-Financial Contagion: Modeling the Propagation of an AI Vendor Compromise Through the Banking System</title>
+    <updated>2026-09-09T15:46:16Z</updated>
+    <link href="https://arxiv.org/abs/2609.10350v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10350v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The banking system now depends on a small set of shared artificial intelligence vendors for fraud screening, credit decisioning, anti-money-laundering triage, customer analytics, and internal decision support. This paper studies how a compromise inside one of those vendors can propagate along a chain of operational, informational, and financial linkages until it triggers losses that look, from the outside, like a classical banking crisis. We build a four-layer heterogeneous network that couples AI vendors, financial institutions, interbank exposures, and customer accounts, and we propose CFC-Prop, a stochastic epidemic-and-clearing model that runs on that network. On a synthetic dataset with 60 vendors, 220 banks, roughly 2,500 vendor-bank service edges, and 1,400 interbank exposures, CFC-Prop reproduces the heavy-tailed loss distributions and the sharp dependence on patch latency that are consistent with prior cyber-financial evidence. We also train an early-warning model, CFC-GNN, that uses vendor-side incident telemetry and graph structure to flag high-cascade-risk vendors before impact. Across four baselines the proposed model reaches AUROC 0.82 and AUPRC 0.60 while keeping calibration errors bounded. We release the full code, synthetic data, and reproducible scripts. The results argue that cyber concentration among AI vendors is a first-order financial-stability problem and give supervisors a concrete quantitative tool for reasoning about it.</summary>
     <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
     <category term="cs.CY" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:08:53Z</published>
-    <arxiv:comment>Accepted to REALM 2026, the 2nd Workshop for Research on Agent Language Models at EMNLP 2026. 10 pages, 3 figures</arxiv:comment>
-    <arxiv:primary_category term="cs.CL"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:46:16Z</published>
+    <arxiv:comment>11 fig and 10 tables</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
     <author>
-      <name>Siddharth Vohra</name>
-    </author>
-    <author>
-      <name>Manikandan Ravikiran</name>
+      <name>Alex Leytes</name>
     </author>
   </entry>
   <entry>
-    <id>http://arxiv.org/abs/2609.09038v1</id>
-    <title>Do Reasoning Representations Help Humans Evaluate LLM Outputs?</title>
-    <updated>2026-09-08T17:03:57Z</updated>
-    <link href="https://arxiv.org/abs/2609.09038v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09038v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Reasoning representations are increasingly used as explanations for large language model outputs. Yet they are typically evaluated with model-centric criteria, such as answer accuracy and faithfulness, leaving it unclear whether they help people evaluate model responses. In this work, we study reasoning representations as human-facing interfaces rather than proxies for model reasoning ability. We conduct a controlled human study of six reasoning formats across tasks of varying complexity, supported by a web-based framework that randomizes task domains, problem instances, and representation order. The study collects fine-grained judgments of structural understanding, error detection and localization, and trust calibration. Our study shows a mismatch between perceived preference and support for human evaluation. Participants prefer planning- and decomposition-based representations, but simpler chain-of-thought traces better support verification, trust, and interpretability. Preferred representations also introduce calibration risks, with more false alarms on correct traces and high trust despite low willingness to verify.</summary>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <id>http://arxiv.org/abs/2609.10346v1</id>
+    <title>Beyond One-Size-Fits-All: Sample-Adaptive Strategy Routing for Vision Token Pruning in MLLMs</title>
+    <updated>2026-09-09T15:44:32Z</updated>
+    <link href="https://arxiv.org/abs/2609.10346v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10346v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Multimodal large language models (MLLMs) process hundreds or thousands of visual tokens per image, incurring prohibitive inference costs. While existing vision token pruning methods mitigate this overhead, they implicitly assume that a single fixed pruning strategy can be applied uniformly across all inputs. Our analysis further reveals that ranking pruning methods by average benchmark accuracy conceals substantial sample-wise complementarity: although the average-best strategy excels overall, alternative strategies prove superior on a significant fraction of individual samples. To harness this diversity, we propose VIP-Router, a lightweight VIsion Pruning Router that adaptively selects the pruning strategy predicted to be best suited to each input at a specified pruning level. Conditioned on low-cost visual and textual features, VIP-Router identifies the most suitable candidate strategy while retaining full-token inference as an option when pruning is predicted to be unfavorable. Evaluated on a curated suite of pruning-sensitive visual perception benchmarks, VTC-Bench Group A, VIP-Router consistently outperforms the best fixed strategy baseline across all reduction ratios, achieving a 26.9% relative improvement in average accuracy, and a 22.0% relative increase in average utility after accounting for realized token cost. Crucially, VIP-Router operates in a plug-and-play manner without modifying underlying pruning algorithms or model weights, introducing trainable parameters equivalent to merely 0.017\% of the backbone. Furthermore, VIP-Router proves effective across various MLLM backbones and yields consistent gains on unseen benchmarks, highlighting the potential of sample adaptive routing for visual token pruning.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:44:32Z</published>
+    <arxiv:comment>26 pages, 6 figures. Code will be released soon</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Haiji Liang</name>
+    </author>
+    <author>
+      <name>Pengfei Zhou</name>
+    </author>
+    <author>
+      <name>Zhenglin Wan</name>
+    </author>
+    <author>
+      <name>Wei Wang</name>
+    </author>
+    <author>
+      <name>Yang You</name>
+    </author>
+    <author>
+      <name>Wangbo Zhao</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10342v1</id>
+    <title>Quench dynamics in nonreciprocal Aubry-André-Harper model</title>
+    <updated>2026-09-09T15:38:19Z</updated>
+    <link href="https://arxiv.org/abs/2609.10342v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10342v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The critical phase of a non-Hermitian quasicrystal can support stronger transport than its surrounding delocalized phase. We demonstrate this anomalous behavior in the one-dimensional nonreciprocal Aubry-André-Harper model through a combined study of dynamical quantum phase transitions (DQPTs) and wavepacket diffusion. Using a parity-sorted energy-spectrum classification that directly encodes the generalized $\mathcal{PT}$ symmetry, we find that DQPTs in this system are energy-resolved, in contrast to the energy-independent DQPTs of Hermitian quasicrystals. The energy-resolved features are most pronounced when the initial and final Hamiltonians belong to different phases (localized or extended), and they are tied to the even-odd index structure of the spectrum, which we exploit to organize the quench-dynamical landscape. For wavepacket dynamics after a single-site quench, the diffusion exponent $β$, extracted from the long-time power-law scaling of the root-mean-square displacement $σ(τ)$, partitions the phase diagram into four distinct regimes. In the Hermitian limit the extended phase is ballistic ($β=1$), the critical phase is normally diffusive ($β=0.5$), and the localized phase yields $β\to 0$. Nonreciprocity reverses this hierarchy: the extended phase becomes normally diffusive, while the critical phase turns ballistic. We trace the anomalous $β=1$ at criticality to the self-similar multifractal structure of the critical eigenstates, whose nodal positions are organized by the golden ratio. A finite-size scaling ansatz built on the wave-front propagation yields $σ(τ)\proptoτ$. The parity-resolved DQPTs and the $β$-phase diagram establish two complementary dynamical diagnostics of nonreciprocal quasicrystals, in which nonreciprocity promotes transport at the critical point and suppresses it in the delocalized phase.</summary>
+    <category term="cond-mat.mes-hall" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:38:19Z</published>
+    <arxiv:primary_category term="cond-mat.mes-hall"/>
+    <author>
+      <name>Zhiyu Pei</name>
+    </author>
+    <author>
+      <name>Yongxu Fu</name>
+    </author>
+    <author>
+      <name>Gao Xianlong</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10338v1</id>
+    <title>TimeCues Studio: A Workspace for Music Annotation and Algorithm Prototyping</title>
+    <updated>2026-09-09T15:35:36Z</updated>
+    <link href="https://arxiv.org/abs/2609.10338v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10338v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Multimedia applications require precise music annotation-labeled positions, segments, or loops-placed by hand or algorithmically. Machine-learning algorithms are scalable and effective but need annotated training data, scarce for many tasks. TimeCues Studio is an open-source workspace where algorithm-development teams annotate a music corpus, compare detection algorithms against those annotations, and prototype new ones. Unlike existing tools built for a single track at a time, TimeCues targets teams annotating whole collections, tightly integrated with algorithm development. Annotators place several marker types-each supporting ambiguity-aware labeling-on a grid-locked timeline that visualizes many music features, including separated audio stems. The same timeline drives an algorithm-comparison engine with bundled baselines, a Python sandbox for prototyping new models, and an ambiguity-aware evaluator that honors the structured fields. The same visualization suits solo annotators on music-sync projects. TimeCues is MIT-licensed and deploys via one Docker Compose command.</summary>
+    <category term="cs.SD" scheme="http://arxiv.org/schemas/atom"/>
     <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:03:57Z</published>
-    <arxiv:comment>19 pages. EMNLP 2026 (Findings)</arxiv:comment>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.MM" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:35:36Z</published>
+    <arxiv:comment>8 pages, 2 figures, to appear in Proceedings of the 34th ACM International Conference on Multimedia (MM '26)</arxiv:comment>
+    <arxiv:primary_category term="cs.SD"/>
+    <author>
+      <name>Sapir Caduri</name>
+    </author>
+    <author>
+      <name>Yoav Goldberg</name>
+    </author>
+    <arxiv:doi>10.1145/3767308.3834750</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1145/3767308.3834750" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10335v1</id>
+    <title>From Symbolic Perception to Logical Deduction: A Framework for Guiding Language Models in Geometric Reasoning</title>
+    <updated>2026-09-09T15:33:25Z</updated>
+    <link href="https://arxiv.org/abs/2609.10335v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10335v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Plane geometry remains a significant challenge in AI, requiring the integration of visual perception and mathematical reasoning. While Large Multimodal Models (LMMs) naturally handle visuo-linguistic inputs, they are often computationally intensive and opaque. We demonstrate that a pure Large Language Model (LLM), when equipped with specialized modules, can rival state-of-the-art LMMs on complex geometry problems. Our framework integrates a Geometric Vision Parser, which translates diagrams into symbolic form, with a Symbolic Solver that performs formal deductions, thereby mitigating hallucinations and promoting interpretable reasoning. To enable rigorous evaluation, we curate a benchmark of challenging problems from the 2025 Chinese Zhongkao examinations, ensuring data novelty and testing deeper deductive skills. Experiments demonstrate that our approach achieves performance comparable to Gemini 2.5 Pro while delivering clearer, human-like solutions.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:33:25Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Weichen Dai</name>
+    </author>
+    <author>
+      <name>Rafael Medeiros Cabral</name>
+    </author>
+    <author>
+      <name>Ziyi Shou</name>
+    </author>
+    <author>
+      <name>Yan Cao</name>
+    </author>
+    <author>
+      <name>Xin Shen</name>
+    </author>
+    <author>
+      <name>Dongcai Lu</name>
+    </author>
+    <author>
+      <name>Yi Zhou</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10315v1</id>
+    <title>TRACE: Training Reasoning Agents for Causal Exploration with Synthesized Rewards</title>
+    <updated>2026-09-09T15:21:47Z</updated>
+    <link href="https://arxiv.org/abs/2609.10315v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10315v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Reinforcement learning with verifiable rewards (RLVR) has advanced language-model reasoning in domains such as mathematics and code, where objective answers are inexpensive to check. Diagnostic reasoning over complex data lacks this advantage: establishing the true cause of an anomaly often requires costly expert investigation and may remain ambiguous after the fact. We ask whether this asymmetry of verification can instead be engineered. We sample an intervention, inject it into a controlled simulator, and generate the observations it would produce. The hidden intervention provides an oracle label and objective reward, while the agent must still investigate noisy, confounded, and distributed evidence.
+  We instantiate this approach in TRACE, a digital-advertising diagnostic environment with 12 root causes and fine-grained segment attribution. Agents investigate each episode using Python and SQL and must identify both the root cause and, when applicable, the affected segment assignment. On a held-out 235-episode test set, the strongest prompted baseline, Claude Opus 5, reaches 0.686 FullAttr@1. Supervised fine-tuning raises Qwen3.5-35B-A3B from 0.159 to 0.637, and subsequent RL with synthesized rewards reaches 0.757, outperforming all evaluated prompted baselines, including frontier closed-source models and a prompted Qwen3.5-122B-A10B model. The resulting policy also uses substantially fewer tool calls than the prompted 35B base. These results provide evidence that access to a scalable, objective training signal can be a more important constraint than model scale alone. More broadly, simulation-based verification can make otherwise ambiguous diagnostic reasoning tasks amenable to scalable reinforcement learning.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:21:47Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Rui Sun</name>
+    </author>
+    <author>
+      <name>Zhan Shi</name>
+    </author>
+    <author>
+      <name>Bing He</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10312v1</id>
+    <title>Programmable photonic state fusion via heralded storage of asynchronously generated resources</title>
+    <updated>2026-09-09T15:18:43Z</updated>
+    <link href="https://arxiv.org/abs/2609.10312v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10312v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Probabilistic photonic sources generate elementary states in different trials, whereas multiphoton protocols require them to interfere in common temporal modes. We propose a fusion protocol that overcomes this mismatch by successively loading independently heralded photonic states into active storage loops. Conditioning on vacuum in monitored dump modes selects events in which each newly generated state is transferred into the same circulating modes as the photons already stored, thereby removing its generation time label. Provided the two alternatives of each elementary state undergo the same loading transformation, the accumulated state is described by a product of programmable linear factors, allowing a target superposition to be constructed by polynomial factorization. Adjusting the storage loop coupling as the state grows substantially improves the loading efficiency, changing the faster-than-exponential penalty of fixed balanced couplers to exponential scaling. We apply the protocol to two-photon path--frequency states for photonic clock interferometry and estimate the detected rate including source waiting time and round-trip loss.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:18:43Z</published>
+    <arxiv:comment>8 pages, 3 figures</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Mustafa Gündoğan</name>
+    </author>
+    <author>
+      <name>Dennis Rätzel</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10311v1</id>
+    <title>One Loop, Two Gains: Can Active Learning win the Lottery for Free?</title>
+    <updated>2026-09-09T15:18:37Z</updated>
+    <link href="https://arxiv.org/abs/2609.10311v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10311v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The lottery ticket hypothesis posits the existence of winning tickets: sparse subnetworks that, when trained in isolation from their original initialization, match the accuracy of the full dense network. The predominant method for discovering such tickets, iterative magnitude pruning, alternates pruning with full retraining from scratch until convergence over many cycles. Similarly, deep active learning also retrains a model from scratch after each acquisition round as new labels become available. Despite this shared reliance on iterative retraining with a substantial computational overhead, the two paradigms have been studied separately. We observe that the iterative training loop inherent to pool-based active learning already provides the exact computational structure that iterative magnitude pruning exploits, and propose Improve &amp; Prune (I&amp;P), a method that integrates magnitude pruning into each active learning retraining cycle at practically no additional cost. This raises a key empirical question: can iterative magnitude pruning produce winning tickets under the non-stationary data regime of active learning? We investigate this question across multiple acquisition functions, architecture families, and image classification datasets, including an active fine-tuning scenario. Our results demonstrate that I&amp;P yields sparse, deployable models at each active learning iteration. Those match the accuracy of their dense counterparts at sparsities up to 95%, effectively obtaining winning tickets as a byproduct of the active learning pipeline. These per-iteration sparse models can address two computational bottlenecks - per-round model retraining and acquisition scoring over the unlabeled pool - that currently prevent the practical adoption of DAL on large architectures and large unlabeled pools.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:18:37Z</published>
     <arxiv:primary_category term="cs.LG"/>
     <author>
-      <name>Jaewoo Lim</name>
+      <name>Benedikt Tscheschner</name>
     </author>
     <author>
-      <name>Sungbok Shin</name>
+      <name>Eduardo Veas</name>
     </author>
     <author>
-      <name>Sanghyun Hong</name>
+      <name>Marc Masana</name>
     </author>
   </entry>
   <entry>
-    <id>http://arxiv.org/abs/2609.09035v1</id>
-    <title>Near-Optimal Quantum Lower Bounds for Convex Optimization via Fourier Rank</title>
-    <updated>2026-09-08T17:01:51Z</updated>
-    <link href="https://arxiv.org/abs/2609.09035v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09035v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We establish a near-linear quantum query lower bound for high-accuracy convex optimization over an explicit family of $n$-dimensional ellipsoids. We focus on linear optimization with an explicitly given objective, where the feasible set is accessed through a membership oracle. We show that any algorithm that, for every unit linear objective, returns an exactly feasible point with additive objective error $Θ(n^{-2})$ requires $Ω\!\left(\frac{n}{\log n\,\log\log n}\right)$ membership queries. The same lower bound can be shown to hold if the returned point is only required to be approximately feasible, within $Θ(n^{-2})$ distance from the feasible set. This resolves, up to logarithmic factors, an open question posed by Chakrabarti, Childs, Li, and Wu~(\textit{Quantum}, 2020) and by van Apeldoorn, Gilyén, Gribling, and de Wolf~(\textit{Quantum}, 2020). Coupled with the upper bounds in these papers, the query complexity of high-accuracy convex optimization is characterized tightly up to logarithmic factors. The proof is built around a lower bound for determinant computation that is derived via a novel polynomial method based on Fourier-rank. In the continuous matrix phase-query model, computing the determinant of a real $n\times n$ matrix requires at least $n/2$ matrix-vector product queries. The construction also yields an $Ω(n)$ phase-query lower bound for estimating the minimum eigenvalue of a real symmetric $n\times n$ matrix to additive accuracy $Θ(n^{-2})$. These results extend the determinant and minimum-eigenvalue lower bounds of Childs, Hung, and Li~(ICALP 2021) from finite fields to the real-valued setting. Based on the same constructions, we also prove a near-optimal gradient-query lower bound for constant-accuracy optimization of smooth and strongly convex functions.</summary>
+    <id>http://arxiv.org/abs/2609.10307v1</id>
+    <title>View-Structured Conformal Prediction for 3D Gaussian Splatting</title>
+    <updated>2026-09-09T15:16:52Z</updated>
+    <link href="https://arxiv.org/abs/2609.10307v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10307v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>3D Gaussian Splatting (3DGS) renders novel views in real time, but an uncertainty heatmap does not certify that a rendered view meets a certain prediction coverage. We treat novel-view synthesis as structured regression and ask that, with probability at least $1-α$, RGB prediction boxes cover at least a $1-β$ fraction of pixels in a new view. We propose View-Structured Conformal Prediction (VSCP). It splits the pre-calibration scale into a spatial shape from the renderer and a transferable view-difficulty factor, which predicts the smallest view-wise multiplier that shape needs. A held-out quantile over views (View-CP) then gives finite-sample validity even when transferring to new scenes. The same factorization makes the analysis exact: a conformity score is the ratio of oracle to predicted view difficulty, and excess width separates into a test-side and a calibration-side term. Across 13 real scenes, pixel-pooled calibration reaches 89.9\% marginal pixel coverage but only 61.4\% view-event coverage at a 90\% target, while View-CP reaches 91.7--92.0\%. At matched coverage VSCP cuts width by 22.1\% against a constant scale, and matches a ten-model ensemble's 21.0\% reduction using only one model per scene and four rather than ten rasterization passes per query. VSCP also improves on the closest single-model baseline, the 3DGS-U field, by 4.7 points ($p=0.0225$). The view predictor transfers from bounded source families to all nine unbounded Mip-NeRF~360 scenes. There the full scale beats the constant scale with 20.7\% width saving on all nine scenes. It also keeps an 18.3\% saving under a different densification backbone and runs at 216--280 FPS on an RTX~4090.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:16:52Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Junzheng Chu</name>
+    </author>
+    <author>
+      <name>Bin Pan</name>
+    </author>
+    <author>
+      <name>Zhenwei Shi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10305v1</id>
+    <title>RiLM: Parameter-Efficient Language Modeling via Geodesic Decoding</title>
+    <updated>2026-09-09T15:16:31Z</updated>
+    <link href="https://arxiv.org/abs/2609.10305v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10305v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Language models under one million parameters matter for edge deployment, domain adaptation, and reproducible research, yet a two-layer LSTM or Transformer at embedding width d = 128 still spends roughly one third of its capacity on the output matrix W_out in R^(d x |V|). We propose Riemannian Language Models (RiLM), which remove that layer entirely: context unfolds as a trajectory on a Riemannian manifold, and next-token probabilities arise from squared geodesic distance between the current state and vocabulary embeddings. The same embedding map serves input and output -- decoding is geometry. We instantiate the framework on flat R^d (Flat RiLM) and the Poincare ball H^d (HypRiLM) with a shared MLP composition map phi (~290k parameters, d = 128, |V| = 2000). Across five seeds on WikiText-2, HypRiLM reaches 54.2 +/- 0.2 validation perplexity versus 87.6 +/- 0.6 for Flat RiLM; tied and matched LSTM, Transformer, and SSM controls remain at 113-147 PPL on WT-2 -- HypRiLM leads by roughly 2x over the strongest tied recurrent baseline (SSM, 113.0 +/- 3.8). Penn Treebank and a 10k-vocabulary stress test confirm that geodesic decoding transfers across corpora and larger |V|, while hyperbolic curvature helps selectively. We also characterize boundary collapse in naive hyperbolic recurrence and show how Mobius stabilization restores trainability. Claims are scoped to controlled small-model comparisons, not full-vocabulary state of the art.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:16:31Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Fang Li</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10299v1</id>
+    <title>A Dominant Diffuse Phase in the Sparse Autoencoder Phase Diagram</title>
+    <updated>2026-09-09T15:13:42Z</updated>
+    <link href="https://arxiv.org/abs/2609.10299v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10299v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Sparse autoencoders (SAEs) are increasingly used to recover interpretable features from neural-network activations, yet systematic feature co-occurrence can cause distinct features to be absorbed or merged. The MAIS-O43 open problem proposes a controlled experiment to characterize when recovery of a true synthetic dictionary gives way to feature merging as the nesting fraction $γ$, sparsity penalty $λ$, and dictionary size $M$ vary. We implement the specified protocol and evaluate 200 independently initialized fits across ten of the 165 grid cells. We observe zero full-dictionary recoveries and zero merges. Instead, every run converges to a reproducible diffuse phase: reconstruction is nearly perfect, but learned atoms typically remain far from the true features (median best cosine 0.5-0.7 against a 0.95 recovery criterion) and learned codes are an order of magnitude denser than the ground truth. This behavior persists under robustness checks and across the full 165-cell grid using standard minibatch Adam (3,300 additional fits). Since the global optimum of the exact sparse-coding objective is known to merge nested features in the two-feature case, these results suggest that trained SAEs need not reach the corresponding minima, and that the phase diagram of trained models may differ fundamentally from that of objective minimizers.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:13:42Z</published>
+    <arxiv:comment>13 pages, 5 figures, 1 table</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Alexis D. Plascencia</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10298v1</id>
+    <title>Learning Intrusion Response Strategies for OT Systems</title>
+    <updated>2026-09-09T15:12:52Z</updated>
+    <link href="https://arxiv.org/abs/2609.10298v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10298v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Cyberattacks against Operational Technology (OT) systems, which monitor and control industrial processes, pose an increasing threat to essential societal services. For this reason, developing automated intrusion response strategies is highly important. In this paper, we present a formal model of an OT intrusion response use case using the POMDP framework. It includes a realistic model of partial observability that is based on traffic measurements. This approach allows us to develop tractable, learning-based solution methods for automated intrusion response, which are based on PPO. We evaluate the obtained response strategies on an emulated OT system and find that they are effective against several types of MITRE attacks for the studied use case.</summary>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:12:52Z</published>
+    <arxiv:comment>A version of this paper has been published at the 22nd International Conference on Network and Service Management (CNSM2026)</arxiv:comment>
+    <arxiv:primary_category term="cs.CR"/>
+    <author>
+      <name>Duc Huy Le</name>
+    </author>
+    <author>
+      <name>Rolf Stadler</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10296v1</id>
+    <title>The Semantic Bottleneck: Leveraging Semantic Representations for Non-Invasive Speech Decoding</title>
+    <updated>2026-09-09T15:11:57Z</updated>
+    <link href="https://arxiv.org/abs/2609.10296v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10296v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Non-invasive speech decoding remains constrained by the low signal-to-noise ratio of neural recordings, which makes fine-grained reconstruction of phonemes or individual words difficult. Motivated by neuroscientific evidence that high-level semantic representations are distributed across cortical regions and evolve over slower temporal scales, we hypothesize that semantic content may provide a more suitable target for non-invasive decoding than low-level acoustic or lexical features. We introduce Brain2Semantics2Text, a method that reconstructs text through an intermediate semantic embedding space. Our model maps sentence-level MEG responses into a semantic manifold and then inverts the predicted embeddings into natural language. This semantic bottleneck enables recovery of high-level meaning without word-level alignment. We describe the core principles of the approach, its implementation, and the strategies used to mitigate the challenges of learning a reliable neural-to-semantic mapping. Finally, we compare against prior non-invasive Brain2Text methods and show improved sentence-level results.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:11:57Z</published>
+    <arxiv:comment>12 pages, 8 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Gilad D. Landau</name>
+    </author>
+    <author>
+      <name>Dulhan Jayalath</name>
+    </author>
+    <author>
+      <name>Oiwi Parker Jones</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10293v1</id>
+    <title>GANDR: Claim Auditing for Verifiable Legal Answer Generation</title>
+    <updated>2026-09-09T15:08:09Z</updated>
+    <link href="https://arxiv.org/abs/2609.10293v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10293v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In high-stakes domains such as legal practice, a language-model answer is only useful to the extent that a reader can verify each claim against the source the system cites. Current grounded-generation pipelines score the answer as a whole, so a correct conclusion can rest on fabricated or loosely matched citations and still score well. Closing this gap requires both a system built for per-claim verification and an evaluation that measures it. We introduce GANDR (Grounded ANswer DRafter), a two-agent system in which a Drafter writes an answer in a structured legal-reasoning format and a separate Critic, with the same view as a human verifier, audits each claim against its cited source and emits a per-claim audit trace on every round. We pair it with a strict correctness criterion requiring every citation to resolve to a passage the retriever returned. On a 185-item legal benchmark where all six systems share one backbone, one retrieval surface, and one citation instruction, GANDR ranks first on every primary metric, reaching 70.8% strict accuracy and leading the strongest baseline by 11.3 points (p&lt;0.01). Reverting the protocol-anchored commit rule lowers strict accuracy by 22.7 points, and the strict lead stays positive on three further backbones, at +3.2 to +6.5 points. This lead traces to the Drafter configuration and the protocol-anchored commit, not to rewriting. Against two law-trained annotators the audit flags under-supported claims at F1 0.84 as a binary detector, while its four-way verdict labels agree only weakly and are advisory. Code is available upon request.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:08:09Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Chen Qian</name>
+    </author>
+    <author>
+      <name>Yimeng Wang</name>
+    </author>
+    <author>
+      <name>Yu Chen</name>
+    </author>
+    <author>
+      <name>Lingfei Wu</name>
+    </author>
+    <author>
+      <name>Andreas Stathopoulos</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10289v1</id>
+    <title>On the Limits of Quantum Multiparty Simultaneous Communication</title>
+    <updated>2026-09-09T15:07:22Z</updated>
+    <link href="https://arxiv.org/abs/2609.10289v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10289v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The Simultaneous Message Passing (SMP) model provides a fundamental framework for comparing classical and quantum communication. For two players, Gavinsky et al. (STOC 2006) established a separation underlying the incomparability of shared randomness and quantum communication: \textsc{Index Coordination} needs $O(\log n)$ public-coin bits but $Ω(n^{1/3})$ bounded-error qubits.
+  In this work, we establish a multiparty exponential separation through $\operatorname{IC}_{k,n}$, a natural $k$-party generalization of \textsc{Index Coordination}. Public-coin protocols solve it unambiguously with maximum message length $O(\log n)$ bits. In contrast, quantum SMP protocols without shared entanglement or public coins require maximum message length $Ω(n^{1-1/k})$ qubits in the unambiguous regime and $Ω(n^{(k-1)/(k+1)})$ qubits in the bounded-error regime. A classical private-coin protocol matches the unambiguous bound, so quantum communication provides no asymptotic advantage over private randomness in this regime. For fixed error parameters, all constants are independent of $k$, establishing the exponential separation for every integer-valued function $k=k(n)\ge2$, without restricting its growth. Both quantum lower bounds become $Ω(n)$ when $k\ge c\log n$ for any fixed $c&gt;0$, matching the full-input protocol and yielding tight linear complexity in both regimes.
+  Our results demonstrate that quantum superposition cannot efficiently simulate the coordination afforded by public randomness, extending this separation to arbitrary $k$. To bound success probabilities for multiparty product states, we prove an exact factorization theorem for unambiguous quantum state identification, which may be of independent mathematical interest.</summary>
+    <category term="cs.CC" scheme="http://arxiv.org/schemas/atom"/>
     <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.DS" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:01:51Z</published>
+    <published>2026-09-09T15:07:22Z</published>
+    <arxiv:comment>22 pages, 1 figure</arxiv:comment>
+    <arxiv:primary_category term="cs.CC"/>
+    <author>
+      <name>Pedro Montealegre</name>
+    </author>
+    <author>
+      <name>Ivan Rapaport</name>
+    </author>
+    <author>
+      <name>Jorge Valenzuela</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10287v1</id>
+    <title>Training Trajectories Determine Circuit Removability in Annealable Soft-Prior Transformers</title>
+    <updated>2026-09-09T15:06:40Z</updated>
+    <link href="https://arxiv.org/abs/2609.10287v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10287v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Soft positional priors can help small Transformers learn retrieval circuits, but it is unclear whether the resulting circuits remain functional once the prior is removed. We test this with an annealable soft-prior Transformer whose attention biases can be learned, faded, or zeroed during training and evaluation. On associative recall, unforced models perform well with the prior active ($0.772 \pm 0.020$) but collapse at zero gate ($0.095 \pm 0.009$). Smooth fade-to-zero training preserves high zero-gate accuracy ($0.734 \pm 0.028$), whereas forced-zero training, hard switching, and post hoc continuation fail to recover the same effect. The pattern also appears on Markov induction. Linear regression ICL provides a boundary case because zero-gate training can learn that task directly. Mechanistic traces show that circuit consolidation occurs after the gate reaches zero, even though the responsible heads vary across seeds. These results suggest that circuit removability in small discrete retrieval tasks depends on the training trajectory, not just the final architecture.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:06:40Z</published>
+    <arxiv:comment>Accepted at PRICAI 2026. 15 pages</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Zonglin Yang</name>
+    </author>
+    <author>
+      <name>Ziming Zhao</name>
+    </author>
+    <author>
+      <name>Wei Tang</name>
+    </author>
+    <author>
+      <name>Xunyu Jiang</name>
+    </author>
+    <author>
+      <name>Yihong Liu</name>
+    </author>
+    <author>
+      <name>Tailin Chen</name>
+    </author>
+    <author>
+      <name>Zifu Yu</name>
+    </author>
+    <author>
+      <name>Jiayu Liu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10282v1</id>
+    <title>Solving wave propagation problems via geometric quantum state preparation on dispersion manifolds</title>
+    <updated>2026-09-09T15:00:56Z</updated>
+    <link href="https://arxiv.org/abs/2609.10282v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10282v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present a quantum algorithm for solving partial differential equations through a linear-system formulation, focusing on wave propagation problems described by the discretized Helmholtz equation in frequency domain. Although quantum linear-system solvers offer exponential compression of the system degrees of freedom, their runtime complexity is generally governed by the condition number of the discretized operator. Exploiting the analytic structure of the differential operator can provide an alternative to explicit matrix inversion, as illustrated for the screened Poisson equation through an explicit quantum circuit. For the Helmholtz equation, however, the inverse operator becomes singular on the dispersion surface $k^2=ω^2/c^2$, rendering direct Fourier-space state-preparation methods exponentially inefficient. We address this challenge by directly preparing quantum states supported on the resonant manifold and encoding source locations through Fourier phases. The resulting algorithm eliminates the exponentially large overhead associated with post-selection on the resonant manifold, yielding a success probability that depends linearly on the number of sources and is independent of the computational domain size. More generally, our approach applies to hyperbolic differential equations whose Fourier-space solutions possess singular support on dispersion manifolds, recasting their solution as a problem of geometric quantum state preparation.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T15:00:56Z</published>
     <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Yakov Solomons</name>
+    </author>
+    <author>
+      <name>Lee Peleg</name>
+    </author>
+    <author>
+      <name>Netanel Barel</name>
+    </author>
+    <author>
+      <name>Jonathan Nemirovsky</name>
+    </author>
+    <author>
+      <name>Amit Ben-Kish</name>
+    </author>
+    <author>
+      <name>Yotam Shapira</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10276v1</id>
+    <title>Structural Fusion of Bayesian Networks with Limited Treewidth Using Genetic Algorithms</title>
+    <updated>2026-09-09T14:57:11Z</updated>
+    <link href="https://arxiv.org/abs/2609.10276v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10276v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>This paper introduces an evolutionary computation approach for consensus in structural Bayesian Network (BN) fusion under the constraint of limited treewidth. The consensus BN aims to reconcile multiple input BNs into a single one that retains key structural features present in the original networks. Treewidth, a graph-based parameter associated with computationally tractable inference, is utilized to restrict the complexity of the resulting network. A genetic algorithm is proposed to look for a BN that codifies as much information about the unrestricted fusion as possible while ensuring the treewidth restriction. Experimental evaluation demonstrates the genetic algorithm's ability to obtain consensus BNs with limited treewidth, providing a valuable tool for aggregating information from diverse sources while returning a computationally actionable model.</summary>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:57:11Z</published>
+    <arxiv:comment>8 pages. Presented at the 2024 IEEE Congress on Evolutionary Computation (CEC 2024)</arxiv:comment>
+    <arxiv:primary_category term="cs.NE"/>
+    <arxiv:journal_ref>2024 IEEE Congress on Evolutionary Computation (CEC), pp. 1-8, 2024</arxiv:journal_ref>
+    <author>
+      <name>Pablo Torrijos</name>
+    </author>
+    <author>
+      <name>José A. Gámez</name>
+    </author>
+    <author>
+      <name>José M. Puerta</name>
+    </author>
+    <arxiv:doi>10.1109/CEC60901.2024.10611976</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1109/CEC60901.2024.10611976" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10264v1</id>
+    <title>Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation</title>
+    <updated>2026-09-09T14:53:17Z</updated>
+    <link href="https://arxiv.org/abs/2609.10264v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10264v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Open-source large language models (LLMs) are increasingly competitive with closed-source models while offering transparency and the ability to run inference without exposing user inputs to a service provider. However, running large-scale models locally requires substantial computational resources. In practice, users may still resort to a third-party provider, giving rise to privacy and correctness concerns. Existing solutions that address these problems often impose substantial server overhead or introduce additional trust assumptions.
+  In this paper, we present Maverick, a novel approach to private and verifiable LLM inference based on a protocol for delegating matrix-vector multiplication, a dominant operation in LLMs. At its core, Maverick provides, to our knowledge, the first information-theoretically sound verification protocol for matrix-vector multiplication delegation with transparent preprocessing, efficient (batch) verification, and virtually no server overhead. We combine this verification primitive with LPN-based pseudorandom masking to provide input privacy.
+  We implement our matrix-vector delegation primitive and use it to build an end-to-end prototype of Maverick, which we evaluate on Qwen3-4B by measuring throughput in tokens per second. We evaluate client configurations with 1-8 threads. With one client thread and a CPU server using up to 128 threads, Maverick achieves throughput gains over local inference of up to 17x when privacy masks are generated online, 45x when they are precomputed, and 44x when only verification is required. With four client threads, the corresponding gains are 13x, 18x, and 17x. When server computation is no longer the bottleneck, client-side microbenchmarks with simulated network delay show speedups of 12x-20x, 34x-135x, and 38x-157x.</summary>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:53:17Z</published>
+    <arxiv:primary_category term="cs.CR"/>
+    <author>
+      <name>Ben Merbaum</name>
+    </author>
+    <author>
+      <name>Mohammad Amin Raeisi</name>
+    </author>
+    <author>
+      <name>Wenhao Wang</name>
+    </author>
+    <author>
+      <name>Charalampos Papamanthou</name>
+    </author>
+    <author>
+      <name>Katerina Sotiraki</name>
+    </author>
+    <author>
+      <name>Fan Zhang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10263v1</id>
+    <title>What Should an Agent Forget? Separating What Is Stored from What Is Used</title>
+    <updated>2026-09-09T14:48:09Z</updated>
+    <link href="https://arxiv.org/abs/2609.10263v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10263v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Persistent language agents need stored experience to remain available across time, while each answer requires evidence suited to a particular question. A superseded fact can mislead a current-state answer and still be essential for a historical query. We present RD-Forget, a training-free framework that separates what an agent stores from what it uses. A retained source archive preserves observations, and a query-conditioned memory view controls their influence on the current answer. A frozen language-model curator extracts relevant evidence, groups facts into semantic slots, and preserves the relations needed for multi-hop reasoning. Same-slot replacement links suppress superseded values in current-state contexts, while intent-aware retrieval makes earlier evidence eligible again. A rate-distortion formulation guides construction of the answer-time view within a memory budget. Experiments span conversational memory, knowledge updating, fact consolidation, long-context reasoning, and personalization under a shared answering pipeline. The results associate accurate answers with both query-relevant evidence construction and control over obsolete alternatives. Configurations without forgetting or query conditioning have the largest score deficits, while slot grouping, historical access, and relation preservation contribute complementary functions. Retaining history while selectively controlling its use offers a practical way to accommodate changing facts and future questions.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:48:09Z</published>
+    <arxiv:comment>8 pages, 3 figures, 3 tables</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Yuhang Li</name>
+    </author>
+    <author>
+      <name>Yuchen Li</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10253v1</id>
+    <title>DiSCo: A Distribution-First Steering and Cultural Prior Evaluation Framework for Measuring Cultural Preference Bias in LLMs</title>
+    <updated>2026-09-09T14:40:08Z</updated>
+    <link href="https://arxiv.org/abs/2609.10253v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10253v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Large language models (LLMs) are increasingly deployed in globally used assistants, yet their default choices in culturally grounded everyday situations can systematically favour some cultures over others, affecting localisation, user trust, and equitable behaviour. Existing cultural benchmarks evaluate accuracy against a single "correct" answer, making it difficult to characterise an LLM's cultural preference prior when multiple culturally grounded responses are all valid; they also conflate default preferences with context-driven adaptation. We propose DiSCo, a distribution-first forced-choice evaluation framework that isolates default cultural priors and tests steerability via a four-level context gradient (C0--C3). Using DiSCo-Bench (304 items) derived from BLEnD spanning 12 cultures, we evaluate six diverse instruction-tuned LLMs. Default priors are heavily concentrated, with UK and US together absorbing approximately 35\% of all selections despite representing only 2 of 12 cultures. Most critically, prompt-based steering consistently widens the selection gap between high- and low-resource cultures, and injecting explicit cultural facts produces negligible distributional disruption, confirming that cultural preference bias cannot be resolved through prompt-based personalisation alone.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:40:08Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Bhuvan Arora</name>
+    </author>
+    <author>
+      <name>Devesh Saraogi</name>
+    </author>
+    <author>
+      <name>Sravya Varada</name>
+    </author>
+    <author>
+      <name>Dhruv Kumar</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10250v1</id>
+    <title>An analysis of iterative refinement for quantum linear system solvers</title>
+    <updated>2026-09-09T14:38:28Z</updated>
+    <link href="https://arxiv.org/abs/2609.10250v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10250v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present and analyze an iterative refinement (IR) framework for improving the precision dependence of algorithms that combine a quantum linear system algorithm (QLSA) with quantum state tomography. Existing QLSAs achieve polylogarithmic dependence on the inverse error tolerance to prepare a quantum state encoding the solution, but extracting a classical description of such a state via tomography typically introduces a polynomial dependence on the target precision. To retain polylogarithmic dependence in the inverse error tolerance throughout the entire process, we develop an IR scheme that solves a sequence of related linear systems to progressively refine the solution while requiring only fixed-precision quantum subroutines, finally obtaining a classical description of a high-precision solution. We analyze the proposed framework under three input models: quantum-read/classical-write RAM (QRAM), linear combinations of unitaries (LCU), and sparse-access oracles. We evaluate the proposed scheme through numerical experiments on both quantum simulators and real quantum hardware. The results demonstrate that iterative refinement efficiently improves the precision of the solution and exhibits robustness to hardware noise.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.NA" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:38:28Z</published>
+    <arxiv:comment>25 pages, 3 figures</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Adrian Harkness</name>
+    </author>
+    <author>
+      <name>Mohammadhossein Mohammadisiahroudi</name>
+    </author>
     <author>
       <name>Brandon Augustino</name>
     </author>
     <author>
-      <name>Shouvanik Chakrabarti</name>
+      <name>Giacomo Nannicini</name>
     </author>
     <author>
-      <name>Enrico Fontana</name>
-    </author>
-    <author>
-      <name>Dylan Herman</name>
-    </author>
-    <author>
-      <name>Junhyung Lyle Kim</name>
-    </author>
-    <author>
-      <name>Guneykan Ozgul</name>
-    </author>
-    <author>
-      <name>Nadezhda Voronova</name>
+      <name>Tamás Terlaky</name>
     </author>
   </entry>
   <entry>
-    <id>http://arxiv.org/abs/2609.09033v1</id>
-    <title>Semidefinite extension complexity of the separable set, with applications to approximate disentanglers</title>
-    <updated>2026-09-08T17:00:11Z</updated>
-    <link href="https://arxiv.org/abs/2609.09033v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09033v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>We prove quantitative lower bounds on the semidefinite extension complexity of the set of separable quantum states on $\mathbb{C}^d\otimes\mathbb{C}^d$. We consider semidefinite programs (SDPs) that approximate the maximum acceptance probability of a measurement over separable states, the optimization problem underlying QMA(2). In the extended-formulation model of Harrow, Natarajan, and Wu (HNW), all measurements share a common feasible region and an objective-independent embedding of product states that exactly reproduces their acceptance probabilities. For every $0&lt;θ&lt;2/7$, there are constants $c_θ,a_θ&gt;0$ such that, for sufficiently large $d$, any such SDP with uniform additive error $0&lt;a\le a_θ$ has size at least $d^{c_θ\min\{a^{-1/3},d^θ\}}$. The bound applies at sufficiently small constant error, is superpolynomial in $d$ whenever $a=o(1)$, and becomes $d^{Ω(d^θ)}$ when $a\le d^{-3θ}$, improving HNW's quasipolynomial bound at inverse- square error. The same bound holds for any SDP-representable convex set of states that contains all separable states and lies within trace distance $a$ of them, giving a quantitative counterpart to Fawzi's theorem that the separable set has no exact semidefinite representation. Our proof combines the quantitative pseudo-density theorem of Lee, Raghavendra, and Steurer with explicit block-positive operators and Chebyshev amplification. Our main results are supported by Lean proofs.</summary>
-    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T17:00:11Z</published>
-    <arxiv:primary_category term="quant-ph"/>
-    <author>
-      <name>Sevag Gharibian</name>
-    </author>
-    <author>
-      <name>Carsten Hecht</name>
-    </author>
-    <author>
-      <name>Dorian Rudolph</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09030v1</id>
-    <title>Answer-Distribution Trajectories: A Stochastic-Dynamics View of LLM Reasoning</title>
-    <updated>2026-09-08T16:58:40Z</updated>
-    <link href="https://arxiv.org/abs/2609.09030v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09030v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>Chain-of-thought reasoning provides a structured computation between a model's input and final answer. Yet it is often evaluated through endpoint accuracy, which ignores the path taken to reach that answer. An emerging line of work addresses this limitation using entropy profiles, which track how uncertainty evolves over the reasoning process but do not reveal which competing hypotheses account for that uncertainty. We introduce answer-distribution trajectories, a stochastic-dynamics-inspired representation that tracks the model's full predictive distribution over answers as reasoning unfolds. As a strictly finer representation than endpoint and entropy summaries, answer-distribution trajectories enable us to characterize a trace through a dynamical reasoning profile spanning exploration, revision, motion, and commitment, and to distinguish different dynamical mechanisms of reasoning success and failure. Across sixteen open-weight language models and four reasoning benchmarks, we show that traces with the same endpoint and similar entropy profiles can exhibit substantially different reasoning dynamics. We further find substantial variation in these dynamics both within and across models and tasks, with different objectives favoring different dynamical profiles. Additionally, we show that training and inference choices systematically reshape these profiles. Our results suggest that answer-distribution trajectories provide a rich framework for analysing and evaluating the dynamics of LLM reasoning.</summary>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.IT" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T16:58:40Z</published>
-    <arxiv:comment>16 pages, 4 figures, 3 tables</arxiv:comment>
-    <arxiv:primary_category term="cs.AI"/>
-    <author>
-      <name>Mar Gonzàlez I Català</name>
-    </author>
-    <author>
-      <name>Haitz Sáez de Ocáriz Borde</name>
-    </author>
-    <author>
-      <name>Davide Murari</name>
-    </author>
-    <author>
-      <name>Carola-Bibiane Schönlieb</name>
-    </author>
-    <author>
-      <name>Pietro Liò</name>
-    </author>
-    <author>
-      <name>George Montañez</name>
-    </author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2609.09022v1</id>
-    <title>It Is Not My Code Anymore</title>
-    <updated>2026-09-08T16:52:52Z</updated>
-    <link href="https://arxiv.org/abs/2609.09022v1" rel="alternate" type="text/html"/>
-    <link href="https://arxiv.org/pdf/2609.09022v1" rel="related" type="application/pdf" title="pdf"/>
-    <summary>AI-assisted programming raises distinct questions about who produces code, who feels ownership of it, and who is responsible when it fails. This research note examines these distinctions through a hypothetical enrollment failure and a selective reading of the literature. Identifying the producer of a defective expression does not, by itself, determine the duties of reviewers, release decision-makers, or service operators. Collective ownership likewise leaves those duties to be specified. The discussion then considers how quality engineering can evaluate both generated implementations and the processes that produce them. Acceptance criteria should be justified by the required service outcome, with component checks contributing evidence toward that outcome. This perspective also permits comparison with systems that perform a task without generating a separate program for it. Such substitution would change the object of authorship while leaving the service obligation intact. The note reports no new empirical results; it proposes distinctions and evaluation questions for AI-assisted software production.</summary>
+    <id>http://arxiv.org/abs/2609.10248v1</id>
+    <title>A-JIT: Agentic Just-In-Time Software Construction</title>
+    <updated>2026-09-09T14:36:51Z</updated>
+    <link href="https://arxiv.org/abs/2609.10248v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10248v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Traditional software delivery assumes a static paradigm: code is constructed prior to execution and deployed as a fixed artifact. We present Agentic Just-In-Time Software Construction (A-JIT), a paradigm that replaces static binaries with dynamic, software systems that can perpetually evolve to meet changing demands. In A-JIT, an application is an integrated assembly comprising code, a runtime harness, and an embedded AI agent that continuously observes system usage and live execution traces. Much like a traditional JIT compiler specializes machine code to runtime execution paths, A-JIT specializes software logic, workflows, and tool interfaces to meet the specific needs of the end-user. By integrating synthesis directly into the ambient application lifecycle, A-JIT enables applications to dynamically construct missing implementations, generate new capabilities on the fly, and continuously adapt to end-user behavior. We demonstrate how this model supports trace-driven human-AI co-construction and opens a new design space for adaptive, self-evolving software.</summary>
     <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
     <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <published>2026-09-08T16:52:52Z</published>
-    <arxiv:comment>7 pages, 2 figures, 1 table. Research note</arxiv:comment>
+    <published>2026-09-09T14:36:51Z</published>
+    <arxiv:comment>Technical report for presentation at VMIL 2026</arxiv:comment>
     <arxiv:primary_category term="cs.SE"/>
     <author>
-      <name>Augusto Camargo</name>
+      <name>Mark Marron</name>
+    </author>
+    <author>
+      <name>Earl T. Barr</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10239v1</id>
+    <title>LiteRAG: Cost-Efficient Graph-Based Retrieval-Augmented Generation</title>
+    <updated>2026-09-09T14:32:07Z</updated>
+    <link href="https://arxiv.org/abs/2609.10239v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10239v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Graph-based retrieval can improve multi-hop question answering, but existing approaches often incur high query-time costs and produce diffuse, oversized contexts that reduce generation efficiency. We present LiteRAG, a graph-based retrieval method that replaces expensive retrieval-time LLM control with query-conditioned algorithmic exploration and reasoning-chain context construction. On DistComp, a benchmark for multi-hop retrieval over distributed-systems papers, LiteRAG attains the highest overall quality among the evaluated methods (0.798) while reducing per-query latency by over 100$\times$ and cost by over 99% relative to GraphRAG Global and DRIFT. On UltraDomain, it matches LinearRAG on overall quality while using about 14$\times$ fewer tokens. An ablation study indicates that LiteRAG's query-adaptive thresholding and community-aware hub penalization are the main drivers of its token-efficiency gains.</summary>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:32:07Z</published>
+    <arxiv:comment>16 pages, 2 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.IR"/>
+    <author>
+      <name>Daniel Alejandro Coll Tejeda</name>
+    </author>
+    <author>
+      <name>Pedro García López</name>
+    </author>
+    <author>
+      <name>Daniel Barcelona-Pons</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10225v1</id>
+    <title>Hierarchical and Permutation-Invariant Feature Transformation Learning via Policy-Guided Embedding Search</title>
+    <updated>2026-09-09T14:23:34Z</updated>
+    <link href="https://arxiv.org/abs/2609.10225v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10225v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Feature transformation improves predictive performance on tabular data by constructing informative abstractions from raw features. Recent generative approaches encode transformation knowledge into continuous embedding spaces for efficient exploration of candidate strategies, but face three key limitations: (1) overlooking hierarchical relationships between low-level features, operations, and high-level abstractions; (2) enforcing order-sensitive embeddings on inherently permutation-invariant transformation sequences, thereby introducing systematic bias; and (3) relying on gradient-based search, which is ill-suited to non-convex transformation spaces. We propose a framework with two complementary components. First, a permutation-invariant hierarchical module captures interactions across features, operations, and abstraction levels, with a self-attention pooling mechanism that maps semantically equivalent structures to consistent embeddings aligned with downstream performance. Second, a policy-guided multi-objective reinforcement learning strategy initializes the search from empirically strong seeds and jointly optimizes predictive accuracy and transformation efficiency. Extensive experiments on diverse tabular benchmarks demonstrate the effectiveness and robustness of our framework against strong baselines. Our code and data are publicly available at: https://github.com/RayLiu1103/PHER.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:23:34Z</published>
+    <arxiv:comment>This paper has been accepted for publication at CIKM 2026</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Rui Liu</name>
+    </author>
+    <author>
+      <name>Tao Zhe</name>
+    </author>
+    <author>
+      <name>Yanyong Huang</name>
+    </author>
+    <author>
+      <name>Sankha Narayan Guria</name>
+    </author>
+    <author>
+      <name>Xiao Luo</name>
+    </author>
+    <author>
+      <name>Wei Fan</name>
+    </author>
+    <author>
+      <name>Yanjie Fu</name>
+    </author>
+    <author>
+      <name>Dongjie Wang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10221v1</id>
+    <title>Why Sample What You Can Enumerate? Exact Policy Optimization for Genomic Tool Selection</title>
+    <updated>2026-09-09T14:20:47Z</updated>
+    <link href="https://arxiv.org/abs/2609.10221v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10221v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Reinforcement learning over a frozen reasoner has become a common recipe for teaching a policy which external tools to invoke. We show that this recipe becomes structurally mismatched in specialist scientific settings where the complete tool-subset space is enumerable. There, a small set of recurring computational capabilities covers the domain, so the space of tool subsets is combinatorial yet small enough to enumerate, and GRPO still estimates an action expectation from a handful of sampled rollouts. Worse, the approximation degrades as training succeeds: as the policy concentrates on preferred subsets it resamples them, sampled rewards collide, and the group-normalized advantage vanishes. On genomic reasoning the fraction of questions yielding no reward signal rises from 0.2% under a uniform reference policy to 20.8% after GRPO training. As a remedy, we introduce FGPO (Full-Group Policy Optimization), which (1) scores every tool subset and optimizes the exact action expectation, so each update sees the complete action space, and (2) precomputes the reward of each question--subset pair into an exhaustive table, removing frozen-reasoner calls from the training loop entirely. Across five frozen reasoners and three genomic benchmarks, FGPO outperforms GRPO in all 15 settings by 6.75 points on average and up to 14.20, while a standard on-demand GRPO schedule would require 2.4 times as many frozen-reasoner reward evaluations and, on GenomeQA, FGPO cuts invoked tools per question from 2.36 to 1.40.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:20:47Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Haoyue Liu</name>
+    </author>
+    <author>
+      <name>Xiaoyu Ma</name>
+    </author>
+    <author>
+      <name>Ye Chen</name>
+    </author>
+    <author>
+      <name>Zhichao Wang</name>
+    </author>
+    <author>
+      <name>Xiaoying Tang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10216v1</id>
+    <title>Information capacity of quantum statistics: Fock-state tests of a discrete binary-sequence model on cloud photonic quantum processors</title>
+    <updated>2026-09-09T14:15:51Z</updated>
+    <link href="https://arxiv.org/abs/2609.10216v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10216v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Our central premise is that quantum mechanics may be the statistical limit of a more fundamental discrete theory: any such theory equips a physical system with a finite information capacity, and its departure from quantum statistics is controlled by how much of that capacity the system uses. We show that commercial cloud photonic quantum processors have reached the precision required to bound this capacity from below, using the binary-sequence model of Powers et al. as the concrete test theory: outcome probabilities arise from counting discrete sequences of length $n$, quantum mechanics is recovered as $n \to \infty$, and $n$ measures the information capacity of the register behind a prepared state. Photon Fock states $|1\rangle$, $|1,1\rangle$, heralded $|2\rangle$, and cascaded beam-splitter pairs are measured on programmable interferometers with dominant systematics determined in situ. The model's composition-consistent parametrization, singled out by requiring that rotations compose, recovers quantum mechanics with deviations $1.24/n$; a random-effects likelihood analysis calibrated by parametric bootstrap excludes all $n \le 100$: the information capacity of the register carrying the two-photon state, if finite, exceeds $10^2$. Cascaded beam splitters test the composition law directly: the data are split-invariant, excluding naive count composition at $8σ$ and confirming the interference-sign rule. Model-independently, curve-averaged deviations from the quantum partition law larger than $2.3\times10^{-2}$ are excluded at 95% CL, and the originally published linear parametrization is excluded outright. Because the compilation offset is frozen per circuit it is calibratable, opening the $10^{-3}$ floor ($n \sim 10^3$) to current hardware: cloud photonic processors are quantitative instruments for quantum foundations, and information capacity an experimentally boundable quantity.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="physics.data-an" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:15:51Z</published>
+    <arxiv:comment>10 pages, 10 figures</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Chiran Wijesundara</name>
+    </author>
+    <author>
+      <name>Octavia T. Volpe</name>
+    </author>
+    <author>
+      <name>Dejan Stojkovic</name>
+    </author>
+    <author>
+      <name>Herbert Fotso</name>
+    </author>
+    <author>
+      <name>Tim Thomay</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10211v1</id>
+    <title>Finite-Particle Quantum Reduction of Thermodynamic Irreversibility</title>
+    <updated>2026-09-09T14:12:40Z</updated>
+    <link href="https://arxiv.org/abs/2609.10211v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10211v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Thermodynamics is useful because it lets us predict and control complex systems from a few accessible quantities when microscopic reconstruction is impractical. We ask whether this operational reduction can be less costly in a finite quantum system than in a matched classical one. We compare a few-boson Bose--Hubbard chain with its number-conserving classical-field counterpart under the same driving and the same coarse spatial record. The quantum system relaxes more in the observed particle distribution, yet the retained mean energy resolves more of the microscopic structure hidden by that record, leaving less information unusable and smaller entropy generation. We then close the process into a heat-engine cycle whose controls use only the measured mean energy and spatial record, not full state tomography; at matched thermal resources, the smaller entropy generation gives more work and higher efficiency. The advantage fades as the particle number grows toward the classical-field regime.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:12:40Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Borhan Ahmadi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10210v1</id>
+    <title>Through the Looking Glass: Directly Reading and Writing Transformers</title>
+    <updated>2026-09-09T14:12:02Z</updated>
+    <link href="https://arxiv.org/abs/2609.10210v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10210v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>How many of a transformer's components decide a token? Counted by the absolute value of each unit's and channel's contribution to the logit, one prediction rests on thousands to hundreds of thousands of them. But contributions are signed, and across eighteen models the mass pushing away from the predicted token is a median of seven times the mass carrying it. Divide by the net and the count is dozens: on the baseline, 53 components carry ninety percent of a prediction, 13 it cannot survive losing, and 8 suffice to produce it alone. Across twelve models trained elsewhere, 124M to 7B parameters, the sufficient set runs from two components to sixteen, and what a prediction draws on, followed all the way back, is one to three percent of the model, a share that does not grow with size. Three quarters of a layer's update is a fixed linear map of the state it received.
+  Everything is read from the model's own parameters and activations, with nothing trained or fitted, and it names a component on both sides: what it writes, from the predictions it drives, reaching close to half of every model; what it reads, from its weights in the frame of its own layer, at 58.9 percent above chance over its eight strongest inputs. Sorting the remainder by upstream source yields grammatical categories the embedding cannot see.
+  A name can be acted on. An association the model does not hold installs into one spare unit, key and value read from the weights, for a quarter of a percent of held-out loss, a fortieth of what a rank-one update costs. An installed attention head and a unit two layers above it make an edit fire only where a token occurred earlier in the context, and a unit the model trained for itself is driven from two layers upstream, 86 percent of the effect passing through it. An order-preserving activation puts a unit's inputs at the instrument's ceiling, at the price of a two-part install.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:12:02Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Mark Oskin</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10200v1</id>
+    <title>Robust Beam Prediction for V2X Networks with Multi-Modal Sensing</title>
+    <updated>2026-09-09T14:04:55Z</updated>
+    <link href="https://arxiv.org/abs/2609.10200v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10200v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Integrated sensing and communication (ISAC) provides a promising foundation for beam prediction in future vehicle-to-everything (V2X) networks. However, existing sensing-assisted beamforming methods still rely heavily on radio-frequency sensing, which may become unreliable in complex vehicular environments. Meanwhile, the growing availability of heterogeneous sensors, such as cameras and LiDAR, offers new opportunities to improve beam prediction through richer environmental perception. Motivated by this, this paper proposes a multi-modal beam prediction framework for V2X networks. Specifically, we develop BeamTransFuser, a hierarchical Transformer-based architecture that progressively fuses camera, LiDAR, radar, and GPS observations for robust beam prediction. In addition, to handle possible missing modalities in practical deployment, we introduce a generative module that reconstructs missing modality features from the available observations. Experimental results on a real-world multi-modal V2X dataset show that the proposed framework consistently outperforms representative baselines, while the generative module further improves robustness under incomplete sensing conditions.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:04:55Z</published>
+    <arxiv:comment>6 pages, 3 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <arxiv:journal_ref>GLOBECOM 2026</arxiv:journal_ref>
+    <author>
+      <name>Chen Shang</name>
+    </author>
+    <author>
+      <name>Dinh Thai Hoang</name>
+    </author>
+    <author>
+      <name>Diep N. Nguyen</name>
+    </author>
+    <author>
+      <name>Jiadong Yu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10196v1</id>
+    <title>An Exponential Deterministic--Randomized Gap in ERM-Oracle Complexity for Thresholds on an Unknown Order</title>
+    <updated>2026-09-09T14:02:47Z</updated>
+    <link href="https://arxiv.org/abs/2609.10196v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10196v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Attias, Hanneke and Ramaswami (NeurIPS 2025) asked whether randomization provably reduces the oracle calls needed for online learning when the class is accessible only through an oracle. We study the instance they singled out: transductive online learning of thresholds on an unknown total order of T instances, with a consistency-type ERM oracle that returns a full concept consistent with a queried labeled set (or reports non-realizability). Our main result is a separation for a fixed natural oracle. When the oracle is the minimal-prefix rule (or the maximal-prefix rule), every deterministic learner makes M mistakes and Q calls with $M+Q\ge T-\varepsilon$ on some instance ($\varepsilon\in\{0,1\}$, according to whether the empty prefix is a concept), and the constant is exact; hence $O(\log T)$ mistakes cost $T-\varepsilon-O(\log T)$ calls, whereas that paper's randomized learner achieves $O(\log T)$ expected calls and mistakes under the same rule. The randomized order is optimal: on an explicit hard distribution under the minimal-prefix rule, every learner has expected mistakes at least $((T+1-\varepsilon)\,128^{-\mathbb{E}[Q]}-1)/2$, so $Ω(\log T)$ expected calls are necessary for polylogarithmic mistakes. The separation is governed by the oracle's selection rule, not by the class alone: for a legal feasible-median ERM rule a deterministic learner achieves $O(\log T)$ calls and mistakes, while a global-median rule again forces linear total cost. The same linear bound holds when the oracle's answers are chosen adversarially and then frozen into a memoryless oracle. We add partial tradeoff results for fixed query budgets (the middle regime is open) and an interface contrast: with only a weak consistency oracle, returning a realizability bit, both deterministic and randomized learners need $Θ(T)$ calls.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:02:47Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Xuan Li</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10193v1</id>
+    <title>Are You Learning Biological Signal or Shortcuts? Auditing and Mitigating Bias in Protein-Protein Interaction Datasets</title>
+    <updated>2026-09-09T14:02:18Z</updated>
+    <link href="https://arxiv.org/abs/2609.10193v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10193v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Protein-protein interaction (PPI) databases do not faithfully reflect biological realities. Instead, they are influenced by study and technical biases that distort certain protein and interaction attributes. Machine learning models can exploit these as learning shortcuts if the negative dataset is not constructed with care. So far, the shortcuts introduced during PPI dataset construction have only been examined in isolation. Here, we systematically characterize both reported and, to our knowledge, previously unreported biases in PPI datasets that lead machine learning models to learn shortcuts instead of biological signal. We analyze HIPPIE, IntAct, and STRING, dedicated PPI databases, as well as two datasets derived from 3D-structural information in the Protein Data Bank (PDB). We show that random data splitting introduces strong topological shortcuts. When train-test protein overlap is removed, the resulting datasets still retain usable shortcuts stemming from self-interactions, taxonomic identity, and functional relatedness, whose prevalence interestingly depends on the data source. We further show that sampling negatives from a set of high-confidence non-interactors, an intuitively appealing choice, can amplify the shortcut stemming from functional relatedness. To detect and mitigate these biases, we provide an open Nextflow pipeline that combines similarity-aware, data-loss-minimizing dataset splitting with bias-minimizing negative sampling, both formulated as integer linear programs. Its key concept of quantifying biases to minimize them through optimization-based negative sampling can, in principle, be extended to any machine learning problem where the pool of negative candidates is much larger than the positives and is thus of interest also beyond PPI prediction.</summary>
+    <category term="q-bio.MN" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T14:02:18Z</published>
+    <arxiv:primary_category term="q-bio.MN"/>
+    <author>
+      <name>Judith Bernett</name>
+    </author>
+    <author>
+      <name>Anton Spannagl</name>
+    </author>
+    <author>
+      <name>Joel Ås</name>
+    </author>
+    <author>
+      <name>Markus List</name>
+    </author>
+    <author>
+      <name>David B. Blumenthal</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10181v1</id>
+    <title>Can AI Agents Deliver Verifiable Network-Wide Outcomes Across Authority Boundaries?</title>
+    <updated>2026-09-09T13:51:15Z</updated>
+    <link href="https://arxiv.org/abs/2609.10181v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10181v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>AI agents are increasingly involved in network automation, where they can initiate configuration changes through mediated operational interfaces and assess the resulting state. Nonetheless, operational networks usually span many devices and administrative domains. Realizing an operator's intent requires coordinating agents with distinct authority scopes that define the resources they can access, the operations they can invoke, and the network state they can observe. This division limits the blast radius of an erroneous action but fragments the evidence needed to assess the network-wide outcome. Successful execution of a configuration action proposed by one agent does not establish that remote devices responded as intended or that routing changes reached the required devices. A valid observation may also become stale after a subsequent change. Before the coordinated operation can be declared complete, a trusted assurance layer must collect current observations from the required scopes and determine whether they collectively support the operator's intended network-wide outcome.
+  To address the completion admission problem, we present EvidenceNet, a runtime assurance layer for deciding whether coordinated agent operations have achieved an operator's network intent. Its broker collects the post-change observations required by a completion contract, and its admission gate checks that the evidence comes from the required scopes, remains current, and satisfies the task rules. A verifier agent provides an additional assessment of the observation content. Experiments on live routing networks show that post-change state checks recognize successful outcomes that configuration-action records alone cannot establish. Controlled interventions further show that EvidenceNet rejects completion when otherwise satisfactory observations have the wrong source, have been substituted, or are stale.</summary>
+    <category term="cs.NI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:51:15Z</published>
+    <arxiv:primary_category term="cs.NI"/>
+    <author>
+      <name>Tianzhu Zhang</name>
+    </author>
+    <author>
+      <name>Chih-Kai Huang</name>
+    </author>
+    <author>
+      <name>Meikang Qiu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10177v1</id>
+    <title>Beyond Surface Imitation: Contrastive Modeling for Reasoning Path Alignment in Multimodal In-Context Learning</title>
+    <updated>2026-09-09T13:45:02Z</updated>
+    <link href="https://arxiv.org/abs/2609.10177v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10177v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In-context learning (ICL) is widely used in multimodal large language models (MLLMs) and achieves strong performance across a wide range of multimodal tasks. However, existing multimodal ICL methods often rely on surface level imitation of in-context demonstrations, making it difficult for MLLMs to align their responses with the reasoning path required by the given multimodal input. This limitation becomes more pronounced in complex multimodal tasks, thereby restricting further improvements in MLLM performance. To address this issue, we propose a new multimodal ICL framework that combines contrastive demonstration modeling with the self-refinement capability of MLLMs. Specifically, our framework reformulates each demonstration by explicitly contrasting a suboptimal response with a better response under the same input, together with a reasoning path that reveals how the response should be refined. This contrastive formulation makes the reasoning path toward the desired response more explicit and guides the MLLM beyond superficial imitation. Furthermore, because effective refinement depends on the current response, we introduce a response-conditioned retrieval mechanism to select demonstrations whose reasoning paths are more relevant to the current response. In addition, we use a lightweight alignment controller to predict response quality and determine whether further refinement is needed. Experiments on three types of multimodal tasks show that the proposed framework consistently improves MLLM performance, with particularly notable gains on visual question answering (VQA).</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:45:02Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Mingbo Yang</name>
+    </author>
+    <author>
+      <name>Wenqiang Wang</name>
+    </author>
+    <author>
+      <name>Zhaolu Kang</name>
+    </author>
+    <author>
+      <name>Peng Chen</name>
+    </author>
+    <author>
+      <name>Yannan Chen</name>
+    </author>
+    <author>
+      <name>Sunshang Wang</name>
+    </author>
+    <author>
+      <name>Yan Xiao</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10172v1</id>
+    <title>BRST quantization for the restoration of broken symmetries: a pedagogical example</title>
+    <updated>2026-09-09T13:42:45Z</updated>
+    <link href="https://arxiv.org/abs/2609.10172v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10172v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present a pedagogical showcase of BRST quantization for restoring symmetries in nuclear many-body systems as a reformulation and potential alternative to conventional projection methods. The formalism is illustrated using translational invariance for a simple system of two interacting masses in one dimension, but with an eye toward generalizing to more particles, higher dimensions, and other symmetries. We explain the considerations underlying particular choices within the BRST construction, and develop both Hamiltonian and path integral formulations to provide guidance for the variety of many-body and effective field theory contexts where gauge fixing for symmetry restoration might be useful. For the demonstration system we show how to diagonalize within the extended BRST phase space, how variation after projection is recovered for product reference states, how the corresponding gauge-fixed functional integral is constructed, and how collective zero modes are isolated and controlled. Throughout, we keep in mind extensions of BRST symmetry to various approximation schemes as a guide for consistent symmetry restoration.</summary>
+    <category term="nucl-th" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="hep-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:42:45Z</published>
+    <arxiv:comment>44 pages, 7 figures</arxiv:comment>
+    <arxiv:primary_category term="nucl-th"/>
+    <author>
+      <name>Pranav Sharma</name>
+    </author>
+    <author>
+      <name>R. J. Furnstahl</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10162v1</id>
+    <title>Unbounded degree overhead for Alice-conditioned quantum Bell certificates</title>
+    <updated>2026-09-09T13:38:25Z</updated>
+    <link href="https://arxiv.org/abs/2609.10162v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10162v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Requiring each sum-of-squares term to involve only one of Alice's measurement questions can impose an unbounded certification cost. In the simplest Bell scenario, we prove that no finite level of the Alice-conditioned NPA hierarchy contains all standard level-two Bell certificates. An explicit family of truncated positive functionals on the infinite dihedral group exceeds the tilted-CHSH quantum bound at every prescribed finite level, while a standard degree-two certificate is exact. A Fejer-weighted trace reduces positivity to a rank-one subtraction from a moving-average Gram matrix. The required conditioned level grows at least as $(2-α)^{-1/2}$ near the endpoint tilt. This bounds the degree of exact nice-SOS inputs to compiled-game soundness proofs. Consequently, no finite conditioned level certifies the entire optimal CHSH randomness tradeoff against quantum side information, although standard level two does. Away from the endpoint, we prove a sharp one-level cost throughout $α\in[13/10,3/2]$, using optimal-strategy kernels and exact Bernstein matrix positivity to certify a continuous interval. The results separate ordinary SOS degree from the resources keyed by single-question certificate structure.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:38:25Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Fumin Wang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10158v1</id>
+    <title>CoGe-GCD: Reframing Generalized Category Discovery with Compositional Generalization</title>
+    <updated>2026-09-09T13:34:37Z</updated>
+    <link href="https://arxiv.org/abs/2609.10158v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10158v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Generalized Category Discovery (GCD) assigns unlabeled instances, mixed with labeled data, to known or novel categories, requiring human-like compositional reasoning: reusing primitives learned from known classes and deciding when new combinations imply new categories. Existing GCD methods operate on unstructured token features and struggle to extrapolate to novel compositions. We propose CoGe-GCD, which rethinks GCD through compositional generalization with two coupled stages. (i) Compositional Perception structures patch tokens by mapping them to a small vocabulary of primitives and refining token embeddings via competitive token-primitive assignment and information passing, yielding coherent groups for discovery. (ii) Generalizing Induction exploits the induced geometric structure and applies a structure-preserving calibration over spatial relations, maintaining probabilistic semantics while improving extrapolation to unseen primitive combinations. CoGe-GCD is implemented as an inductive-bias module between backbone and projection head, without modifying heads or losses, and can be plugged into diverse GCD frameworks. On standard benchmarks, it consistently improves all-class accuracy, unknown-class number estimation, and geometric quality, with marginal computational overhead. Code is available at https://github.com/lytang63/CoGe-GCD.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:34:37Z</published>
+    <arxiv:comment>Accepted at **ICML 2026**</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Luyao Tang</name>
+    </author>
+    <author>
+      <name>Jiewei Zheng</name>
+    </author>
+    <author>
+      <name>Kunze Huang</name>
+    </author>
+    <author>
+      <name>Chaoqi Chen</name>
+    </author>
+    <author>
+      <name>Yue Huang</name>
+    </author>
+    <author>
+      <name>Cheng Chen</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2609.10157v1</id>
+    <title>Quantum Barankin bounds beyond local unbiasedness: Analytic results for Gaussian states via a right-division framework</title>
+    <updated>2026-09-09T13:32:47Z</updated>
+    <link href="https://arxiv.org/abs/2609.10157v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2609.10157v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We propose a quantum version of the Barankin bound as an alternative to the quantum Cramér-Rao bound for quantum parameter estimation. The quantum Barankin bound provides a lower bound on the mean squared error of estimators satisfying arbitrarily chosen bias constraints at arbitrarily chosen parameter points. In particular, unbiasedness over the entire parameter space can be imposed, yielding precision limits for globally unbiased quantum parameter estimation. In contrast to the recently derived quantum Barankin bound, which is based on a symmetric division superoperator, our bound is based on a nonsymmetric right-division superoperator. This formulation enables us to find analytic expressions for the Barankin matrix for Gaussian states, which allows for an efficient calculation of the bound. We demonstrate the usefulness of our results by applying them to various examples that exhibit the threshold effect in the few-shot regime, which is invisible to the standard quantum Cramér-Rao bound approach.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-09-09T13:32:47Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Maximilian Reichert</name>
+    </author>
+    <author>
+      <name>Javier Navarro</name>
+    </author>
+    <author>
+      <name>Gerardo Adesso</name>
+    </author>
+    <author>
+      <name>Manuel Gessner</name>
+    </author>
+    <author>
+      <name>Mikel Sanz</name>
     </author>
   </entry>
 </feed>
