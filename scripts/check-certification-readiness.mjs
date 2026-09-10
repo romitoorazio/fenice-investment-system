@@ -14,16 +14,34 @@ const [sources, intelligence, governance, ledger, terminal, research, strategyLa
   readJson("data/strategy-lab.json"),
 ]);
 
+const now = Date.now();
+const ageHours = (timestamp) => {
+  const parsed = Date.parse(timestamp || "");
+  return Number.isFinite(parsed) ? (now - parsed) / 3_600_000 : Number.POSITIVE_INFINITY;
+};
+
+const reportAgeHours = ageHours(sources?.generatedAt);
+const sourceReportFresh = reportAgeHours >= 0 && reportAgeHours <= 24;
 const criticalFailures = Array.isArray(sources?.critical?.failures) ? sources.critical.failures : [];
 const sourceFallbacksSafe = criticalFailures.every((id) => {
   const source = Array.isArray(sources?.sources) ? sources.sources.find((item) => item.id === id) : null;
   if (!source || source.status !== "degraded" || source.stale !== true || !source.lastSuccessfulAt) return false;
-  const staleAgeHours = (Date.now() - Date.parse(source.lastSuccessfulAt)) / 3_600_000;
-  return Number.isFinite(staleAgeHours) && staleAgeHours >= 0 && staleAgeHours <= 24;
+  const staleAgeHours = ageHours(source.lastSuccessfulAt);
+  return staleAgeHours >= 0 && staleAgeHours <= 24;
 });
 
-const sourceReady = sources?.critical?.gate === "GREEN"
-  || (criticalFailures.length > 0 && sourceFallbacksSafe);
+const criticalSourcesFresh = Array.isArray(sources?.sources)
+  && sources.sources.filter((source) => source?.critical === true).every((source) => {
+    const checkedAge = ageHours(source?.checkedAt);
+    const successfulAge = ageHours(source?.lastSuccessfulAt);
+    if (source?.status === "healthy") return checkedAge >= 0 && checkedAge <= 24 && successfulAge >= 0 && successfulAge <= 24;
+    if (source?.status === "degraded" && source?.stale === true) return successfulAge >= 0 && successfulAge <= 24;
+    return false;
+  });
+
+const sourceReady = sourceReportFresh
+  && criticalSourcesFresh
+  && (sources?.critical?.gate === "GREEN" || (criticalFailures.length > 0 && sourceFallbacksSafe));
 
 const crossChecks = Number(intelligence?.crossSourceValidation?.checked || 0);
 const crossDivergent = Number(intelligence?.crossSourceValidation?.divergent || 0);
@@ -37,13 +55,19 @@ const dataQualityReady = Number(intelligence?.intelligenceConfidence || 0) >= 90
 
 const guardrails = governance?.guardrails || {};
 const prohibited = new Set(governance?.prohibitedActions || []);
+const numericRiskControlsSane = Number.isFinite(Number(guardrails.minIndependentSources))
+  && Number(guardrails.minIndependentSources) >= 2
+  && Number.isFinite(Number(guardrails.maxSingleAssetWeightPercent))
+  && Number(guardrails.maxSingleAssetWeightPercent) > 0
+  && Number(guardrails.maxSingleAssetWeightPercent) <= 15
+  && Number.isFinite(Number(guardrails.maxSignalConfidence))
+  && Number(guardrails.maxSignalConfidence) > 0
+  && Number(guardrails.maxSignalConfidence) <= 85;
 const riskControlsReady = guardrails.blockAutonomousTrading === true
   && guardrails.requireHumanConfirmation === true
   && guardrails.blockSignalWhenDataDivergent === true
   && guardrails.blockSignalWhenSourceStale === true
-  && Number(guardrails.minIndependentSources || 0) >= 3
-  && Number(guardrails.maxSingleAssetWeightPercent || 100) <= 8
-  && Number(guardrails.maxSignalConfidence || 100) <= 50
+  && numericRiskControlsSane
   && prohibited.has("usare leva automaticamente")
   && prohibited.has("considerare investibile un segnale da una sola fonte");
 
@@ -56,7 +80,7 @@ if (!liveTradingLocked) {
   throw new Error("SAFETY FAILURE: live-trading lock is not fully enforced.");
 }
 if (!riskControlsReady) {
-  throw new Error("SAFETY FAILURE: required risk guardrails are not fully enforced.");
+  throw new Error("SAFETY FAILURE: required risk guardrails are not fully enforced or outside producer bounds.");
 }
 
 const terminalAssets = Array.isArray(terminal?.assets) ? terminal.assets : [];
@@ -95,6 +119,7 @@ const status = {
   ready,
   gates: {
     criticalSources: sourceReady ? "PASS" : "NOT_READY",
+    sourceReportFreshness: sourceReportFresh && criticalSourcesFresh ? "PASS" : "NOT_READY",
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
@@ -104,6 +129,7 @@ const status = {
   },
   metrics: {
     sourceGate: sources?.gate ?? "UNKNOWN",
+    sourceReportAgeHours: Number.isFinite(reportAgeHours) ? Number(reportAgeHours.toFixed(2)) : null,
     criticalReady: Number(sources?.critical?.ready || 0),
     criticalTotal: Number(sources?.critical?.total || 0),
     intelligenceConfidence: Number(intelligence?.intelligenceConfidence || 0),
