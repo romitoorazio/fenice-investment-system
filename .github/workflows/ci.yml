@@ -81,3 +81,6 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           console.log('Critical datasets are structurally valid');
           NODE
+
+      - name: Certification readiness and live-lock invariants
+        run: node scripts/check-certification-readiness.mjs
