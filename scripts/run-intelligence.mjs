@@ -44,9 +44,9 @@ function normalizeSymbol(value) {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
 }
 
-function buildValidation(markets) {
+function buildValidation(observations) {
   const groups = new Map();
-  for (const item of markets) {
+  for (const item of observations) {
     const symbol = normalizeSymbol(item.symbol);
     if (!symbol || !Number.isFinite(Number(item.price))) continue;
     const key = `${symbol}:${String(item.currency || "").toUpperCase()}`;
@@ -57,17 +57,22 @@ function buildValidation(markets) {
 
   const checks = [];
   for (const [key, items] of groups) {
-    const distinctSources = [...new Set(items.map((item) => item.source).filter(Boolean))];
-    if (distinctSources.length < 2) continue;
-    const prices = items.map((item) => Number(item.price)).filter(Number.isFinite);
+    const bySource = new Map();
+    for (const item of items) {
+      if (!item.source || !Number.isFinite(Number(item.price))) continue;
+      bySource.set(item.source, item);
+    }
+    const independent = [...bySource.values()];
+    if (independent.length < 2) continue;
+    const prices = independent.map((item) => Number(item.price));
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const midpoint = (min + max) / 2 || 1;
     const spreadPercent = ((max - min) / midpoint) * 100;
     checks.push({
       instrument: key,
-      sources: distinctSources,
-      observations: prices.length,
+      sources: independent.map((item) => item.source),
+      observations: independent.length,
       spreadPercent: Number(spreadPercent.toFixed(3)),
       status: spreadPercent <= 0.5 ? "confermato" : spreadPercent <= 2 ? "attenzione" : "divergente",
     });
@@ -81,6 +86,9 @@ async function main() {
   const now = Date.now();
   const providers = Array.isArray(snapshot.providers) ? snapshot.providers : [];
   const markets = Array.isArray(snapshot.markets) ? snapshot.markets : [];
+  const observations = Array.isArray(snapshot.marketObservations) && snapshot.marketObservations.length
+    ? snapshot.marketObservations
+    : markets;
 
   const sourceQuality = providers.map((provider) => ({
     id: provider.id,
@@ -91,15 +99,15 @@ async function main() {
     coverageCount: Array.isArray(provider.coverage) ? provider.coverage.length : 0,
   })).sort((a, b) => b.qualityScore - a.qualityScore);
 
-  const validations = buildValidation(markets);
+  const validations = buildValidation(observations);
   const confirmed = validations.filter((item) => item.status === "confermato").length;
   const divergent = validations.filter((item) => item.status === "divergente").length;
   const operational = providers.filter((item) => item.state === "operativo").length;
   const partial = providers.filter((item) => item.state === "parziale").length;
-  const sourceNames = new Set(markets.map((item) => item.source).filter(Boolean));
-  const assetClasses = new Set(markets.map((item) => item.assetClass).filter(Boolean));
-  const concentration = markets.length
-    ? Math.max(...[...sourceNames].map((source) => markets.filter((item) => item.source === source).length)) / markets.length
+  const sourceNames = new Set(observations.map((item) => item.source).filter(Boolean));
+  const assetClasses = new Set([...markets, ...observations].map((item) => item.assetClass).filter(Boolean));
+  const concentration = observations.length
+    ? Math.max(...[...sourceNames].map((source) => observations.filter((item) => item.source === source).length)) / observations.length
     : 1;
 
   const averageQuality = sourceQuality.length
@@ -125,6 +133,7 @@ async function main() {
     },
     coverage: {
       instruments: markets.length,
+      marketObservations: observations.length,
       marketSources: sourceNames.size,
       assetClasses: [...assetClasses].sort(),
       sourceConcentrationPercent: Math.round(concentration * 100),
