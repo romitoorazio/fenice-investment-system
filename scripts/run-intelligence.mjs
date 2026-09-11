@@ -58,6 +58,26 @@ function normalizeSymbol(value) {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
 }
 
+function normalizeIdentity(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function yahooIdentityMatches(expectedName, quote) {
+  const expected = normalizeIdentity(expectedName);
+  if (!expected) return false;
+  const expectedTokens = expected.split(/\s+/).filter((token) => token.length >= 2 && token !== "usd");
+  if (!expectedTokens.length) return false;
+  const candidates = [quote?.shortname, quote?.longname, quote?.displayName]
+    .map(normalizeIdentity)
+    .filter(Boolean);
+  return candidates.some((candidate) => expectedTokens.every((token) => candidate.includes(token)));
+}
+
 async function request(url, { format = "json", timeoutMs = 12000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -102,13 +122,29 @@ async function fetchStooqEvidence(code, symbol, assetClass) {
   };
 }
 
-async function fetchYahooEvidence(symbol, assetClass) {
+async function verifyYahooCryptoIdentity(yahooSymbol, expectedName) {
+  if (!expectedName) throw new Error("Identità crypto non disponibile per la validazione Yahoo");
+  const search = await request(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(expectedName)}&quotesCount=12&newsCount=0`);
+  const quote = (Array.isArray(search?.quotes) ? search.quotes : []).find(
+    (item) => normalizeSymbol(item?.symbol) === normalizeSymbol(yahooSymbol),
+  );
+  if (!quote || !yahooIdentityMatches(expectedName, quote)) {
+    throw new Error("Identità Yahoo non coerente con l'asset di origine");
+  }
+}
+
+async function fetchYahooEvidence(symbol, assetClass, expectedName) {
   const canonicalSymbol = normalizeSymbol(symbol);
   const yahooSymbol = assetClass === "Criptovaluta" && !canonicalSymbol.includes("-")
     ? `${canonicalSymbol}-USD`
     : canonicalSymbol;
+  if (assetClass === "Criptovaluta") await verifyYahooCryptoIdentity(yahooSymbol, expectedName);
   const data = await request(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=5d`);
   const result = data?.chart?.result?.[0];
+  const returnedSymbol = normalizeSymbol(result?.meta?.symbol);
+  if (returnedSymbol && returnedSymbol !== normalizeSymbol(yahooSymbol)) {
+    throw new Error("Simbolo Yahoo restituito diverso da quello richiesto");
+  }
   const closes = result?.indicators?.quote?.[0]?.close || [];
   const finite = closes.filter(Number.isFinite);
   const price = Number(result?.meta?.regularMarketPrice ?? finite.at(-1));
@@ -116,6 +152,7 @@ async function fetchYahooEvidence(symbol, assetClass) {
   const timestamp = result?.meta?.regularMarketTime || result?.timestamp?.at(-1);
   return {
     symbol: canonicalSymbol,
+    name: expectedName,
     assetClass,
     price,
     currency: result?.meta?.currency || "USD",
@@ -130,6 +167,7 @@ async function collectIndependentMarketEvidence(baseObservations) {
     .filter((item) => normalizeSymbol(item.symbol) && Number.isFinite(Number(item.price)))
     .map((item) => ({
       symbol: normalizeSymbol(item.symbol),
+      name: item.name,
       assetClass: item.assetClass,
       price: Number(item.price),
       currency: String(item.currency || "USD").toUpperCase(),
@@ -144,12 +182,18 @@ async function collectIndependentMarketEvidence(baseObservations) {
   }
   for (const item of evidence) {
     const symbol = normalizeSymbol(item.symbol);
-    if (symbol && !yahooTargets.has(symbol)) yahooTargets.set(symbol, { symbol, assetClass: item.assetClass });
+    if (!symbol) continue;
+    const existing = yahooTargets.get(symbol);
+    if (!existing) {
+      yahooTargets.set(symbol, { symbol, assetClass: item.assetClass, expectedName: item.name });
+    } else if (!existing.expectedName && item.name) {
+      yahooTargets.set(symbol, { ...existing, expectedName: item.name });
+    }
   }
 
   const tasks = [
     ...comparisonUniverse.map(([code, symbol, assetClass]) => fetchStooqEvidence(code, symbol, assetClass)),
-    ...[...yahooTargets.values()].map(({ symbol, assetClass }) => fetchYahooEvidence(symbol, assetClass)),
+    ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => fetchYahooEvidence(symbol, assetClass, expectedName)),
   ];
   const results = await Promise.allSettled(tasks);
   for (const result of results) {
