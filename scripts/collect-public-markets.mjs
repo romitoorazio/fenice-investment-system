@@ -49,6 +49,29 @@ function upsertMarket(snapshot, item) {
   else if (snapshot.markets[index].source !== "Alpha Vantage") snapshot.markets[index] = item;
 }
 
+function observationKey(item) {
+  return `${String(item.symbol || "").toUpperCase()}:${String(item.currency || "").toUpperCase()}:${String(item.source || "")}`;
+}
+
+function preserveObservations(snapshot, additions) {
+  const combined = [...(Array.isArray(snapshot.marketObservations) ? snapshot.marketObservations : []), ...additions];
+  const byKey = new Map();
+  for (const item of combined) {
+    if (!item?.symbol || !item?.source || !Number.isFinite(Number(item?.price))) continue;
+    byKey.set(observationKey(item), {
+      symbol: String(item.symbol).toUpperCase(),
+      name: item.name,
+      assetClass: item.assetClass,
+      market: item.market,
+      price: Number(item.price),
+      currency: item.currency || "USD",
+      source: item.source,
+      observedAt: item.observedAt,
+    });
+  }
+  snapshot.marketObservations = [...byKey.values()];
+}
+
 function upsertProvider(snapshot, status) {
   snapshot.providers = snapshot.providers.filter((item) => item.id !== status.id);
   snapshot.providers.push(status);
@@ -56,6 +79,12 @@ function upsertProvider(snapshot, status) {
 
 export async function collectPublicMarkets(snapshot, health) {
   const started = Date.now();
+  // Keep the primary observations before fallback selection replaces any display-market row.
+  // These records are evidence only: they are used for independent cross-source validation
+  // and never for broker execution or live-order routing.
+  snapshot.marketObservations = [];
+  preserveObservations(snapshot, Array.isArray(snapshot.markets) ? snapshot.markets : []);
+
   const results = await Promise.allSettled(
     instruments.map(async ([stooqSymbol, symbol, name, assetClass, market]) => {
       const text = await requestText(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&d1=20260101&d2=20991231&i=d`);
@@ -79,6 +108,7 @@ export async function collectPublicMarkets(snapshot, health) {
   );
 
   const fulfilled = results.filter((result) => result.status === "fulfilled");
+  preserveObservations(snapshot, fulfilled.map((result) => result.value));
   for (const result of fulfilled) upsertMarket(snapshot, result.value);
 
   const records = fulfilled.length;
