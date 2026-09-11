@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 const checker = await readFile(new URL("./check-global-sources.mjs", import.meta.url), "utf8");
+const health = await readFile(new URL("../data/global-source-health.json", import.meta.url), "utf8");
 
 if (!checker.includes("function redactString") || !checker.includes("function sanitizeForStorage")) {
   throw new Error("Global source checker must define recursive credential redaction before persisting source-health data.");
@@ -25,6 +26,26 @@ if (!/source\.id === "sec" && result\.httpStatus === 403/.test(checker)) {
 }
 if (!/stale:\s*true/.test(checker) || !/lastSuccessfulAt/.test(checker)) {
   throw new Error("Transient source fallback must be explicitly marked stale and preserve lastSuccessfulAt.");
+}
+
+const report = JSON.parse(health);
+const sensitiveQueryNames = new Set(["api_key", "apikey", "key", "token", "access_token"]);
+for (const source of report.sources || []) {
+  if (!source.endpointUsed) continue;
+  let endpoint;
+  try {
+    endpoint = new URL(source.endpointUsed);
+  } catch {
+    if (/([?&](?:api_key|apikey|key|token|access_token)=)(?!REDACTED(?:&|$))[^&]+/i.test(source.endpointUsed)) {
+      throw new Error(`Persisted source-health data contains an unredacted credential for ${source.id}.`);
+    }
+    continue;
+  }
+  for (const [name, value] of endpoint.searchParams) {
+    if (sensitiveQueryNames.has(name.toLowerCase()) && value !== "REDACTED") {
+      throw new Error(`Persisted source-health data contains an unredacted ${name} credential for ${source.id}.`);
+    }
+  }
 }
 
 console.log("Source checker security invariants PASS.");
