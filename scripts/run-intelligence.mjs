@@ -134,10 +134,20 @@ async function collectIndependentMarketEvidence(baseObservations) {
       validationOnly: false,
     }));
 
-  const results = await Promise.allSettled(comparisonUniverse.flatMap(([code, symbol, assetClass]) => [
-    fetchStooqEvidence(code, symbol, assetClass),
-    fetchYahooEvidence(symbol, assetClass),
-  ]));
+  const yahooTargets = new Map();
+  for (const [, symbol, assetClass] of comparisonUniverse) {
+    yahooTargets.set(normalizeSymbol(symbol), { symbol: normalizeSymbol(symbol), assetClass });
+  }
+  for (const item of evidence) {
+    const symbol = normalizeSymbol(item.symbol);
+    if (symbol && !yahooTargets.has(symbol)) yahooTargets.set(symbol, { symbol, assetClass: item.assetClass });
+  }
+
+  const tasks = [
+    ...comparisonUniverse.map(([code, symbol, assetClass]) => fetchStooqEvidence(code, symbol, assetClass)),
+    ...[...yahooTargets.values()].map(({ symbol, assetClass }) => fetchYahooEvidence(symbol, assetClass)),
+  ];
+  const results = await Promise.allSettled(tasks);
   for (const result of results) {
     if (result.status === "fulfilled") evidence.push(result.value);
   }
