@@ -103,7 +103,11 @@ async function fetchStooqEvidence(code, symbol, assetClass) {
 }
 
 async function fetchYahooEvidence(symbol, assetClass) {
-  const data = await request(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`);
+  const canonicalSymbol = normalizeSymbol(symbol);
+  const yahooSymbol = assetClass === "Criptovaluta" && !canonicalSymbol.includes("-")
+    ? `${canonicalSymbol}-USD`
+    : canonicalSymbol;
+  const data = await request(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=5d`);
   const result = data?.chart?.result?.[0];
   const closes = result?.indicators?.quote?.[0]?.close || [];
   const finite = closes.filter(Number.isFinite);
@@ -111,7 +115,7 @@ async function fetchYahooEvidence(symbol, assetClass) {
   if (!Number.isFinite(price) || price <= 0) throw new Error("Yahoo quote non valido");
   const timestamp = result?.meta?.regularMarketTime || result?.timestamp?.at(-1);
   return {
-    symbol,
+    symbol: canonicalSymbol,
     assetClass,
     price,
     currency: result?.meta?.currency || "USD",
