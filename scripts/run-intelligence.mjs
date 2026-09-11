@@ -6,6 +6,20 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = path.join(root, "data", "latest-snapshot.json");
 const qualityPath = path.join(root, "data", "intelligence-quality.json");
+const comparisonUniverse = [
+  ["spy.us", "SPY", "ETF"],
+  ["qqq.us", "QQQ", "ETF"],
+  ["iwm.us", "IWM", "ETF"],
+  ["dia.us", "DIA", "ETF"],
+  ["gld.us", "GLD", "Materie prime"],
+  ["slv.us", "SLV", "Materie prime"],
+  ["uso.us", "USO", "Materie prime"],
+  ["tlt.us", "TLT", "Obbligazioni"],
+  ["vgk.us", "VGK", "ETF"],
+  ["ewj.us", "EWJ", "ETF"],
+  ["eem.us", "EEM", "ETF"],
+  ["acwi.us", "ACWI", "ETF"],
+];
 
 function runFoundation() {
   return new Promise((resolve, reject) => {
@@ -42,6 +56,99 @@ function freshnessScore(value, now) {
 
 function normalizeSymbol(value) {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
+}
+
+async function request(url, { format = "json", timeoutMs = 12000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
+        "user-agent": "FeniceInvestmentSystem/3.3 data-quality-validation",
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return format === "json" ? await response.json() : await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function parseStooqQuote(text) {
+  const lines = String(text || "").trim().split(/\r?\n/);
+  if (lines.length < 2 || /N\/D/i.test(lines.at(-1))) return null;
+  const headers = lines[0].split(",").map((item) => item.trim());
+  const values = lines.at(-1).split(",").map((item) => item.trim());
+  const row = Object.fromEntries(headers.map((header, index) => [header, values[index]]));
+  const price = Number(row.Close);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  return { price, observedAt: row.Date || undefined };
+}
+
+async function fetchStooqEvidence(code, symbol, assetClass) {
+  const text = await request(`https://stooq.com/q/l/?s=${encodeURIComponent(code)}&f=sd2t2ohlcv&h&e=csv`, { format: "text" });
+  const quote = parseStooqQuote(text);
+  if (!quote) throw new Error("Stooq quote non valido");
+  return {
+    symbol,
+    assetClass,
+    price: quote.price,
+    currency: "USD",
+    source: "Stooq independent validation",
+    observedAt: quote.observedAt,
+    validationOnly: true,
+  };
+}
+
+async function fetchYahooEvidence(symbol, assetClass) {
+  const data = await request(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`);
+  const result = data?.chart?.result?.[0];
+  const closes = result?.indicators?.quote?.[0]?.close || [];
+  const finite = closes.filter(Number.isFinite);
+  const price = Number(result?.meta?.regularMarketPrice ?? finite.at(-1));
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Yahoo quote non valido");
+  const timestamp = result?.meta?.regularMarketTime || result?.timestamp?.at(-1);
+  return {
+    symbol,
+    assetClass,
+    price,
+    currency: result?.meta?.currency || "USD",
+    source: "Yahoo Finance independent validation",
+    observedAt: timestamp ? new Date(Number(timestamp) * 1000).toISOString() : undefined,
+    validationOnly: true,
+  };
+}
+
+async function collectIndependentMarketEvidence(baseObservations) {
+  const evidence = baseObservations
+    .filter((item) => normalizeSymbol(item.symbol) && Number.isFinite(Number(item.price)))
+    .map((item) => ({
+      symbol: normalizeSymbol(item.symbol),
+      assetClass: item.assetClass,
+      price: Number(item.price),
+      currency: String(item.currency || "USD").toUpperCase(),
+      source: item.source || "Snapshot market source",
+      observedAt: item.observedAt,
+      validationOnly: false,
+    }));
+
+  const results = await Promise.allSettled(comparisonUniverse.flatMap(([code, symbol, assetClass]) => [
+    fetchStooqEvidence(code, symbol, assetClass),
+    fetchYahooEvidence(symbol, assetClass),
+  ]));
+  for (const result of results) {
+    if (result.status === "fulfilled") evidence.push(result.value);
+  }
+
+  const unique = new Map();
+  for (const item of evidence) {
+    const key = `${normalizeSymbol(item.symbol)}:${String(item.currency || "USD").toUpperCase()}:${item.source}`;
+    const existing = unique.get(key);
+    if (!existing || Date.parse(item.observedAt || 0) > Date.parse(existing.observedAt || 0)) unique.set(key, item);
+  }
+  return [...unique.values()];
 }
 
 function buildValidation(observations) {
@@ -86,9 +193,10 @@ async function main() {
   const now = Date.now();
   const providers = Array.isArray(snapshot.providers) ? snapshot.providers : [];
   const markets = Array.isArray(snapshot.markets) ? snapshot.markets : [];
-  const observations = Array.isArray(snapshot.marketObservations) && snapshot.marketObservations.length
+  const preservedObservations = Array.isArray(snapshot.marketObservations) && snapshot.marketObservations.length
     ? snapshot.marketObservations
     : markets;
+  const observations = await collectIndependentMarketEvidence(preservedObservations);
 
   const sourceQuality = providers.map((provider) => ({
     id: provider.id,
@@ -130,9 +238,11 @@ async function main() {
       confirmed,
       divergent,
       checks: validations.slice(0, 100),
+      evidenceObservations: observations.length,
+      validationSources: [...sourceNames].sort(),
     },
     coverage: {
-      instruments: markets.length,
+      instruments: new Set(observations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
       marketObservations: observations.length,
       marketSources: sourceNames.size,
       assetClasses: [...assetClasses].sort(),
@@ -143,9 +253,17 @@ async function main() {
       crossSourceValidationRequired: true,
       singleSourceSignalsCapped: true,
       autonomousTrading: false,
+      validationOnlyObservationsDoNotCreateTradeSignals: true,
     },
   };
 
+  snapshot.marketValidationEvidence = {
+    generatedAt: report.generatedAt,
+    observations: observations.length,
+    sources: [...sourceNames].sort(),
+    checks: validations.length,
+    divergent,
+  };
   snapshot.intelligence = report;
   snapshot.pulse = snapshot.pulse || {};
   snapshot.pulse.rawConfidence = snapshot.pulse.confidence;
@@ -159,7 +277,7 @@ async function main() {
 
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   await writeFile(qualityPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks.`);
+  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${observations.length} evidence observations.`);
 }
 
 main().catch((error) => {
