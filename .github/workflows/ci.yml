@@ -37,6 +37,9 @@ jobs:
       - name: Repository secret scan
         run: node scripts/scan-repository-secrets.mjs
 
+      - name: Live trading safety lock
+        run: node scripts/test-live-trading-lock.mjs
+
       - name: Lint
         run: npm run lint
 
