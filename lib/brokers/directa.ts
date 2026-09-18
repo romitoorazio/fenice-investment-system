@@ -45,7 +45,8 @@ export function getDirectaBridgeStatus(config: DirectaBridgeConfig = {}): Direct
     brokerId: "directa",
     brokerName: "Directa SIM S.p.A.",
     requestedMode,
-    connectionState: requestedMode === "disabled" ? "disabled" : "prepared",
+    connectionState:
+      requestedMode === "disabled" ? "disabled" : requestedMode === "live" ? "blocked" : "prepared",
     brokerRecognized: true,
     networkConnectionAllowed: false,
     liveTradingAllowed: false,
