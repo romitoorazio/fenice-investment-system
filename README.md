@@ -31,6 +31,19 @@ Conferma umana: OBBLIGATORIA
 
 Fenice **non compra e non vende automaticamente**. Ogni decisione finanziaria deve essere confermata da Orazio.
 
+## Broker: Directa
+
+Fenice riconosce **Directa SIM S.p.A.** come broker configurabile, ma il bridge è intenzionalmente non operativo:
+
+- nessuna connessione di rete al broker;
+- nessun endpoint o protocollo Directa ipotizzato;
+- nessuna credenziale broker nel repository;
+- invio ordini non implementato;
+- hard lock del trading reale impostato nel codice;
+- CI dedicata a riconoscimento broker e invarianti di sicurezza.
+
+Lo stato può essere verificato con `/api/broker/status`. Vedere [docs/DIRECTA_INTEGRATION.md](docs/DIRECTA_INTEGRATION.md) per il piano di collegamento e i gate richiesti.
+
 ## Fonti dati
 
 Senza chiave:
@@ -91,6 +104,7 @@ npm run analyze
 ```bash
 npm run lint
 npm run build
+npm run broker:safety
 ```
 
 ## Architettura principale
@@ -98,10 +112,14 @@ npm run build
 - `app/page.tsx`: dashboard principale;
 - `app/autonomia/page.tsx`: centro di controllo autonomo;
 - `app/api/autonomy/status/route.ts`: API dell'ultimo rapporto;
+- `app/api/broker/status/route.ts`: stato non sensibile del broker configurato;
 - `components/FeniceDashboard.tsx`: interfaccia iniziale;
 - `components/AutonomyPanel.tsx`: monitoraggio multi-mercato;
 - `scripts/run-autonomy.mjs`: raccolta, scoperta e punteggio;
+- `scripts/check-certification-readiness.mjs`: gate di certificazione e live lock;
+- `scripts/test-broker-safety.mjs`: test di riconoscimento broker e blocco live;
 - `lib/autonomy.ts`: tipi, copertura e regole;
+- `lib/brokers/`: registry, safety lock e adapter Directa;
 - `data/`: rapporto attuale e storico.
 
 ## Limite realistico
