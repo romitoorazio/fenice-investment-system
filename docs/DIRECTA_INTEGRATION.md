@@ -1,85 +1,107 @@
 # Directa ↔ Fenice — integrazione protetta
 
-Stato: **PREPARATA, NON COLLEGATA, TRADING REALE BLOCCATO**.
+Stato: **READ-ONLY LOCALE IMPLEMENTATO / TRADING REALE BLOCCATO**.
 
 ## Obiettivo
 
-Fenice deve riconoscere Directa come broker e predisporre un adapter verificabile senza creare un percorso accidentale verso ordini reali.
+Fenice deve riconoscere Directa come broker e collegarsi a Darwin in modo verificabile senza creare un percorso accidentale verso ordini reali.
 
-La distinzione è obbligatoria:
+La distinzione resta obbligatoria:
 
 - **broker riconosciuto** ≠ broker connesso;
-- **broker connesso** ≠ trading live autorizzato;
+- **broker connesso in lettura** ≠ trading live autorizzato;
 - **tutti i gate PASS** ≠ rilascio live automatico.
 
-Il live richiederà in futuro sia la certificazione completa sia una modifica di codice esplicita e revisionata del release lock.
+## Contratto API verificato
 
-## Stato implementato
+La documentazione ufficiale dAPI Directa fornita dall'utente è stata verificata. Il contratto indica:
 
-- `lib/brokers/registry.ts` riconosce Directa e le principali forme del nome;
-- `lib/brokers/directa.ts` espone solo lo stato e il piano di connessione;
-- nessun endpoint Directa è codificato;
-- nessun meccanismo di autenticazione è ipotizzato;
-- nessuna credenziale Directa è richiesta o salvata;
-- la connessione di rete genera sempre `DIRECTA_CONNECTION_BLOCKED`;
-- l'invio ordini genera sempre `FENICE_LIVE_TRADING_LOCKED`;
-- `lib/brokers/safety.ts` contiene un release lock compilato nel codice e impostato a `false`;
-- `/api/broker/status` permette di verificare riconoscimento e stato senza esporre segreti;
-- la CI esegue `npm run broker:safety`.
+- socket TCP locale su `127.0.0.1`;
+- porta default `10001` DATAFEED;
+- porta default `10002` TRADING;
+- porta default `10003` storico;
+- messaggi UTF-8 terminati da newline;
+- heartbeat `H`;
+- file locale `~/.directa/engine/APIPortSettings.txt` per risolvere le porte in presenza di più utenze;
+- comandi informativi sul canale TRADING per stato, conto, disponibilità, posizioni e ordini.
 
-## Informazioni Directa verificate
+Il bridge Fenice non necessita di password, PIN o OTP Directa: si collega esclusivamente al socket locale aperto da Darwin già autenticato.
 
-Fonti ufficiali:
+## Read-only bridge
 
-- https://www.directa.it/help-supporto/piattaforme/api
-- https://www.directa.it/conto-directa/piattaforme/darwin/trading-api
+Sono implementati:
 
-Directa dichiara API Darwin per integrazione di software esterno. L'accesso è soggetto ad abilitazione e la documentazione tecnica è resa disponibile al programmatore tramite la documentazione/wiki prevista dal servizio. Directa dichiara inoltre che non fornisce un conto prova API pubblico: per usare le API occorre un regolare conto Directa abilitato.
+- `lib/brokers/directa-protocol.ts`: parser del protocollo e firewall dei comandi;
+- `lib/brokers/directa-readonly.ts`: client socket solo loopback e reducer snapshot;
+- `scripts/run-directa-readonly.mjs`: runner locale;
+- `scripts/test-directa-readonly.mjs`: test di protocollo e sicurezza;
+- `npm run directa:readonly`: acquisizione snapshot locale;
+- `npm run directa:readonly:test`: test automatici.
 
-Per questo Fenice non deve inventare URL, porte, protocollo, campi di autenticazione o messaggi ordine basandosi su esempi non ufficiali.
+Il bridge accetta soltanto questi comandi:
 
-## Configurazione non sensibile
+- `FLOWPOINT TRUE`
+- `PRICEEXE TRUE`
+- `DARWINSTATUS`
+- `INFOACCOUNT`
+- `INFOAVAILABILITY`
+- `INFOSTOCKS`
+- `GETPOSITION <ticker>`
+- `ORDERLIST`
+- `ORDERLISTNOREV`
+- `ORDERLISTPENDING`
 
-`.env.example` contiene esclusivamente flag di stato:
+Il firewall blocca esplicitamente i comandi operativi e distruttivi, inclusi acquisto/vendita, market/stop, revoca, conferma, modifica ordine, accettazione KID e chiusura Darwin.
 
-```text
-FENICE_BROKER=directa
-FENICE_DIRECTA_MODE=paper
-DIRECTA_API_ACCESS_APPROVED=false
-DIRECTA_API_CONTRACT_VERIFIED=false
-```
+## Privacy
 
-Questi flag **non possono aprire il live trading**. Non aggiungere a Git numero conto, password, token, PIN, sessioni o altri segreti.
+Il codice conto Directa può comparire nel messaggio `INFOACCOUNT`, ma Fenice **non lo persiste** nello snapshot read-only. Viene registrato soltanto che un identificatore conto era presente.
 
-## Gate prima del collegamento di rete
+Lo snapshot locale viene scritto per default in:
 
-Prima di implementare anche una connessione read-only devono essere completati e revisionati almeno questi punti:
+`~/.fenice/directa-readonly-snapshot.json`
 
-1. abilitazione API Directa effettivamente confermata sul conto;
-2. documentazione tecnica ufficiale Directa acquisita e verificata;
-3. protocollo, autenticazione, limiti e gestione sessione mappati senza supposizioni;
-4. modello delle capability separato tra dati, stato conto e ordini;
-5. trasporto read-only isolato e testato senza funzioni ordine;
-6. gestione timeout, retry limitati, idempotenza e audit log;
-7. nessun segreto in repository, log, errori o risposte API;
-8. revisione dei termini Directa per software di terze parti.
+Non deve essere committato nel repository.
 
-## Gate prima del trading reale
+## Porte e più utenze
 
-Oltre ai punti precedenti, **tutti** i gate prodotti da `scripts/check-certification-readiness.mjs` e i gate di sicurezza del broker devono essere certificati `PASS`:
+Con una sola utenza il bridge usa la porta trading 10002 se il file impostazioni non è disponibile.
 
-- `criticalSources`;
-- `sourceReportFreshness`;
-- `intelligenceReportFreshness`;
-- `dataQuality`;
-- `crossSourceValidation`;
-- `systemTests`;
-- `riskControls`;
-- `paperMode`;
-- `liveTradingLocked`.
+Con più utenze Fenice legge `APIPortSettings.txt`. Se sono presenti più conti richiede una selezione locale esplicita tramite `--account` o `DIRECTA_ACCOUNT_CODE`; il codice conto viene usato esclusivamente per selezionare la porta e non viene scritto nello snapshot.
 
-`intelligenceReportFreshness` è già richiesto dall'adapter Directa e viene introdotto nella readiness dalla PR audit dedicata: un report qualità scaduto non deve poter contribuire all'apertura del live.
+## Stati ordine e reconciliation futura
 
-In più devono esistere una revisione esplicita dell'architettura di esecuzione, conferma umana obbligatoria, limiti di controvalore/posizione, kill switch, idempotenza ordini, riconciliazione ordini-eseguiti-posizioni e test di failure/recovery.
+Il parser riconosce gli stati ORDER documentati da Directa:
 
-Solo dopo questa certificazione potrà essere proposta una PR separata per valutare l'apertura del release lock. Questa PR **non** abilita e non prepara automaticamente quell'apertura.
+- 2000 in negoziazione;
+- 2001 errore immissione;
+- 2002 in negoziazione dopo conferma;
+- 2003 eseguito;
+- 2004 revocato;
+- 2005 attesa conferma;
+- 2006 modificato quando POINTUPDATEORDER è attivo.
+
+`PRICEEXE` consente inoltre di acquisire prezzo eseguito, quantità eseguita/residua e riferimento Directa, necessari per la futura reconciliation e shadow execution.
+
+## Sicurezza live
+
+Restano invariati:
+
+- `LIVE_TRADING_RELEASED=false`;
+- `submitDirectaOrder()` non implementato;
+- il generico `connectDirectaNetwork()` resta bloccato;
+- il solo trasporto implementato è locale, loopback e read-only;
+- nessun comando ordine è nella whitelist;
+- nessuna credenziale Directa viene salvata nel repository o nel cloud.
+
+## Prossimo livello
+
+Dopo il test sul PC con Darwin aperto, Fenice potrà usare lo snapshot reale per:
+
+1. riconciliare conto/posizioni/ordini Directa con il Paper OMS;
+2. produrre shadow orders senza trasmetterli;
+3. misurare differenze tra decisione Fenice e stato broker;
+4. registrare incidenti di disconnessione e recovery;
+5. certificare il bridge nel tempo.
+
+Il trading live rimane una fase distinta e richiederà tutti i gate PASS, paper mode validato, recovery testato e una modifica di codice separata al release lock.
