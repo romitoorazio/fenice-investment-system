@@ -117,7 +117,10 @@ export async function resolveLocalDirectaTradingPort(config: DirectaReadOnlyConf
   return selectTradingPort(settings, config.accountCode);
 }
 
-export function reduceDirectaMessages(messages: DirectaMessage[], tradingPort = DIRECTA_DEFAULT_TRADING_PORT): DirectaReadOnlySnapshot {
+export function reduceDirectaMessages(
+  messages: DirectaMessage[],
+  tradingPort: number = DIRECTA_DEFAULT_TRADING_PORT,
+): DirectaReadOnlySnapshot {
   let connectionState = "UNKNOWN";
   let datafeedEnabled: boolean | null = null;
   let release: string | null = null;
