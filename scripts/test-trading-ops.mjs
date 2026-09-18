@@ -50,6 +50,10 @@ const largeRisk = evaluatePreTradeRisk({ ...baseOrder, clientOrderId: "large-000
 assert.equal(largeRisk.allowed, false);
 assert.ok(largeRisk.reasons.some((reason) => reason.startsWith("max-order-notional")));
 
+const shortRisk = evaluatePreTradeRisk({ ...baseOrder, clientOrderId: "short-0001", side: "SELL" }, safeContext, undefined, now);
+assert.equal(shortRisk.allowed, false);
+assert.ok(shortRisk.reasons.some((reason) => reason.startsWith("no-short-selling")));
+
 const staleRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: new Date(now - 300_000).toISOString() }, undefined, now);
 assert.equal(staleRisk.allowed, false);
 assert.ok(staleRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
@@ -84,6 +88,7 @@ assert.equal(broken.breaks.length, 1);
 assert.equal(evaluateKillSwitch({ dataConfidence: 95 }).engaged, false);
 assert.equal(evaluateKillSwitch({ dataConfidence: 80 }).engaged, true);
 assert.equal(evaluateKillSwitch({ dataConfidence: 95, reconciliationBreaks: 1 }).engaged, true);
+assert.equal(evaluateKillSwitch({ dataConfidence: 95, auditChainValid: false }).engaged, true);
 
 let chain = [];
 chain = appendAuditEvent(chain, {
