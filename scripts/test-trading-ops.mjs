@@ -4,6 +4,7 @@ import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
 import { evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
+import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 
 const now = Date.parse("2026-09-18T18:00:00.000Z");
 const baseOrder = {
@@ -66,6 +67,12 @@ assert.equal(oms.list().length, 1);
 
 const liveExecution = oms.submit({ ...baseOrder, clientOrderId: "live-0002", mode: "LIVE" }, safeContext, now);
 assert.equal(liveExecution.status, "RISK_REJECTED");
+
+const tca = calculateTransactionCosts([first, liveExecution]);
+assert.equal(tca.fills, 1);
+assert.ok(tca.totalFeesEuro >= 1.5);
+assert.ok(tca.weightedSlippageBps > 0);
+assert.equal(tca.implementationShortfallEuro, Number((tca.totalFeesEuro + tca.totalSlippageEuro).toFixed(4)));
 
 const balanced = reconcilePaperExecutions([], [first], [{ symbol: "TEST", quantity: 1, averagePrice: Number(first.fillPrice), currency: "EUR" }]);
 assert.equal(balanced.balanced, true);
