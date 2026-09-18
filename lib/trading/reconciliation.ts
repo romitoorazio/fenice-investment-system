@@ -1,4 +1,4 @@
-import type { PaperExecution, Position, ReconciliationReport } from "./types";
+import type { PaperExecution, Position, ReconciliationReport } from "./types.ts";
 
 export function reconcilePaperExecutions(
   openingPositions: Position[],
