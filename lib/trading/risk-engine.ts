@@ -50,6 +50,8 @@ export function evaluatePreTradeRisk(
   const resultingDailyTurnoverPercent = finitePositive(capital) ? (resultingDailyTurnoverEuro / capital) * 100 : Number.POSITIVE_INFINITY;
   const orderNotionalPercent = finitePositive(capital) && Number.isFinite(orderNotionalEuro) ? (orderNotionalEuro / capital) * 100 : Number.POSITIVE_INFINITY;
   const quoteAge = quoteAgeSeconds(context.quoteObservedAt, now);
+  const noShortSelling = order.side !== "SELL"
+    || (Number.isFinite(orderNotionalEuro) && orderNotionalEuro <= context.existingPositionNotionalEuro + 0.01);
 
   const checks: RiskCheck[] = [
     { code: "mode-paper-only", passed: order.mode === "PAPER", message: "Only PAPER execution is permitted.", observed: order.mode, limit: "PAPER" },
@@ -59,6 +61,7 @@ export function evaluatePreTradeRisk(
     { code: "kill-switch", passed: context.killSwitchEngaged === false, message: "Kill switch must not be engaged.", observed: context.killSwitchEngaged, limit: false },
     { code: "valid-capital", passed: finitePositive(capital), message: "Capital must be positive.", observed: capital },
     { code: "valid-order-size", passed: finitePositive(order.quantity) && finitePositive(order.referencePrice), message: "Order quantity and reference price must be positive." },
+    { code: "no-short-selling", passed: noShortSelling, message: "Sell order exceeds the existing long position; short selling is disabled.", observed: Number.isFinite(orderNotionalEuro) ? Number(orderNotionalEuro.toFixed(2)) : 0, limit: Number(context.existingPositionNotionalEuro.toFixed(2)) },
     { code: "max-order-notional", passed: orderNotionalPercent <= limits.maxOrderNotionalPercent, message: "Order notional exceeds configured limit.", observed: Number(orderNotionalPercent.toFixed(2)), limit: limits.maxOrderNotionalPercent },
     { code: "max-single-asset", passed: resultingPositionWeightPercent <= limits.maxSingleAssetWeightPercent, message: "Resulting single-asset weight exceeds configured limit.", observed: Number(resultingPositionWeightPercent.toFixed(2)), limit: limits.maxSingleAssetWeightPercent },
     { code: "max-gross-exposure", passed: resultingGrossExposurePercent <= limits.maxGrossExposurePercent, message: "Resulting gross exposure exceeds configured limit.", observed: Number(resultingGrossExposurePercent.toFixed(2)), limit: limits.maxGrossExposurePercent },
