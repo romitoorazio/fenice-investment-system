@@ -1,4 +1,4 @@
-import { evaluatePreTradeRisk, type DEFAULT_RISK_LIMITS } from "./risk-engine";
+import { evaluatePreTradeRisk } from "./risk-engine";
 import type { PaperExecution, ProposedOrder, RiskContext, RiskLimits } from "./types";
 
 export type PaperOmsConfig = {
