@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { appendAuditEvent, verifyAuditChain } from "../lib/trading/audit-chain.ts";
 import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
+import { applyOrderLifecycleEvent, createOrderLifecycle } from "../lib/trading/order-lifecycle.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
 import { evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
@@ -89,6 +90,33 @@ assert.equal(evaluateKillSwitch({ dataConfidence: 95 }).engaged, false);
 assert.equal(evaluateKillSwitch({ dataConfidence: 80 }).engaged, true);
 assert.equal(evaluateKillSwitch({ dataConfidence: 95, reconciliationBreaks: 1 }).engaged, true);
 assert.equal(evaluateKillSwitch({ dataConfidence: 95, auditChainValid: false }).engaged, true);
+
+let lifecycle = createOrderLifecycle("life-0001", 10);
+lifecycle = applyOrderLifecycleEvent(lifecycle, { type: "RISK_ACCEPT" });
+assert.equal(lifecycle.status, "ACCEPTED");
+lifecycle = applyOrderLifecycleEvent(lifecycle, { type: "PARTIAL_FILL", fillQuantity: 4, fillPrice: 100 });
+assert.equal(lifecycle.status, "PARTIALLY_FILLED");
+assert.equal(lifecycle.remainingQuantity, 6);
+lifecycle = applyOrderLifecycleEvent(lifecycle, { type: "REQUEST_REPLACE" });
+assert.equal(lifecycle.status, "REPLACE_PENDING");
+lifecycle = applyOrderLifecycleEvent(lifecycle, { type: "CONFIRM_REPLACE" });
+assert.equal(lifecycle.status, "REPLACED");
+assert.equal(lifecycle.replaceCount, 1);
+lifecycle = applyOrderLifecycleEvent(lifecycle, { type: "FILL", fillQuantity: 6, fillPrice: 102 });
+assert.equal(lifecycle.status, "FILLED");
+assert.equal(lifecycle.terminal, true);
+assert.equal(lifecycle.averageFillPrice, 101.2);
+
+let cancelLifecycle = createOrderLifecycle("life-0002", 5);
+cancelLifecycle = applyOrderLifecycleEvent(cancelLifecycle, { type: "RISK_ACCEPT" });
+cancelLifecycle = applyOrderLifecycleEvent(cancelLifecycle, { type: "REQUEST_CANCEL" });
+cancelLifecycle = applyOrderLifecycleEvent(cancelLifecycle, { type: "CONFIRM_CANCEL" });
+assert.equal(cancelLifecycle.status, "CANCELLED");
+assert.equal(cancelLifecycle.terminal, true);
+assert.throws(
+  () => applyOrderLifecycleEvent(cancelLifecycle, { type: "FILL", fillQuantity: 1, fillPrice: 100 }),
+  /INVALID_ORDER_TRANSITION/,
+);
 
 let chain = [];
 chain = appendAuditEvent(chain, {
