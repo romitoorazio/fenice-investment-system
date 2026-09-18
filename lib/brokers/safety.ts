@@ -1,6 +1,7 @@
 export const REQUIRED_LIVE_TRADING_GATES = [
   "criticalSources",
   "sourceReportFreshness",
+  "intelligenceReportFreshness",
   "dataQuality",
   "crossSourceValidation",
   "systemTests",
