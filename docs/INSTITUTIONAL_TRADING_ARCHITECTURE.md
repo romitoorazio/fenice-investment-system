@@ -28,9 +28,11 @@ Pre-Trade Risk Engine
         |
 Kill Switch Gate
         |
-Paper OMS
+Paper OMS Runner
         |
 Simulated Fill + Fees + Slippage
+        |
+Transaction Cost Analysis
         |
 Position Reconciliation
         |
@@ -47,6 +49,7 @@ Il futuro adapter Directa si inserirà esclusivamente dopo il risk gate e prima 
 - rete broker disabilitata;
 - kill switch non attivo;
 - capitale e dimensioni ordine validi;
+- blocco short selling accidentale;
 - massimo controvalore singolo ordine;
 - massimo peso singolo asset;
 - massimo gross exposure;
@@ -65,6 +68,7 @@ Il futuro adapter Directa si inserirà esclusivamente dopo il risk gate e prima 
 Il kill switch si attiva se almeno una condizione critica è presente:
 
 - attivazione manuale;
+- corruzione della audit chain;
 - break di riconciliazione irrisolto;
 - troppi errori consecutivi di esecuzione;
 - fonte critica stale/failed;
@@ -84,9 +88,24 @@ Il Paper OMS fornisce:
 - risk rejection prima del fill;
 - slippage configurabile;
 - commissioni simulate;
-- fill deterministico e ripetibile nei test.
+- fill deterministico e ripetibile nei test;
+- coda persistente `data/paper-order-queue.json`;
+- stato persistente `data/paper-oms-state.json`;
+- runner `npm run paper:run`.
 
-Non effettua chiamate di rete.
+Il runner non effettua chiamate di rete e non inventa FX, prezzi o fonti mancanti. Gli ordini non arricchibili correttamente restano nella coda.
+
+## Transaction Cost Analysis
+
+Fenice calcola già sul paper:
+
+- gross notional;
+- commissioni simulate;
+- slippage in euro;
+- slippage ponderato in basis point;
+- implementation shortfall.
+
+La fase successiva estenderà la TCA con benchmark arrival/VWAP quando saranno disponibili dati intraday sufficientemente affidabili.
 
 ## Riconciliazione
 
@@ -100,7 +119,7 @@ Qualunque differenza crea un reconciliation break e deve attivare il kill switch
 
 ## Audit chain
 
-Gli eventi operativi possono essere concatenati con SHA-256 includendo:
+Gli eventi operativi vengono concatenati con SHA-256 includendo:
 
 - sequenza;
 - timestamp;
@@ -109,16 +128,17 @@ Gli eventi operativi possono essere concatenati con SHA-256 includendo:
 - payload canonico;
 - hash precedente.
 
-La modifica retroattiva di un evento rende la catena non valida.
+La modifica retroattiva di un evento rende la catena non valida e attiva il kill switch.
 
 ## Benchmark professionale
 
-L'architettura segue i principi normalmente richiesti nel trading elettronico professionale: controlli pre-trade, record keeping degli ordini, gestione degli stati, resilienza, riconciliazione e trasparenza lungo il trade lifecycle.
+L'architettura segue i principi normalmente richiesti nel trading elettronico professionale: controlli pre-trade, record keeping degli ordini, gestione degli stati, execution monitoring, TCA, resilienza, riconciliazione e trasparenza lungo il trade lifecycle.
 
 Riferimenti pubblici:
 
 - FIX Trading Community — Guidelines e Recommended Practices: https://www.fixtrading.org/guidelines/
 - FIX Trading Community — MiFID II/MiFIR: https://fixtrading.org/who-we-are/mifid-ii-mifir/
+- Interactive Brokers API documentation — order/execution lifecycle: https://www.interactivebrokers.com/docs
 - Directa API: https://www.directa.it/help-supporto/piattaforme/api
 
 ## Livelli operativi Fenice
@@ -127,7 +147,7 @@ Riferimenti pubblici:
 Attivo. Nessun ordine.
 
 ### Livello 2 — Paper OMS
-Attivo su questo ramo. Ordini simulati, risk engine, fees/slippage, reconciliation e audit.
+Attivo su questo ramo. Coda ordini, risk engine, fees/slippage, TCA, reconciliation e audit.
 
 ### Livello 3 — Broker Read-Only
 Non ancora attivo. Richiede documentazione tecnica ufficiale Directa e abilitazione del conto. Deve consentire solamente sessione, account state, posizioni ed eventualmente dati consentiti.
@@ -142,13 +162,12 @@ NON AUTORIZZATO. Potrà essere valutato solo dopo tutti i gate certificati PASS,
 
 - adapter Directa read-only certificato sulla documentazione ufficiale;
 - account/position reconciliation contro broker reale;
-- persistent order store transazionale;
+- persistent order store transazionale esterno al repository;
 - recovery dopo crash/restart;
 - partial fills e cancel/replace;
 - market calendar e session rules;
 - currency exposure e FX conversion certificata;
-- transaction-cost analysis (TCA);
-- benchmark arrival/VWAP quando i dati lo permettono;
+- benchmark arrival/VWAP intraday;
 - alerting operativo e incident log;
 - chaos/failure tests;
 - shadow execution prolungata;
