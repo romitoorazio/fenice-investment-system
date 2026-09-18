@@ -1,3 +1,5 @@
+import { DIRECTA_CONTRACT_VERSION, DIRECTA_DEFAULT_TRADING_PORT } from "./directa-protocol.ts";
+
 export type DirectaRequestedMode = "disabled" | "paper" | "read-only" | "live";
 
 export type DirectaBridgeConfig = {
@@ -15,17 +17,15 @@ export type DirectaBridgeStatus = {
   networkConnectionAllowed: false;
   liveTradingAllowed: false;
   orderSubmissionImplemented: false;
+  readOnlyAdapterImplemented: true;
+  localLoopbackOnly: true;
+  defaultTradingPort: number;
+  officialContractVersion: string;
   apiAccessApproved: boolean;
   technicalContractVerified: boolean;
   missingRequirements: string[];
 };
 
-/**
- * Directa exposes Darwin APIs to approved account holders. Fenice deliberately
- * does not contain guessed endpoints, authentication fields or a network
- * transport until the official technical contract available to the account is
- * reviewed and mapped.
- */
 export function getDirectaBridgeStatus(config: DirectaBridgeConfig = {}): DirectaBridgeStatus {
   const requestedMode = config.requestedMode ?? "paper";
   const apiAccessApproved = config.apiAccessApproved === true;
@@ -33,12 +33,14 @@ export function getDirectaBridgeStatus(config: DirectaBridgeConfig = {}): Direct
   const missingRequirements: string[] = [];
 
   if (!apiAccessApproved) {
-    missingRequirements.push("Directa API access has not been confirmed for the account.");
+    missingRequirements.push("Directa API access has not been confirmed for the runtime account.");
   }
   if (!technicalContractVerified) {
-    missingRequirements.push("Directa official technical API contract has not been verified in Fenice.");
+    missingRequirements.push("Directa official technical API contract has not been marked verified in this runtime.");
   }
-  missingRequirements.push("Directa network transport is intentionally not implemented yet.");
+  if (requestedMode === "read-only") {
+    missingRequirements.push("The read-only transport must run locally on the same machine as Darwin; cloud runtimes cannot access Darwin localhost.");
+  }
   missingRequirements.push("Fenice live-trading release lock is closed.");
 
   return {
@@ -51,6 +53,10 @@ export function getDirectaBridgeStatus(config: DirectaBridgeConfig = {}): Direct
     networkConnectionAllowed: false,
     liveTradingAllowed: false,
     orderSubmissionImplemented: false,
+    readOnlyAdapterImplemented: true,
+    localLoopbackOnly: true,
+    defaultTradingPort: DIRECTA_DEFAULT_TRADING_PORT,
+    officialContractVersion: DIRECTA_CONTRACT_VERSION,
     apiAccessApproved,
     technicalContractVerified,
     missingRequirements,
@@ -61,9 +67,12 @@ export function prepareDirectaConnection(config: DirectaBridgeConfig = {}): Dire
   return getDirectaBridgeStatus(config);
 }
 
+/** Generic/cloud broker transport intentionally remains blocked. The only
+ * implemented networking path is the separate localhost-only read-only bridge.
+ */
 export async function connectDirectaNetwork(): Promise<never> {
   throw new Error(
-    "DIRECTA_CONNECTION_BLOCKED: broker networking remains disabled until the official API contract is verified and Fenice governance permits broker connectivity.",
+    "DIRECTA_CONNECTION_BLOCKED: generic/cloud broker networking is disabled. Use the localhost-only Directa read-only bridge beside Darwin.",
   );
 }
 

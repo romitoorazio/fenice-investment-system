@@ -10,7 +10,7 @@ on:
       - "data/history/**"
       - "**/*.md"
   pull_request:
-    branches: [main, fix/directa-broker-guarded-integration]
+    branches: [main, fix/directa-broker-guarded-integration, feature/institutional-paper-oms]
 
 permissions:
   contents: read
@@ -50,6 +50,9 @@ jobs:
 
       - name: Institutional paper OMS safety
         run: npm run trading:ops
+
+      - name: Directa read-only protocol safety
+        run: npm run directa:readonly:test
 
       - name: Paper OMS runner smoke test
         run: npm run paper:run
