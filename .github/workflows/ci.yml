@@ -45,6 +45,9 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Broker recognition and live-lock safety
+        run: npm run broker:safety
+
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
