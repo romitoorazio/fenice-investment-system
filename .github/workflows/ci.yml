@@ -10,7 +10,7 @@ on:
       - "data/history/**"
       - "**/*.md"
   pull_request:
-    branches: [main]
+    branches: [main, fix/directa-broker-guarded-integration]
 
 permissions:
   contents: read
@@ -48,6 +48,12 @@ jobs:
       - name: Broker recognition and live-lock safety
         run: npm run broker:safety
 
+      - name: Institutional paper OMS safety
+        run: npm run trading:ops
+
+      - name: Paper OMS runner smoke test
+        run: npm run paper:run
+
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
@@ -63,6 +69,8 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/paper-oms-state.json',
+            'data/paper-order-queue.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
