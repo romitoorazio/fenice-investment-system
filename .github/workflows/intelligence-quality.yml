@@ -1,0 +1,99 @@
+name: Fenice Intelligence Quality
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 5,11,17,23 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-intelligence.mjs"
+      - "scripts/run-foundation-plus.mjs"
+      - "scripts/run-foundation.mjs"
+      - ".github/workflows/intelligence-quality.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-data-writer
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FENICE_JOB: intraday
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build current intelligence quality report
+        run: node scripts/run-intelligence.mjs
+
+      - name: Validate quality report
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const q = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
+          const age = Date.now() - Date.parse(q.generatedAt || '');
+          if (!Number.isFinite(age) || age < 0 || age > 60 * 60 * 1000) throw new Error('Intelligence quality report is not fresh');
+          if (!Number.isFinite(q.intelligenceConfidence)) throw new Error('Missing intelligence confidence');
+          if (!Number.isFinite(q.coverage?.sourceConcentrationPercent)) throw new Error('Missing source concentration');
+          if (!Array.isArray(q.crossSourceValidation?.checks)) throw new Error('Missing cross-source validation checks');
+          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent);
+          NODE
+
+      - name: Publish refreshed quality evidence
+        run: |
+          git config user.name "fenice-quality-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/latest-snapshot.json "$generated_dir/latest-snapshot.json"
+          cp data/intelligence-quality.json "$generated_dir/intelligence-quality.json"
+          cp data/source-health.json "$generated_dir/source-health.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/latest-snapshot.json" data/latest-snapshot.json
+            cp "$generated_dir/intelligence-quality.json" data/intelligence-quality.json
+            cp "$generated_dir/source-health.json" data/source-health.json
+            git add data/latest-snapshot.json data/intelligence-quality.json data/source-health.json
+
+            if git diff --cached --quiet; then
+              echo "No quality evidence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh intelligence quality evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish intelligence quality evidence after 3 attempts"
+          exit 1
