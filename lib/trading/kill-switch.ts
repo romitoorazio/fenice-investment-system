@@ -5,6 +5,7 @@ export type KillSwitchInputs = {
   staleCriticalSources?: number;
   dailyLossPercent?: number;
   dataConfidence?: number;
+  auditChainValid?: boolean;
 };
 
 export type KillSwitchDecision = {
@@ -24,6 +25,7 @@ export function evaluateKillSwitch(inputs: KillSwitchInputs): KillSwitchDecision
   const reasons: string[] = [];
 
   if (inputs.manualEngaged === true) reasons.push("manual kill switch engaged");
+  if (inputs.auditChainValid === false) reasons.push("audit chain integrity failure");
   if (Number(inputs.reconciliationBreaks || 0) > KILL_SWITCH_LIMITS.maxReconciliationBreaks) {
     reasons.push("unresolved reconciliation break detected");
   }
