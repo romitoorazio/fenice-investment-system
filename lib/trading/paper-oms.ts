@@ -1,5 +1,5 @@
-import { evaluatePreTradeRisk } from "./risk-engine";
-import type { PaperExecution, ProposedOrder, RiskContext, RiskLimits } from "./types";
+import { evaluatePreTradeRisk } from "./risk-engine.ts";
+import type { PaperExecution, ProposedOrder, RiskContext, RiskLimits } from "./types.ts";
 
 export type PaperOmsConfig = {
   slippageBps?: number;
