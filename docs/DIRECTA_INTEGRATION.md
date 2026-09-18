@@ -66,16 +66,19 @@ Prima di implementare anche una connessione read-only devono essere completati e
 
 ## Gate prima del trading reale
 
-Oltre ai punti precedenti, **tutti** i gate prodotti da `scripts/check-certification-readiness.mjs` devono essere certificati `PASS`:
+Oltre ai punti precedenti, **tutti** i gate prodotti da `scripts/check-certification-readiness.mjs` e i gate di sicurezza del broker devono essere certificati `PASS`:
 
 - `criticalSources`;
 - `sourceReportFreshness`;
+- `intelligenceReportFreshness`;
 - `dataQuality`;
 - `crossSourceValidation`;
 - `systemTests`;
 - `riskControls`;
 - `paperMode`;
 - `liveTradingLocked`.
+
+`intelligenceReportFreshness` è già richiesto dall'adapter Directa e viene introdotto nella readiness dalla PR audit dedicata: un report qualità scaduto non deve poter contribuire all'apertura del live.
 
 In più devono esistere una revisione esplicita dell'architettura di esecuzione, conferma umana obbligatoria, limiti di controvalore/posizione, kill switch, idempotenza ordini, riconciliazione ordini-eseguiti-posizioni e test di failure/recovery.
 
