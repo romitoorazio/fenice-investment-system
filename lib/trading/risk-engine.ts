@@ -4,7 +4,7 @@ import type {
   RiskCheck,
   RiskContext,
   RiskLimits,
-} from "./types";
+} from "./types.ts";
 
 export const DEFAULT_RISK_LIMITS: RiskLimits = {
   maxOrderNotionalPercent: 5,
