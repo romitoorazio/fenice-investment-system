@@ -22,6 +22,8 @@ const ageHours = (timestamp) => {
 
 const reportAgeHours = ageHours(sources?.generatedAt);
 const sourceReportFresh = reportAgeHours >= 0 && reportAgeHours <= 24;
+const intelligenceReportAgeHours = ageHours(intelligence?.generatedAt);
+const intelligenceReportFresh = intelligenceReportAgeHours >= 0 && intelligenceReportAgeHours <= 24;
 const criticalFailures = Array.isArray(sources?.critical?.failures) ? sources.critical.failures : [];
 const sourceFallbacksSafe = criticalFailures.every((id) => {
   const source = Array.isArray(sources?.sources) ? sources.sources.find((item) => item.id === id) : null;
@@ -45,8 +47,9 @@ const sourceReady = sourceReportFresh
 
 const crossChecks = Number(intelligence?.crossSourceValidation?.checked || 0);
 const crossDivergent = Number(intelligence?.crossSourceValidation?.divergent || 0);
-const crossValidationReady = crossChecks >= 3 && crossDivergent === 0;
-const dataQualityReady = Number(intelligence?.intelligenceConfidence || 0) >= 90
+const crossValidationReady = intelligenceReportFresh && crossChecks >= 3 && crossDivergent === 0;
+const dataQualityReady = intelligenceReportFresh
+  && Number(intelligence?.intelligenceConfidence || 0) >= 90
   && Number(intelligence?.coverage?.sourceConcentrationPercent || 100) <= 50
   && Number(intelligence?.coverage?.marketSources || 0) >= 3
   && Array.isArray(intelligence?.coverage?.assetClasses)
@@ -109,6 +112,7 @@ const paperModeEvidence = records.length >= 100
   && !unsafeExecutionEvidence;
 
 const ready = sourceReady
+  && intelligenceReportFresh
   && dataQualityReady
   && systemTestsReady
   && riskControlsReady
@@ -120,6 +124,7 @@ const status = {
   gates: {
     criticalSources: sourceReady ? "PASS" : "NOT_READY",
     sourceReportFreshness: sourceReportFresh && criticalSourcesFresh ? "PASS" : "NOT_READY",
+    intelligenceReportFreshness: intelligenceReportFresh ? "PASS" : "NOT_READY",
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
@@ -130,6 +135,7 @@ const status = {
   metrics: {
     sourceGate: sources?.gate ?? "UNKNOWN",
     sourceReportAgeHours: Number.isFinite(reportAgeHours) ? Number(reportAgeHours.toFixed(2)) : null,
+    intelligenceReportAgeHours: Number.isFinite(intelligenceReportAgeHours) ? Number(intelligenceReportAgeHours.toFixed(2)) : null,
     criticalReady: Number(sources?.critical?.ready || 0),
     criticalTotal: Number(sources?.critical?.total || 0),
     intelligenceConfidence: Number(intelligence?.intelligenceConfidence || 0),
