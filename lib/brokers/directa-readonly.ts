@@ -105,13 +105,16 @@ export async function resolveLocalDirectaTradingPort(config: DirectaReadOnlyConf
     return port;
   }
 
+  let content: string;
   try {
-    const content = await readFile(resolvePortSettingsPath(), "utf8");
-    return selectTradingPort(parsePortSettings(content), config.accountCode);
+    content = await readFile(resolvePortSettingsPath(), "utf8");
   } catch (error) {
     if (config.accountCode) throw error;
     return DIRECTA_DEFAULT_TRADING_PORT;
   }
+
+  const settings = parsePortSettings(content);
+  return selectTradingPort(settings, config.accountCode);
 }
 
 export function reduceDirectaMessages(messages: DirectaMessage[], tradingPort = DIRECTA_DEFAULT_TRADING_PORT): DirectaReadOnlySnapshot {
