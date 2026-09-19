@@ -1,7 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendAuditEvent, verifyAuditChain } from "../lib/trading/audit-chain.ts";
+import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
@@ -11,11 +11,7 @@ const dataDir = path.join(root, "data");
 const now = new Date();
 
 async function readJson(name, fallback) {
-  try {
-    return JSON.parse(await readFile(path.join(dataDir, name), "utf8"));
-  } catch {
-    return fallback;
-  }
+  return readJsonState(path.join(dataDir, name), fallback);
 }
 
 const [queue, state, terminal, intelligence, sources, committee] = await Promise.all([
@@ -204,6 +200,9 @@ state.operational = true;
 state.liveTradingAllowed = false;
 state.brokerConnectivityAllowed = false;
 
-await writeFile(path.join(dataDir, "paper-oms-state.json"), `${JSON.stringify(state, null, 2)}\n`, "utf8");
-await writeFile(path.join(dataDir, "paper-order-queue.json"), `${JSON.stringify({ ...queue, orders: remaining }, null, 2)}\n`, "utf8");
+// State is committed before queue acknowledgement. If the process crashes
+// between these two writes, idempotent clientOrderId recovery prevents a
+// duplicate execution on the next run.
+await writeJsonStateAtomic(path.join(dataDir, "paper-oms-state.json"), state);
+await writeJsonStateAtomic(path.join(dataDir, "paper-order-queue.json"), { ...queue, orders: remaining });
 console.log(`Fenice Paper OMS: processed=${processed}, remaining=${remaining.length}, executions=${state.executions.length}, positions=${state.positions.length}, killSwitch=${state.killSwitch.engaged ? "ON" : "OFF"}.`);
