@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { LIVE_TRADING_RELEASED } from "../lib/brokers/safety.ts";
 import { evaluateInstitutionalReadiness, INSTITUTIONAL_CONTROLS } from "../lib/trading/institutional-readiness.ts";
 import { evaluateExecutionSafety } from "../lib/trading/execution-safety.ts";
@@ -7,6 +10,9 @@ import { evaluateDirectaWatchdog } from "../lib/trading/watchdog.ts";
 import { evaluateRecovery } from "../lib/trading/recovery.ts";
 import { createShadowExecution } from "../lib/trading/shadow-execution.ts";
 import { evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
+import { evaluateMarketSession } from "../lib/trading/market-session.ts";
+import { evaluateFxExposure } from "../lib/trading/fx-exposure.ts";
+import { appendDurableJournal, verifyDurableJournal } from "../lib/trading/durable-journal.ts";
 
 const now = Date.parse("2026-09-19T20:00:00.000Z");
 const order = {
@@ -70,6 +76,40 @@ const badPrice = evaluateExecutionSafety({
 });
 assert.equal(badPrice.allowed, false);
 assert.ok(badPrice.reasons.some((reason) => reason.includes("price reasonability")));
+
+const marketOpen = evaluateMarketSession({
+  venue: "TEST",
+  state: "OPEN",
+  source: "certified-test-calendar",
+  observedAt: new Date(now - 5_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(marketOpen.allowed, true);
+
+const marketClosed = evaluateMarketSession({
+  venue: "TEST",
+  state: "CLOSED",
+  source: "certified-test-calendar",
+  observedAt: new Date(now - 5_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(marketClosed.allowed, false);
+assert.ok(marketClosed.reasons.includes("market is closed"));
+assert.equal(evaluateMarketSession(null, {}, now).allowed, false, "Missing session evidence must fail closed.");
+
+const fxSafe = evaluateFxExposure(10_000, [
+  { currency: "USD", notionalLocal: 2_000, fxToEuro: 0.85 },
+  { currency: "GBP", notionalLocal: 700, fxToEuro: 1.15 },
+]);
+assert.equal(fxSafe.allowed, true, fxSafe.reasons.join(" | "));
+
+const fxBlocked = evaluateFxExposure(10_000, [
+  { currency: "USD", notionalLocal: 4_000, fxToEuro: 1 },
+  { currency: "JPY", notionalLocal: 100_000, fxToEuro: null },
+]);
+assert.equal(fxBlocked.allowed, false);
+assert.ok(fxBlocked.reasons.some((reason) => reason.includes("USD exposure")));
+assert.ok(fxBlocked.reasons.some((reason) => reason.includes("missing certified FX")));
 
 const brokerSnapshot = {
   generatedAt: new Date(now - 2_000).toISOString(),
@@ -147,6 +187,42 @@ const blockedRecovery = evaluateRecovery({
   ambiguousExecutionState: false,
 });
 assert.equal(blockedRecovery.paperShadowAllowed, false);
+
+const journalDir = await mkdtemp(path.join(os.tmpdir(), "fenice-journal-"));
+const journalPath = path.join(journalDir, "execution.jsonl");
+try {
+  const first = await appendDurableJournal(journalPath, {
+    timestamp: new Date(now).toISOString(),
+    eventType: "ORDER_INTENT",
+    entityId: order.clientOrderId,
+    payload: { symbol: order.symbol, side: order.side, quantity: order.quantity },
+  });
+  const second = await appendDurableJournal(journalPath, {
+    timestamp: new Date(now + 1_000).toISOString(),
+    eventType: "SHADOW_ACCEPTED",
+    entityId: order.clientOrderId,
+    payload: { transmitted: false, brokerOrderRef: "PAPER-ONLY" },
+  });
+  assert.equal(first.sequence, 1);
+  assert.equal(second.sequence, 2);
+  assert.equal((await verifyDurableJournal(journalPath)).valid, true);
+  await assert.rejects(
+    appendDurableJournal(journalPath, {
+      timestamp: new Date(now + 2_000).toISOString(),
+      eventType: "BAD",
+      entityId: order.clientOrderId,
+      payload: { apiToken: "must-never-be-written" },
+    }),
+    /SENSITIVE_FIELD/,
+  );
+  const original = await readFile(journalPath, "utf8");
+  await writeFile(journalPath, original.replace("SHADOW_ACCEPTED", "SHADOW_TAMPERED"), "utf8");
+  const tampered = await verifyDurableJournal(journalPath);
+  assert.equal(tampered.valid, false);
+  assert.equal(tampered.reason, "journal entry hash mismatch");
+} finally {
+  await rm(journalDir, { recursive: true, force: true });
+}
 
 const allPass = Object.fromEntries(INSTITUTIONAL_CONTROLS.map((control) => [control.id, "PASS"]));
 const readiness = evaluateInstitutionalReadiness(allPass);
