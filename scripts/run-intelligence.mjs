@@ -20,6 +20,10 @@ const comparisonUniverse = [
   ["eem.us", "EEM", "ETF"],
   ["acwi.us", "ACWI", "ETF"],
 ];
+const cryptoVenueTargets = [
+  ["BTC", "Bitcoin"],
+  ["ETH", "Ethereum"],
+];
 
 function runFoundation() {
   return new Promise((resolve, reject) => {
@@ -86,7 +90,7 @@ async function request(url, { format = "json", timeoutMs = 12000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/3.3 data-quality-validation",
+        "user-agent": "FeniceInvestmentSystem/3.4 data-quality-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -162,6 +166,43 @@ async function fetchYahooEvidence(symbol, assetClass, expectedName) {
   };
 }
 
+async function fetchCoinbaseEvidence(symbol, expectedName) {
+  const canonicalSymbol = normalizeSymbol(symbol);
+  const data = await request(`https://api.exchange.coinbase.com/products/${encodeURIComponent(`${canonicalSymbol}-USD`)}/ticker`);
+  const price = Number(data?.price);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Coinbase quote non valido");
+  return {
+    symbol: canonicalSymbol,
+    name: expectedName,
+    assetClass: "Criptovaluta",
+    price,
+    currency: "USD",
+    source: "Coinbase Exchange independent validation",
+    observedAt: data?.time && Number.isFinite(Date.parse(data.time)) ? new Date(data.time).toISOString() : new Date().toISOString(),
+    validationOnly: true,
+  };
+}
+
+async function fetchKrakenEvidence(symbol, expectedName) {
+  const canonicalSymbol = normalizeSymbol(symbol);
+  const pair = canonicalSymbol === "BTC" ? "XBTUSD" : `${canonicalSymbol}USD`;
+  const data = await request(`https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(pair)}`);
+  if (!Array.isArray(data?.error) || data.error.length) throw new Error("Kraken API error");
+  const result = data?.result && typeof data.result === "object" ? Object.values(data.result)[0] : null;
+  const price = Number(result?.c?.[0]);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Kraken quote non valido");
+  return {
+    symbol: canonicalSymbol,
+    name: expectedName,
+    assetClass: "Criptovaluta",
+    price,
+    currency: "USD",
+    source: "Kraken independent validation",
+    observedAt: new Date().toISOString(),
+    validationOnly: true,
+  };
+}
+
 async function collectIndependentMarketEvidence(baseObservations) {
   const evidence = baseObservations
     .filter((item) => normalizeSymbol(item.symbol) && Number.isFinite(Number(item.price)))
@@ -194,6 +235,8 @@ async function collectIndependentMarketEvidence(baseObservations) {
   const tasks = [
     ...comparisonUniverse.map(([code, symbol, assetClass]) => fetchStooqEvidence(code, symbol, assetClass)),
     ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => fetchYahooEvidence(symbol, assetClass, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => fetchCoinbaseEvidence(symbol, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => fetchKrakenEvidence(symbol, expectedName)),
   ];
   const results = await Promise.allSettled(tasks);
   for (const result of results) {
