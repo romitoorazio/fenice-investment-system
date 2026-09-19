@@ -45,6 +45,21 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Broker recognition and compile-time live lock
+        run: npm run broker:safety
+
+      - name: Institutional paper OMS safety
+        run: npm run trading:ops
+
+      - name: Directa read-only protocol firewall
+        run: npm run directa:readonly:test
+
+      - name: Institutional risk reconciliation shadow and recovery controls
+        run: npm run institutional:test
+
+      - name: Paper OMS runner smoke test
+        run: npm run paper:run
+
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
@@ -60,6 +75,8 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/paper-oms-state.json',
+            'data/paper-order-queue.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
