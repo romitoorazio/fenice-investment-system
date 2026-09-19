@@ -33,6 +33,10 @@ export type InstitutionalControl = {
   benchmark: string;
 };
 
+export type InstitutionalControlWithStatus = InstitutionalControl & {
+  status: InstitutionalEvidence;
+};
+
 export const INSTITUTIONAL_CONTROLS: readonly InstitutionalControl[] = [
   { id: "data-quality", label: "Qualità dati con soglie fail-closed", domain: "DATA", critical: true, weight: 8, benchmark: "multi-source institutional data controls" },
   { id: "cross-source-validation", label: "Cross-check indipendente prezzi/dati", domain: "DATA", critical: true, weight: 6, benchmark: "execution-grade data validation" },
@@ -65,9 +69,9 @@ export type InstitutionalReadinessReport = {
   shadowReady: boolean;
   capitalReady: boolean;
   liveReleaseOpen: boolean;
-  blockers: InstitutionalControl[];
-  testing: InstitutionalControl[];
-  controls: Array<InstitutionalControl & { status: InstitutionalEvidence }>;
+  blockers: InstitutionalControlWithStatus[];
+  testing: InstitutionalControlWithStatus[];
+  controls: InstitutionalControlWithStatus[];
 };
 
 /**
@@ -78,7 +82,7 @@ export type InstitutionalReadinessReport = {
 export function evaluateInstitutionalReadiness(
   evidence: Partial<Record<InstitutionalControlId, InstitutionalEvidence>>,
 ): InstitutionalReadinessReport {
-  const controls = INSTITUTIONAL_CONTROLS.map((control) => ({
+  const controls: InstitutionalControlWithStatus[] = INSTITUTIONAL_CONTROLS.map((control) => ({
     ...control,
     status: evidence[control.id] ?? "MISSING",
   }));
