@@ -22,6 +22,19 @@ assert.equal(price.quantity, 10);
 assert.equal(price.dayLow, 6.57);
 assert.equal(price.dayHigh, 6.93);
 
+const priceAuction = parseDirectaDatafeedLine("PRICE_AUCT;STLAM;16:28:56;7.8\n");
+assert.equal(priceAuction.kind, "price");
+assert.equal(priceAuction.price, 7.8);
+assert.equal(priceAuction.quantity, null);
+assert.equal(priceAuction.dayLow, null);
+assert.equal(priceAuction.dayHigh, null);
+
+const missingNumeric = parseDirectaDatafeedLine("PRICE;STLAM;16:18:11;6.73;;;;;\n");
+assert.equal(missingNumeric.kind, "price");
+assert.equal(missingNumeric.quantity, null);
+assert.equal(missingNumeric.dayLow, null);
+assert.equal(missingNumeric.dayHigh, null);
+
 const bidask = parseDirectaDatafeedLine("BIDASK;STLAM;16:18:12;100;2;6.72;120;3;6.74\n");
 assert.equal(bidask.kind, "bidask");
 assert.equal(bidask.bidQuantity, 100);
