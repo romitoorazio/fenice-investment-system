@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      VERCEL_ORG_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP
       VERCEL_TEAM_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP
       VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By
+      VERCEL_PROJECT_NAME: fenice-investment-system
       VERCEL_PRODUCTION_ALIAS: fenice-investment-system.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
@@ -71,49 +71,139 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy exact repository state to Fenice production
+      - name: Create exact Fenice production deployment through Vercel API
         if: steps.request.outputs.execute == 'true'
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          DEPLOY_URL="$(npx --yes vercel@latest deploy \
-            --prod \
-            --yes \
-            --token "$VERCEL_TOKEN" \
-            --meta githubCommitSha="$GITHUB_SHA" \
-            --meta githubCommitRef="main" \
-            --meta deploymentReason="guarded-fenice-production-refresh" | tail -n 1)"
 
-          if [[ ! "$DEPLOY_URL" =~ ^https:// ]]; then
-            echo "Vercel did not return a valid deployment URL: $DEPLOY_URL"
+          BODY="$(jq -n \
+            --arg name "$VERCEL_PROJECT_NAME" \
+            --arg project "$VERCEL_PROJECT_ID" \
+            --arg sha "$GITHUB_SHA" \
+            '{
+              name: $name,
+              project: $project,
+              target: "production",
+              withLatestCommit: true,
+              gitSource: {
+                type: "github",
+                org: "romitoorazio",
+                repo: "fenice-investment-system",
+                ref: "main"
+              },
+              gitMetadata: {
+                remoteUrl: "https://github.com/romitoorazio/fenice-investment-system",
+                commitRef: "main",
+                commitSha: $sha,
+                dirty: "false",
+                ci: "true",
+                ciType: "github-actions"
+              },
+              meta: {
+                githubCommitSha: $sha,
+                githubCommitRef: "main",
+                deploymentReason: "guarded-fenice-production-refresh"
+              }
+            }')"
+
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_CODE="$(curl --silent --show-error \
+            -o "$RESPONSE_FILE" \
+            -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$BODY" \
+            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_TEAM_ID}")"
+
+          if [[ ! "$HTTP_CODE" =~ ^2 ]]; then
+            echo "Vercel deployment creation failed (HTTP $HTTP_CODE):"
+            cat "$RESPONSE_FILE"
+            rm -f "$RESPONSE_FILE"
             exit 1
           fi
 
-          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
-          echo "Production deployment returned: $DEPLOY_URL"
+          DEPLOYMENT_ID="$(jq -r '.id // .uid // empty' "$RESPONSE_FILE")"
+          DEPLOYMENT_URL="$(jq -r '.url // empty' "$RESPONSE_FILE")"
+          RESPONSE_PROJECT="$(jq -r '.projectId // .project.id // empty' "$RESPONSE_FILE")"
 
-      - name: Verify production alias points to a deployment
+          if [[ ! "$DEPLOYMENT_ID" =~ ^dpl_ ]]; then
+            echo "Vercel did not return a valid deployment id:"
+            cat "$RESPONSE_FILE"
+            rm -f "$RESPONSE_FILE"
+            exit 1
+          fi
+
+          if [[ -n "$RESPONSE_PROJECT" && "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
+            echo "Deployment was created for an unexpected Vercel project: $RESPONSE_PROJECT"
+            rm -f "$RESPONSE_FILE"
+            exit 1
+          fi
+
+          echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+          echo "Created Fenice deployment: $DEPLOYMENT_ID ($DEPLOYMENT_URL)"
+          rm -f "$RESPONSE_FILE"
+
+      - name: Wait for Fenice deployment to become READY
         if: steps.request.outputs.execute == 'true'
-        id: verify_alias
         shell: bash
         run: |
           set -euo pipefail
-          sleep 8
-          RESPONSE="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+          ID="${{ steps.deploy.outputs.deployment_id }}"
 
-          CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
-          RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"
+          for attempt in $(seq 1 90); do
+            RESPONSE="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_TEAM_ID}")"
 
-          if [[ ! "$CURRENT" =~ ^dpl_ || "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
-            echo "Production alias verification failed."
-            exit 1
-          fi
+            STATE="$(printf '%s' "$RESPONSE" | jq -r '.readyState // .state // .status // "UNKNOWN"')"
+            echo "Deployment $ID state: $STATE (attempt $attempt/90)"
 
-          echo "deployment_id=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "Fenice production alias now points to: $CURRENT"
+            if [[ "$STATE" == "READY" ]]; then
+              exit 0
+            fi
+
+            if [[ "$STATE" == "ERROR" || "$STATE" == "CANCELED" || "$STATE" == "CANCELLED" ]]; then
+              echo "Deployment entered terminal failure state: $STATE"
+              printf '%s' "$RESPONSE" | jq .
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for Fenice deployment to become READY."
+          exit 1
+
+      - name: Verify production alias points to the new Fenice deployment
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED="${{ steps.deploy.outputs.deployment_id }}"
+
+          for attempt in $(seq 1 24); do
+            RESPONSE="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+
+            CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
+            RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"
+            echo "Production alias points to: $CURRENT (attempt $attempt/24)"
+
+            if [[ "$CURRENT" == "$EXPECTED" && "$RESPONSE_PROJECT" == "$VERCEL_PROJECT_ID" ]]; then
+              echo "Fenice production alias verified: $CURRENT"
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          echo "Production alias did not move to expected deployment $EXPECTED."
+          exit 1
 
       - name: Verify public Fenice UI is the new broker-aware build
         if: steps.request.outputs.execute == 'true'
