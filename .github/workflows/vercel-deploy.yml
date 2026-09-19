@@ -1,0 +1,135 @@
+name: Fenice Production Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".ops/vercel-deploy-request.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-vercel-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERCEL_ORG_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP
+      VERCEL_TEAM_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP
+      VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By
+      VERCEL_PRODUCTION_ALIAS: fenice-investment-system.vercel.app
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout exact main commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate guarded deploy request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "execute=false" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch is dry-run only. Production deployment requires the guarded request file."
+            exit 0
+          fi
+
+          test -f .ops/vercel-deploy-request.json
+          EXECUTE="$(jq -r '.execute // false' .ops/vercel-deploy-request.json)"
+          PROJECT="$(jq -r '.project // ""' .ops/vercel-deploy-request.json)"
+          TARGET="$(jq -r '.target // ""' .ops/vercel-deploy-request.json)"
+          CONFIRM="$(jq -r '.confirmation // ""' .ops/vercel-deploy-request.json)"
+
+          if [[ "$EXECUTE" != "true" || "$PROJECT" != "fenice-investment-system" || "$TARGET" != "production" || "$CONFIRM" != "DEPLOY_LATEST_MAIN_TO_FENICE" ]]; then
+            echo "Guard values are not valid. Refusing production deployment."
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_NAME" != "main" ]]; then
+            echo "Refusing deployment from non-main branch: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+          echo "execute=true" >> "$GITHUB_OUTPUT"
+
+      - name: Require Vercel token
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "Missing GitHub Actions secret VERCEL_TOKEN. Nothing deployed."
+            exit 1
+          fi
+
+      - name: Deploy exact repository state to Fenice production
+        if: steps.request.outputs.execute == 'true'
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_URL="$(npx --yes vercel@latest deploy \
+            --prod \
+            --yes \
+            --token "$VERCEL_TOKEN" \
+            --meta githubCommitSha="$GITHUB_SHA" \
+            --meta githubCommitRef="main" \
+            --meta deploymentReason="guarded-fenice-production-refresh" | tail -n 1)"
+
+          if [[ ! "$DEPLOY_URL" =~ ^https:// ]]; then
+            echo "Vercel did not return a valid deployment URL: $DEPLOY_URL"
+            exit 1
+          fi
+
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Production deployment returned: $DEPLOY_URL"
+
+      - name: Verify production alias points to a deployment
+        if: steps.request.outputs.execute == 'true'
+        id: verify_alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 8
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+
+          CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
+          RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"
+
+          if [[ ! "$CURRENT" =~ ^dpl_ || "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
+            echo "Production alias verification failed."
+            exit 1
+          fi
+
+          echo "deployment_id=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Fenice production alias now points to: $CURRENT"
+
+      - name: Verify public Fenice UI is the new broker-aware build
+        if: steps.request.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTML="$(curl --fail --silent --show-error --location "https://${VERCEL_PRODUCTION_ALIAS}/")"
+
+          if ! grep -Fq "Broker scelto: Directa SIM" <<< "$HTML"; then
+            echo "New Directa broker state was not found in production HTML."
+            exit 1
+          fi
+
+          if grep -Fq "Scegliere banca o broker" <<< "$HTML"; then
+            echo "Old broker-selection UI is still present after deployment."
+            exit 1
+          fi
+
+          echo "Production UI verified: Directa SIM selected; obsolete broker-selection text absent."
