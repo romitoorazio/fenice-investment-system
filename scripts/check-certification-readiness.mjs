@@ -48,13 +48,25 @@ const sourceReady = sourceReportFresh
 const crossChecks = Number(intelligence?.crossSourceValidation?.checked || 0);
 const crossDivergent = Number(intelligence?.crossSourceValidation?.divergent || 0);
 const crossValidationReady = intelligenceReportFresh && crossChecks >= 3 && crossDivergent === 0;
+
+const exchangeValidation = intelligence?.exchangeMarketValidation || {};
+const publicExchangeValidationReady = intelligenceReportFresh
+  && Number(exchangeValidation?.grade || 0) >= 90
+  && Number(exchangeValidation?.sourceCount || 0) >= 3
+  && Number(exchangeValidation?.checkedInstruments || 0) >= 4
+  && Number(exchangeValidation?.divergent || 0) === 0
+  && Number(exchangeValidation?.sourceConcentrationPercent || 100) <= 50;
+const brokerNativeMarketDataReady = exchangeValidation?.brokerNativeMarketDataPresent === true
+  && exchangeValidation?.executionGradeEligible === true;
+
 const dataQualityReady = intelligenceReportFresh
   && Number(intelligence?.intelligenceConfidence || 0) >= 90
   && Number(intelligence?.coverage?.sourceConcentrationPercent || 100) <= 50
   && Number(intelligence?.coverage?.marketSources || 0) >= 3
   && Array.isArray(intelligence?.coverage?.assetClasses)
   && intelligence.coverage.assetClasses.length >= 3
-  && crossValidationReady;
+  && crossValidationReady
+  && publicExchangeValidationReady;
 
 const guardrails = governance?.guardrails || {};
 const prohibited = new Set(governance?.prohibitedActions || []);
@@ -114,6 +126,8 @@ const paperModeEvidence = records.length >= 100
 const ready = sourceReady
   && intelligenceReportFresh
   && dataQualityReady
+  && publicExchangeValidationReady
+  && brokerNativeMarketDataReady
   && systemTestsReady
   && riskControlsReady
   && paperModeEvidence
@@ -127,6 +141,8 @@ const status = {
     intelligenceReportFreshness: intelligenceReportFresh ? "PASS" : "NOT_READY",
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
+    publicExchangeValidation: publicExchangeValidationReady ? "PASS" : "NOT_READY",
+    brokerNativeMarketData: brokerNativeMarketDataReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     paperMode: paperModeEvidence ? "PASS" : "NOT_VALIDATED",
@@ -144,6 +160,11 @@ const status = {
     marketSources: Number(intelligence?.coverage?.marketSources || 0),
     assetClasses: Array.isArray(intelligence?.coverage?.assetClasses) ? intelligence.coverage.assetClasses.length : 0,
     sourceConcentrationPercent: Number(intelligence?.coverage?.sourceConcentrationPercent || 0),
+    publicExchangeValidationGrade: Number(exchangeValidation?.grade || 0),
+    publicExchangeSources: Number(exchangeValidation?.sourceCount || 0),
+    publicExchangeChecks: Number(exchangeValidation?.checkedInstruments || 0),
+    publicExchangeDivergent: Number(exchangeValidation?.divergent || 0),
+    brokerNativeMarketDataPresent: exchangeValidation?.brokerNativeMarketDataPresent === true,
     terminalAssets: terminalAssets.length,
     researchCompanies: researchCompanies.length,
     paperRecords: records.length,
