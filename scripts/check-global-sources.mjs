@@ -80,6 +80,11 @@ function payloadLooksValid(source, text, contentType) {
   if (source.id === "clinical-trials") return /studies|protocolSection/i.test(trimmed);
   if (source.id === "fred") return /seriess|series/i.test(trimmed);
   if (source.id === "alpha-vantage") return /markets|market_type|endpoint|Information/i.test(trimmed);
+  if (source.id === "bls") return /status|Results|series|seriesID/i.test(trimmed);
+  if (source.id === "us-treasury-fiscal") return /record_date|tot_pub_debt_out_amt|debt_held_public_amt/i.test(trimmed);
+  if (source.id === "finra-fixed-income") return /tradeDate|dealerCustomerVolume|interdealer|yearsToMaturity/i.test(trimmed);
+  if (source.id === "coinbase-exchange") return /price|bid|ask|trade_id/i.test(trimmed);
+  if (source.id === "kraken") return /result|error|XXBT|XBTUSD|c\"/i.test(trimmed);
   return true;
 }
 
@@ -264,8 +269,11 @@ const report = sanitizeForStorage({
   },
   sources: results,
 });
-const serialized = `${JSON.stringify(report, null, 2)}\n`;
-await writeFile(outputPath, serialized, "utf8");
-await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(":", "-")}.json`), serialized, "utf8");
+
+await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+const historyName = `${now.toISOString().replace(/[:.]/g, "-")}.json`;
+await writeFile(path.join(historyDir, historyName), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 await pruneHistory();
-console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
+
+console.log(`Global source health: ${gate} (${reliabilityScore}/100), critical ${criticalReady}/${criticalSources.length}, total ${results.length}.`);
+if (criticalFailures.length) console.log(`Critical failures: ${criticalFailures.join(", ")}`);
