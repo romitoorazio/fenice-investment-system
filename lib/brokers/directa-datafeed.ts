@@ -59,7 +59,9 @@ type DatafeedMessage =
   | { kind: "other"; type: string };
 
 function finite(value: string | undefined): number | null {
-  const parsed = Number(String(value ?? "").trim());
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
