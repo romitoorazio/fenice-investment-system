@@ -29,10 +29,11 @@ async function main() {
     healthDocument = JSON.parse(await readFile(healthPath, "utf8"));
   } catch {}
 
-  await Promise.all([
-    collectPublicMarkets(snapshot, healthDocument.sources),
-    collectInstitutionalSignals(snapshot, healthDocument.sources),
-  ]);
+  // These collectors both update snapshot/providers and source-health. Keep them
+  // sequential so their upsert operations cannot race or overwrite one another.
+  await collectPublicMarkets(snapshot, healthDocument.sources);
+  await collectInstitutionalSignals(snapshot, healthDocument.sources);
+
   snapshot.providers.sort((a, b) => a.name.localeCompare(b.name));
   snapshot.markets.sort((a, b) => (b.score || 0) - (a.score || 0));
   snapshot.foundation = {
