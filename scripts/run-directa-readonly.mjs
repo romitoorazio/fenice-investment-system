@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { collectDirectaReadOnlySnapshot } from "../lib/brokers/directa-readonly.ts";
+import { writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 
 function readArg(name) {
   const index = process.argv.indexOf(name);
@@ -22,8 +22,7 @@ try {
     tradingPort: port,
   });
 
-  await mkdir(outputDir, { recursive: true });
-  await writeFile(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+  await writeJsonStateAtomic(outputPath, snapshot);
 
   console.log("Fenice Directa read-only snapshot completed.");
   console.log(`Connection: ${snapshot.connection.state} (${snapshot.connection.healthy ? "healthy" : "not healthy"})`);
@@ -31,7 +30,7 @@ try {
   console.log(`Orders observed: ${snapshot.orders.length}`);
   console.log(`Write commands blocked: ${snapshot.writeCommandsBlocked}`);
   console.log(`Live trading allowed: ${snapshot.liveTradingAllowed}`);
-  console.log(`Snapshot saved locally: ${outputPath}`);
+  console.log(`Snapshot saved atomically: ${outputPath}`);
 
   if (!snapshot.connection.healthy) process.exitCode = 2;
 } catch (error) {
