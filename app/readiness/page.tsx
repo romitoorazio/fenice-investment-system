@@ -1,23 +1,24 @@
 import Link from "next/link";
 import intelligence from "@/data/intelligence-quality.json";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
+import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const statusStyle = {
+const statusStyle: Record<InstitutionalEvidence, string> = {
   PASS: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
   TESTING: "border-sky-400/25 bg-sky-400/10 text-sky-200",
   MISSING: "border-amber-400/25 bg-amber-400/10 text-amber-200",
   BLOCKED: "border-rose-400/25 bg-rose-400/10 text-rose-200",
-} as const;
+};
 
-const statusLabel = {
+const statusLabel: Record<InstitutionalEvidence, string> = {
   PASS: "PASS",
   TESTING: "IN COLLAUDO",
   MISSING: "DA COSTRUIRE",
   BLOCKED: "BLOCCANTE",
-} as const;
+};
 
 export default function ReadinessPage() {
   const { report, metrics } = buildInstitutionalReadiness(intelligence);
