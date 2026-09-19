@@ -19,7 +19,7 @@ export default function Home() {
         <Link href="/portfolio" className="rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Portafoglio</Link>
         <Link href="/discovery" className="rounded-xl px-3 py-3 text-xs font-bold text-violet-300 transition hover:bg-white/5">Scoperte</Link>
         <Link href="/data-hub" className="rounded-xl px-3 py-3 text-xs font-bold text-cyan-300 transition hover:bg-white/5">Dati</Link>
-        <Link href="/autonomia" className="rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Analisi</Link>
+        <Link href="/readiness" className="rounded-xl px-3 py-3 text-xs font-black text-rose-300 transition hover:bg-white/5">Sicurezza</Link>
       </nav>
     </>
   );
