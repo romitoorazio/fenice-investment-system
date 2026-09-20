@@ -2,10 +2,18 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  computeIntelligenceConfidence,
+  computeSourceConcentration,
+  deriveCryptoVenueTargets,
+  deriveStooqTargets,
+  settleWithConcurrency,
+} from "../lib/intelligence/quality-engine.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = path.join(root, "data", "latest-snapshot.json");
 const qualityPath = path.join(root, "data", "intelligence-quality.json");
+const globalSourceHealthPath = path.join(root, "data", "global-source-health.json");
 const comparisonUniverse = [
   ["spy.us", "SPY", "ETF"],
   ["qqq.us", "QQQ", "ETF"],
@@ -19,10 +27,6 @@ const comparisonUniverse = [
   ["ewj.us", "EWJ", "ETF"],
   ["eem.us", "EEM", "ETF"],
   ["acwi.us", "ACWI", "ETF"],
-];
-const cryptoVenueTargets = [
-  ["BTC", "Bitcoin"],
-  ["ETH", "Ethereum"],
 ];
 
 function runFoundation() {
@@ -90,7 +94,7 @@ async function request(url, { format = "json", timeoutMs = 12000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/3.4 data-quality-validation",
+        "user-agent": "FeniceInvestmentSystem/3.5 data-quality-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -232,13 +236,15 @@ async function collectIndependentMarketEvidence(baseObservations) {
     }
   }
 
-  const tasks = [
-    ...comparisonUniverse.map(([code, symbol, assetClass]) => fetchStooqEvidence(code, symbol, assetClass)),
-    ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => fetchYahooEvidence(symbol, assetClass, expectedName)),
-    ...cryptoVenueTargets.map(([symbol, expectedName]) => fetchCoinbaseEvidence(symbol, expectedName)),
-    ...cryptoVenueTargets.map(([symbol, expectedName]) => fetchKrakenEvidence(symbol, expectedName)),
+  const stooqTargets = deriveStooqTargets(evidence, comparisonUniverse, 32);
+  const cryptoVenueTargets = deriveCryptoVenueTargets(evidence, 12);
+  const taskFactories = [
+    ...stooqTargets.map(([code, symbol, assetClass]) => () => fetchStooqEvidence(code, symbol, assetClass)),
+    ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => () => fetchYahooEvidence(symbol, assetClass, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => () => fetchCoinbaseEvidence(symbol, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => () => fetchKrakenEvidence(symbol, expectedName)),
   ];
-  const results = await Promise.allSettled(tasks);
+  const results = await settleWithConcurrency(taskFactories, 8);
   for (const result of results) {
     if (result.status === "fulfilled") evidence.push(result.value);
   }
@@ -291,6 +297,13 @@ function buildValidation(observations) {
 async function main() {
   await runFoundation();
   const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
+  let globalSourceHealth = {};
+  try {
+    globalSourceHealth = JSON.parse(await readFile(globalSourceHealthPath, "utf8"));
+  } catch {
+    globalSourceHealth = {};
+  }
+
   const now = Date.now();
   const providers = Array.isArray(snapshot.providers) ? snapshot.providers : [];
   const markets = Array.isArray(snapshot.markets) ? snapshot.markets : [];
@@ -311,28 +324,23 @@ async function main() {
   const validations = buildValidation(observations);
   const confirmed = validations.filter((item) => item.status === "confermato").length;
   const divergent = validations.filter((item) => item.status === "divergente").length;
-  const operational = providers.filter((item) => item.state === "operativo").length;
-  const partial = providers.filter((item) => item.state === "parziale").length;
   const sourceNames = new Set(observations.map((item) => item.source).filter(Boolean));
   const assetClasses = new Set([...markets, ...observations].map((item) => item.assetClass).filter(Boolean));
-  const concentration = observations.length
-    ? Math.max(...[...sourceNames].map((source) => observations.filter((item) => item.source === source).length)) / observations.length
-    : 1;
-
-  const averageQuality = sourceQuality.length
-    ? sourceQuality.reduce((sum, item) => sum + item.qualityScore, 0) / sourceQuality.length
-    : 0;
-  const validationBonus = Math.min(12, confirmed * 2);
-  const divergencePenalty = Math.min(24, divergent * 6);
-  const concentrationPenalty = concentration > 0.75 ? 18 : concentration > 0.55 ? 10 : concentration > 0.4 ? 5 : 0;
-  const coverageBonus = Math.min(12, assetClasses.size * 2);
-  const intelligenceConfidence = Math.round(clamp(
-    averageQuality * 0.55 + operational * 4 + partial * 2 + validationBonus + coverageBonus - divergencePenalty - concentrationPenalty,
-  ));
+  const concentration = computeSourceConcentration(observations);
+  const confidenceModel = computeIntelligenceConfidence({
+    sourceQuality,
+    criticalHealth: globalSourceHealth?.critical || {},
+    validations,
+    sourceCount: sourceNames.size,
+    assetClassCount: assetClasses.size,
+    concentration,
+  });
+  const intelligenceConfidence = confidenceModel.confidence;
 
   const report = {
     generatedAt: new Date().toISOString(),
     intelligenceConfidence,
+    confidenceModel,
     sourceQuality,
     crossSourceValidation: {
       checked: validations.length,
@@ -355,6 +363,8 @@ async function main() {
       singleSourceSignalsCapped: true,
       autonomousTrading: false,
       validationOnlyObservationsDoNotCreateTradeSignals: true,
+      confidenceFailsClosedWithoutCriticalSourceGreen: true,
+      boundedExternalValidationConcurrency: 8,
     },
   };
 
@@ -369,7 +379,7 @@ async function main() {
   snapshot.pulse = snapshot.pulse || {};
   snapshot.pulse.rawConfidence = snapshot.pulse.confidence;
   snapshot.pulse.confidence = intelligenceConfidence;
-  if (concentrationPenalty >= 10) {
+  if (concentration > 0.5) {
     snapshot.warnings = [...new Set([...(snapshot.warnings || []), "Copertura di mercato concentrata su poche fonti: fiducia ridotta automaticamente."])];
   }
   if (divergent > 0) {
@@ -378,7 +388,7 @@ async function main() {
 
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   await writeFile(qualityPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${observations.length} evidence observations.`);
+  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${observations.length} evidence observations, ${sourceNames.size} market sources.`);
 }
 
 main().catch((error) => {
