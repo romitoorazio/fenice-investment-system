@@ -1,8 +1,6 @@
 import net from "node:net";
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import path from "node:path";
 import { resolveLocalDirectaDatafeedPort } from "../lib/brokers/directa-datafeed.ts";
+import { classifyDirectaDatafeedError } from "../lib/brokers/directa-entitlement.ts";
 
 function readArg(name) {
   const index = process.argv.indexOf(name);
@@ -21,7 +19,7 @@ const counts = new Map();
 let heartbeat = 0;
 let bytes = 0;
 let lines = 0;
-let errors = [];
+const errors = [];
 let buffer = "";
 let connected = false;
 let subscriptionSent = false;
@@ -35,12 +33,17 @@ function consume(line) {
   const fields = clean.split(";");
   const type = String(fields[0] || "UNKNOWN").trim().toUpperCase().slice(0, 32) || "UNKNOWN";
   count(type);
-  if (type === "ERR") errors.push({ ticker: String(fields[1] || "").slice(0, 40), code: Number.isFinite(Number(fields[2])) ? Number(fields[2]) : null });
+  if (type === "ERR") {
+    errors.push({
+      ticker: String(fields[1] || "").slice(0, 40),
+      code: Number.isFinite(Number(fields[2])) ? Number(fields[2]) : null,
+    });
+  }
 }
 
 const socket = net.createConnection({ host, port });
 socket.setEncoding("utf8");
-const result = await new Promise((resolve) => {
+const completion = await new Promise((resolve) => {
   let finished = false;
   const finish = (reason) => {
     if (finished) return;
@@ -49,6 +52,7 @@ const result = await new Promise((resolve) => {
     socket.end();
     resolve(reason);
   };
+
   socket.on("connect", () => {
     connected = true;
     socket.write(`SUBPRZALL ${tickers.join(",")}\n`);
@@ -61,23 +65,35 @@ const result = await new Promise((resolve) => {
     buffer = parts.pop() || "";
     for (const line of parts) consume(line);
   });
-  socket.on("error", (error) => { errors.push({ ticker: "", code: null, socket: String(error.code || "SOCKET_ERROR") }); finish("socket-error"); });
-  socket.on("close", () => { if (buffer.trim()) consume(buffer); finish("socket-closed"); });
+  socket.on("error", (error) => {
+    errors.push({ ticker: "", code: null, socket: String(error.code || "SOCKET_ERROR") });
+    finish("socket-error");
+  });
+  socket.on("close", () => {
+    if (buffer.trim()) consume(buffer);
+    finish("socket-closed");
+  });
   setTimeout(() => finish("diagnostic-timeout"), timeoutMs);
 });
 
 const typeCounts = Object.fromEntries([...counts.entries()].sort(([a], [b]) => a.localeCompare(b)));
 const priced = (typeCounts.PRICE || 0) + (typeCounts.PRICE_AUCT || 0);
 const bidAsk = typeCounts.BIDASK || 0;
+const errorCodes = errors.map((item) => item.code).filter((code) => Number.isFinite(code));
+const entitlement = errorCodes.length > 0
+  ? classifyDirectaDatafeedError(errorCodes[0])
+  : classifyDirectaDatafeedError(null);
+
 let diagnosis = "DATA_RECEIVED";
 if (!connected) diagnosis = "LOCAL_DATAFEED_SOCKET_NOT_CONNECTED";
-else if (lines === 0) diagnosis = "CONNECTED_BUT_NO_MESSAGES: verify Darwin DAPI/datafeed service and entitlement";
-else if (heartbeat > 0 && priced === 0 && bidAsk === 0) diagnosis = "HEARTBEAT_ONLY: socket is alive but quote stream is unavailable/not entitled or subscription is not producing data";
-else if (errors.length > 0 && priced === 0 && bidAsk === 0) diagnosis = "DIRECTA_RETURNED_ERRORS: inspect sanitized error codes";
-else if (priced === 0 && bidAsk === 0) diagnosis = "MESSAGES_WITHOUT_QUOTES: inspect message type counts; possible protocol/subscription mismatch";
+else if (entitlement.state === "OPTIONAL_NOT_ENTITLED") diagnosis = "OPTIONAL_DATAFEED_NOT_ENTITLED: use certified independent market-data fallback";
+else if (lines === 0) diagnosis = "CONNECTED_BUT_NO_MESSAGES";
+else if (heartbeat > 0 && priced === 0 && bidAsk === 0) diagnosis = "HEARTBEAT_ONLY";
+else if (errors.length > 0 && priced === 0 && bidAsk === 0) diagnosis = "DIRECTA_RETURNED_UNCLASSIFIED_ERRORS";
+else if (priced === 0 && bidAsk === 0) diagnosis = "MESSAGES_WITHOUT_QUOTES";
 
 console.log("=== Fenice Directa READ-ONLY sanitized diagnostic ===");
-console.log(`Host: loopback`);
+console.log("Host: loopback");
 console.log(`Datafeed port: ${port}`);
 console.log(`Connected: ${connected}`);
 console.log(`Subscription sent: ${subscriptionSent}`);
@@ -90,9 +106,16 @@ console.log(`Message types: ${JSON.stringify(typeCounts)}`);
 console.log(`PRICE messages: ${priced}`);
 console.log(`BIDASK messages: ${bidAsk}`);
 console.log(`Sanitized errors: ${JSON.stringify(errors)}`);
+console.log(`Entitlement state: ${entitlement.state}`);
+console.log(`Independent market-data fallback allowed: ${entitlement.allowMarketDataFallback}`);
 console.log(`Diagnosis: ${diagnosis}`);
 console.log("Trading write commands allowed: false");
-console.log(`Completion: ${result}`);
+console.log(`Completion: ${completion}`);
 console.log("No credentials, account identifiers, quote payloads or secret values are printed by this diagnostic.");
 
-if (!connected || priced === 0 || bidAsk === 0) process.exitCode = 2;
+const optionalFallbackAccepted = connected
+  && entitlement.state === "OPTIONAL_NOT_ENTITLED"
+  && entitlement.allowMarketDataFallback === true
+  && entitlement.allowTradingWrite === false;
+
+if (!optionalFallbackAccepted && (!connected || priced === 0 || bidAsk === 0)) process.exitCode = 2;
