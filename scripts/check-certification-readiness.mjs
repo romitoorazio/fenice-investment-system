@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 
+const requireReady = process.argv.includes("--require-ready");
+
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
@@ -156,3 +158,8 @@ const status = {
 
 console.log(`Fenice certification readiness: ${ready ? "READY" : "NOT_READY"}`);
 console.log(JSON.stringify(status, null, 2));
+
+if (requireReady && !ready) {
+  console.error("Fenice certification gate failed: one or more READY criteria are not satisfied.");
+  process.exitCode = 2;
+}
