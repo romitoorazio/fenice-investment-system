@@ -3,9 +3,13 @@ import { LIVE_TRADING_RELEASED } from "../brokers/safety.ts";
 export type InstitutionalControlId =
   | "data-quality"
   | "cross-source-validation"
+  | "execution-market-quorum"
   | "broker-readonly"
   | "order-lifecycle"
+  | "advanced-orders"
   | "pretrade-risk"
+  | "risk-of-ruin"
+  | "event-risk"
   | "fat-finger-price-collars"
   | "kill-switch"
   | "idempotency"
@@ -40,9 +44,13 @@ export type InstitutionalControlWithStatus = InstitutionalControl & {
 export const INSTITUTIONAL_CONTROLS: readonly InstitutionalControl[] = [
   { id: "data-quality", label: "Qualità dati con soglie fail-closed", domain: "DATA", critical: true, weight: 8, benchmark: "multi-source institutional data controls" },
   { id: "cross-source-validation", label: "Cross-check indipendente prezzi/dati", domain: "DATA", critical: true, weight: 6, benchmark: "execution-grade data validation" },
+  { id: "execution-market-quorum", label: "Quorum prezzi execution-grade", domain: "DATA", critical: true, weight: 7, benchmark: "independent quote quorum / best-execution data discipline" },
   { id: "broker-readonly", label: "Broker read-only certificato", domain: "BROKER", critical: true, weight: 6, benchmark: "Saxo/IBKR portfolio and order monitoring" },
   { id: "order-lifecycle", label: "Lifecycle ordini e partial fill", domain: "OMS", critical: true, weight: 7, benchmark: "IBKR orderStatus + execution lifecycle" },
+  { id: "advanced-orders", label: "STOP, trailing, OCO e bracket fail-closed", domain: "OMS", critical: true, weight: 5, benchmark: "professional conditional-order semantics" },
   { id: "pretrade-risk", label: "Pre-trade risk indipendente", domain: "RISK", critical: true, weight: 9, benchmark: "TT risk controls / market-access discipline" },
+  { id: "risk-of-ruin", label: "Risk-of-ruin e sizing conservativo", domain: "RISK", critical: true, weight: 7, benchmark: "capital preservation / loss-streak survival controls" },
+  { id: "event-risk", label: "Event-risk gate macro e tecnico", domain: "RISK", critical: true, weight: 4, benchmark: "scheduled-event risk throttling and blackout windows" },
   { id: "fat-finger-price-collars", label: "Fat-finger, size e price collars", domain: "RISK", critical: true, weight: 7, benchmark: "TT price reasonability controls" },
   { id: "kill-switch", label: "Kill switch con reset esplicito", domain: "RISK", critical: true, weight: 8, benchmark: "FINRA disable mechanism / professional lockdown" },
   { id: "idempotency", label: "Idempotenza end-to-end", domain: "OMS", critical: true, weight: 6, benchmark: "duplicate-order prevention" },
