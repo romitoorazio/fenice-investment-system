@@ -7,9 +7,11 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-const [sources, intelligence, governance, ledger, terminal, research, strategyLab, paperCampaign] = await Promise.all([
+const [sources, intelligence, executionMarket, executionCoverage, governance, ledger, terminal, research, strategyLab, paperCampaign] = await Promise.all([
   readJson("data/global-source-health.json"),
   readJson("data/intelligence-quality.json"),
+  readJson("data/execution-market-evidence.json"),
+  readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
   readJson("data/decision-ledger.json"),
   readJson("data/terminal-intelligence.json"),
@@ -65,6 +67,31 @@ const dataQualityReady = intelligenceReportFresh
   && intelligence.coverage.assetClasses.length >= 3
   && validationFreshnessPolicyReady
   && crossValidationReady;
+
+const executionEvidenceAgeMinutes = ageHours(executionMarket?.generatedAt) * 60;
+const executionCoverageAgeMinutes = ageHours(executionCoverage?.generatedAt) * 60;
+const executionEvidenceFresh = executionEvidenceAgeMinutes >= 0 && executionEvidenceAgeMinutes <= 30;
+const executionCoverageFresh = executionCoverageAgeMinutes >= 0 && executionCoverageAgeMinutes <= 30;
+const executionEvidenceTimestamp = Date.parse(String(executionMarket?.generatedAt || ""));
+const coverageEvidenceTimestamp = Date.parse(String(executionCoverage?.evidenceGeneratedAt || ""));
+const executionCoverageMatchesEvidence = Number.isFinite(executionEvidenceTimestamp)
+  && Number.isFinite(coverageEvidenceTimestamp)
+  && Math.abs(executionEvidenceTimestamp - coverageEvidenceTimestamp) <= 1000;
+const requestedExecutionSymbols = Math.max(0, Number(executionCoverage?.requestedSymbols || 0));
+const paperEligibleSymbols = Math.max(0, Number(executionCoverage?.paperEligibleSymbols || 0));
+const paperEligiblePercent = Math.max(0, Number(executionCoverage?.paperEligiblePercent || 0));
+const executionMarketCoverageReady = executionEvidenceFresh
+  && executionCoverageFresh
+  && executionCoverageMatchesEvidence
+  && executionMarket?.policy?.liveTradingAllowed === false
+  && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
+  && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
+  && executionCoverage?.policy?.requiredEligibility === "PAPER"
+  && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
+  && executionCoverage?.policy?.liveTradingAllowed === false
+  && requestedExecutionSymbols >= 3
+  && paperEligibleSymbols >= 3
+  && paperEligiblePercent >= 25;
 
 const guardrails = governance?.guardrails || {};
 const prohibited = new Set(governance?.prohibitedActions || []);
@@ -128,6 +155,7 @@ const paperModeEvidence = historicalPaperEvidence && paperCampaignStatus.matured
 const ready = sourceReady
   && intelligenceReportFresh
   && dataQualityReady
+  && executionMarketCoverageReady
   && systemTestsReady
   && riskControlsReady
   && paperModeEvidence
@@ -142,6 +170,7 @@ const status = {
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
+    executionMarketCoverage: executionMarketCoverageReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
@@ -166,6 +195,14 @@ const status = {
     assetClasses: Array.isArray(intelligence?.coverage?.assetClasses) ? intelligence.coverage.assetClasses.length : 0,
     sourceConcentrationPercent: Number(intelligence?.coverage?.sourceConcentrationPercent || 0),
     staleEvidenceExcluded: Number(intelligence?.crossSourceValidation?.staleEvidenceExcluded || 0),
+    executionEvidenceAgeMinutes: Number.isFinite(executionEvidenceAgeMinutes) ? Number(executionEvidenceAgeMinutes.toFixed(1)) : null,
+    executionCoverageAgeMinutes: Number.isFinite(executionCoverageAgeMinutes) ? Number(executionCoverageAgeMinutes.toFixed(1)) : null,
+    executionCoverageMatchesEvidence,
+    requestedExecutionSymbols,
+    paperEligibleSymbols,
+    paperEligiblePercent,
+    minimumPaperEligibleSymbols: 3,
+    minimumPaperEligiblePercent: 25,
     terminalAssets: terminalAssets.length,
     researchCompanies: researchCompanies.length,
     paperRecords: records.length,
