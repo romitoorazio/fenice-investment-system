@@ -21,8 +21,9 @@ assert.equal(yahooSymbolForInstrument({ symbol: "IBE", exchangeMic: "XMAD", asse
 assert.equal(yahooSymbolForInstrument({ symbol: "NOVN", exchangeMic: "XSWX", assetClass: "equity" }), "NOVN.SW");
 assert.equal(yahooSymbolForInstrument({ symbol: "NVDA", exchangeMic: "XNAS", assetClass: "equity" }), "NVDA");
 assert.equal(yahooSymbolForInstrument({ symbol: "BTC", assetClass: "crypto" }), "BTC-USD");
+assert.equal(yahooSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), "", "listed security with missing MIC must fail closed instead of guessing a Yahoo venue");
 assert.equal(stooqSymbolForInstrument({ symbol: "AAPL", exchangeMic: "XNAS" }), "aapl.us");
-assert.equal(stooqSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), "msft.us", "USD equity with missing MIC should use conservative US Stooq fallback");
+assert.equal(stooqSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), null, "missing MIC must fail closed instead of inferring a US Stooq venue from currency");
 assert.equal(stooqSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL" }), "enel.it");
 assert.equal(stooqSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON" }), "vod.uk");
 assert.equal(stooqSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS" }), "asml.nl");
@@ -34,16 +35,17 @@ assert.equal(inferExecutionSourceFamily("Twelve Data realtime quote"), "twelve-d
 assert.equal(inferExecutionSourceFamily("Alpha Vantage intraday validation"), "alpha-vantage");
 
 assert.equal(isTwelveDataPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
-assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), true, "US-traded ADR candidates with incomplete master metadata should be probed and venue-verified from provider response");
+assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed; provider response must not repair incomplete instrument identity for PAPER routing");
 assert.equal(isTwelveDataPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
 assert.equal(isTwelveDataPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
-assert.equal(isAlphaVantageIntradayCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), true);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed for Alpha Vantage PAPER routing");
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NYSE", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Market", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ Global Select Market", currency: "USD" }), true, "explicit MIC must remain authoritative even with descriptive exchange label");
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XPAR", exchange: "Euronext Paris", currency: "EUR" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "Unknown", currency: "USD" }), false, "unknown USD venue must fail closed");
 
