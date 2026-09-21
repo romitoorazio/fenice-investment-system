@@ -120,6 +120,9 @@ jobs:
       - name: Immutable paper validation core fingerprint invariants
         run: npm run paper:fingerprint:test
 
+      - name: Build PAPER execution coverage from repository evidence
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
       - name: Paper baseline eligibility fail-closed invariants
         run: npm run paper:baseline:test
 
@@ -164,6 +167,7 @@ jobs:
             'data/paper-conditional-state.json',
             'data/paper-conditional-queue.json',
             'data/execution-market-evidence.json',
+            'data/execution-market-coverage.json',
             'data/market-risk-events.json',
             'data/calibration-analysis.json',
             'data/paper-validation-campaign.json',
@@ -190,6 +194,10 @@ jobs:
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
           const evidence = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
           if (!Array.isArray(evidence.observations)) throw new Error('Execution market evidence structure invalid');
+          const coverage = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
+          if (!Array.isArray(coverage.rows) || coverage.policy?.requiredEligibility !== 'PAPER' || Number(coverage.policy?.minIndependentSourceFamilies || 0) < 2 || coverage.policy?.liveTradingAllowed !== false) {
+            throw new Error('Execution market coverage policy invariant violated');
+          }
           const eventRisk = JSON.parse(fs.readFileSync('data/market-risk-events.json', 'utf8'));
           if (!Array.isArray(eventRisk.events)) throw new Error('Market risk events structure invalid');
           const conditional = JSON.parse(fs.readFileSync('data/paper-conditional-state.json', 'utf8'));
