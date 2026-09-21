@@ -73,6 +73,7 @@ assert.equal(matured.fingerprintEvidenceDays, 26);
 assert.equal(matured.fingerprintMismatchDays, 0);
 assert.equal(matured.marketDataCoverageFailureDays, 0);
 assert.equal(matured.fillAccountingMismatchDays, 0);
+assert.equal(matured.fillCounterRegressionDays, 0);
 assert.equal(matured.cumulativePaperFills, 12);
 assert.equal(matured.executionQualityReady, true);
 
@@ -156,6 +157,7 @@ assert.equal(insufficientFills.state, "ACTIVE");
 assert.equal(insufficientFills.cumulativePaperFills, 3);
 assert.equal(insufficientFills.executionQualityReady, false);
 assert.equal(insufficientFills.fillAccountingMismatchDays, 0);
+assert.equal(insufficientFills.fillCounterRegressionDays, 0);
 
 const poorExecutionQuality = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row, index) => index === dailyEvidence.length - 1
@@ -204,6 +206,16 @@ assert.equal(tamperedFillDelta.matured, false);
 assert.equal(tamperedFillDelta.state, "INVALID");
 assert.equal(tamperedFillDelta.fillAccountingMismatchDays, 1);
 assert(tamperedFillDelta.reasons.some((reason) => reason.includes("fill accounting")));
+
+const regressedFillCounter = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: dailyEvidence.map((row, index) => index === 8
+    ? { ...row, cumulativePaperFilled: 4, newPaperFills: 0, executionQuality: { ...row.executionQuality, fills: 4 } }
+    : row),
+}), now);
+assert.equal(regressedFillCounter.matured, false);
+assert.equal(regressedFillCounter.state, "INVALID");
+assert.equal(regressedFillCounter.fillCounterRegressionDays, 1);
+assert(regressedFillCounter.reasons.some((reason) => reason.includes("regression in the cumulative paper-fill counter")));
 
 const noFillClosedDayIsAllowed = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row, index) => index === 20
