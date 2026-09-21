@@ -4,6 +4,7 @@ import {
   computeSourceConcentration,
   deriveCryptoVenueTargets,
   deriveStooqTargets,
+  filterFreshValidationEvidence,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
 
@@ -27,6 +28,15 @@ assert.equal(computeSourceConcentration([
 ]), 0.5);
 
 const now = Date.parse("2026-09-21T18:00:00Z");
+const freshEvidence = filterFreshValidationEvidence([
+  { symbol: "BTC", assetClass: "Criptovaluta", observedAt: new Date(now - 2 * 3_600_000).toISOString() },
+  { symbol: "ETH", assetClass: "Criptovaluta", observedAt: new Date(now - 5 * 3_600_000).toISOString() },
+  { symbol: "SPY", assetClass: "ETF", observedAt: new Date(now - 72 * 3_600_000).toISOString() },
+  { symbol: "QQQ", assetClass: "ETF", observedAt: new Date(now - 120 * 3_600_000).toISOString() },
+  { symbol: "MISSING", assetClass: "ETF", observedAt: null },
+], { now });
+assert.deepEqual(freshEvidence.map((item) => item.symbol), ["BTC", "SPY"]);
+
 const freshHealthAt = new Date(now - 60 * 60 * 1000).toISOString();
 
 const healthy = computeIntelligenceConfidence({
