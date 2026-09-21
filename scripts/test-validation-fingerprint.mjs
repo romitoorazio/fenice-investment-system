@@ -45,6 +45,17 @@ assert.equal(
   `default validation fingerprint references missing files: ${projectFingerprint.missingFiles.join(", ")}`,
 );
 assert.match(projectFingerprint.digest, /^[a-f0-9]{64}$/);
-assert(projectFingerprint.files.length >= 30, "validation fingerprint must cover the full safety-critical surface");
+assert(projectFingerprint.files.length >= 40, "validation fingerprint must cover the full safety-critical surface");
+for (const required of [
+  ".github/workflows/paper-validation.yml",
+  "package.json",
+  "lib/trading/paper-baseline.mjs",
+  "scripts/check-execution-market-coverage.mjs",
+  "scripts/check-paper-baseline-eligibility.mjs",
+  "scripts/check-certification-readiness.mjs",
+  "scripts/run-execution-market-data.mjs",
+]) {
+  assert(projectFingerprint.files.includes(required), `validation fingerprint must include ${required}`);
+}
 
 console.log(`Fenice validation fingerprint tests: PASS (${projectFingerprint.files.length} safety-critical files)`);
