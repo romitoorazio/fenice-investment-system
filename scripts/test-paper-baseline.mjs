@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
 
 const now = Date.parse("2026-09-21T20:00:00Z");
+const executionGeneratedAt = "2026-09-21T19:50:00Z";
 const healthy = {
   sources: {
     generatedAt: "2026-09-21T19:30:00Z",
@@ -15,13 +16,21 @@ const healthy = {
     policy: { unknownTimestampEvidenceExcluded: true },
   },
   executionMarket: {
-    generatedAt: "2026-09-21T19:50:00Z",
+    generatedAt: executionGeneratedAt,
     observations: [
       { sourceFamily: "provider-a", eligibility: "PAPER" },
       { sourceFamily: "provider-b", eligibility: "PAPER" },
       { sourceFamily: "provider-b", eligibility: "PAPER" },
     ],
     policy: { liveTradingAllowed: false, validationOnlySourcesNeverSatisfyPaperQuorum: true },
+  },
+  executionCoverage: {
+    generatedAt: "2026-09-21T19:51:00Z",
+    evidenceGeneratedAt: executionGeneratedAt,
+    requestedSymbols: 12,
+    paperEligibleSymbols: 5,
+    paperEligiblePercent: 41.7,
+    policy: { requiredEligibility: "PAPER", minIndependentSourceFamilies: 2, liveTradingAllowed: false },
   },
   governance: {
     guardrails: { blockAutonomousTrading: true, requireHumanConfirmation: true },
@@ -34,6 +43,8 @@ const healthy = {
 const pass = evaluatePaperBaselineEligibility(healthy);
 assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
+assert.equal(pass.metrics.paperEligibleSymbols, 5);
+assert.equal(pass.gates.executionSymbolCoverage, true);
 
 const lowQuality = evaluatePaperBaselineEligibility({
   ...healthy,
@@ -62,6 +73,38 @@ const fakeRedundancy = evaluatePaperBaselineEligibility({
 });
 assert.equal(fakeRedundancy.eligible, false);
 assert.equal(fakeRedundancy.metrics.paperEligibleSourceFamilies, 1);
+
+const narrowCoverage = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    paperEligibleSymbols: 2,
+    paperEligiblePercent: 16.7,
+  },
+});
+assert.equal(narrowCoverage.eligible, false);
+assert.equal(narrowCoverage.gates.executionSymbolCoverage, false);
+assert.ok(narrowCoverage.reasons.some((reason) => reason.includes("per-symbol PAPER execution coverage")));
+
+const mismatchedCoverage = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    evidenceGeneratedAt: "2026-09-21T19:00:00Z",
+  },
+});
+assert.equal(mismatchedCoverage.eligible, false);
+assert.equal(mismatchedCoverage.metrics.executionCoverageMatchesEvidence, false);
+
+const staleCoverage = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    generatedAt: "2026-09-21T18:00:00Z",
+  },
+});
+assert.equal(staleCoverage.eligible, false);
+assert.equal(staleCoverage.gates.executionSymbolCoverage, false);
 
 const liveUnlocked = evaluatePaperBaselineEligibility({
   ...healthy,
