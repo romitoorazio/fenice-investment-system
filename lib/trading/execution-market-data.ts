@@ -99,9 +99,15 @@ export function yahooSymbolForInstrument(instrument: ExecutionInstrument): strin
 export function stooqSymbolForInstrument(instrument: ExecutionInstrument): string | null {
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   if (!symbol) return null;
-  const suffix = MIC_TO_STOOQ_SUFFIX[String(instrument.exchangeMic || "").toUpperCase()];
-  if (!suffix) return null;
-  return `${symbol}${suffix}`.toLowerCase();
+  const assetClass = String(instrument.assetClass || "").toLowerCase();
+  if (assetClass === "crypto" || assetClass === "criptovaluta") return null;
+  const mic = String(instrument.exchangeMic || "").toUpperCase();
+  const explicitSuffix = MIC_TO_STOOQ_SUFFIX[mic];
+  if (explicitSuffix) return `${symbol}${explicitSuffix}`.toLowerCase();
+  if (!mic && String(instrument.currency || "").toUpperCase() === "USD" && /^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) {
+    return `${symbol}.US`.toLowerCase();
+  }
+  return null;
 }
 
 function isUsdNonCryptoCandidate(instrument: ExecutionInstrument): boolean {
