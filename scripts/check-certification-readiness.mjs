@@ -121,6 +121,8 @@ const historicalPaperEvidence = records.length >= 100
   && decisionClasses.size >= 3
   && !unsafeExecutionEvidence;
 const paperCampaignStatus = evaluatePaperValidationCampaign(paperCampaign, now);
+const paperCoreFingerprintReady = paperCampaignStatus.fingerprintMismatchDays === 0
+  && paperCampaignStatus.fingerprintEvidenceDays >= paperCampaignStatus.minEvidenceDays;
 const paperModeEvidence = historicalPaperEvidence && paperCampaignStatus.matured;
 
 const ready = sourceReady
@@ -144,6 +146,7 @@ const status = {
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
     paperCampaign30d: paperCampaignStatus.matured ? "PASS" : paperCampaignStatus.state,
+    paperCoreFingerprint: paperCoreFingerprintReady ? "PASS" : paperCampaignStatus.state === "INVALID" ? "INVALID" : "NOT_VALIDATED",
     paperExecutionQuality: paperCampaignStatus.executionQualityReady ? "PASS" : "NOT_VALIDATED",
     paperSafetyEvidence: paperCampaignStatus.safetyEvidenceDays >= paperCampaignStatus.minEvidenceDays ? "PASS" : "NOT_VALIDATED",
     paperMode: paperModeEvidence ? "PASS" : "NOT_VALIDATED",
@@ -174,6 +177,9 @@ const status = {
     paperCampaignElapsedDays: paperCampaignStatus.elapsedCalendarDays,
     paperCampaignEvidenceDays: paperCampaignStatus.evidenceDays,
     paperCampaignSafetyEvidenceDays: paperCampaignStatus.safetyEvidenceDays,
+    paperCampaignFingerprintEvidenceDays: paperCampaignStatus.fingerprintEvidenceDays,
+    paperCampaignFingerprintMismatchDays: paperCampaignStatus.fingerprintMismatchDays,
+    paperCampaignBaselineFingerprintAlgorithm: paperCampaign?.baselineFingerprint?.algorithm || null,
     paperCampaignRequiredDays: paperCampaignStatus.requiredDays,
     paperCampaignMinimumEvidenceDays: paperCampaignStatus.minEvidenceDays,
     paperCampaignMinimumPaperFills: paperCampaignStatus.minPaperFills,
