@@ -8,6 +8,7 @@ export type IntelligenceEvidence = {
 };
 
 export type RuntimeEvidence = {
+  executionMarketQuorumVerified?: boolean;
   brokerReadOnlyVerified?: boolean;
   brokerReconciliationVerified?: boolean;
   shadowExecutionVerified?: boolean;
@@ -32,7 +33,7 @@ export function buildInstitutionalEvidence(
   return {
     "data-quality": confidence >= 90 && concentration <= 50 ? "PASS" : "BLOCKED",
     "cross-source-validation": checked >= 10 && divergent === 0 ? "PASS" : "BLOCKED",
-    "execution-market-quorum": "PASS",
+    "execution-market-quorum": runtime.executionMarketQuorumVerified ? "PASS" : "TESTING",
     "broker-readonly": runtime.brokerReadOnlyVerified ? "PASS" : "TESTING",
     "order-lifecycle": "PASS",
     "advanced-orders": "PASS",
@@ -70,6 +71,7 @@ export function buildInstitutionalReadiness(
       sourceConcentrationPercent: Number(intelligence?.coverage?.sourceConcentrationPercent ?? 100),
       crossChecks: Number(intelligence?.crossSourceValidation?.checked ?? 0),
       divergentChecks: Number(intelligence?.crossSourceValidation?.divergent ?? 0),
+      executionMarketQuorumVerified: runtime.executionMarketQuorumVerified === true,
     },
   };
 }
