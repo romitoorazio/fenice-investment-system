@@ -9,9 +9,11 @@ on:
     paths:
       - "scripts/run-intelligence.mjs"
       - "scripts/run-execution-market-data.mjs"
+      - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
       - "data/global-source-registry.json"
       - "lib/trading/execution-market-data.ts"
+      - "lib/trading/market-data-quorum.ts"
       - "scripts/run-foundation-plus.mjs"
       - "scripts/run-foundation.mjs"
       - ".github/workflows/intelligence-quality.yml"
@@ -61,6 +63,9 @@ jobs:
       - name: Build independent execution market evidence
         run: npm run marketdata:execution
 
+      - name: Measure per-symbol PAPER execution quorum coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
       - name: Validate quality report
         run: |
           node - <<'NODE'
@@ -94,7 +99,18 @@ jobs:
             if (!Number.isFinite(Number(observation?.price)) || Number(observation.price) <= 0) throw new Error('Execution observation has invalid price');
             if (!Number.isFinite(Date.parse(String(observation?.observedAt || '')))) throw new Error('Execution observation has invalid timestamp');
           }
-          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'source gate:', sourceHealth.gate, 'execution observations:', execution.observations.length, 'Twelve Data:', execution.capabilities?.twelveDataConfigured === true ? 'configured' : 'optional-unconfigured');
+
+          const executionCoverage = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
+          const coverageAge = Date.now() - Date.parse(executionCoverage.generatedAt || '');
+          if (!Number.isFinite(coverageAge) || coverageAge < 0 || coverageAge > 60 * 60 * 1000) throw new Error('Execution market coverage is not fresh');
+          if (executionCoverage.evidenceGeneratedAt !== execution.generatedAt) throw new Error('Execution coverage does not match the audited execution evidence snapshot');
+          if (!Array.isArray(executionCoverage.rows)) throw new Error('Execution market coverage rows missing');
+          if (executionCoverage.policy?.requiredEligibility !== 'PAPER' || Number(executionCoverage.policy?.minIndependentSourceFamilies || 0) < 2) {
+            throw new Error('Execution market coverage policy is unsafe');
+          }
+          if (executionCoverage.policy?.liveTradingAllowed !== false) throw new Error('Execution market coverage must preserve live lock');
+
+          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'source gate:', sourceHealth.gate, 'execution observations:', execution.observations.length, 'paper eligible symbols:', executionCoverage.paperEligibleSymbols, '/', executionCoverage.requestedSymbols, 'Twelve Data:', execution.capabilities?.twelveDataConfigured === true ? 'configured' : 'optional-unconfigured');
           NODE
 
       - name: Publish refreshed quality evidence
@@ -108,6 +124,7 @@ jobs:
           cp data/source-health.json "$generated_dir/source-health.json"
           cp data/global-source-health.json "$generated_dir/global-source-health.json"
           cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
+          cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
@@ -117,7 +134,8 @@ jobs:
             cp "$generated_dir/source-health.json" data/source-health.json
             cp "$generated_dir/global-source-health.json" data/global-source-health.json
             cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
-            git add data/latest-snapshot.json data/intelligence-quality.json data/source-health.json data/global-source-health.json data/execution-market-evidence.json
+            cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
+            git add data/latest-snapshot.json data/intelligence-quality.json data/source-health.json data/global-source-health.json data/execution-market-evidence.json data/execution-market-coverage.json
 
             if git diff --cached --quiet; then
               echo "No quality evidence changes to commit"
