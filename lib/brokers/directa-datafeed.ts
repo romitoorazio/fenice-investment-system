@@ -17,6 +17,9 @@ export type DirectaDatafeedConfig = {
 export type DirectaQuote = {
   ticker: string;
   observedAt: string;
+  priceObservedAt: string;
+  bookObservedAt: string;
+  metadataObservedAt: string;
   lastPrice: number | null;
   lastQuantity: number | null;
   dayLow: number | null;
@@ -178,9 +181,23 @@ export async function collectDirectaQuoteSnapshot(
       const existing = quotes.get(ticker);
       if (existing) return existing;
       const created: DirectaQuote = {
-        ticker, observedAt: "", lastPrice: null, lastQuantity: null, dayLow: null, dayHigh: null,
-        bidPrice: null, bidQuantity: null, askPrice: null, askQuantity: null,
-        referencePrice: null, openPrice: null, isin: null, description: null,
+        ticker,
+        observedAt: "",
+        priceObservedAt: "",
+        bookObservedAt: "",
+        metadataObservedAt: "",
+        lastPrice: null,
+        lastQuantity: null,
+        dayLow: null,
+        dayHigh: null,
+        bidPrice: null,
+        bidQuantity: null,
+        askPrice: null,
+        askQuantity: null,
+        referencePrice: null,
+        openPrice: null,
+        isin: null,
+        description: null,
       };
       quotes.set(ticker, created);
       return created;
@@ -236,19 +253,22 @@ export async function collectDirectaQuoteSnapshot(
       if (message.kind === "error") { errors.push({ ticker: message.ticker, code: message.code }); return; }
       if (message.kind === "other") return;
       const quote = quoteFor(message.ticker);
-      quote.observedAt = message.time || quote.observedAt;
+      if (message.time) quote.observedAt = message.time;
       if (message.kind === "anag") {
+        quote.metadataObservedAt = message.time || quote.metadataObservedAt;
         quote.isin = message.isin || null;
         quote.description = message.description || null;
         quote.referencePrice = message.referencePrice;
         quote.openPrice = message.openPrice;
       } else if (message.kind === "price") {
+        quote.priceObservedAt = message.time || quote.priceObservedAt;
         quote.lastPrice = message.price;
         quote.lastQuantity = message.quantity;
         quote.dayLow = message.dayLow;
         quote.dayHigh = message.dayHigh;
         pricedTickers.add(message.ticker);
       } else if (message.kind === "bidask") {
+        quote.bookObservedAt = message.time || quote.bookObservedAt;
         quote.bidPrice = message.bidPrice;
         quote.bidQuantity = message.bidQuantity;
         quote.askPrice = message.askPrice;
