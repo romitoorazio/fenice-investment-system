@@ -26,6 +26,9 @@ assert.equal(computeSourceConcentration([
   { source: "A" }, { source: "A" }, { source: "B" }, { source: "C" },
 ]), 0.5);
 
+const now = Date.parse("2026-09-21T18:00:00Z");
+const freshHealthAt = new Date(now - 60 * 60 * 1000).toISOString();
+
 const healthy = computeIntelligenceConfidence({
   sourceQuality: [
     { state: "operativo", qualityScore: 98 },
@@ -34,26 +37,57 @@ const healthy = computeIntelligenceConfidence({
     { state: "errore", qualityScore: 8 },
   ],
   criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  healthReportGeneratedAt: freshHealthAt,
   validations: Array.from({ length: 12 }, () => ({ status: "confermato" })),
   sourceCount: 4,
   assetClassCount: 4,
   concentration: 0.42,
+  now,
 });
 assert(healthy.confidence >= 90, `healthy confidence too low: ${healthy.confidence}`);
+assert.equal(healthy.metrics.criticalHealthFresh, true);
 
 const missingCritical = computeIntelligenceConfidence({
   sourceQuality: [{ state: "operativo", qualityScore: 100 }],
   criticalHealth: { gate: "RED", ready: 8, total: 9 },
+  healthReportGeneratedAt: freshHealthAt,
   validations: Array.from({ length: 20 }, () => ({ status: "confermato" })),
   sourceCount: 5,
   assetClassCount: 5,
   concentration: 0.2,
+  now,
 });
 assert(missingCritical.confidence <= 74);
+
+const staleCriticalHealth = computeIntelligenceConfidence({
+  sourceQuality: [{ state: "operativo", qualityScore: 100 }],
+  criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  healthReportGeneratedAt: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
+  validations: Array.from({ length: 20 }, () => ({ status: "confermato" })),
+  sourceCount: 5,
+  assetClassCount: 5,
+  concentration: 0.2,
+  now,
+});
+assert.equal(staleCriticalHealth.metrics.criticalHealthFresh, false);
+assert(staleCriticalHealth.confidence <= 74, `stale critical health must cap confidence, got ${staleCriticalHealth.confidence}`);
+
+const missingHealthTimestamp = computeIntelligenceConfidence({
+  sourceQuality: [{ state: "operativo", qualityScore: 100 }],
+  criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  validations: Array.from({ length: 20 }, () => ({ status: "confermato" })),
+  sourceCount: 5,
+  assetClassCount: 5,
+  concentration: 0.2,
+  now,
+});
+assert.equal(missingHealthTimestamp.metrics.criticalHealthFresh, false);
+assert(missingHealthTimestamp.confidence <= 74);
 
 const divergent = computeIntelligenceConfidence({
   sourceQuality: [{ state: "operativo", qualityScore: 100 }],
   criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  healthReportGeneratedAt: freshHealthAt,
   validations: [
     ...Array.from({ length: 12 }, () => ({ status: "confermato" })),
     { status: "divergente" },
@@ -61,6 +95,7 @@ const divergent = computeIntelligenceConfidence({
   sourceCount: 5,
   assetClassCount: 5,
   concentration: 0.2,
+  now,
 });
 assert(divergent.confidence <= 84);
 
