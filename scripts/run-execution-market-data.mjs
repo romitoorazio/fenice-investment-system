@@ -19,7 +19,8 @@ const dataDir = path.join(root, "data");
 const outputPath = path.join(dataDir, "execution-market-evidence.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const alphaVantageApiKey = String(process.env.ALPHA_VANTAGE_API_KEY || "").trim();
-const alphaVantageProbeLimit = Math.max(0, Math.min(5, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
+const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
+const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 0) || 0));
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -33,7 +34,7 @@ async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/1.3 execution-market-validation",
+        "user-agent": "FeniceInvestmentSystem/1.4 execution-market-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
@@ -118,7 +119,7 @@ async function fetchTwelveData(instrument) {
     assetClass: instrument.assetClass,
     source: "Twelve Data US realtime paper validation",
     sourceFamily: "twelve-data",
-    eligibility: "PAPER",
+    eligibility: classifyPaperEligibilityByFreshness(new Date(timestamp * 1000).toISOString(), Date.now(), 120),
     price,
     observedAt: new Date(timestamp * 1000).toISOString(),
   });
@@ -132,7 +133,13 @@ async function fetchAlphaVantageIntraday(instrument) {
   const data = await request(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${encodeURIComponent(providerSymbol)}&interval=1min&outputsize=compact&apikey=${encodeURIComponent(alphaVantageApiKey)}`, { timeoutMs: 12000 });
   if (data?.["Error Message"]) throw new Error("ALPHA_VANTAGE_API_ERROR");
   if (data?.Note) throw new Error("ALPHA_VANTAGE_RATE_LIMIT");
-  if (data?.Information) throw new Error("ALPHA_VANTAGE_INFORMATION");
+  if (data?.Information) {
+    const information = String(data.Information);
+    if (/premium|realtime|entitlement|subscription/i.test(information)) {
+      throw new Error("ALPHA_VANTAGE_REALTIME_ENTITLEMENT_REQUIRED");
+    }
+    throw new Error("ALPHA_VANTAGE_INFORMATION");
+  }
   const meta = data?.["Meta Data"] || {};
   const returnedSymbol = normalizeExecutionSymbol(meta?.["2. Symbol"]);
   if (!returnedSymbol || returnedSymbol !== providerSymbol) throw new Error("ALPHA_VANTAGE_SYMBOL_MISMATCH");
@@ -237,6 +244,12 @@ const instruments = [...requested].map((symbol) => {
   };
 });
 
+const twelveDataProbeSymbols = new Set(
+  instruments
+    .filter(isTwelveDataPaperCandidate)
+    .slice(0, twelveDataProbeLimit)
+    .map((instrument) => instrument.symbol),
+);
 const alphaVantageProbeSymbols = new Set(
   instruments
     .filter(isAlphaVantageIntradayCandidate)
@@ -250,7 +263,7 @@ for (const instrument of instruments) {
     ["yahoo", () => fetchYahoo(instrument)],
     ["stooq", () => fetchStooq(instrument)],
   ];
-  if (twelveDataApiKey && isTwelveDataPaperCandidate(instrument)) {
+  if (twelveDataApiKey && twelveDataProbeSymbols.has(instrument.symbol)) {
     tasks.push(["twelve-data", () => fetchTwelveData(instrument)]);
   }
   if (alphaVantageApiKey && alphaVantageProbeSymbols.has(instrument.symbol)) {
@@ -278,9 +291,10 @@ for (const instrument of instruments) {
 }
 
 const deduplicated = deduplicateExecutionEvidence(observations);
+const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "twelve-data");
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
 const report = {
-  version: 4,
+  version: 5,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -288,13 +302,17 @@ const report = {
   capabilities: {
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
-    twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; candidate tickers are accepted as PAPER evidence only after provider response proves a recognized US realtime venue and precise timestamp",
+    twelveDataProbeLimit,
+    twelveDataProbedSymbols: [...twelveDataProbeSymbols],
+    twelveDataPaperFreshObservations: twelveDataEvidence.filter((item) => item.eligibility === "PAPER").length,
+    twelveDataValidationOnlyObservations: twelveDataEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
+    twelveDataFreeRealtimeScope: "US-listed equities/ETFs; bounded probe budget is intentionally compatible with low-rate free tiers and every quote must still prove a recognized US realtime venue plus <=120 second freshness",
     alphaVantageConfigured: Boolean(alphaVantageApiKey),
     alphaVantageProbeLimit,
     alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
     alphaVantagePaperFreshObservations: alphaVantageEvidence.filter((item) => item.eligibility === "PAPER").length,
     alphaVantageValidationOnlyObservations: alphaVantageEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    alphaVantagePaperRule: "intraday evidence is PAPER-eligible only when exact symbol identity is verified, provider timezone is converted safely, and latest bar age is <=120 seconds; otherwise it remains validation-only",
+    alphaVantagePaperRule: "disabled by default because realtime US intraday requires explicit provider entitlement; when explicitly probed, exact symbol identity, timezone conversion and <=120 second freshness are still mandatory",
     directPaidFeedRequired: false,
   },
   policy: {
@@ -305,9 +323,10 @@ const report = {
     liveEligibilityMustBeExplicit: true,
     providerVenueMustBeVerifiedBeforePaperEligibility: true,
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
+    providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
