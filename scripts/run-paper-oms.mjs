@@ -5,6 +5,7 @@ import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state
 import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
 import { evaluateOperationalGates } from "../lib/trading/operational-gates.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
+import { evaluatePortfolioRisk } from "../lib/trading/portfolio-risk.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -91,6 +92,41 @@ function existingPosition(symbol) {
   return state.positions.find((position) => String(position.symbol || "").toUpperCase() === String(symbol).toUpperCase());
 }
 
+function projectedPortfolioRisk(queued, referencePrice, fxToEuro, capitalEuro) {
+  const projected = new Map();
+  for (const position of state.positions) {
+    const symbol = String(position.symbol || "").toUpperCase();
+    const asset = assets.get(symbol) || {};
+    const price = Number(asset.price);
+    const fx = Number(position.fxToEuro);
+    const quantity = Number(position.quantity);
+    if (!symbol || !Number.isFinite(price) || price <= 0 || !Number.isFinite(fx) || fx <= 0 || !Number.isFinite(quantity)) continue;
+    projected.set(symbol, {
+      symbol,
+      notionalEuro: Math.abs(quantity * price * fx),
+      sector: String(asset.sector || asset.industry || "UNKNOWN"),
+      assetClass: String(asset.assetClass || asset.category || "UNKNOWN"),
+    });
+  }
+
+  const symbol = String(queued.symbol || "").toUpperCase();
+  const asset = assets.get(symbol) || {};
+  const delta = Math.abs(Number(queued.quantity) * referencePrice * fxToEuro);
+  const existing = projected.get(symbol) || {
+    symbol,
+    notionalEuro: 0,
+    sector: String(asset.sector || asset.industry || "UNKNOWN"),
+    assetClass: String(asset.assetClass || asset.category || "UNKNOWN"),
+  };
+  existing.notionalEuro = queued.side === "SELL"
+    ? Math.max(0, existing.notionalEuro - delta)
+    : existing.notionalEuro + delta;
+  if (existing.notionalEuro > 0) projected.set(symbol, existing);
+  else projected.delete(symbol);
+
+  return evaluatePortfolioRisk(capitalEuro, [...projected.values()]);
+}
+
 function updatePosition(execution, fxToEuro) {
   if (execution.status !== "PAPER_FILLED" || execution.fillPrice === null) return;
   const symbol = String(execution.symbol).toUpperCase();
@@ -154,6 +190,8 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
   const existingPositionNotionalEuro = position
     ? Math.abs(Number(position.quantity) * referencePrice * Number(position.fxToEuro || fxToEuro))
     : 0;
+  const baseCapitalEuro = Number(committee.capitalEuro || terminal.capitalEuro || 0);
+  const portfolioRisk = projectedPortfolioRisk(queued, referencePrice, fxToEuro, baseCapitalEuro);
   const order = {
     clientOrderId: queued.clientOrderId,
     symbol,
@@ -168,7 +206,6 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     requestedAt: queued.requestedAt || now.toISOString(),
     humanConfirmed: queued.humanConfirmed === true,
   };
-  const baseCapitalEuro = Number(committee.capitalEuro || terminal.capitalEuro || 0);
   const context = {
     capitalEuro: baseCapitalEuro * operationalGate.riskMultiplier,
     fxToEuro,
@@ -182,7 +219,7 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     quoteObservedAt: latestObservedAt(evidence, asset?.technical?.observedAt || terminal.generatedAt || ""),
     dataDivergent: validation?.status === "divergente" || operationalGate.marketData.allowNewRisk === false,
     sourceStale: intelligenceAgeHours > 24 || sources?.critical?.gate !== "GREEN" || operationalGate.marketData.allowNewRisk === false,
-    killSwitchEngaged: killSwitch.engaged || operationalGate.allowNewRisk === false,
+    killSwitchEngaged: killSwitch.engaged || operationalGate.allowNewRisk === false || portfolioRisk.allowNewRisk === false,
     brokerConnectivityAllowed: false,
     liveTradingReleased: false,
   };
@@ -210,6 +247,18 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
         marketDataSpreadPercent: operationalGate.marketData.maxSpreadPercent,
         eventRiskState: operationalGate.eventRisk.state,
         reasons: operationalGate.reasons,
+      },
+      portfolioRisk: {
+        state: portfolioRisk.state,
+        riskMultiplier: portfolioRisk.riskMultiplier,
+        grossExposurePercent: portfolioRisk.grossExposurePercent,
+        largestPositionPercent: portfolioRisk.largestPositionPercent,
+        largestSectorPercent: portfolioRisk.largestSectorPercent,
+        largestAssetClassPercent: portfolioRisk.largestAssetClassPercent,
+        capitalHhi: portfolioRisk.capitalHhi,
+        weightedAbsCorrelation: portfolioRisk.weightedAbsCorrelation,
+        maxCorrelatedClusterPercent: portfolioRisk.maxCorrelatedClusterPercent,
+        reasons: portfolioRisk.reasons,
       },
     },
   });
