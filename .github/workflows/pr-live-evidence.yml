@@ -9,6 +9,7 @@ on:
       - ".github/workflows/pr-live-evidence.yml"
       - ".github/workflows/intelligence-quality.yml"
       - ".github/workflows/paper-validation.yml"
+      - "package.json"
       - "lib/intelligence/quality-engine.mjs"
       - "scripts/run-intelligence.mjs"
       - "scripts/run-execution-market-data.mjs"
@@ -16,9 +17,16 @@ on:
       - "scripts/check-global-sources.mjs"
       - "scripts/check-paper-baseline-eligibility.mjs"
       - "scripts/check-certification-readiness.mjs"
+      - "scripts/validate-instrument-master.mjs"
       - "data/global-source-registry.json"
+      - "data/instrument-master.json"
       - "data/execution-market-coverage.json"
       - "lib/trading/execution-market-data.ts"
+      - "lib/trading/execution-coverage.ts"
+      - "lib/trading/instrument-identity.ts"
+      - "lib/trading/directa-execution-evidence.ts"
+      - "lib/trading/directa-paper-preflight.ts"
+      - "lib/trading/directa-realtime-entitlements.ts"
       - "lib/trading/market-data-quorum.ts"
       - "lib/trading/smart-order-router.ts"
       - "lib/trading/signal-conditional-orders.ts"
@@ -63,6 +71,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Validate instrument identities and pilot venues
+        run: npm run instruments:validate
+
       - name: Refresh critical source health in ephemeral workspace
         run: npm run sources:check
 
@@ -105,6 +116,9 @@ jobs:
               };
             })
             .sort((a, b) => b.count - a.count || a.provider.localeCompare(b.provider) || a.code.localeCompare(b.code));
+          const approvedPilotFamilies = Array.isArray(c.policy?.approvedIndependentPaperSourceFamiliesForDirectaPilot)
+            ? c.policy.approvedIndependentPaperSourceFamiliesForDirectaPilot
+            : [];
           const metrics = {
             generatedAt: new Date().toISOString(),
             auditedCommit: process.env.GITHUB_SHA,
@@ -122,18 +136,34 @@ jobs:
             sourceReportAgeHours: ageHours(s.generatedAt),
             intelligenceReportAgeHours: ageHours(q.generatedAt),
             executionEvidenceAgeHours: ageHours(e.generatedAt),
+            executionEvidenceVersion: Number(e.version || 0),
+            executionCoverageVersion: Number(c.version || 0),
             executionObservations: Array.isArray(e.observations) ? e.observations.length : 0,
             executionProviders: [...new Set((e.observations || []).map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
             executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
             executionProviderErrorSummary,
             twelveDataConfigured: e.capabilities?.twelveDataConfigured === true,
             twelveDataProbeLimit: Number(e.capabilities?.twelveDataProbeLimit || 0),
+            twelveDataPaperFreshObservations: Number(e.capabilities?.twelveDataPaperFreshObservations || 0),
+            alphaVantageConfigured: e.capabilities?.alphaVantageConfigured === true,
+            alphaVantagePaperFreshObservations: Number(e.capabilities?.alphaVantagePaperFreshObservations || 0),
+            directaLocalSnapshotDetected: e.capabilities?.directaLocalSnapshotDetected === true,
+            directaLocalSnapshotAccepted: e.capabilities?.directaLocalSnapshotAccepted === true,
+            directaRealtimeEntitlementConfirmed: e.capabilities?.directaRealtimeEntitlementConfirmed === true,
+            directaConfirmedRealtimeMarketMics: Array.isArray(e.capabilities?.directaConfirmedRealtimeMarketMics) ? e.capabilities.directaConfirmedRealtimeMarketMics : [],
+            directaIdentityVerifiedQuotes: Number(e.capabilities?.directaIdentityVerifiedQuotes || 0),
+            directaIdentityRejectedQuotes: Number(e.capabilities?.directaIdentityRejectedQuotes || 0),
+            directaPaperFreshObservations: Number(e.capabilities?.directaPaperFreshObservations || 0),
             paperRequestedSymbols: Number(c.requestedSymbols || 0),
             paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
             paperEligiblePercent: Number(c.paperEligiblePercent || 0),
             directaPilotCandidateSymbols: Number(c.directaPilotCandidateSymbols || 0),
             directaPilotEligibleSymbols: Number(c.directaPilotEligibleSymbols || 0),
             directaPilotEligiblePercent: Number(c.directaPilotEligiblePercent || 0),
+            coverageRequiresDirectaPaperSource: c.policy?.requireDirectaPaperSourceForDirectaPilot === true,
+            coverageRequiresIndependentRealtimeSource: c.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true,
+            yahooExcludedFromDirectaPilot: c.policy?.yahooCannotSatisfyDirectaPilotCoverage === true,
+            approvedPilotIndependentSourceFamilies: approvedPilotFamilies,
             paperGreenSymbols: Array.isArray(c.greenSymbols) ? c.greenSymbols : [],
             directaPilotGreenSymbols: Array.isArray(c.directaPilotGreenSymbols) ? c.directaPilotGreenSymbols : [],
             paperCautionSymbols: Array.isArray(c.cautionSymbols) ? c.cautionSymbols : [],
@@ -148,6 +178,8 @@ jobs:
             assetClasses3: metrics.assetClasses >= 3,
             crossChecks10: metrics.crossChecks >= 10,
             zeroDivergence: metrics.divergent === 0,
+            hardenedExecutionSchema: metrics.executionEvidenceVersion >= 8 && metrics.executionCoverageVersion >= 4,
+            hardenedDirectaCoveragePolicy: metrics.coverageRequiresDirectaPaperSource && metrics.coverageRequiresIndependentRealtimeSource && metrics.yahooExcludedFromDirectaPilot && metrics.approvedPilotIndependentSourceFamilies.includes('twelve-data'),
             executionEvidencePresent: metrics.executionObservations > 0,
             paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
             directaPilotCoverage: metrics.directaPilotEligibleSymbols >= 3,
@@ -157,12 +189,18 @@ jobs:
           const report = {
             metrics,
             gates,
-            dataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
-            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoverage && gates.directaPilotCoverage,
+            cloudDataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
+            hardenedExecutionPolicyReady: gates.hardenedExecutionSchema && gates.hardenedDirectaCoveragePolicy && gates.liveTradingLocked,
+            broadPaperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoverage,
+            directaBrokerPilotReadyFromThisRunner: gates.directaPilotCoverage,
+            localDirectaEvidenceRequired: true,
+            cloudRunnerCanCertifyDirectaLocalFeed: false,
+            note: 'GitHub-hosted runners cannot access the local Darwin/DAPI loopback feed. Directa pilot readiness must be proven on the broker PC with the same fingerprinted core and fresh approved independent market data.',
           };
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
           if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
+          if (!gates.hardenedExecutionSchema || !gates.hardenedDirectaCoveragePolicy) throw new Error('SAFETY_FAILURE: live audit is not using the hardened execution coverage policy');
           NODE
 
       - name: Paper baseline eligibility on fresh ephemeral evidence
