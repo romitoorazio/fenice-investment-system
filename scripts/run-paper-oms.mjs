@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { appendAuditEvent, verifyAuditChain } from "../lib/trading/audit-chain.ts";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
+import { evaluateOperationalGates } from "../lib/trading/operational-gates.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
 
@@ -14,13 +15,15 @@ async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
 }
 
-const [queue, state, terminal, intelligence, sources, committee] = await Promise.all([
+const [queue, state, terminal, intelligence, sources, committee, executionMarket, eventRegistry] = await Promise.all([
   readJson("paper-order-queue.json", { version: 1, mode: "PAPER", orders: [] }),
   readJson("paper-oms-state.json", { version: 1, mode: "PAPER", openOrders: [], executions: [], positions: [], reconciliation: { balanced: true, breaks: [] }, auditChain: [] }),
   readJson("terminal-intelligence.json", { assets: [], capitalEuro: 0, generatedAt: null }),
   readJson("intelligence-quality.json", { intelligenceConfidence: 0, generatedAt: null, crossSourceValidation: { checks: [] } }),
   readJson("global-source-health.json", { critical: { gate: "UNKNOWN" }, sources: [] }),
   readJson("investment-committee.json", { capitalEuro: 0 }),
+  readJson("execution-market-evidence.json", { version: 1, generatedAt: null, observations: [] }),
+  readJson("market-risk-events.json", { version: 1, generatedAt: null, events: [] }),
 ]);
 
 if (queue.mode !== "PAPER" || state.mode !== "PAPER") {
@@ -34,6 +37,8 @@ state.auditChain = Array.isArray(state.auditChain) ? state.auditChain : [];
 const existingIds = new Set(state.executions.map((execution) => execution.clientOrderId));
 const assets = new Map((terminal.assets || []).map((asset) => [String(asset.symbol || "").toUpperCase(), asset]));
 const checks = Array.isArray(intelligence?.crossSourceValidation?.checks) ? intelligence.crossSourceValidation.checks : [];
+const executionObservations = Array.isArray(executionMarket?.observations) ? executionMarket.observations : [];
+const riskEvents = Array.isArray(eventRegistry?.events) ? eventRegistry.events : [];
 const staleCriticalSources = Array.isArray(sources.sources)
   ? sources.sources.filter((source) => source?.critical === true && (source?.stale === true || source?.status === "failed")).length
   : 0;
@@ -45,6 +50,22 @@ const auditBefore = verifyAuditChain(state.auditChain);
 function findValidation(symbol) {
   const prefix = `${String(symbol).toUpperCase()}:`;
   return checks.find((check) => String(check.instrument || "").toUpperCase().startsWith(prefix));
+}
+
+function findExecutionEvidence(symbol, currency) {
+  const normalizedSymbol = String(symbol || "").toUpperCase();
+  const normalizedCurrency = String(currency || "").toUpperCase();
+  return executionObservations
+    .filter((item) => String(item?.symbol || "").toUpperCase() === normalizedSymbol)
+    .filter((item) => !normalizedCurrency || String(item?.currency || "").toUpperCase() === normalizedCurrency)
+    .map((item) => ({ source: item.source, price: Number(item.price), observedAt: item.observedAt }));
+}
+
+function latestObservedAt(evidence, fallback) {
+  const timestamps = evidence
+    .map((item) => Date.parse(String(item?.observedAt || "")))
+    .filter(Number.isFinite);
+  return timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : fallback;
 }
 
 function grossExposureEuro() {
@@ -105,8 +126,17 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     continue;
   }
 
+  const currency = String(asset.currency || queued.currency || "UNKNOWN").toUpperCase();
+  const assetClass = String(asset.assetClass || asset.category || "UNKNOWN");
+  const evidence = findExecutionEvidence(symbol, currency);
+  const operationalGate = evaluateOperationalGates({
+    marketEvidence: evidence,
+    events: riskEvents,
+    eventContext: { symbol, currency, assetClass },
+    now: now.getTime(),
+  });
   const validation = findValidation(symbol);
-  const independentSources = Array.isArray(validation?.sources) ? validation.sources.length : 0;
+  const independentSources = operationalGate.marketData.independentSources;
   const dataConfidence = Math.min(Number(asset.confidence || 0), Number(intelligence.intelligenceConfidence || 0));
   const auditIntegrity = verifyAuditChain(state.auditChain);
   const killSwitch = evaluateKillSwitch({
@@ -119,9 +149,10 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     auditChainValid: auditIntegrity.valid,
   });
 
+  const referencePrice = Number(operationalGate.marketData.medianPrice ?? asset.price);
   const position = existingPosition(symbol);
   const existingPositionNotionalEuro = position
-    ? Math.abs(Number(position.quantity) * Number(asset.price) * Number(position.fxToEuro || fxToEuro))
+    ? Math.abs(Number(position.quantity) * referencePrice * Number(position.fxToEuro || fxToEuro))
     : 0;
   const order = {
     clientOrderId: queued.clientOrderId,
@@ -130,15 +161,16 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     orderType: queued.orderType,
     timeInForce: queued.timeInForce,
     quantity: Number(queued.quantity),
-    referencePrice: Number(asset.price),
+    referencePrice,
     ...(queued.limitPrice === undefined ? {} : { limitPrice: Number(queued.limitPrice) }),
-    currency: String(asset.currency || queued.currency || "UNKNOWN"),
+    currency,
     mode: "PAPER",
     requestedAt: queued.requestedAt || now.toISOString(),
     humanConfirmed: queued.humanConfirmed === true,
   };
+  const baseCapitalEuro = Number(committee.capitalEuro || terminal.capitalEuro || 0);
   const context = {
-    capitalEuro: Number(committee.capitalEuro || terminal.capitalEuro || 0),
+    capitalEuro: baseCapitalEuro * operationalGate.riskMultiplier,
     fxToEuro,
     existingPositionNotionalEuro,
     currentGrossExposureEuro: grossExposureEuro(),
@@ -147,10 +179,10 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     dataConfidence,
     independentSources,
     riskScore: Number(asset.riskScore ?? 100),
-    quoteObservedAt: asset?.technical?.observedAt || terminal.generatedAt || "",
-    dataDivergent: validation?.status === "divergente",
-    sourceStale: intelligenceAgeHours > 24 || sources?.critical?.gate !== "GREEN",
-    killSwitchEngaged: killSwitch.engaged,
+    quoteObservedAt: latestObservedAt(evidence, asset?.technical?.observedAt || terminal.generatedAt || ""),
+    dataDivergent: validation?.status === "divergente" || operationalGate.marketData.allowNewRisk === false,
+    sourceStale: intelligenceAgeHours > 24 || sources?.critical?.gate !== "GREEN" || operationalGate.marketData.allowNewRisk === false,
+    killSwitchEngaged: killSwitch.engaged || operationalGate.allowNewRisk === false,
     brokerConnectivityAllowed: false,
     liveTradingReleased: false,
   };
@@ -170,6 +202,15 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
       fillPrice: execution.fillPrice,
       riskAllowed: execution.risk.allowed,
       reasons: execution.risk.reasons,
+      operationalGate: {
+        state: operationalGate.state,
+        riskMultiplier: operationalGate.riskMultiplier,
+        marketDataState: operationalGate.marketData.state,
+        marketDataSources: operationalGate.marketData.independentSources,
+        marketDataSpreadPercent: operationalGate.marketData.maxSpreadPercent,
+        eventRiskState: operationalGate.eventRisk.state,
+        reasons: operationalGate.reasons,
+      },
     },
   });
   processed += 1;
@@ -199,6 +240,8 @@ state.killSwitch = { ...finalKillSwitch, manualEngaged: state.killSwitch?.manual
 state.operational = true;
 state.liveTradingAllowed = false;
 state.brokerConnectivityAllowed = false;
+state.executionDataGeneratedAt = executionMarket.generatedAt || null;
+state.marketRiskEventsGeneratedAt = eventRegistry.generatedAt || null;
 
 // State is committed before queue acknowledgement. If the process crashes
 // between these two writes, idempotent clientOrderId recovery prevents a
