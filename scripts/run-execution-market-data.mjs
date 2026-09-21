@@ -1,6 +1,8 @@
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
+import { buildDirectaExecutionEvidence } from "../lib/trading/directa-execution-evidence.ts";
 import {
   classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
@@ -17,6 +19,9 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
 const outputPath = path.join(dataDir, "execution-market-evidence.json");
+const directaSnapshotPath = String(
+  process.env.DIRECTA_EXECUTION_SNAPSHOT_PATH || path.join(homedir(), ".fenice", "directa-datafeed-snapshot.json"),
+).trim();
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const alphaVantageApiKey = String(process.env.ALPHA_VANTAGE_API_KEY || "").trim();
 const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
@@ -211,10 +216,11 @@ async function fetchKraken(instrument) {
   });
 }
 
-const [queue, terminal, master] = await Promise.all([
+const [queue, terminal, master, directaSnapshot] = await Promise.all([
   readJson("paper-order-queue.json", { orders: [] }),
   readJson("terminal-intelligence.json", { assets: [] }),
   readJson("instrument-master.json", { instruments: [] }),
+  readJsonState(directaSnapshotPath, null),
 ]);
 
 const masterByTicker = new Map(
@@ -260,8 +266,19 @@ const alphaVantageProbeSymbols = new Set(
     .slice(0, alphaVantageProbeLimit)
     .map((instrument) => instrument.symbol),
 );
-const observations = [];
+const directaEvidence = buildDirectaExecutionEvidence(directaSnapshot, instruments);
+const observations = [...directaEvidence.observations];
 const errors = [];
+if (directaSnapshot && !directaEvidence.accepted) {
+  for (const reason of directaEvidence.reasons) {
+    errors.push({
+      symbol: "*",
+      provider: "directa",
+      code: String(reason).replace(/[^A-Z0-9_:-]/gi, "_").slice(0, 80),
+    });
+  }
+}
+
 for (const instrument of instruments) {
   const tasks = [
     ["yahoo", () => fetchYahoo(instrument)],
@@ -297,13 +314,20 @@ for (const instrument of instruments) {
 const deduplicated = deduplicateExecutionEvidence(observations);
 const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "twelve-data");
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
+const directaObservations = deduplicated.filter((item) => item.sourceFamily === "directa");
 const report = {
-  version: 6,
+  version: 7,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
   errors,
   capabilities: {
+    directaLocalSnapshotDetected: Boolean(directaSnapshot),
+    directaLocalSnapshotAccepted: directaEvidence.accepted,
+    directaLocalSnapshotAgeMs: directaEvidence.snapshotAgeMs,
+    directaPaperFreshObservations: directaObservations.filter((item) => item.eligibility === "PAPER").length,
+    directaValidationOnlyObservations: directaObservations.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
+    directaPaperRule: "only loopback read-only DAPI snapshots with writeTradingCommandsAllowed=false and fresh quote timestamps may satisfy PAPER quorum",
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
     twelveDataProbeLimit,
@@ -329,9 +353,10 @@ const report = {
     providerVenueMustBeVerifiedBeforePaperEligibility: true,
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
+    localBrokerEvidenceMustProveReadOnlyBoundary: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
