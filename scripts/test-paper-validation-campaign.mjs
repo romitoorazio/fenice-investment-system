@@ -72,6 +72,7 @@ assert.equal(matured.safetyEvidenceDays, 26);
 assert.equal(matured.fingerprintEvidenceDays, 26);
 assert.equal(matured.fingerprintMismatchDays, 0);
 assert.equal(matured.marketDataCoverageFailureDays, 0);
+assert.equal(matured.fillAccountingMismatchDays, 0);
 assert.equal(matured.cumulativePaperFills, 12);
 assert.equal(matured.executionQualityReady, true);
 
@@ -134,17 +135,27 @@ const reconciliationFailure = evaluatePaperValidationCampaign(campaign({
 assert.equal(reconciliationFailure.matured, false);
 assert.equal(reconciliationFailure.reconciliationBreakDays, 1);
 
-const insufficientFills = evaluatePaperValidationCampaign(campaign({
-  dailyEvidence: dailyEvidence.map((row) => ({
+const insufficientFillsRows = dailyEvidence.map((row, index) => {
+  const cumulativePaperFilled = Math.min(3, index + 1);
+  const previousPaperFilled = index === 0 ? 0 : Math.min(3, index);
+  const newPaperFills = cumulativePaperFilled - previousPaperFilled;
+  return {
     ...row,
-    cumulativePaperFilled: 3,
-    newPaperFills: 0,
-    executionQuality: { state: "INSUFFICIENT", allowPilot: false, fills: 3 },
-  })),
-}), now);
+    cumulativePaperFilled,
+    newPaperFills,
+    executionMarketCoverage: {
+      ...row.executionMarketCoverage,
+      requiredForNewFills: newPaperFills > 0,
+    },
+    executionQuality: { state: "INSUFFICIENT", allowPilot: false, fills: cumulativePaperFilled },
+  };
+});
+const insufficientFills = evaluatePaperValidationCampaign(campaign({ dailyEvidence: insufficientFillsRows }), now);
 assert.equal(insufficientFills.matured, false);
+assert.equal(insufficientFills.state, "ACTIVE");
 assert.equal(insufficientFills.cumulativePaperFills, 3);
 assert.equal(insufficientFills.executionQualityReady, false);
+assert.equal(insufficientFills.fillAccountingMismatchDays, 0);
 
 const poorExecutionQuality = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row, index) => index === dailyEvidence.length - 1
@@ -169,7 +180,6 @@ const missingCoverageOnFillDay = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row, index) => index === 5
     ? {
         ...row,
-        newPaperFills: 1,
         executionMarketCoverage: {
           ...row.executionMarketCoverage,
           requiredForNewFills: true,
@@ -184,6 +194,16 @@ assert.equal(missingCoverageOnFillDay.matured, false);
 assert.equal(missingCoverageOnFillDay.state, "INVALID");
 assert.equal(missingCoverageOnFillDay.marketDataCoverageFailureDays, 1);
 assert(missingCoverageOnFillDay.reasons.some((reason) => reason.includes("market-data coverage")));
+
+const tamperedFillDelta = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: dailyEvidence.map((row, index) => index === 5
+    ? { ...row, newPaperFills: 0 }
+    : row),
+}), now);
+assert.equal(tamperedFillDelta.matured, false);
+assert.equal(tamperedFillDelta.state, "INVALID");
+assert.equal(tamperedFillDelta.fillAccountingMismatchDays, 1);
+assert(tamperedFillDelta.reasons.some((reason) => reason.includes("fill accounting")));
 
 const noFillClosedDayIsAllowed = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row, index) => index === 20
