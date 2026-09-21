@@ -17,10 +17,16 @@ const campaignPath = path.join(root, "data", "paper-validation-campaign.json");
 const statePath = path.join(root, "data", "paper-oms-state.json");
 const coveragePath = path.join(root, "data", "execution-market-coverage.json");
 const executionEvidencePath = path.join(root, "data", "execution-market-evidence.json");
-const campaign = JSON.parse(await readFile(campaignPath, "utf8"));
-const state = JSON.parse(await readFile(statePath, "utf8"));
-const executionCoverage = JSON.parse(await readFile(coveragePath, "utf8"));
-const executionEvidence = JSON.parse(await readFile(executionEvidencePath, "utf8"));
+const sourceHealthPath = path.join(root, "data", "global-source-health.json");
+const intelligencePath = path.join(root, "data", "intelligence-quality.json");
+const [campaign, state, executionCoverage, executionEvidence, sourceHealth, intelligence] = await Promise.all([
+  readFile(campaignPath, "utf8").then(JSON.parse),
+  readFile(statePath, "utf8").then(JSON.parse),
+  readFile(coveragePath, "utf8").then(JSON.parse),
+  readFile(executionEvidencePath, "utf8").then(JSON.parse),
+  readFile(sourceHealthPath, "utf8").then(JSON.parse),
+  readFile(intelligencePath, "utf8").then(JSON.parse),
+]);
 
 async function resolveCommit() {
   const envSha = String(process.env.GITHUB_SHA || "").trim();
@@ -35,10 +41,111 @@ function parseTime(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function ageMinutes(value, nowMs) {
+  const parsed = parseTime(value);
+  return parsed === null ? Number.POSITIVE_INFINITY : (nowMs - parsed) / 60_000;
+}
+
 function timestampsMatch(left, right, toleranceMs = 1000) {
   const a = parseTime(left);
   const b = parseTime(right);
   return a !== null && b !== null && Math.abs(a - b) <= toleranceMs;
+}
+
+function summarizeDecisionData(sourceHealthInput, intelligenceInput, nowMs) {
+  const sourceAgeMinutes = ageMinutes(sourceHealthInput?.generatedAt, nowMs);
+  const intelligenceAgeMinutes = ageMinutes(intelligenceInput?.generatedAt, nowMs);
+  const criticalReady = Number(sourceHealthInput?.critical?.ready || 0);
+  const criticalTotal = Number(sourceHealthInput?.critical?.total || 0);
+  const sourceReady = sourceAgeMinutes >= 0
+    && sourceAgeMinutes <= 10
+    && sourceHealthInput?.critical?.gate === "GREEN"
+    && criticalTotal > 0
+    && criticalReady === criticalTotal;
+  const confidence = Number(intelligenceInput?.intelligenceConfidence || 0);
+  const sourceConcentrationPercent = Number(intelligenceInput?.coverage?.sourceConcentrationPercent ?? 100);
+  const marketSources = Number(intelligenceInput?.coverage?.marketSources || 0);
+  const assetClasses = Array.isArray(intelligenceInput?.coverage?.assetClasses)
+    ? intelligenceInput.coverage.assetClasses.length
+    : 0;
+  const crossChecks = Number(intelligenceInput?.crossSourceValidation?.checked || 0);
+  const divergent = Number(intelligenceInput?.crossSourceValidation?.divergent || 0);
+  const dataReady = intelligenceAgeMinutes >= 0
+    && intelligenceAgeMinutes <= 10
+    && confidence >= 90
+    && sourceConcentrationPercent <= 50
+    && marketSources >= 3
+    && assetClasses >= 3
+    && crossChecks >= 10
+    && divergent === 0
+    && intelligenceInput?.policy?.unknownTimestampEvidenceExcluded === true;
+  return {
+    ready: sourceReady && dataReady,
+    sourceReady,
+    dataReady,
+    sourceAgeMinutes: Number.isFinite(sourceAgeMinutes) ? Number(sourceAgeMinutes.toFixed(1)) : null,
+    intelligenceAgeMinutes: Number.isFinite(intelligenceAgeMinutes) ? Number(intelligenceAgeMinutes.toFixed(1)) : null,
+    criticalReady,
+    criticalTotal,
+    confidence,
+    sourceConcentrationPercent,
+    marketSources,
+    assetClasses,
+    crossChecks,
+    divergent,
+  };
+}
+
+function summarizeExecutionCoverage(coverage, evidence, nowMs) {
+  const coverageGeneratedAtMs = parseTime(coverage?.generatedAt);
+  const age = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
+  const fresh = Number.isFinite(age) && age >= 0 && age <= 30;
+  const matchesEvidence = timestampsMatch(coverage?.evidenceGeneratedAt, evidence?.generatedAt);
+  const policyReady = Number(coverage?.version || 0) >= 2
+    && coverage?.policy?.requiredEligibility === "PAPER"
+    && Number(coverage?.policy?.minIndependentSourceFamilies || 0) >= 2
+    && Number(coverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
+    && coverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
+    && coverage?.policy?.liveTradingAllowed === false
+    && evidence?.policy?.liveTradingAllowed === false
+    && evidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true;
+  const broadCoverageReady = Number(coverage?.requestedSymbols || 0) >= 3
+    && Number(coverage?.paperEligibleSymbols || 0) >= 3
+    && Number(coverage?.paperEligiblePercent || 0) >= 25;
+  const directaPilotCoverageReady = Number(coverage?.directaPilotCandidateSymbols || 0) >= 3
+    && Number(coverage?.directaPilotEligibleSymbols || 0) >= 3;
+  return {
+    ready: fresh && matchesEvidence && policyReady && broadCoverageReady && directaPilotCoverageReady,
+    fresh,
+    matchesEvidence,
+    policyReady,
+    broadCoverageReady,
+    directaPilotCoverageReady,
+    ageMinutes: Number.isFinite(age) ? Number(age.toFixed(1)) : null,
+    requestedSymbols: Number(coverage?.requestedSymbols || 0),
+    paperEligibleSymbols: Number(coverage?.paperEligibleSymbols || 0),
+    paperEligiblePercent: Number(coverage?.paperEligiblePercent || 0),
+    directaPilotCandidateSymbols: Number(coverage?.directaPilotCandidateSymbols || 0),
+    directaPilotEligibleSymbols: Number(coverage?.directaPilotEligibleSymbols || 0),
+  };
+}
+
+function validateFillEvidenceWindows(windows, fromCumulative, toCumulative) {
+  if (toCumulative < fromCumulative) return false;
+  if (toCumulative === fromCumulative) return (windows || []).length === 0;
+  const ordered = [...(Array.isArray(windows) ? windows : [])]
+    .sort((a, b) => String(a?.observedAt || "").localeCompare(String(b?.observedAt || "")));
+  let cursor = fromCumulative;
+  for (const window of ordered) {
+    const from = Number(window?.fromCumulativePaperFilled);
+    const to = Number(window?.toCumulativePaperFilled);
+    const count = Number(window?.newPaperFills);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || !Number.isFinite(count)) return false;
+    if (from !== cursor || to <= from || count !== to - from) return false;
+    if (window?.decisionData?.ready !== true || window?.executionMarket?.ready !== true) return false;
+    cursor = to;
+  }
+  return cursor === toCumulative;
 }
 
 if (!campaign?.startedAt || !campaign?.baselineCommit) {
@@ -75,44 +182,55 @@ const audit = verifyAuditChain(Array.isArray(state.auditChain) ? state.auditChai
 const tca = calculateTransactionCosts(executions);
 const executionQuality = evaluateExecutionQuality(executions);
 const existing = Array.isArray(campaign.dailyEvidence) ? campaign.dailyEvidence : [];
-
-// A daily row can be re-written by a manual rerun. The day's fill delta must
-// therefore be measured against the latest PRIOR DAY, not against an earlier
-// snapshot from the same date that will be replaced below.
+const existingToday = existing.find((item) => String(item?.date || "").slice(0, 10) === date) || null;
 const priorDayCumulativePaperFilled = existing
   .filter((item) => String(item?.date || "").slice(0, 10) < date)
   .reduce((max, item) => {
     const value = Number(item?.cumulativePaperFilled);
     return Number.isFinite(value) && value >= 0 ? Math.max(max, value) : max;
   }, 0);
-if (paperFilled < priorDayCumulativePaperFilled) {
-  throw new Error(`PAPER_CAMPAIGN_FILL_COUNTER_REGRESSION: current cumulative fills ${paperFilled} < prior-day ${priorDayCumulativePaperFilled}.`);
+const priorTodayCumulativePaperFilled = Math.max(
+  priorDayCumulativePaperFilled,
+  Number.isFinite(Number(existingToday?.cumulativePaperFilled)) ? Number(existingToday.cumulativePaperFilled) : priorDayCumulativePaperFilled,
+);
+if (paperFilled < priorTodayCumulativePaperFilled) {
+  throw new Error(`PAPER_CAMPAIGN_FILL_COUNTER_REGRESSION: current cumulative fills ${paperFilled} < previously evidenced ${priorTodayCumulativePaperFilled}.`);
 }
-const newPaperFills = paperFilled - priorDayCumulativePaperFilled;
-const coverageGeneratedAtMs = parseTime(executionCoverage?.generatedAt);
-const coverageAgeMinutes = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
-const coverageFresh = Number.isFinite(coverageAgeMinutes) && coverageAgeMinutes >= 0 && coverageAgeMinutes <= 30;
-const coverageMatchesEvidence = timestampsMatch(executionCoverage?.evidenceGeneratedAt, executionEvidence?.generatedAt);
-const coveragePolicyReady = Number(executionCoverage?.version || 0) >= 2
-  && executionCoverage?.policy?.requiredEligibility === "PAPER"
-  && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
-  && Number(executionCoverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
-  && executionCoverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
-  && executionCoverage?.policy?.liveTradingAllowed === false
-  && executionEvidence?.policy?.liveTradingAllowed === false
-  && executionEvidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true;
-const broadCoverageReady = Number(executionCoverage?.requestedSymbols || 0) >= 3
-  && Number(executionCoverage?.paperEligibleSymbols || 0) >= 3
-  && Number(executionCoverage?.paperEligiblePercent || 0) >= 25;
-const directaPilotCoverageReady = Number(executionCoverage?.directaPilotCandidateSymbols || 0) >= 3
-  && Number(executionCoverage?.directaPilotEligibleSymbols || 0) >= 3;
-const marketDataCoverageReady = coverageFresh
-  && coverageMatchesEvidence
-  && coveragePolicyReady
-  && broadCoverageReady
-  && directaPilotCoverageReady;
-const marketDataCoverageRequiredForNewFills = newPaperFills > 0;
-const marketDataCoverageSafe = !marketDataCoverageRequiredForNewFills || marketDataCoverageReady;
+
+const dailyNewPaperFills = paperFilled - priorDayCumulativePaperFilled;
+const additionalPaperFills = paperFilled - priorTodayCumulativePaperFilled;
+const decisionData = summarizeDecisionData(sourceHealth, intelligence, nowMs);
+const executionMarket = summarizeExecutionCoverage(executionCoverage, executionEvidence, nowMs);
+const fillEvidenceWindows = Array.isArray(existingToday?.fillEvidenceProof?.windows)
+  ? [...existingToday.fillEvidenceProof.windows]
+  : [];
+
+if (additionalPaperFills > 0) {
+  if (!decisionData.ready) {
+    throw new Error(`PAPER_CAMPAIGN_DECISION_DATA_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh institutional decision-data evidence.`);
+  }
+  if (!executionMarket.ready) {
+    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh Directa-pilot execution coverage evidence.`);
+  }
+  fillEvidenceWindows.push({
+    observedAt: now.toISOString(),
+    fromCumulativePaperFilled: priorTodayCumulativePaperFilled,
+    toCumulativePaperFilled: paperFilled,
+    newPaperFills: additionalPaperFills,
+    decisionData,
+    executionMarket,
+  });
+}
+
+const fillEvidenceComplete = validateFillEvidenceWindows(
+  fillEvidenceWindows,
+  priorDayCumulativePaperFilled,
+  paperFilled,
+);
+if (dailyNewPaperFills > 0 && !fillEvidenceComplete) {
+  throw new Error(`PAPER_CAMPAIGN_FILL_EVIDENCE_GAP: ${dailyNewPaperFills} daily paper fill(s) are not fully covered by contiguous decision/market evidence windows.`);
+}
+
 const softwareCommit = await resolveCommit();
 const row = {
   date,
@@ -124,10 +242,11 @@ const row = {
     digest: currentFingerprint.digest,
     complete: currentFingerprint.complete,
   },
-  paperCycles: 1,
+  paperCycles: Math.max(1, Number(existingToday?.paperCycles || 0) + 1),
   cumulativeExecutions: executions.length,
   cumulativePaperFilled: paperFilled,
-  newPaperFills,
+  newPaperFills: dailyNewPaperFills,
+  additionalPaperFillsThisRun: additionalPaperFills,
   cumulativeRiskRejected: riskRejected,
   openPositions: positions,
   killSwitchEngaged: state?.killSwitch?.engaged === true,
@@ -136,20 +255,20 @@ const row = {
   auditChainValid: audit.valid === true,
   auditChainEntries: Array.isArray(state.auditChain) ? state.auditChain.length : 0,
   consecutiveExecutionErrors: Number(state?.consecutiveExecutionErrors || 0),
+  decisionDataGate: {
+    ...decisionData,
+    newRiskAllowedThisRun: decisionData.ready && executionMarket.ready,
+  },
   executionMarketCoverage: {
-    requiredForNewFills: marketDataCoverageRequiredForNewFills,
-    safe: marketDataCoverageSafe,
-    fresh: coverageFresh,
-    matchesEvidence: coverageMatchesEvidence,
-    policyReady: coveragePolicyReady,
-    broadCoverageReady,
-    directaPilotCoverageReady,
-    ageMinutes: Number.isFinite(coverageAgeMinutes) ? Number(coverageAgeMinutes.toFixed(1)) : null,
-    requestedSymbols: Number(executionCoverage?.requestedSymbols || 0),
-    paperEligibleSymbols: Number(executionCoverage?.paperEligibleSymbols || 0),
-    paperEligiblePercent: Number(executionCoverage?.paperEligiblePercent || 0),
-    directaPilotCandidateSymbols: Number(executionCoverage?.directaPilotCandidateSymbols || 0),
-    directaPilotEligibleSymbols: Number(executionCoverage?.directaPilotEligibleSymbols || 0),
+    ...executionMarket,
+    requiredForAdditionalFills: additionalPaperFills > 0,
+  },
+  fillEvidenceProof: {
+    version: 1,
+    requiredFills: dailyNewPaperFills,
+    coveredFills: fillEvidenceWindows.reduce((sum, window) => sum + Math.max(0, Number(window?.newPaperFills || 0)), 0),
+    complete: fillEvidenceComplete,
+    windows: fillEvidenceWindows,
   },
   executionQuality: {
     state: executionQuality.state,
@@ -169,12 +288,8 @@ const row = {
   brokerConnectivityAllowed: false,
 };
 
-if (marketDataCoverageRequiredForNewFills && !marketDataCoverageSafe) {
-  throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${newPaperFills} new paper fill(s) lack fresh Directa-pilot execution coverage evidence.`);
-}
-
 const dailyEvidence = [...existing.filter((item) => item?.date !== date), row]
   .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
 await writeFile(campaignPath, `${JSON.stringify({ ...campaign, dailyEvidence }, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, newFills=${newPaperFills}, executionCoverage=${marketDataCoverageSafe ? "PASS" : "FAIL"}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
+console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, dailyNewFills=${dailyNewPaperFills}, additionalThisRun=${additionalPaperFills}, decisionData=${decisionData.ready ? "PASS" : "BLOCK"}, executionCoverage=${executionMarket.ready ? "PASS" : "BLOCK"}, fillProof=${fillEvidenceComplete ? "PASS" : "FAIL"}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
