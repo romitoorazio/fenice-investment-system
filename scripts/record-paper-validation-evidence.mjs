@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { verifyAuditChain } from "../lib/trading/audit-chain.ts";
+import { evaluateDecisionDataGate } from "../lib/trading/decision-data-gate.mjs";
 import { evaluateExecutionQuality } from "../lib/trading/execution-quality.ts";
 import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 import {
@@ -41,59 +42,10 @@ function parseTime(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function ageMinutes(value, nowMs) {
-  const parsed = parseTime(value);
-  return parsed === null ? Number.POSITIVE_INFINITY : (nowMs - parsed) / 60_000;
-}
-
 function timestampsMatch(left, right, toleranceMs = 1000) {
   const a = parseTime(left);
   const b = parseTime(right);
   return a !== null && b !== null && Math.abs(a - b) <= toleranceMs;
-}
-
-function summarizeDecisionData(sourceHealthInput, intelligenceInput, nowMs) {
-  const sourceAgeMinutes = ageMinutes(sourceHealthInput?.generatedAt, nowMs);
-  const intelligenceAgeMinutes = ageMinutes(intelligenceInput?.generatedAt, nowMs);
-  const criticalReady = Number(sourceHealthInput?.critical?.ready || 0);
-  const criticalTotal = Number(sourceHealthInput?.critical?.total || 0);
-  const sourceReady = sourceAgeMinutes >= 0
-    && sourceAgeMinutes <= 10
-    && sourceHealthInput?.critical?.gate === "GREEN"
-    && criticalTotal > 0
-    && criticalReady === criticalTotal;
-  const confidence = Number(intelligenceInput?.intelligenceConfidence || 0);
-  const sourceConcentrationPercent = Number(intelligenceInput?.coverage?.sourceConcentrationPercent ?? 100);
-  const marketSources = Number(intelligenceInput?.coverage?.marketSources || 0);
-  const assetClasses = Array.isArray(intelligenceInput?.coverage?.assetClasses)
-    ? intelligenceInput.coverage.assetClasses.length
-    : 0;
-  const crossChecks = Number(intelligenceInput?.crossSourceValidation?.checked || 0);
-  const divergent = Number(intelligenceInput?.crossSourceValidation?.divergent || 0);
-  const dataReady = intelligenceAgeMinutes >= 0
-    && intelligenceAgeMinutes <= 10
-    && confidence >= 90
-    && sourceConcentrationPercent <= 50
-    && marketSources >= 3
-    && assetClasses >= 3
-    && crossChecks >= 10
-    && divergent === 0
-    && intelligenceInput?.policy?.unknownTimestampEvidenceExcluded === true;
-  return {
-    ready: sourceReady && dataReady,
-    sourceReady,
-    dataReady,
-    sourceAgeMinutes: Number.isFinite(sourceAgeMinutes) ? Number(sourceAgeMinutes.toFixed(1)) : null,
-    intelligenceAgeMinutes: Number.isFinite(intelligenceAgeMinutes) ? Number(intelligenceAgeMinutes.toFixed(1)) : null,
-    criticalReady,
-    criticalTotal,
-    confidence,
-    sourceConcentrationPercent,
-    marketSources,
-    assetClasses,
-    crossChecks,
-    divergent,
-  };
 }
 
 function summarizeExecutionCoverage(coverage, evidence, nowMs) {
@@ -199,7 +151,14 @@ if (paperFilled < priorTodayCumulativePaperFilled) {
 
 const dailyNewPaperFills = paperFilled - priorDayCumulativePaperFilled;
 const additionalPaperFills = paperFilled - priorTodayCumulativePaperFilled;
-const decisionData = summarizeDecisionData(sourceHealth, intelligence, nowMs);
+const decisionDataEvaluation = evaluateDecisionDataGate({ sourceHealth, intelligence, now: nowMs });
+const decisionData = {
+  ready: decisionDataEvaluation.ready,
+  sourceReady: decisionDataEvaluation.sourceReady,
+  dataReady: decisionDataEvaluation.dataReady,
+  reasons: decisionDataEvaluation.reasons,
+  ...decisionDataEvaluation.metrics,
+};
 const executionMarket = summarizeExecutionCoverage(executionCoverage, executionEvidence, nowMs);
 const fillEvidenceWindows = Array.isArray(existingToday?.fillEvidenceProof?.windows)
   ? [...existingToday.fillEvidenceProof.windows]
