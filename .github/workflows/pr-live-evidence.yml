@@ -36,6 +36,8 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "3"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "0"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
@@ -123,10 +125,15 @@ jobs:
             executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
             executionProviderErrorSummary,
             twelveDataConfigured: e.capabilities?.twelveDataConfigured === true,
+            twelveDataProbeLimit: Number(e.capabilities?.twelveDataProbeLimit || 0),
             paperRequestedSymbols: Number(c.requestedSymbols || 0),
             paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
             paperEligiblePercent: Number(c.paperEligiblePercent || 0),
+            directaPilotCandidateSymbols: Number(c.directaPilotCandidateSymbols || 0),
+            directaPilotEligibleSymbols: Number(c.directaPilotEligibleSymbols || 0),
+            directaPilotEligiblePercent: Number(c.directaPilotEligiblePercent || 0),
             paperGreenSymbols: Array.isArray(c.greenSymbols) ? c.greenSymbols : [],
+            directaPilotGreenSymbols: Array.isArray(c.directaPilotGreenSymbols) ? c.directaPilotGreenSymbols : [],
             paperCautionSymbols: Array.isArray(c.cautionSymbols) ? c.cautionSymbols : [],
             paperBlockedSymbols: Array.isArray(c.blockedSymbols) ? c.blockedSymbols : [],
             liveTradingAllowed: e.policy?.liveTradingAllowed === true,
@@ -141,6 +148,7 @@ jobs:
             zeroDivergence: metrics.divergent === 0,
             executionEvidencePresent: metrics.executionObservations > 0,
             paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
+            directaPilotCoverage: metrics.directaPilotEligibleSymbols >= 3,
             liveTradingLocked: metrics.liveTradingAllowed === false,
           };
           const dataQualityGateNames = ['criticalSources', 'confidence90', 'concentration50', 'marketSources3', 'assetClasses3', 'crossChecks10', 'zeroDivergence'];
@@ -148,7 +156,7 @@ jobs:
             metrics,
             gates,
             dataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
-            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoverage,
+            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoverage && gates.directaPilotCoverage,
           };
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
