@@ -64,7 +64,7 @@ const baselineCommit = await resolveCommit();
 const startedAt = new Date().toISOString();
 const next = {
   ...campaign,
-  version: Math.max(4, Number(campaign?.version || 1)),
+  version: Math.max(5, Number(campaign?.version || 1)),
   startedAt,
   baselineCommit,
   baselineFingerprint: fingerprint,
@@ -74,7 +74,12 @@ const next = {
     metrics: eligibility.metrics,
   },
   evidencePolicy: {
-    marketDataCoverageRequiredForAnyNewPaperFill: true,
+    decisionDataRequiredForEveryNewPaperFill: true,
+    marketDataCoverageRequiredForEveryNewPaperFill: true,
+    perFillEvidenceWindowsMustBeContiguous: true,
+    minimumIntelligenceConfidence: 90,
+    minimumCrossSourceChecks: 10,
+    maximumSourceConcentrationPercent: 50,
     minimumDirectaPilotEligibleSymbols: 3,
     cryptoCannotSatisfyDirectaPilotCoverage: true,
     liveTradingAllowed: false,
@@ -84,4 +89,4 @@ const next = {
 };
 
 await writeFile(campaignPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; DirectaPilot=${eligibility.metrics.directaPilotEligibleSymbols}/${eligibility.metrics.directaPilotCandidateSymbols}.`);
+console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; DirectaPilot=${eligibility.metrics.directaPilotEligibleSymbols}/${eligibility.metrics.directaPilotCandidateSymbols}; evidenceSchema=v${next.version}.`);
