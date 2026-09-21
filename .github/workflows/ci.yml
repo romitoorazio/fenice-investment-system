@@ -51,6 +51,9 @@ jobs:
       - name: Institutional paper OMS safety
         run: npm run trading:ops
 
+      - name: Execution-quality pilot gate invariants
+        run: npm run execution:quality:test
+
       - name: Position sizing and drawdown risk invariants
         run: npm run risk:advanced:test
 
@@ -186,7 +189,7 @@ jobs:
             throw new Error('Calibration policy invariant violated');
           }
           const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
-          if (campaign.liveTradingAllowed !== false || Number(campaign.requiredDays) < 30) {
+          if (campaign.liveTradingAllowed !== false || Number(campaign.requiredDays) < 30 || Number(campaign.minPaperFills) < 10) {
             throw new Error('Paper validation campaign policy invariant violated');
           }
           console.log('Critical datasets are structurally valid');
