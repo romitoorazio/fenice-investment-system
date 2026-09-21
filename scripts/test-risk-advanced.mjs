@@ -10,14 +10,14 @@ const sized = calculatePositionSize({
   fxToEuro: 1,
   maxPositionPercent: 10,
   maxOrderNotionalPercent: 5,
-  lotSize: 1,
+  lotSize: 0.1,
 });
 assert.equal(sized.allowed, true);
-assert.equal(sized.quantity, 0 === 0 ? 0 : sized.quantity);
+assert.equal(sized.quantity, 0.5);
 assert.ok(sized.riskAtStopEuro <= sized.riskBudgetEuro + 0.01);
 assert.ok(sized.notionalEuro <= 50.01);
 
-const sizedFractional = calculatePositionSize({
+const sizedWholeUnits = calculatePositionSize({
   capitalEuro: 10000,
   riskPerTradePercent: 1,
   entryPrice: 50,
@@ -27,10 +27,10 @@ const sizedFractional = calculatePositionSize({
   maxOrderNotionalPercent: 5,
   lotSize: 1,
 });
-assert.equal(sizedFractional.allowed, true);
-assert.ok(sizedFractional.quantity > 0);
-assert.ok(sizedFractional.riskAtStopEuro <= 100.01);
-assert.ok(sizedFractional.notionalEuro <= 500.01);
+assert.equal(sizedWholeUnits.allowed, true);
+assert.ok(sizedWholeUnits.quantity > 0);
+assert.ok(sizedWholeUnits.riskAtStopEuro <= 100.01);
+assert.ok(sizedWholeUnits.notionalEuro <= 500.01);
 
 const invalidStop = calculatePositionSize({
   capitalEuro: 10000,
@@ -41,6 +41,19 @@ const invalidStop = calculatePositionSize({
 });
 assert.equal(invalidStop.allowed, false);
 assert.equal(invalidStop.quantity, 0);
+
+const zeroTradable = calculatePositionSize({
+  capitalEuro: 1000,
+  riskPerTradePercent: 0.1,
+  entryPrice: 1000,
+  stopPrice: 990,
+  fxToEuro: 1,
+  maxPositionPercent: 5,
+  maxOrderNotionalPercent: 5,
+  lotSize: 1,
+});
+assert.equal(zeroTradable.allowed, false);
+assert.equal(zeroTradable.quantity, 0);
 
 const normal = evaluateDrawdown({
   currentEquityEuro: 10000,
@@ -61,6 +74,16 @@ const caution = evaluateDrawdown({
 assert.equal(caution.state, "CAUTION");
 assert.equal(caution.allowNewRisk, true);
 assert.ok(caution.riskMultiplier < 1);
+
+const defensive = evaluateDrawdown({
+  currentEquityEuro: 8950,
+  dayStartEquityEuro: 9000,
+  weekStartEquityEuro: 9200,
+  highWaterMarkEuro: 10000,
+});
+assert.equal(defensive.state, "DEFENSIVE");
+assert.equal(defensive.allowNewRisk, true);
+assert.equal(defensive.riskMultiplier, 0.5);
 
 const freeze = evaluateDrawdown({
   currentEquityEuro: 9500,
