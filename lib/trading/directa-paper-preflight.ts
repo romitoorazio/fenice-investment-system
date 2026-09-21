@@ -1,3 +1,4 @@
+import { isDirectaRealtimeMarketConfirmed, parseDirectaRealtimeMarketMics } from "./directa-realtime-entitlements.ts";
 import { normalizeExecutionSymbol, type ExecutionInstrument } from "./execution-market-data.ts";
 
 export type DirectaPreflightInstrument = ExecutionInstrument & {
@@ -6,6 +7,7 @@ export type DirectaPreflightInstrument = ExecutionInstrument & {
 
 export type DirectaPreflightSelection = {
   tickers: string[];
+  selectedMarketMics: string[];
   rejected: Array<{ symbol: string; reason: string }>;
 };
 
@@ -16,9 +18,12 @@ function isPilotAssetClass(value: unknown): boolean {
 export function selectDirectaPaperPreflightTickers(
   instruments: readonly DirectaPreflightInstrument[],
   maxTickers = 9,
+  confirmedRealtimeMarketMics: readonly string[] = [],
 ): DirectaPreflightSelection {
   const limit = Math.max(1, Math.min(90, Math.floor(Number(maxTickers) || 9)));
+  const confirmedMics = parseDirectaRealtimeMarketMics(confirmedRealtimeMarketMics);
   const tickers: string[] = [];
+  const selectedMarketMics = new Set<string>();
   const rejected: Array<{ symbol: string; reason: string }> = [];
   const seen = new Set<string>();
 
@@ -41,11 +46,21 @@ export function selectDirectaPaperPreflightTickers(
       rejected.push({ symbol, reason: "not Directa datafeed-safe" });
       continue;
     }
+    const mic = String(instrument?.exchangeMic || "").trim().toUpperCase();
+    if (!mic) {
+      rejected.push({ symbol, reason: "exchange MIC missing; Directa realtime market entitlement cannot be verified" });
+      continue;
+    }
+    if (!isDirectaRealtimeMarketConfirmed(instrument, confirmedMics)) {
+      rejected.push({ symbol, reason: `Directa realtime market entitlement not confirmed for MIC ${mic}` });
+      continue;
+    }
     if (seen.has(symbol)) continue;
     seen.add(symbol);
     tickers.push(symbol);
+    selectedMarketMics.add(mic);
     if (tickers.length >= limit) break;
   }
 
-  return { tickers, rejected };
+  return { tickers, selectedMarketMics: [...selectedMarketMics].sort(), rejected };
 }
