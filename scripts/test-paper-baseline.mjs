@@ -19,13 +19,13 @@ const healthy = {
     generatedAt: executionGeneratedAt,
     observations: [
       { sourceFamily: "directa", eligibility: "PAPER" },
-      { sourceFamily: "provider-b", eligibility: "PAPER" },
-      { sourceFamily: "provider-b", eligibility: "PAPER" },
+      { sourceFamily: "twelve-data", eligibility: "PAPER" },
+      { sourceFamily: "twelve-data", eligibility: "PAPER" },
     ],
     policy: { liveTradingAllowed: false, validationOnlySourcesNeverSatisfyPaperQuorum: true },
   },
   executionCoverage: {
-    version: 3,
+    version: 4,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
@@ -40,6 +40,8 @@ const healthy = {
       minimumDirectaPilotEligibleSymbols: 3,
       requireDirectaPaperSourceForDirectaPilot: true,
       requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
+      approvedIndependentPaperSourceFamiliesForDirectaPilot: ["alpha-vantage", "alpaca", "massive", "twelve-data"],
+      yahooCannotSatisfyDirectaPilotCoverage: true,
       cryptoCannotSatisfyDirectaPilotCoverage: true,
       liveTradingAllowed: false,
     },
@@ -58,6 +60,8 @@ assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
 assert.equal(pass.metrics.directaPilotEligibleSymbols, 4);
 assert.equal(pass.metrics.coverageRequiresDirectaPaperSource, true);
+assert.equal(pass.metrics.coverageExcludesYahooFromPilot, true);
+assert.ok(pass.metrics.approvedPilotIndependentSourceFamilies.includes("twelve-data"));
 assert.equal(pass.gates.executionSymbolCoverage, true);
 assert.equal(pass.gates.directaPilotCoverage, true);
 
@@ -117,11 +121,16 @@ assert.equal(cryptoOnlyCoverage.eligible, false, "crypto quorum must not certify
 assert.equal(cryptoOnlyCoverage.gates.directaPilotCoverage, false);
 assert.ok(cryptoOnlyCoverage.reasons.some((reason) => reason.includes("Directa pilot equity/ETF")));
 
+const oldCoverageSchema = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: { ...healthy.executionCoverage, version: 3 },
+});
+assert.equal(oldCoverageSchema.eligible, false, "campaign must not start from a pre-hardening coverage schema");
+
 const externalOnlyPretendingToBeDirecta = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
     ...healthy.executionCoverage,
-    version: 2,
     policy: {
       ...healthy.executionCoverage.policy,
       requireDirectaPaperSourceForDirectaPilot: false,
@@ -142,6 +151,30 @@ const missingIndependentFallback = evaluatePaperBaselineEligibility({
   },
 });
 assert.equal(missingIndependentFallback.eligible, false, "Directa alone must not certify its own execution prices");
+
+const yahooAllowed = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: {
+      ...healthy.executionCoverage.policy,
+      yahooCannotSatisfyDirectaPilotCoverage: false,
+    },
+  },
+});
+assert.equal(yahooAllowed.eligible, false, "paper campaign policy must explicitly prevent Yahoo from certifying Directa pilot coverage");
+
+const noApprovedRealtimeProvider = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: {
+      ...healthy.executionCoverage.policy,
+      approvedIndependentPaperSourceFamiliesForDirectaPilot: ["yahoo"],
+    },
+  },
+});
+assert.equal(noApprovedRealtimeProvider.eligible, false, "baseline must include at least the Twelve Data approved realtime route");
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
