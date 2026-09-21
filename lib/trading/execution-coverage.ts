@@ -1,4 +1,4 @@
-import { evaluateMarketDataQuorum } from "./market-data-quorum.ts";
+import { evaluateMarketDataQuorum, type MarketDataEligibility } from "./market-data-quorum.ts";
 
 export type ExecutionCoverageEvidence = {
   generatedAt?: string | null;
@@ -19,6 +19,12 @@ function isDirectaPilotAssetClass(value: unknown): boolean {
   return /equity|stock|etf|azione|azion/i.test(String(value || ""));
 }
 
+function normalizeEligibility(value: unknown): MarketDataEligibility {
+  return value === "LIVE" || value === "PAPER" || value === "VALIDATION_ONLY"
+    ? value
+    : "VALIDATION_ONLY";
+}
+
 export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvidence, now = Date.now()) {
   const requestedSymbols = Array.isArray(evidence?.requestedSymbols) ? evidence.requestedSymbols : [];
   const observations = Array.isArray(evidence?.observations) ? evidence.observations : [];
@@ -29,22 +35,22 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
     const rawObservations = observations.filter((item) => String(item?.symbol || "").toUpperCase() === symbol);
     const assetClasses = [...new Set(rawObservations.map((item) => String(item?.assetClass || "").trim()).filter(Boolean))];
     const symbolObservations = rawObservations.map((item) => ({
-      source: item.source,
-      sourceFamily: item.sourceFamily,
-      eligibility: item.eligibility,
-      price: Number(item.price),
-      observedAt: item.observedAt,
+      source: String(item?.source || ""),
+      sourceFamily: item?.sourceFamily ? String(item.sourceFamily) : undefined,
+      eligibility: normalizeEligibility(item?.eligibility),
+      price: Number(item?.price),
+      observedAt: String(item?.observedAt || ""),
     }));
     const decision = evaluateMarketDataQuorum(symbolObservations, undefined, now);
     const directaPilotCandidate = assetClasses.some(isDirectaPilotAssetClass);
     const directaPaperEvidence = rawObservations.some((item) =>
       String(item?.sourceFamily || "").trim().toLowerCase() === "directa"
-        && item?.eligibility === "PAPER",
+        && normalizeEligibility(item?.eligibility) === "PAPER",
     );
     const independentNonDirectaPaperEvidence = rawObservations.some((item) =>
       String(item?.sourceFamily || "").trim().toLowerCase() !== "directa"
         && String(item?.sourceFamily || "").trim() !== ""
-        && item?.eligibility === "PAPER",
+        && normalizeEligibility(item?.eligibility) === "PAPER",
     );
     const directaPilotEligible = directaPilotCandidate
       && decision.allowNewRisk
