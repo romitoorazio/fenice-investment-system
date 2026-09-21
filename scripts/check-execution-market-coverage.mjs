@@ -24,13 +24,33 @@ const rows = requestedSymbols.map((rawSymbol) => {
   }));
   const decision = evaluateMarketDataQuorum(symbolObservations, undefined, now);
   const directaPilotCandidate = assetClasses.some(isDirectaPilotAssetClass);
+  const directaPaperEvidence = rawObservations.some((item) =>
+    String(item?.sourceFamily || "").trim().toLowerCase() === "directa"
+      && item?.eligibility === "PAPER",
+  );
+  const independentNonDirectaPaperEvidence = rawObservations.some((item) =>
+    String(item?.sourceFamily || "").trim().toLowerCase() !== "directa"
+      && String(item?.sourceFamily || "").trim() !== ""
+      && item?.eligibility === "PAPER",
+  );
+  const directaPilotEligible = directaPilotCandidate
+    && decision.allowNewRisk
+    && directaPaperEvidence
+    && independentNonDirectaPaperEvidence;
+  const directaPilotReasons = [];
+  if (directaPilotCandidate && !directaPaperEvidence) directaPilotReasons.push("missing Directa PAPER source");
+  if (directaPilotCandidate && !independentNonDirectaPaperEvidence) directaPilotReasons.push("missing independent non-Directa PAPER source");
+  if (directaPilotCandidate && !decision.allowNewRisk) directaPilotReasons.push("market-data quorum blocks new risk");
+
   return {
     symbol,
     assetClasses,
     directaPilotCandidate,
     state: decision.state,
     paperEligible: decision.allowNewRisk,
-    directaPilotEligible: directaPilotCandidate && decision.allowNewRisk,
+    directaPaperEvidence,
+    independentNonDirectaPaperEvidence,
+    directaPilotEligible,
     independentSourceFamilies: decision.independentSources,
     sourceFamilies: decision.sourceFamilies,
     medianPrice: decision.medianPrice,
@@ -39,7 +59,7 @@ const rows = requestedSymbols.map((rawSymbol) => {
     ineligibleEvidence: decision.ineligibleEvidence,
     invalidEvidence: decision.invalidEvidence,
     providerErrors: errors.filter((item) => String(item?.symbol || "").toUpperCase() === symbol),
-    reasons: decision.reasons,
+    reasons: [...decision.reasons, ...directaPilotReasons],
   };
 });
 
@@ -47,7 +67,7 @@ const paperEligible = rows.filter((row) => row.paperEligible);
 const directaPilotCandidates = rows.filter((row) => row.directaPilotCandidate);
 const directaPilotEligible = rows.filter((row) => row.directaPilotEligible);
 const report = {
-  version: 2,
+  version: 3,
   generatedAt: new Date().toISOString(),
   evidenceGeneratedAt: evidence?.generatedAt || null,
   requestedSymbols: rows.length,
@@ -69,6 +89,8 @@ const report = {
     preferredIndependentSourceFamilies: 3,
     minimumDirectaPilotEligibleSymbols: 3,
     directaPilotAssetClasses: ["equity", "stock", "ETF"],
+    requireDirectaPaperSourceForDirectaPilot: true,
+    requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
     cryptoCannotSatisfyDirectaPilotCoverage: true,
     liveTradingAllowed: false,
   },
