@@ -53,14 +53,25 @@ function summarizeExecutionCoverage(coverage, evidence, nowMs) {
   const age = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
   const fresh = Number.isFinite(age) && age >= 0 && age <= 30;
   const matchesEvidence = timestampsMatch(coverage?.evidenceGeneratedAt, evidence?.generatedAt);
-  const policyReady = Number(coverage?.version || 0) >= 2
+  const approvedPilotFamilies = Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamiliesForDirectaPilot)
+    ? coverage.policy.approvedIndependentPaperSourceFamiliesForDirectaPilot.map((value) => String(value).trim().toLowerCase())
+    : [];
+  const policyReady = Number(coverage?.version || 0) >= 4
     && coverage?.policy?.requiredEligibility === "PAPER"
     && Number(coverage?.policy?.minIndependentSourceFamilies || 0) >= 2
     && Number(coverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
+    && coverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true
+    && coverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true
+    && coverage?.policy?.yahooCannotSatisfyDirectaPilotCoverage === true
+    && approvedPilotFamilies.includes("twelve-data")
     && coverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
     && coverage?.policy?.liveTradingAllowed === false
+    && Number(evidence?.version || 0) >= 8
     && evidence?.policy?.liveTradingAllowed === false
-    && evidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true;
+    && evidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
+    && evidence?.policy?.localBrokerEvidenceMustProveReadOnlyBoundary === true
+    && evidence?.policy?.localBrokerEvidenceMustMatchInstrumentIdentity === true
+    && evidence?.policy?.localBrokerMarketEntitlementMustBeExplicit === true;
   const broadCoverageReady = Number(coverage?.requestedSymbols || 0) >= 3
     && Number(coverage?.paperEligibleSymbols || 0) >= 3
     && Number(coverage?.paperEligiblePercent || 0) >= 25;
@@ -73,6 +84,11 @@ function summarizeExecutionCoverage(coverage, evidence, nowMs) {
     policyReady,
     broadCoverageReady,
     directaPilotCoverageReady,
+    yahooExcludedFromPilot: coverage?.policy?.yahooCannotSatisfyDirectaPilotCoverage === true,
+    approvedPilotFamilies,
+    brokerReadOnlyPolicy: evidence?.policy?.localBrokerEvidenceMustProveReadOnlyBoundary === true,
+    brokerIdentityPolicy: evidence?.policy?.localBrokerEvidenceMustMatchInstrumentIdentity === true,
+    brokerMarketEntitlementPolicy: evidence?.policy?.localBrokerMarketEntitlementMustBeExplicit === true,
     ageMinutes: Number.isFinite(age) ? Number(age.toFixed(1)) : null,
     requestedSymbols: Number(coverage?.requestedSymbols || 0),
     paperEligibleSymbols: Number(coverage?.paperEligibleSymbols || 0),
@@ -169,7 +185,7 @@ if (additionalPaperFills > 0) {
     throw new Error(`PAPER_CAMPAIGN_DECISION_DATA_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh institutional decision-data evidence.`);
   }
   if (!executionMarket.ready) {
-    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh Directa-pilot execution coverage evidence.`);
+    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh hardened Directa-pilot execution coverage evidence.`);
   }
   fillEvidenceWindows.push({
     observedAt: now.toISOString(),
