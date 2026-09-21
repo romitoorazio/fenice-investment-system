@@ -75,11 +75,20 @@ const audit = verifyAuditChain(Array.isArray(state.auditChain) ? state.auditChai
 const tca = calculateTransactionCosts(executions);
 const executionQuality = evaluateExecutionQuality(executions);
 const existing = Array.isArray(campaign.dailyEvidence) ? campaign.dailyEvidence : [];
-const priorCumulativePaperFilled = existing.reduce((max, item) => {
-  const value = Math.max(0, Number(item?.cumulativePaperFilled || 0));
-  return Number.isFinite(value) ? Math.max(max, value) : max;
-}, 0);
-const newPaperFills = Math.max(0, paperFilled - priorCumulativePaperFilled);
+
+// A daily row can be re-written by a manual rerun. The day's fill delta must
+// therefore be measured against the latest PRIOR DAY, not against an earlier
+// snapshot from the same date that will be replaced below.
+const priorDayCumulativePaperFilled = existing
+  .filter((item) => String(item?.date || "").slice(0, 10) < date)
+  .reduce((max, item) => {
+    const value = Number(item?.cumulativePaperFilled);
+    return Number.isFinite(value) && value >= 0 ? Math.max(max, value) : max;
+  }, 0);
+if (paperFilled < priorDayCumulativePaperFilled) {
+  throw new Error(`PAPER_CAMPAIGN_FILL_COUNTER_REGRESSION: current cumulative fills ${paperFilled} < prior-day ${priorDayCumulativePaperFilled}.`);
+}
+const newPaperFills = paperFilled - priorDayCumulativePaperFilled;
 const coverageGeneratedAtMs = parseTime(executionCoverage?.generatedAt);
 const coverageAgeMinutes = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
 const coverageFresh = Number.isFinite(coverageAgeMinutes) && coverageAgeMinutes >= 0 && coverageAgeMinutes <= 30;
