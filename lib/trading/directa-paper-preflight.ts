@@ -23,9 +23,14 @@ export function selectDirectaPaperPreflightTickers(
   const seen = new Set<string>();
 
   for (const instrument of Array.isArray(instruments) ? instruments : []) {
-    const symbol = normalizeExecutionSymbol(instrument?.symbol);
+    const rawSymbol = String(instrument?.symbol || "").trim();
+    if (!rawSymbol || !/^[A-Za-z0-9._-]{1,40}$/.test(rawSymbol)) {
+      rejected.push({ symbol: rawSymbol, reason: "invalid symbol" });
+      continue;
+    }
+    const symbol = normalizeExecutionSymbol(rawSymbol);
     if (!symbol) {
-      rejected.push({ symbol: String(instrument?.symbol || ""), reason: "invalid symbol" });
+      rejected.push({ symbol: rawSymbol, reason: "invalid symbol" });
       continue;
     }
     if (!isPilotAssetClass(instrument?.assetClass)) {
