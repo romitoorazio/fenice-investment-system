@@ -89,7 +89,9 @@ export function buildDirectaExecutionEvidence(
   const maxSnapshotAgeMs = Math.max(1_000, Number(options.maxSnapshotAgeMs ?? 15_000));
   const maxQuoteAgeSeconds = Math.max(1, Number(options.maxQuoteAgeSeconds ?? 120));
   const timeZone = String(options.timeZone || "Europe/Rome");
-  const realtimeEntitlementConfirmed = options.realtimeEntitlementConfirmed === true;
+  const realtimeEntitlementConfirmed = options.realtimeEntitlementConfirmed === true
+    || (options.realtimeEntitlementConfirmed === undefined
+      && String(process.env.FENICE_DIRECTA_REALTIME_ENTITLEMENT_CONFIRMED || "").trim().toLowerCase() === "true");
 
   if (!snapshot || typeof snapshot !== "object") {
     return {
