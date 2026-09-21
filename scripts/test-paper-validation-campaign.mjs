@@ -15,6 +15,11 @@ const dailyEvidence = Array.from({ length: 26 }, (_, index) => ({
   reconciliationBalanced: true,
   reconciliationBreaks: 0,
   auditChainValid: true,
+  executionQuality: {
+    state: index + 1 >= 10 ? "HEALTHY" : "INSUFFICIENT",
+    allowPilot: index + 1 >= 10,
+    fills: Math.min(12, index + 1),
+  },
 }));
 
 const matured = evaluatePaperValidationCampaign({
@@ -31,6 +36,7 @@ assert.equal(matured.state, "MATURED");
 assert(matured.elapsedCalendarDays >= 30);
 assert.equal(matured.safetyEvidenceDays, 26);
 assert.equal(matured.cumulativePaperFills, 12);
+assert.equal(matured.executionQualityReady, true);
 
 const immature = evaluatePaperValidationCampaign({
   startedAt: "2026-10-10T12:00:00Z",
@@ -69,6 +75,7 @@ const unsafe = evaluatePaperValidationCampaign({
     reconciliationBreaks: 0,
     auditChainValid: true,
     cumulativePaperFilled: 12,
+    executionQuality: { state: "HEALTHY", allowPilot: true, fills: 12 },
   }],
 }, now);
 assert.equal(unsafe.matured, false);
@@ -96,10 +103,29 @@ const insufficientFills = evaluatePaperValidationCampaign({
   minEvidenceDays: 25,
   minPaperFills: 10,
   liveTradingAllowed: false,
-  dailyEvidence: dailyEvidence.map((row) => ({ ...row, cumulativePaperFilled: 3 })),
+  dailyEvidence: dailyEvidence.map((row) => ({
+    ...row,
+    cumulativePaperFilled: 3,
+    executionQuality: { state: "INSUFFICIENT", allowPilot: false, fills: 3 },
+  })),
 }, now);
 assert.equal(insufficientFills.matured, false);
 assert.equal(insufficientFills.cumulativePaperFills, 3);
+assert.equal(insufficientFills.executionQualityReady, false);
+
+const poorExecutionQuality = evaluatePaperValidationCampaign({
+  startedAt,
+  baselineCommit: "abc123",
+  requiredDays: 30,
+  minEvidenceDays: 25,
+  minPaperFills: 10,
+  liveTradingAllowed: false,
+  dailyEvidence: dailyEvidence.map((row, index) => index === dailyEvidence.length - 1
+    ? { ...row, executionQuality: { state: "POOR", allowPilot: false, fills: 12 } }
+    : row),
+}, now);
+assert.equal(poorExecutionQuality.matured, false);
+assert.equal(poorExecutionQuality.executionQualityReady, false);
 
 const invalidLiveMode = evaluatePaperValidationCampaign({
   startedAt,
