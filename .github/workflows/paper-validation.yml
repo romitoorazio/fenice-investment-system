@@ -20,8 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      FENICE_JOB: intraday
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "3"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "0"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
 
     steps:
@@ -58,6 +65,49 @@ jobs:
           console.log(started ? 'Paper validation campaign active with immutable core fingerprint' : 'Paper validation campaign not started/invalid baseline; no evidence will be written');
           NODE
 
+      - name: Refresh critical source health for decision-data gate
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run sources:check
+
+      - name: Build fresh intelligence quality for decision-data gate
+        if: steps.campaign.outputs.started == 'true'
+        run: node scripts/run-intelligence.mjs
+
+      - name: Assess daily decision-data gate
+        if: steps.campaign.outputs.started == 'true'
+        id: decision_data
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const sources = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          const intelligence = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
+          const now = Date.now();
+          const ageMinutes = (value) => {
+            const parsed = Date.parse(String(value || ''));
+            return Number.isFinite(parsed) ? (now - parsed) / 60000 : Infinity;
+          };
+          const sourceAge = ageMinutes(sources.generatedAt);
+          const intelligenceAge = ageMinutes(intelligence.generatedAt);
+          const criticalReady = Number(sources?.critical?.ready || 0);
+          const criticalTotal = Number(sources?.critical?.total || 0);
+          const sourceReady = sourceAge >= 0 && sourceAge <= 10
+            && sources?.critical?.gate === 'GREEN'
+            && criticalTotal > 0
+            && criticalReady === criticalTotal;
+          const dataReady = intelligenceAge >= 0 && intelligenceAge <= 10
+            && Number(intelligence?.intelligenceConfidence || 0) >= 90
+            && Number(intelligence?.coverage?.sourceConcentrationPercent ?? 100) <= 50
+            && Number(intelligence?.coverage?.marketSources || 0) >= 3
+            && Array.isArray(intelligence?.coverage?.assetClasses)
+            && intelligence.coverage.assetClasses.length >= 3
+            && Number(intelligence?.crossSourceValidation?.checked || 0) >= 10
+            && Number(intelligence?.crossSourceValidation?.divergent || 0) === 0
+            && intelligence?.policy?.unknownTimestampEvidenceExcluded === true;
+          const ready = sourceReady && dataReady;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready}\n`);
+          console.log(`Daily decision-data gate: ${ready ? 'PASS' : 'BLOCK'}; sources=${criticalReady}/${criticalTotal}; confidence=${Number(intelligence?.intelligenceConfidence || 0)}; checks=${Number(intelligence?.crossSourceValidation?.checked || 0)}; divergence=${Number(intelligence?.crossSourceValidation?.divergent || 0)}; concentration=${Number(intelligence?.coverage?.sourceConcentrationPercent ?? 100)}.`);
+          NODE
+
       - name: Refresh independent execution market evidence
         if: steps.campaign.outputs.started == 'true'
         run: npm run marketdata:execution
@@ -67,10 +117,14 @@ jobs:
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
       - name: Exercise PAPER-only OMS
-        if: steps.campaign.outputs.started == 'true'
+        if: steps.campaign.outputs.started == 'true' && steps.decision_data.outputs.ready == 'true'
         run: |
           npm run paper:conditional
           npm run paper:run
+
+      - name: Confirm fail-closed no-risk day
+        if: steps.campaign.outputs.started == 'true' && steps.decision_data.outputs.ready != 'true'
+        run: echo "Decision-data gate blocked new PAPER risk; OMS execution intentionally skipped."
 
       - name: Record daily validation evidence
         if: steps.campaign.outputs.started == 'true'
