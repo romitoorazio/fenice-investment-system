@@ -28,6 +28,8 @@ export type DirectaExecutionEvidenceResult = {
   identityRejectedQuotes: number;
   executableBookVerifiedQuotes: number;
   executableBookRejectedQuotes: number;
+  freshExecutableBookQuotes: number;
+  staleExecutableBookQuotes: number;
 };
 
 function datePartsInZone(timestampMs: number, timeZone: string): { year: number; month: number; day: number } | null {
@@ -139,6 +141,8 @@ export function buildDirectaExecutionEvidence(
       identityRejectedQuotes: 0,
       executableBookVerifiedQuotes: 0,
       executableBookRejectedQuotes: 0,
+      freshExecutableBookQuotes: 0,
+      staleExecutableBookQuotes: 0,
     };
   }
   if (!Number.isFinite(nowMs)) reasons.push("evaluation clock invalid");
@@ -189,6 +193,8 @@ export function buildDirectaExecutionEvidence(
   let identityRejectedQuotes = 0;
   let executableBookVerifiedQuotes = 0;
   let executableBookRejectedQuotes = 0;
+  let freshExecutableBookQuotes = 0;
+  let staleExecutableBookQuotes = 0;
 
   if (accepted) {
     for (const quote of Array.isArray(snapshot.quotes) ? snapshot.quotes : []) {
@@ -196,11 +202,23 @@ export function buildDirectaExecutionEvidence(
       const instrument = instrumentBySymbol.get(symbol);
       if (!symbol || !instrument) continue;
       const marketView = quoteMarketView(quote);
-      const observedAt = localQuoteTimeToIso(quote.observedAt, snapshot.generatedAt, timeZone);
-      if (!marketView.price || !observedAt) continue;
+      const priceObservedAt = localQuoteTimeToIso(quote.priceObservedAt || quote.observedAt, snapshot.generatedAt, timeZone);
+      const bookObservedAt = localQuoteTimeToIso(quote.bookObservedAt, snapshot.generatedAt, timeZone);
+      const validationObservedAt = marketView.executableBook
+        ? (bookObservedAt || priceObservedAt)
+        : priceObservedAt;
+      if (!marketView.price || !validationObservedAt) continue;
 
+      let bookFresh = false;
       if (marketView.executableBook) {
         executableBookVerifiedQuotes += 1;
+        bookFresh = Boolean(bookObservedAt)
+          && classifyPaperEligibilityByFreshness(bookObservedAt, nowMs, maxQuoteAgeSeconds) === "PAPER";
+        if (bookFresh) freshExecutableBookQuotes += 1;
+        else {
+          staleExecutableBookQuotes += 1;
+          bookWarnings.add(`Directa executable top-of-book timestamp missing or stale for ${symbol}; PAPER requires fresh BIDASK evidence`);
+        }
       } else {
         executableBookRejectedQuotes += 1;
         bookWarnings.add(`Directa executable top-of-book missing or invalid for ${symbol}; last-price data is validation-only`);
@@ -222,14 +240,13 @@ export function buildDirectaExecutionEvidence(
         }
       }
 
-      const freshnessEligibility = classifyPaperEligibilityByFreshness(observedAt, nowMs, maxQuoteAgeSeconds);
       const marketEntitlementReason = directaRealtimeEntitlementReason(instrument, entitlementConfig);
       if (marketEntitlementReason) marketWarnings.add(marketEntitlementReason);
       const eligibility = paperEligibilityAllowed
         && identityVerified
         && marketView.executableBook
+        && bookFresh
         && !marketEntitlementReason
-        && freshnessEligibility === "PAPER"
         ? "PAPER"
         : "VALIDATION_ONLY";
       const evidence = normalizeExecutionEvidence({
@@ -242,7 +259,7 @@ export function buildDirectaExecutionEvidence(
         sourceFamily: "directa",
         eligibility,
         price: marketView.price,
-        observedAt,
+        observedAt: eligibility === "PAPER" ? bookObservedAt : validationObservedAt,
       });
       if (evidence) observations.push(evidence);
     }
@@ -263,5 +280,7 @@ export function buildDirectaExecutionEvidence(
     identityRejectedQuotes,
     executableBookVerifiedQuotes,
     executableBookRejectedQuotes,
+    freshExecutableBookQuotes,
+    staleExecutableBookQuotes,
   };
 }
