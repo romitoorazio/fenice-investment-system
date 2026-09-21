@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - "scripts/run-intelligence.mjs"
+      - "scripts/run-execution-market-data.mjs"
+      - "lib/trading/execution-market-data.ts"
       - "scripts/run-foundation-plus.mjs"
       - "scripts/run-foundation.mjs"
       - ".github/workflows/intelligence-quality.yml"
@@ -50,6 +52,9 @@ jobs:
       - name: Build current intelligence quality report
         run: node scripts/run-intelligence.mjs
 
+      - name: Build independent execution market evidence
+        run: npm run marketdata:execution
+
       - name: Validate quality report
         run: |
           node - <<'NODE'
@@ -60,7 +65,11 @@ jobs:
           if (!Number.isFinite(q.intelligenceConfidence)) throw new Error('Missing intelligence confidence');
           if (!Number.isFinite(q.coverage?.sourceConcentrationPercent)) throw new Error('Missing source concentration');
           if (!Array.isArray(q.crossSourceValidation?.checks)) throw new Error('Missing cross-source validation checks');
-          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent);
+          const execution = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
+          const executionAge = Date.now() - Date.parse(execution.generatedAt || '');
+          if (!Number.isFinite(executionAge) || executionAge < 0 || executionAge > 60 * 60 * 1000) throw new Error('Execution market evidence is not fresh');
+          if (!Array.isArray(execution.observations)) throw new Error('Execution market observations missing');
+          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'execution observations:', execution.observations.length);
           NODE
 
       - name: Publish refreshed quality evidence
@@ -72,6 +81,7 @@ jobs:
           cp data/latest-snapshot.json "$generated_dir/latest-snapshot.json"
           cp data/intelligence-quality.json "$generated_dir/intelligence-quality.json"
           cp data/source-health.json "$generated_dir/source-health.json"
+          cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
@@ -79,7 +89,8 @@ jobs:
             cp "$generated_dir/latest-snapshot.json" data/latest-snapshot.json
             cp "$generated_dir/intelligence-quality.json" data/intelligence-quality.json
             cp "$generated_dir/source-health.json" data/source-health.json
-            git add data/latest-snapshot.json data/intelligence-quality.json data/source-health.json
+            cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
+            git add data/latest-snapshot.json data/intelligence-quality.json data/source-health.json data/execution-market-evidence.json
 
             if git diff --cached --quiet; then
               echo "No quality evidence changes to commit"
