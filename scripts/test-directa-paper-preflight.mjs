@@ -8,7 +8,7 @@ const selection = selectDirectaPaperPreflightTickers([
   { symbol: "BTC", currency: "USD", assetClass: "crypto" },
   { symbol: "MSFT", currency: "USD", assetClass: "equity" },
   { symbol: "bad symbol", currency: "USD", assetClass: "equity" },
-], 3);
+], 5);
 
 assert.deepEqual(selection.tickers, ["MSFT", "AAPL", "SPY"]);
 assert.ok(selection.rejected.some((item) => item.symbol === "BTC" && item.reason.includes("equity/ETF")));
