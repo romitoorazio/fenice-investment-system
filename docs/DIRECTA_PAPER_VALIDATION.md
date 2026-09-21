@@ -31,7 +31,15 @@ The cloud runner cannot see Darwin on the user's computer and must never pretend
 
 ### 2. Local Directa evidence plane
 
-The computer running Darwin can execute:
+Before Directa data may contribute to PAPER execution quorum, the operator must have verified that the Directa API realtime/historical market-data service and the required market quotation entitlements are active. Only then may the local environment contain:
+
+```text
+FENICE_DIRECTA_REALTIME_ENTITLEMENT_CONFIRMED=true
+```
+
+This flag is an explicit operational attestation, not a way to bypass Directa responses. Directa error `1032` or an unknown/unsafe datafeed error overrides the flag and fails closed. Without the flag, safe Directa snapshots remain useful only as `VALIDATION_ONLY` evidence.
+
+The computer running Darwin can then execute:
 
 ```bash
 npm run directa:paper:preflight
@@ -39,16 +47,18 @@ npm run directa:paper:preflight
 
 The preflight:
 
-1. chooses a bounded equity/ETF candidate set;
-2. opens only the Directa local datafeed socket on loopback;
-3. subscribes to read-only market data;
-4. writes an atomic snapshot under `~/.fenice/`;
-5. verifies `writeTradingCommandsAllowed=false`;
-6. accepts Directa evidence as `PAPER` only while the snapshot and quote are fresh;
-7. rebuilds external execution evidence;
-8. requires at least two independent `PAPER` source families per symbol;
-9. checks broad PAPER coverage and Directa-pilot coverage;
-10. reports baseline eligibility without starting a campaign.
+1. refuses to start until realtime API entitlement is explicitly confirmed;
+2. chooses a bounded equity/ETF candidate set;
+3. opens only the Directa local datafeed socket on loopback;
+4. subscribes to read-only market data;
+5. writes an atomic snapshot under `~/.fenice/`;
+6. verifies `writeTradingCommandsAllowed=false`;
+7. rejects missing-entitlement or unclassified Directa datafeed errors;
+8. accepts Directa evidence as `PAPER` only while entitlement, snapshot freshness and quote freshness all pass;
+9. rebuilds external execution evidence;
+10. requires at least two independent `PAPER` source families per symbol;
+11. checks broad PAPER coverage and Directa-pilot coverage;
+12. reports baseline eligibility without starting a campaign.
 
 No Directa quote snapshot is intentionally committed to the public repository by this command.
 
@@ -58,7 +68,7 @@ A source may satisfy the execution quorum only when it is explicitly tagged `PAP
 
 Current behavior:
 
-- **Directa DAPI local** — PAPER only when loopback/read-only boundary is proven and quote freshness passes;
+- **Directa DAPI local** — PAPER only when loopback/read-only boundary, explicit realtime entitlement, absence of disqualifying datafeed errors and quote freshness all pass;
 - **Yahoo Finance** — PAPER only when `regularMarketTime` is no more than 120 seconds old; otherwise validation-only;
 - **Alpha Vantage** — Fenice explicitly requests `entitlement=realtime`; a key without realtime entitlement cannot satisfy PAPER quorum;
 - **Twelve Data** — optional bounded probe, PAPER only after US realtime venue and freshness validation;
@@ -103,7 +113,7 @@ This command refuses to run before campaign start. It performs, in order:
 6. daily campaign evidence recording;
 7. campaign-status inspection.
 
-Every PAPER order still passes the normal per-symbol operational market-data gate. Missing or stale Directa data, insufficient independent sources, event risk, stale intelligence, portfolio risk, kill switch or audit/reconciliation problems produce a block/risk rejection rather than a fill.
+Every PAPER order still passes the normal per-symbol operational market-data gate. Missing or stale Directa data, unconfirmed entitlement, insufficient independent sources, event risk, stale intelligence, portfolio risk, kill switch or audit/reconciliation problems produce a block/risk rejection rather than a fill.
 
 ## Per-fill evidence
 
