@@ -22,9 +22,11 @@ assert.equal(yahooSymbolForInstrument({ symbol: "NOVN", exchangeMic: "XSWX", ass
 assert.equal(yahooSymbolForInstrument({ symbol: "NVDA", exchangeMic: "XNAS", assetClass: "equity" }), "NVDA");
 assert.equal(yahooSymbolForInstrument({ symbol: "BTC", assetClass: "crypto" }), "BTC-USD");
 assert.equal(stooqSymbolForInstrument({ symbol: "AAPL", exchangeMic: "XNAS" }), "aapl.us");
+assert.equal(stooqSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), "msft.us", "USD equity with missing MIC should use conservative US Stooq fallback");
 assert.equal(stooqSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL" }), "enel.it");
 assert.equal(stooqSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON" }), "vod.uk");
 assert.equal(stooqSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS" }), "asml.nl");
+assert.equal(stooqSymbolForInstrument({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), null);
 assert.equal(stooqSymbolForInstrument({ symbol: "7203", exchangeMic: "XTKS" }), null);
 assert.equal(inferExecutionSourceFamily("Yahoo Finance execution validation"), "yahoo");
 assert.equal(inferExecutionSourceFamily("Coinbase Exchange execution validation"), "coinbase");
@@ -53,6 +55,7 @@ const paperNow = Date.parse("2026-09-21T20:00:30Z");
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:00:00Z", paperNow), "PAPER");
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:45:00Z", paperNow), "VALIDATION_ONLY");
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:01:00Z", paperNow), "VALIDATION_ONLY", "future timestamps must fail closed");
+assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:57:59Z", paperNow, 120), "VALIDATION_ONLY", "quotes older than 120 seconds cannot satisfy PAPER execution quorum");
 
 const normalized = normalizeExecutionEvidence({
   symbol: " enel ",
