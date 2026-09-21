@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { evaluatePaperValidationCampaign } from "../lib/trading/paper-validation.mjs";
 
 const requireReady = process.argv.includes("--require-ready");
 
@@ -6,7 +7,7 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-const [sources, intelligence, governance, ledger, terminal, research, strategyLab] = await Promise.all([
+const [sources, intelligence, governance, ledger, terminal, research, strategyLab, paperCampaign] = await Promise.all([
   readJson("data/global-source-health.json"),
   readJson("data/intelligence-quality.json"),
   readJson("data/decision-governance.json"),
@@ -14,6 +15,7 @@ const [sources, intelligence, governance, ledger, terminal, research, strategyLa
   readJson("data/terminal-intelligence.json"),
   readJson("data/fundamental-research.json"),
   readJson("data/strategy-lab.json"),
+  readJson("data/paper-validation-campaign.json"),
 ]);
 
 const now = Date.now();
@@ -106,12 +108,14 @@ const checkpoint7d = markedRecords.filter((record) => record?.checkpoints?.["7d"
 const checkpoint30d = markedRecords.filter((record) => record?.checkpoints?.["30d"]?.measuredAt).length;
 const decisionClasses = new Set(markedRecords.map((record) => record?.decision).filter(Boolean));
 const unsafeExecutionEvidence = records.some((record) => /live|broker|ordine inviato|executed/i.test(String(record?.executionGate || "")));
-const paperModeEvidence = records.length >= 100
+const historicalPaperEvidence = records.length >= 100
   && markedRecords.length >= 75
   && checkpoint7d >= 30
   && checkpoint30d >= 10
   && decisionClasses.size >= 3
   && !unsafeExecutionEvidence;
+const paperCampaignStatus = evaluatePaperValidationCampaign(paperCampaign, now);
+const paperModeEvidence = historicalPaperEvidence && paperCampaignStatus.matured;
 
 const ready = sourceReady
   && intelligenceReportFresh
@@ -131,6 +135,8 @@ const status = {
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
+    historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
+    paperCampaign30d: paperCampaignStatus.matured ? "PASS" : paperCampaignStatus.state,
     paperMode: paperModeEvidence ? "PASS" : "NOT_VALIDATED",
     liveTradingLocked: liveTradingLocked ? "PASS" : "FAIL",
   },
@@ -153,6 +159,12 @@ const status = {
     checkpoint7d,
     checkpoint30d,
     paperDecisionClasses: decisionClasses.size,
+    paperCampaignState: paperCampaignStatus.state,
+    paperCampaignElapsedDays: paperCampaignStatus.elapsedCalendarDays,
+    paperCampaignEvidenceDays: paperCampaignStatus.evidenceDays,
+    paperCampaignRequiredDays: paperCampaignStatus.requiredDays,
+    paperCampaignMinimumEvidenceDays: paperCampaignStatus.minEvidenceDays,
+    paperCampaignUnsafeLiveOrders: paperCampaignStatus.unsafeLiveOrders,
   },
 };
 
