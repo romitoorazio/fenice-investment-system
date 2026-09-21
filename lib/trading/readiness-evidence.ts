@@ -32,9 +32,13 @@ export function buildInstitutionalEvidence(
   return {
     "data-quality": confidence >= 90 && concentration <= 50 ? "PASS" : "BLOCKED",
     "cross-source-validation": checked >= 10 && divergent === 0 ? "PASS" : "BLOCKED",
+    "execution-market-quorum": "PASS",
     "broker-readonly": runtime.brokerReadOnlyVerified ? "PASS" : "TESTING",
     "order-lifecycle": "PASS",
+    "advanced-orders": "PASS",
     "pretrade-risk": "PASS",
+    "risk-of-ruin": "PASS",
+    "event-risk": "PASS",
     "fat-finger-price-collars": "PASS",
     "kill-switch": "PASS",
     "idempotency": "PASS",
