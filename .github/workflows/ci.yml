@@ -102,6 +102,9 @@ jobs:
       - name: Build current calibration analysis
         run: npm run calibration:analyze
 
+      - name: 30-day paper campaign invariants
+        run: npm run paper:validation:test
+
       - name: Institutional risk reconciliation shadow and recovery controls
         run: npm run institutional:test
 
@@ -139,6 +142,7 @@ jobs:
             'data/execution-market-evidence.json',
             'data/market-risk-events.json',
             'data/calibration-analysis.json',
+            'data/paper-validation-campaign.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -174,6 +178,10 @@ jobs:
           }
           if (calibration.policy?.confidenceCanOnlyBeReducedByCalibration !== true || calibration.policy?.liveTradingAllowed !== false) {
             throw new Error('Calibration policy invariant violated');
+          }
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          if (campaign.liveTradingAllowed !== false || Number(campaign.requiredDays) < 30) {
+            throw new Error('Paper validation campaign policy invariant violated');
           }
           console.log('Critical datasets are structurally valid');
           NODE
