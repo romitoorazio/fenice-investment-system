@@ -3,12 +3,17 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
 import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const campaignPath = path.join(root, "data", "paper-validation-campaign.json");
 const statePath = path.join(root, "data", "paper-oms-state.json");
+
+async function readJson(relativePath) {
+  return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
+}
 
 async function resolveCommit() {
   const envSha = String(process.env.GITHUB_SHA || "").trim();
@@ -19,8 +24,15 @@ async function resolveCommit() {
   return sha.toLowerCase();
 }
 
-const campaign = JSON.parse(await readFile(campaignPath, "utf8"));
-const state = JSON.parse(await readFile(statePath, "utf8"));
+const [campaign, state, sources, intelligence, executionMarket, governance, fingerprint] = await Promise.all([
+  readJson("data/paper-validation-campaign.json"),
+  readJson("data/paper-oms-state.json"),
+  readJson("data/global-source-health.json"),
+  readJson("data/intelligence-quality.json"),
+  readJson("data/execution-market-evidence.json"),
+  readJson("data/decision-governance.json"),
+  computePaperValidationFingerprint(root),
+]);
 
 if (campaign?.startedAt || campaign?.baselineCommit) {
   throw new Error("PAPER_CAMPAIGN_ALREADY_STARTED: existing campaign must not be silently reset or backdated.");
@@ -31,20 +43,34 @@ if (campaign?.liveTradingAllowed !== false) {
 if (state?.mode !== "PAPER" || state?.liveTradingAllowed === true || state?.brokerConnectivityAllowed === true) {
   throw new Error("PAPER_CAMPAIGN_SAFETY: OMS must be PAPER-only with broker writes disabled.");
 }
-
-const fingerprint = await computePaperValidationFingerprint(root);
 if (!fingerprint.complete) {
   throw new Error(`PAPER_CAMPAIGN_FINGERPRINT_INCOMPLETE: ${fingerprint.missingFiles.join(",")}`);
+}
+
+const eligibility = evaluatePaperBaselineEligibility({
+  sources,
+  intelligence,
+  executionMarket,
+  governance,
+  fingerprint,
+});
+if (!eligibility.eligible) {
+  throw new Error(`PAPER_CAMPAIGN_BASELINE_NOT_ELIGIBLE: ${eligibility.reasons.join(" | ")}`);
 }
 
 const baselineCommit = await resolveCommit();
 const startedAt = new Date().toISOString();
 const next = {
   ...campaign,
-  version: Math.max(2, Number(campaign?.version || 1)),
+  version: Math.max(3, Number(campaign?.version || 1)),
   startedAt,
   baselineCommit,
   baselineFingerprint: fingerprint,
+  baselineEligibility: {
+    verifiedAt: startedAt,
+    gates: eligibility.gates,
+    metrics: eligibility.metrics,
+  },
   liveTradingAllowed: false,
   dailyEvidence: [],
 };
