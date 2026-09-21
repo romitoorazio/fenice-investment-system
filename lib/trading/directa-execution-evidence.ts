@@ -1,4 +1,5 @@
 import type { DirectaDatafeedSnapshot, DirectaQuote } from "../brokers/directa-datafeed.ts";
+import { classifyDirectaDatafeedError } from "../brokers/directa-entitlement.ts";
 import {
   classifyPaperEligibilityByFreshness,
   normalizeExecutionEvidence,
@@ -10,8 +11,11 @@ import {
 
 export type DirectaExecutionEvidenceResult = {
   accepted: boolean;
+  paperEligibilityAllowed: boolean;
+  realtimeEntitlementConfirmed: boolean;
   observations: ExecutionMarketEvidence[];
   reasons: string[];
+  warnings: string[];
   snapshotAgeMs: number | null;
 };
 
@@ -72,16 +76,31 @@ export function buildDirectaExecutionEvidence(
   snapshot: DirectaDatafeedSnapshot | null | undefined,
   instruments: readonly ExecutionInstrument[],
   now = new Date().toISOString(),
-  options: { maxSnapshotAgeMs?: number; maxQuoteAgeSeconds?: number; timeZone?: string } = {},
+  options: {
+    maxSnapshotAgeMs?: number;
+    maxQuoteAgeSeconds?: number;
+    timeZone?: string;
+    realtimeEntitlementConfirmed?: boolean;
+  } = {},
 ): DirectaExecutionEvidenceResult {
   const reasons: string[] = [];
+  const warnings: string[] = [];
   const nowMs = Date.parse(now);
   const maxSnapshotAgeMs = Math.max(1_000, Number(options.maxSnapshotAgeMs ?? 15_000));
   const maxQuoteAgeSeconds = Math.max(1, Number(options.maxQuoteAgeSeconds ?? 120));
   const timeZone = String(options.timeZone || "Europe/Rome");
+  const realtimeEntitlementConfirmed = options.realtimeEntitlementConfirmed === true;
 
   if (!snapshot || typeof snapshot !== "object") {
-    return { accepted: false, observations: [], reasons: ["Directa datafeed snapshot missing"], snapshotAgeMs: null };
+    return {
+      accepted: false,
+      paperEligibilityAllowed: false,
+      realtimeEntitlementConfirmed,
+      observations: [],
+      reasons: ["Directa datafeed snapshot missing"],
+      warnings,
+      snapshotAgeMs: null,
+    };
   }
   if (!Number.isFinite(nowMs)) reasons.push("evaluation clock invalid");
   if (snapshot.source !== "directa-dapi-datafeed-local") reasons.push("unexpected Directa snapshot source");
@@ -94,12 +113,32 @@ export function buildDirectaExecutionEvidence(
   const snapshotAgeMs = Number.isFinite(nowMs) && Number.isFinite(generatedMs) ? nowMs - generatedMs : null;
   if (snapshotAgeMs === null || snapshotAgeMs < 0 || snapshotAgeMs > maxSnapshotAgeMs) reasons.push("Directa datafeed snapshot stale or invalid");
 
+  let entitlementErrorObserved = false;
+  for (const error of Array.isArray(snapshot.errors) ? snapshot.errors : []) {
+    const decision = classifyDirectaDatafeedError(error?.code);
+    if (decision.state === "OPTIONAL_NOT_ENTITLED") {
+      entitlementErrorObserved = true;
+      warnings.push(`Directa API datafeed entitlement missing for ${String(error?.ticker || "UNKNOWN")}`);
+    } else if (decision.state === "UNKNOWN_ERROR") {
+      reasons.push(`Directa datafeed returned unclassified error ${String(error?.code ?? "UNKNOWN")}`);
+    }
+  }
+
+  if (!realtimeEntitlementConfirmed) {
+    warnings.push("Directa realtime API entitlement is not explicitly confirmed; evidence is validation-only");
+  }
+  if (entitlementErrorObserved) {
+    warnings.push("Directa entitlement error observed; evidence cannot satisfy PAPER execution quorum");
+  }
+
+  const accepted = reasons.length === 0;
+  const paperEligibilityAllowed = accepted && realtimeEntitlementConfirmed && !entitlementErrorObserved;
   const instrumentBySymbol = new Map(
     instruments.map((instrument) => [normalizeExecutionSymbol(instrument.symbol), instrument]),
   );
   const observations: ExecutionMarketEvidence[] = [];
 
-  if (reasons.length === 0) {
+  if (accepted) {
     for (const quote of Array.isArray(snapshot.quotes) ? snapshot.quotes : []) {
       const symbol = normalizeExecutionSymbol(quote?.ticker);
       const instrument = instrumentBySymbol.get(symbol);
@@ -107,14 +146,17 @@ export function buildDirectaExecutionEvidence(
       const price = quotePrice(quote);
       const observedAt = localQuoteTimeToIso(quote.observedAt, snapshot.generatedAt, timeZone);
       if (!price || !observedAt) continue;
-      const eligibility = classifyPaperEligibilityByFreshness(observedAt, nowMs, maxQuoteAgeSeconds);
+      const freshnessEligibility = classifyPaperEligibilityByFreshness(observedAt, nowMs, maxQuoteAgeSeconds);
+      const eligibility = paperEligibilityAllowed && freshnessEligibility === "PAPER"
+        ? "PAPER"
+        : "VALIDATION_ONLY";
       const evidence = normalizeExecutionEvidence({
         symbol,
         currency: instrument.currency || "USD",
         assetClass: instrument.assetClass,
         source: eligibility === "PAPER"
-          ? "Directa local DAPI read-only fresh market data"
-          : "Directa local DAPI read-only stale validation",
+          ? "Directa local DAPI explicitly-entitled realtime read-only market data"
+          : "Directa local DAPI read-only validation data",
         sourceFamily: "directa",
         eligibility,
         price,
@@ -124,11 +166,14 @@ export function buildDirectaExecutionEvidence(
     }
   }
 
-  if (observations.length === 0 && reasons.length === 0) reasons.push("Directa snapshot contains no usable requested quotes");
+  if (observations.length === 0 && accepted) reasons.push("Directa snapshot contains no usable requested quotes");
   return {
     accepted: reasons.length === 0,
+    paperEligibilityAllowed,
+    realtimeEntitlementConfirmed,
     observations,
     reasons,
+    warnings,
     snapshotAgeMs,
   };
 }
