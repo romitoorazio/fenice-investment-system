@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { isValidIsin } from "../lib/trading/instrument-identity.ts";
 
 const path = new URL("../data/instrument-master.json", import.meta.url);
 const raw = await fs.readFile(path, "utf8");
@@ -47,8 +48,8 @@ for (const [index, instrument] of (Array.isArray(master.instruments) ? master.in
 
   if (DIRECTA_PILOT_MICS.has(mic) && isListedSecurity) {
     const isin = identifierValue(instrument, "isin");
-    if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) {
-      errors.push(`${prefix}: Directa pilot listing ${ticker}:${mic} requires a valid ISIN identity`);
+    if (!isValidIsin(isin)) {
+      errors.push(`${prefix}: Directa pilot listing ${ticker}:${mic} requires a checksum-valid ISIN identity`);
     }
   }
 }
