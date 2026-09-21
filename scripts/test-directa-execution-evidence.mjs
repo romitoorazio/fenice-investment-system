@@ -4,6 +4,7 @@ import { buildDirectaExecutionEvidence } from "../lib/trading/directa-execution-
 const instruments = [
   { symbol: "MSFT", currency: "USD", assetClass: "equity", exchangeMic: "XNAS" },
   { symbol: "AAPL", currency: "USD", assetClass: "equity", exchangeMic: "XNAS" },
+  { symbol: "SAP", currency: "EUR", assetClass: "equity", exchangeMic: "XETR" },
 ];
 const snapshot = {
   generatedAt: "2026-09-21T15:30:03.000Z",
@@ -46,14 +47,30 @@ const snapshot = {
       isin: null,
       description: "Apple",
     },
+    {
+      ticker: "SAP",
+      observedAt: "17:30:01",
+      lastPrice: 230,
+      lastQuantity: 5,
+      dayLow: 225,
+      dayHigh: 232,
+      bidPrice: 229.9,
+      bidQuantity: 50,
+      askPrice: 230.1,
+      askQuantity: 60,
+      referencePrice: 228,
+      openPrice: 229,
+      isin: null,
+      description: "SAP",
+    },
   ],
   errors: [],
   diagnostics: {
     heartbeatCount: 1,
-    receivedMessages: 8,
-    requestedTickers: ["MSFT", "AAPL"],
-    pricedTickers: ["MSFT", "AAPL"],
-    bidAskTickers: ["MSFT"],
+    receivedMessages: 12,
+    requestedTickers: ["MSFT", "AAPL", "SAP"],
+    pricedTickers: ["MSFT", "AAPL", "SAP"],
+    bidAskTickers: ["MSFT", "SAP"],
   },
 };
 
@@ -62,22 +79,42 @@ const snapshot = {
     snapshot,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, true);
   assert.equal(result.paperEligibilityAllowed, true);
-  assert.equal(result.observations.length, 2);
+  assert.deepEqual(result.confirmedRealtimeMarketMics, ["XNAS"]);
+  assert.equal(result.observations.length, 3);
   const msft = result.observations.find((item) => item.symbol === "MSFT");
   const aapl = result.observations.find((item) => item.symbol === "AAPL");
+  const sap = result.observations.find((item) => item.symbol === "SAP");
   assert.equal(msft?.sourceFamily, "directa");
   assert.equal(msft?.eligibility, "PAPER");
   assert.equal(msft?.price, 500, "bid/ask midpoint should be preferred");
   assert.equal(aapl?.eligibility, "VALIDATION_ONLY", "old Directa quote must not satisfy PAPER quorum");
+  assert.equal(sap?.eligibility, "VALIDATION_ONLY", "fresh quote on an unconfirmed market must not satisfy PAPER quorum");
+  assert.ok(result.warnings.some((warning) => warning.includes("XETR")));
 }
 
 {
-  const result = buildDirectaExecutionEvidence(snapshot, instruments, "2026-09-21T15:30:05.000Z");
+  const result = buildDirectaExecutionEvidence(
+    snapshot,
+    instruments,
+    "2026-09-21T15:30:05.000Z",
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: [] },
+  );
   assert.equal(result.accepted, true, "safe Directa snapshot remains useful for validation");
+  assert.equal(result.paperEligibilityAllowed, false, "API service confirmation without market entitlement must fail closed");
+  assert.ok(result.observations.every((item) => item.eligibility === "VALIDATION_ONLY"));
+  assert.ok(result.warnings.some((warning) => warning.includes("No Directa realtime market MIC")));
+}
+
+{
+  const result = buildDirectaExecutionEvidence(snapshot, instruments, "2026-09-21T15:30:05.000Z", {
+    realtimeEntitlementConfirmed: false,
+    confirmedRealtimeMarketMics: ["XNAS"],
+  });
+  assert.equal(result.accepted, true);
   assert.equal(result.paperEligibilityAllowed, false);
   assert.ok(result.observations.every((item) => item.eligibility === "VALIDATION_ONLY"));
   assert.ok(result.warnings.some((warning) => warning.includes("not explicitly confirmed")));
@@ -92,7 +129,7 @@ const snapshot = {
     noEntitlement,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, true);
   assert.equal(result.paperEligibilityAllowed, false, "ERR 1032 must override manual realtime confirmation");
@@ -105,7 +142,7 @@ const snapshot = {
     unknownError,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, false, "unclassified Directa datafeed errors must fail closed");
   assert.equal(result.observations.length, 0);
@@ -117,7 +154,7 @@ const snapshot = {
     unsafe,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, false);
   assert.equal(result.observations.length, 0);
@@ -129,7 +166,7 @@ const snapshot = {
     remote,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, false);
 }
@@ -140,7 +177,7 @@ const snapshot = {
     stale,
     instruments,
     "2026-09-21T15:30:05.000Z",
-    { realtimeEntitlementConfirmed: true },
+    { realtimeEntitlementConfirmed: true, confirmedRealtimeMarketMics: ["XNAS"] },
   );
   assert.equal(result.accepted, false);
   assert.ok(result.reasons.some((reason) => reason.includes("stale")));
