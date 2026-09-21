@@ -9,8 +9,8 @@ const selection = selectDirectaPaperPreflightTickers([
   { symbol: "BTC", currency: "USD", assetClass: "crypto", exchangeMic: "", isin: "" },
   { symbol: "MSFT", currency: "USD", assetClass: "equity", exchangeMic: "XNAS", isin: "US5949181045" },
   { symbol: "MISSINGISIN", currency: "USD", assetClass: "equity", exchangeMic: "XNAS" },
-  { symbol: "MISSINGMIC", currency: "USD", assetClass: "equity", isin: "US0000000001" },
-  { symbol: "bad symbol", currency: "USD", assetClass: "equity", exchangeMic: "XNAS", isin: "US0000000001" },
+  { symbol: "MISSINGMIC", currency: "USD", assetClass: "equity", isin: "US5949181045" },
+  { symbol: "bad symbol", currency: "USD", assetClass: "equity", exchangeMic: "XNAS", isin: "US5949181045" },
 ], 5, ["XNAS", "ARCX"]);
 
 assert.deepEqual(selection.tickers, ["MSFT", "AAPL", "SPY"]);
@@ -33,6 +33,13 @@ const invalidIdentityBatch = selectDirectaPaperPreflightTickers(
   ["XNAS"],
 );
 assert.equal(invalidIdentityBatch.tickers.length, 0, "malformed ISINs must be rejected");
+
+const checksumInvalidBatch = selectDirectaPaperPreflightTickers(
+  Array.from({ length: 100 }, (_, index) => ({ symbol: `C${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: "US5949181044" })),
+  200,
+  ["XNAS"],
+);
+assert.equal(checksumInvalidBatch.tickers.length, 0, "checksum-invalid ISINs must be rejected");
 
 const manyValid = selectDirectaPaperPreflightTickers(
   Array.from({ length: 100 }, (_, index) => ({ symbol: `T${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: "US5949181045" })),
