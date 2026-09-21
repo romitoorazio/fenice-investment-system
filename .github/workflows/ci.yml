@@ -117,6 +117,9 @@ jobs:
       - name: Runtime readiness evidence fail-closed invariants
         run: npm run readiness:evidence:test
 
+      - name: Immutable paper validation core fingerprint invariants
+        run: npm run paper:fingerprint:test
+
       - name: 30-day paper campaign invariants
         run: npm run paper:validation:test
 
@@ -197,6 +200,9 @@ jobs:
           const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
           if (campaign.liveTradingAllowed !== false || Number(campaign.requiredDays) < 30 || Number(campaign.minPaperFills) < 10) {
             throw new Error('Paper validation campaign policy invariant violated');
+          }
+          if (campaign.startedAt && (!campaign.baselineFingerprint || campaign.baselineFingerprint.complete !== true || campaign.baselineFingerprint.algorithm !== 'sha256')) {
+            throw new Error('Started paper campaign must have a complete SHA-256 core fingerprint');
           }
           console.log('Critical datasets are structurally valid');
           NODE
