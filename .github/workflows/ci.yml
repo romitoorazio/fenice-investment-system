@@ -54,11 +54,23 @@ jobs:
       - name: Position sizing and drawdown risk invariants
         run: npm run risk:advanced:test
 
+      - name: Market-data quorum fail-closed invariants
+        run: npm run marketdata:quorum:test
+
+      - name: Conditional STOP trailing OCO and bracket semantics
+        run: npm run orders:conditional:test
+
+      - name: Event-risk gate invariants
+        run: npm run events:risk:test
+
       - name: Directa read-only protocol firewall
         run: npm run directa:readonly:test
 
       - name: Directa read-only market-data protocol
         run: npm run directa:datafeed:test
+
+      - name: Directa diagnostic redaction safety
+        run: npm run directa:diagnostic-safety:test
 
       - name: Directa entitlement fallback safety
         run: npm run directa:entitlement:test
