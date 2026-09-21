@@ -10,9 +10,11 @@ on:
       - "lib/intelligence/quality-engine.mjs"
       - "scripts/run-intelligence.mjs"
       - "scripts/run-execution-market-data.mjs"
+      - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
       - "data/global-source-registry.json"
       - "lib/trading/execution-market-data.ts"
+      - "lib/trading/market-data-quorum.ts"
 
 permissions:
   contents: read
@@ -36,10 +38,10 @@ jobs:
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
 
     steps:
-      - name: Checkout professional branch
+      - name: Checkout exact audited commit
         uses: actions/checkout@v5
         with:
-          ref: feature/professional-core-consolidation
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -59,6 +61,9 @@ jobs:
       - name: Build execution market evidence in ephemeral workspace
         run: npm run marketdata:execution
 
+      - name: Measure per-symbol PAPER execution quorum coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
       - name: Assess live evidence without publishing
         run: |
           node - <<'NODE'
@@ -66,6 +71,7 @@ jobs:
           const q = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
           const s = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
           const e = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
+          const c = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
           const now = Date.now();
           const ageHours = (value) => {
             const t = Date.parse(value || '');
@@ -73,6 +79,7 @@ jobs:
           };
           const metrics = {
             generatedAt: new Date().toISOString(),
+            auditedCommit: process.env.GITHUB_SHA,
             intelligenceConfidence: Number(q.intelligenceConfidence || 0),
             sourceConcentrationPercent: Number(q.coverage?.sourceConcentrationPercent || 100),
             marketSources: Number(q.coverage?.marketSources || 0),
@@ -90,6 +97,12 @@ jobs:
             executionObservations: Array.isArray(e.observations) ? e.observations.length : 0,
             executionProviders: [...new Set((e.observations || []).map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
             executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
+            paperRequestedSymbols: Number(c.requestedSymbols || 0),
+            paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
+            paperEligiblePercent: Number(c.paperEligiblePercent || 0),
+            paperGreenSymbols: Array.isArray(c.greenSymbols) ? c.greenSymbols : [],
+            paperCautionSymbols: Array.isArray(c.cautionSymbols) ? c.cautionSymbols : [],
+            paperBlockedSymbols: Array.isArray(c.blockedSymbols) ? c.blockedSymbols : [],
             liveTradingAllowed: e.policy?.liveTradingAllowed === true,
           };
           const gates = {
@@ -101,9 +114,16 @@ jobs:
             crossChecks10: metrics.crossChecks >= 10,
             zeroDivergence: metrics.divergent === 0,
             executionEvidencePresent: metrics.executionObservations > 0,
+            paperExecutionCoveragePresent: metrics.paperEligibleSymbols > 0,
             liveTradingLocked: metrics.liveTradingAllowed === false,
           };
-          const report = { metrics, gates, dataQualityReady: Object.entries(gates).filter(([key]) => key !== 'executionEvidencePresent' && key !== 'liveTradingLocked').every(([, value]) => value === true) };
+          const dataQualityGateNames = ['criticalSources', 'confidence90', 'concentration50', 'marketSources3', 'assetClasses3', 'crossChecks10', 'zeroDivergence'];
+          const report = {
+            metrics,
+            gates,
+            dataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
+            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoveragePresent,
+          };
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
           if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
@@ -123,3 +143,4 @@ jobs:
             data/intelligence-quality.json
             data/global-source-health.json
             data/execution-market-evidence.json
+            data/execution-market-coverage.json
