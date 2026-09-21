@@ -1,0 +1,99 @@
+name: Fenice Paper Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 0 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-data-writer
+  cancel-in-progress: false
+
+jobs:
+  paper-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Check campaign state
+        id: campaign
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const started = Boolean(campaign?.startedAt && campaign?.baselineCommit && campaign?.liveTradingAllowed === false);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `started=${started}\n`);
+          console.log(started ? 'Paper validation campaign active' : 'Paper validation campaign not started; no evidence will be written');
+          NODE
+
+      - name: Exercise PAPER-only OMS
+        if: steps.campaign.outputs.started == 'true'
+        run: |
+          npm run paper:conditional
+          npm run paper:run
+
+      - name: Record daily validation evidence
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run paper:validation:record
+
+      - name: Inspect campaign status
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run paper:validation:status
+
+      - name: Publish paper validation evidence
+        if: steps.campaign.outputs.started == 'true'
+        run: |
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
+          cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
+          cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
+          cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
+          cp data/paper-conditional-queue.json "$generated_dir/paper-conditional-queue.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
+            cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
+            cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
+            cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
+            cp "$generated_dir/paper-conditional-queue.json" data/paper-conditional-queue.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json
+
+            if git diff --cached --quiet; then
+              echo "No paper validation changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: record Fenice paper validation evidence"
+            if git push origin HEAD:main; then
+              echo "Paper validation evidence published"
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish paper validation evidence after 3 attempts"
+          exit 1
