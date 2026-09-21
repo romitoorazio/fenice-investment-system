@@ -33,13 +33,46 @@ const snapshot = {
   assert.deepEqual(result.confirmedRealtimeMarketMics, ["XNAS"]);
   assert.equal(result.identityVerifiedQuotes, 3);
   assert.equal(result.identityRejectedQuotes, 0);
+  assert.equal(result.executableBookVerifiedQuotes, 2);
+  assert.equal(result.executableBookRejectedQuotes, 1);
   const msft = result.observations.find((item) => item.symbol === "MSFT");
   const aapl = result.observations.find((item) => item.symbol === "AAPL");
   const sap = result.observations.find((item) => item.symbol === "SAP");
   assert.equal(msft?.eligibility, "PAPER");
   assert.equal(msft?.price, 500);
-  assert.equal(aapl?.eligibility, "VALIDATION_ONLY", "old Directa quote must not satisfy PAPER quorum");
+  assert.equal(aapl?.eligibility, "VALIDATION_ONLY", "old Directa quote without executable book must not satisfy PAPER quorum");
   assert.equal(sap?.eligibility, "VALIDATION_ONLY", "fresh quote on an unconfirmed market must not satisfy PAPER quorum");
+}
+
+{
+  const lastOnlyFresh = {
+    ...snapshot,
+    quotes: snapshot.quotes.map((quote) => quote.ticker === "MSFT" ? {
+      ...quote,
+      bidPrice: null,
+      bidQuantity: null,
+      askPrice: null,
+      askQuantity: null,
+    } : quote),
+  };
+  const result = buildDirectaExecutionEvidence(lastOnlyFresh, instruments, "2026-09-21T15:30:05.000Z", {
+    realtimeEntitlementConfirmed: true,
+    confirmedRealtimeMarketMics: ["XNAS"],
+  });
+  assert.equal(result.observations.find((item) => item.symbol === "MSFT")?.eligibility, "VALIDATION_ONLY");
+  assert.ok(result.warnings.some((warning) => warning.includes("top-of-book")));
+}
+
+{
+  const zeroDepth = {
+    ...snapshot,
+    quotes: snapshot.quotes.map((quote) => quote.ticker === "MSFT" ? { ...quote, bidQuantity: 0 } : quote),
+  };
+  const result = buildDirectaExecutionEvidence(zeroDepth, instruments, "2026-09-21T15:30:05.000Z", {
+    realtimeEntitlementConfirmed: true,
+    confirmedRealtimeMarketMics: ["XNAS"],
+  });
+  assert.equal(result.observations.find((item) => item.symbol === "MSFT")?.eligibility, "VALIDATION_ONLY");
 }
 
 {
