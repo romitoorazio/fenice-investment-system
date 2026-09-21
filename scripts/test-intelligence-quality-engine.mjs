@@ -33,9 +33,15 @@ const freshEvidence = filterFreshValidationEvidence([
   { symbol: "ETH", assetClass: "Criptovaluta", observedAt: new Date(now - 5 * 3_600_000).toISOString() },
   { symbol: "SPY", assetClass: "ETF", observedAt: new Date(now - 72 * 3_600_000).toISOString() },
   { symbol: "QQQ", assetClass: "ETF", observedAt: new Date(now - 120 * 3_600_000).toISOString() },
+  { symbol: "RXRX", assetClass: "AI Biotech", observedAt: "2026-09-21" },
   { symbol: "MISSING", assetClass: "ETF", observedAt: null },
 ], { now });
 assert.deepEqual(freshEvidence.map((item) => item.symbol), ["BTC", "SPY"]);
+
+const dateOnlyAllowedForNonCrossValidationUse = filterFreshValidationEvidence([
+  { symbol: "RXRX", assetClass: "AI Biotech", observedAt: "2026-09-21" },
+], { now, requirePreciseTimestamp: false });
+assert.equal(dateOnlyAllowedForNonCrossValidationUse.length, 1);
 
 const freshHealthAt = new Date(now - 60 * 60 * 1000).toISOString();
 
