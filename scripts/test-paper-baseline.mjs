@@ -18,14 +18,14 @@ const healthy = {
   executionMarket: {
     generatedAt: executionGeneratedAt,
     observations: [
-      { sourceFamily: "provider-a", eligibility: "PAPER" },
+      { sourceFamily: "directa", eligibility: "PAPER" },
       { sourceFamily: "provider-b", eligibility: "PAPER" },
       { sourceFamily: "provider-b", eligibility: "PAPER" },
     ],
     policy: { liveTradingAllowed: false, validationOnlySourcesNeverSatisfyPaperQuorum: true },
   },
   executionCoverage: {
-    version: 2,
+    version: 3,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
@@ -38,6 +38,8 @@ const healthy = {
       requiredEligibility: "PAPER",
       minIndependentSourceFamilies: 2,
       minimumDirectaPilotEligibleSymbols: 3,
+      requireDirectaPaperSourceForDirectaPilot: true,
+      requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
       cryptoCannotSatisfyDirectaPilotCoverage: true,
       liveTradingAllowed: false,
     },
@@ -55,6 +57,7 @@ assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
 assert.equal(pass.metrics.directaPilotEligibleSymbols, 4);
+assert.equal(pass.metrics.coverageRequiresDirectaPaperSource, true);
 assert.equal(pass.gates.executionSymbolCoverage, true);
 assert.equal(pass.gates.directaPilotCoverage, true);
 
@@ -113,6 +116,32 @@ const cryptoOnlyCoverage = evaluatePaperBaselineEligibility({
 assert.equal(cryptoOnlyCoverage.eligible, false, "crypto quorum must not certify the Directa equity/ETF pilot");
 assert.equal(cryptoOnlyCoverage.gates.directaPilotCoverage, false);
 assert.ok(cryptoOnlyCoverage.reasons.some((reason) => reason.includes("Directa pilot equity/ETF")));
+
+const externalOnlyPretendingToBeDirecta = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    version: 2,
+    policy: {
+      ...healthy.executionCoverage.policy,
+      requireDirectaPaperSourceForDirectaPilot: false,
+    },
+  },
+});
+assert.equal(externalOnlyPretendingToBeDirecta.eligible, false, "Directa pilot coverage must prove a Directa PAPER source");
+assert.equal(externalOnlyPretendingToBeDirecta.gates.directaPilotCoverage, false);
+
+const missingIndependentFallback = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: {
+      ...healthy.executionCoverage.policy,
+      requireIndependentNonDirectaPaperSourceForDirectaPilot: false,
+    },
+  },
+});
+assert.equal(missingIndependentFallback.eligible, false, "Directa alone must not certify its own execution prices");
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
