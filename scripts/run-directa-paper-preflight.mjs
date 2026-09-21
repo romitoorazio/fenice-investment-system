@@ -12,6 +12,15 @@ const snapshotPath = String(
   process.env.DIRECTA_EXECUTION_SNAPSHOT_PATH || path.join(homedir(), ".fenice", "directa-datafeed-snapshot.json"),
 ).trim();
 const maxTickers = Math.max(3, Math.min(90, Number(process.env.FENICE_DIRECTA_PREFLIGHT_TICKERS || 9) || 9));
+const realtimeEntitlementConfirmed = String(process.env.FENICE_DIRECTA_REALTIME_ENTITLEMENT_CONFIRMED || "")
+  .trim()
+  .toLowerCase() === "true";
+
+if (!realtimeEntitlementConfirmed) {
+  throw new Error(
+    "DIRECTA_PREFLIGHT_REALTIME_ENTITLEMENT_NOT_CONFIRMED: verify that Directa API realtime/historical market data and the required market quotations are enabled, then set FENICE_DIRECTA_REALTIME_ENTITLEMENT_CONFIRMED=true. Delayed/unconfirmed data must never satisfy PAPER quorum.",
+  );
+}
 
 async function readData(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -87,6 +96,7 @@ if (selection.tickers.length < 3) {
   const priced = new Set(snapshot.diagnostics?.pricedTickers || []);
   console.log(`Directa read-only snapshot: ${priced.size}/${selection.tickers.length} requested ticker(s) priced.`);
   console.log(`Snapshot path: ${snapshotPath}`);
+  console.log("Directa realtime entitlement: EXPLICITLY CONFIRMED");
   console.log(`Trading write commands allowed: ${snapshot.writeTradingCommandsAllowed === false ? "NO" : "UNSAFE"}`);
 
   runNodeScript("scripts/run-execution-market-data.mjs");
@@ -99,6 +109,7 @@ if (selection.tickers.length < 3) {
     requestedDirectaTickers: selection.tickers,
     directaPricedTickers: snapshot.diagnostics?.pricedTickers || [],
     directaBidAskTickers: snapshot.diagnostics?.bidAskTickers || [],
+    realtimeEntitlementConfirmed: true,
     paperEligibleSymbols: Number(coverage.paperEligibleSymbols || 0),
     requestedSymbols: Number(coverage.requestedSymbols || 0),
     directaPilotEligibleSymbols: Number(coverage.directaPilotEligibleSymbols || 0),
