@@ -212,8 +212,9 @@ export function buildDirectaExecutionEvidence(
       let bookFresh = false;
       if (marketView.executableBook) {
         executableBookVerifiedQuotes += 1;
-        bookFresh = Boolean(bookObservedAt)
-          && classifyPaperEligibilityByFreshness(bookObservedAt, nowMs, maxQuoteAgeSeconds) === "PAPER";
+        if (bookObservedAt !== null) {
+          bookFresh = classifyPaperEligibilityByFreshness(bookObservedAt, nowMs, maxQuoteAgeSeconds) === "PAPER";
+        }
         if (bookFresh) freshExecutableBookQuotes += 1;
         else {
           staleExecutableBookQuotes += 1;
@@ -249,6 +250,9 @@ export function buildDirectaExecutionEvidence(
         && !marketEntitlementReason
         ? "PAPER"
         : "VALIDATION_ONLY";
+      const evidenceObservedAt = eligibility === "PAPER" && bookObservedAt !== null
+        ? bookObservedAt
+        : validationObservedAt;
       const evidence = normalizeExecutionEvidence({
         symbol,
         currency: instrument.currency || "USD",
@@ -259,7 +263,7 @@ export function buildDirectaExecutionEvidence(
         sourceFamily: "directa",
         eligibility,
         price: marketView.price,
-        observedAt: eligibility === "PAPER" ? bookObservedAt : validationObservedAt,
+        observedAt: evidenceObservedAt,
       });
       if (evidence) observations.push(evidence);
     }
