@@ -11,6 +11,8 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
 const outputPath = path.join(dataDir, "execution-market-evidence.json");
+const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
+const US_REALTIME_MICS = new Set(["XNAS", "XNYS", "ARCX", "BATS"]);
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -24,7 +26,7 @@ async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/1.0 execution-market-validation",
+        "user-agent": "FeniceInvestmentSystem/1.1 execution-market-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
@@ -48,6 +50,10 @@ function parseStooqCsv(text) {
   return observedAt ? { price, observedAt } : null;
 }
 
+function isUsRealtimeInstrument(instrument) {
+  return US_REALTIME_MICS.has(String(instrument?.exchangeMic || "").toUpperCase());
+}
+
 async function fetchYahoo(instrument) {
   const providerSymbol = yahooSymbolForInstrument(instrument);
   if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
@@ -63,6 +69,8 @@ async function fetchYahoo(instrument) {
     currency: result?.meta?.currency || instrument.currency || "USD",
     assetClass: instrument.assetClass,
     source: "Yahoo Finance execution validation",
+    sourceFamily: "yahoo",
+    eligibility: "PAPER",
     price,
     observedAt: new Date(timestamp * 1000).toISOString(),
   });
@@ -78,9 +86,38 @@ async function fetchStooq(instrument) {
     symbol: instrument.symbol,
     currency: instrument.currency || "USD",
     assetClass: instrument.assetClass,
-    source: "Stooq execution validation",
+    source: "Stooq end-of-day validation",
+    sourceFamily: "stooq",
+    eligibility: "VALIDATION_ONLY",
     price: quote.price,
     observedAt: quote.observedAt,
+  });
+}
+
+async function fetchTwelveData(instrument) {
+  if (!twelveDataApiKey) throw new Error("TWELVE_DATA_NOT_CONFIGURED");
+  if (!isUsRealtimeInstrument(instrument)) throw new Error("TWELVE_DATA_FREE_REALTIME_NOT_ELIGIBLE_FOR_VENUE");
+  const providerSymbol = String(instrument.symbol || "").toUpperCase();
+  if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
+  const data = await request(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(providerSymbol)}&apikey=${encodeURIComponent(twelveDataApiKey)}`);
+  if (String(data?.status || "").toLowerCase() === "error" || data?.code) throw new Error("TWELVE_DATA_API_ERROR");
+  const price = Number(data?.close ?? data?.price);
+  const timestamp = Number(data?.timestamp);
+  const observedAt = Number.isFinite(timestamp) && timestamp > 0
+    ? new Date(timestamp * 1000).toISOString()
+    : Number.isFinite(Date.parse(String(data?.datetime || "")))
+      ? new Date(String(data.datetime)).toISOString()
+      : null;
+  if (!Number.isFinite(price) || price <= 0 || !observedAt) throw new Error("INVALID_TWELVE_DATA_QUOTE");
+  return normalizeExecutionEvidence({
+    symbol: providerSymbol,
+    currency: data?.currency || instrument.currency || "USD",
+    assetClass: instrument.assetClass,
+    source: "Twelve Data US realtime paper validation",
+    sourceFamily: "twelve-data",
+    eligibility: "PAPER",
+    price,
+    observedAt,
   });
 }
 
@@ -97,6 +134,8 @@ async function fetchCoinbase(instrument) {
     currency: "USD",
     assetClass: instrument.assetClass,
     source: "Coinbase Exchange execution validation",
+    sourceFamily: "coinbase",
+    eligibility: "PAPER",
     price,
     observedAt,
   });
@@ -115,6 +154,8 @@ async function fetchKraken(instrument) {
     currency: "USD",
     assetClass: instrument.assetClass,
     source: "Kraken execution validation",
+    sourceFamily: "kraken",
+    eligibility: "PAPER",
     price,
     observedAt: new Date().toISOString(),
   });
@@ -153,6 +194,7 @@ const instruments = [...requested].map((symbol) => {
     currency: masterInstrument.currency || terminalAsset.currency || "USD",
     assetClass: masterInstrument.assetClass || terminalAsset.assetClass || terminalAsset.category || "unknown",
     exchangeMic: masterInstrument.exchangeMic,
+    country: masterInstrument.country,
   };
 });
 
@@ -163,6 +205,9 @@ for (const instrument of instruments) {
     ["yahoo", () => fetchYahoo(instrument)],
     ["stooq", () => fetchStooq(instrument)],
   ];
+  if (twelveDataApiKey && isUsRealtimeInstrument(instrument)) {
+    tasks.push(["twelve-data", () => fetchTwelveData(instrument)]);
+  }
   const assetClass = String(instrument.assetClass || "").toLowerCase();
   if (assetClass === "crypto" || assetClass === "criptovaluta") {
     tasks.push(["coinbase", () => fetchCoinbase(instrument)]);
@@ -186,17 +231,25 @@ for (const instrument of instruments) {
 
 const deduplicated = deduplicateExecutionEvidence(observations);
 const report = {
-  version: 1,
+  version: 2,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
   errors,
+  capabilities: {
+    twelveDataConfigured: Boolean(twelveDataApiKey),
+    twelveDataFreeRealtimeScope: "US equities/ETFs only; never assumed for European venues",
+    directPaidFeedRequired: false,
+  },
   policy: {
-    independentSourcesRequiredBeforeNewRisk: 2,
-    preferredIndependentSources: 3,
+    independentSourceFamiliesRequiredBeforeNewRisk: 2,
+    preferredIndependentSourceFamilies: 3,
+    validationOnlySourcesNeverSatisfyPaperQuorum: true,
+    untaggedLegacyEvidenceDefaultsToValidationOnly: true,
+    liveEligibilityMustBeExplicit: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}.`);
