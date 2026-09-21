@@ -51,13 +51,19 @@ const sourceReady = sourceReportFresh
 
 const crossChecks = Number(intelligence?.crossSourceValidation?.checked || 0);
 const crossDivergent = Number(intelligence?.crossSourceValidation?.divergent || 0);
-const crossValidationReady = intelligenceReportFresh && crossChecks >= 3 && crossDivergent === 0;
+const validationFreshnessPolicyReady = intelligence?.policy?.unknownTimestampEvidenceExcluded === true
+  && Number(intelligence?.policy?.validationEvidenceFreshnessHours?.crypto) > 0
+  && Number(intelligence?.policy?.validationEvidenceFreshnessHours?.crypto) <= 4
+  && Number(intelligence?.policy?.validationEvidenceFreshnessHours?.traditional) > 0
+  && Number(intelligence?.policy?.validationEvidenceFreshnessHours?.traditional) <= 96;
+const crossValidationReady = intelligenceReportFresh && crossChecks >= 10 && crossDivergent === 0;
 const dataQualityReady = intelligenceReportFresh
   && Number(intelligence?.intelligenceConfidence || 0) >= 90
   && Number(intelligence?.coverage?.sourceConcentrationPercent || 100) <= 50
   && Number(intelligence?.coverage?.marketSources || 0) >= 3
   && Array.isArray(intelligence?.coverage?.assetClasses)
   && intelligence.coverage.assetClasses.length >= 3
+  && validationFreshnessPolicyReady
   && crossValidationReady;
 
 const guardrails = governance?.guardrails || {};
@@ -132,6 +138,7 @@ const status = {
     sourceReportFreshness: sourceReportFresh && criticalSourcesFresh ? "PASS" : "NOT_READY",
     intelligenceReportFreshness: intelligenceReportFresh ? "PASS" : "NOT_READY",
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
+    validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
@@ -147,11 +154,13 @@ const status = {
     criticalReady: Number(sources?.critical?.ready || 0),
     criticalTotal: Number(sources?.critical?.total || 0),
     intelligenceConfidence: Number(intelligence?.intelligenceConfidence || 0),
+    minimumCrossChecksRequired: 10,
     crossChecks,
     crossDivergent,
     marketSources: Number(intelligence?.coverage?.marketSources || 0),
     assetClasses: Array.isArray(intelligence?.coverage?.assetClasses) ? intelligence.coverage.assetClasses.length : 0,
     sourceConcentrationPercent: Number(intelligence?.coverage?.sourceConcentrationPercent || 0),
+    staleEvidenceExcluded: Number(intelligence?.crossSourceValidation?.staleEvidenceExcluded || 0),
     terminalAssets: terminalAssets.length,
     researchCompanies: researchCompanies.length,
     paperRecords: records.length,
