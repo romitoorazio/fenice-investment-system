@@ -8,16 +8,28 @@ import { evaluateDirectaWatchdog } from "../lib/trading/watchdog.ts";
 const now = Date.parse("2026-09-21T18:00:00.000Z");
 
 const staleData = evaluateMarketDataQuorum([
-  { source: "A", price: 100, observedAt: new Date(now - 10 * 60_000).toISOString() },
-  { source: "B", price: 100.1, observedAt: new Date(now - 10 * 60_000).toISOString() },
+  { source: "A", sourceFamily: "a", eligibility: "PAPER", price: 100, observedAt: new Date(now - 10 * 60_000).toISOString() },
+  { source: "B", sourceFamily: "b", eligibility: "PAPER", price: 100.1, observedAt: new Date(now - 10 * 60_000).toISOString() },
 ], undefined, now);
 assert.equal(staleData.allowNewRisk, false, "Stale market data must block new risk.");
 
 const divergentData = evaluateMarketDataQuorum([
-  { source: "A", price: 100, observedAt: new Date(now - 5_000).toISOString() },
-  { source: "B", price: 103, observedAt: new Date(now - 5_000).toISOString() },
+  { source: "A", sourceFamily: "a", eligibility: "PAPER", price: 100, observedAt: new Date(now - 5_000).toISOString() },
+  { source: "B", sourceFamily: "b", eligibility: "PAPER", price: 103, observedAt: new Date(now - 5_000).toISOString() },
 ], undefined, now);
 assert.equal(divergentData.allowNewRisk, false, "Cross-source divergence must block new risk.");
+
+const fakeIndependence = evaluateMarketDataQuorum([
+  { source: "Provider A primary", sourceFamily: "same-family", eligibility: "PAPER", price: 100, observedAt: new Date(now - 5_000).toISOString() },
+  { source: "Provider A alias", sourceFamily: "same-family", eligibility: "PAPER", price: 100.05, observedAt: new Date(now - 4_000).toISOString() },
+], undefined, now);
+assert.equal(fakeIndependence.allowNewRisk, false, "Aliases from one provider family must never satisfy independent-source quorum.");
+
+const validationOnly = evaluateMarketDataQuorum([
+  { source: "A", sourceFamily: "a", eligibility: "PAPER", price: 100, observedAt: new Date(now - 5_000).toISOString() },
+  { source: "EOD", sourceFamily: "stooq", eligibility: "VALIDATION_ONLY", price: 100.01, observedAt: new Date(now - 4_000).toISOString() },
+], undefined, now);
+assert.equal(validationOnly.allowNewRisk, false, "Fresh EOD/validation-only data must not masquerade as execution quorum.");
 
 const criticalEvent = evaluateEventRisk([
   { id: "central-bank-shock", label: "Central bank emergency decision", scheduledAt: new Date(now).toISOString(), severity: "CRITICAL" },
