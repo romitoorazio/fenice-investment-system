@@ -7,22 +7,30 @@ const observations = Array.isArray(evidence?.observations) ? evidence.observatio
 const errors = Array.isArray(evidence?.errors) ? evidence.errors : [];
 const now = Date.now();
 
+function isDirectaPilotAssetClass(value) {
+  return /equity|stock|etf|azione|azion/i.test(String(value || ""));
+}
+
 const rows = requestedSymbols.map((rawSymbol) => {
   const symbol = String(rawSymbol || "").toUpperCase();
-  const symbolObservations = observations
-    .filter((item) => String(item?.symbol || "").toUpperCase() === symbol)
-    .map((item) => ({
-      source: item.source,
-      sourceFamily: item.sourceFamily,
-      eligibility: item.eligibility,
-      price: Number(item.price),
-      observedAt: item.observedAt,
-    }));
+  const rawObservations = observations.filter((item) => String(item?.symbol || "").toUpperCase() === symbol);
+  const assetClasses = [...new Set(rawObservations.map((item) => String(item?.assetClass || "").trim()).filter(Boolean))];
+  const symbolObservations = rawObservations.map((item) => ({
+    source: item.source,
+    sourceFamily: item.sourceFamily,
+    eligibility: item.eligibility,
+    price: Number(item.price),
+    observedAt: item.observedAt,
+  }));
   const decision = evaluateMarketDataQuorum(symbolObservations, undefined, now);
+  const directaPilotCandidate = assetClasses.some(isDirectaPilotAssetClass);
   return {
     symbol,
+    assetClasses,
+    directaPilotCandidate,
     state: decision.state,
     paperEligible: decision.allowNewRisk,
+    directaPilotEligible: directaPilotCandidate && decision.allowNewRisk,
     independentSourceFamilies: decision.independentSources,
     sourceFamilies: decision.sourceFamilies,
     medianPrice: decision.medianPrice,
@@ -36,25 +44,37 @@ const rows = requestedSymbols.map((rawSymbol) => {
 });
 
 const paperEligible = rows.filter((row) => row.paperEligible);
+const directaPilotCandidates = rows.filter((row) => row.directaPilotCandidate);
+const directaPilotEligible = rows.filter((row) => row.directaPilotEligible);
 const report = {
-  version: 1,
+  version: 2,
   generatedAt: new Date().toISOString(),
   evidenceGeneratedAt: evidence?.generatedAt || null,
   requestedSymbols: rows.length,
   paperEligibleSymbols: paperEligible.length,
   paperEligiblePercent: rows.length ? Number((paperEligible.length / rows.length * 100).toFixed(1)) : 0,
+  directaPilotCandidateSymbols: directaPilotCandidates.length,
+  directaPilotEligibleSymbols: directaPilotEligible.length,
+  directaPilotEligiblePercent: directaPilotCandidates.length
+    ? Number((directaPilotEligible.length / directaPilotCandidates.length * 100).toFixed(1))
+    : 0,
   greenSymbols: rows.filter((row) => row.state === "GREEN").map((row) => row.symbol),
   cautionSymbols: rows.filter((row) => row.state === "CAUTION").map((row) => row.symbol),
   blockedSymbols: rows.filter((row) => row.state === "BLOCKED").map((row) => row.symbol),
+  directaPilotGreenSymbols: directaPilotEligible.map((row) => row.symbol),
   rows,
   policy: {
     requiredEligibility: "PAPER",
     minIndependentSourceFamilies: 2,
     preferredIndependentSourceFamilies: 3,
+    minimumDirectaPilotEligibleSymbols: 3,
+    directaPilotAssetClasses: ["equity", "stock", "ETF"],
+    cryptoCannotSatisfyDirectaPilotCoverage: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeFile("data/execution-market-coverage.json", `${JSON.stringify(report, null, 2)}\n`, "utf8");
 console.log(`Fenice PAPER execution coverage: ${report.paperEligibleSymbols}/${report.requestedSymbols} symbols eligible (${report.paperEligiblePercent}%).`);
+console.log(`Directa pilot coverage: ${report.directaPilotEligibleSymbols}/${report.directaPilotCandidateSymbols} equity/ETF symbols eligible (${report.directaPilotEligiblePercent}%).`);
 console.log(`Eligible symbols: ${paperEligible.map((row) => row.symbol).join(", ") || "none"}.`);
