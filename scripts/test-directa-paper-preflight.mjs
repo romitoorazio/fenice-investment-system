@@ -27,18 +27,18 @@ const noMarkets = selectDirectaPaperPreflightTickers([
 ], 9, []);
 assert.equal(noMarkets.tickers.length, 0, "preflight must fail closed when no market-level realtime entitlement is confirmed");
 
-const capped = selectDirectaPaperPreflightTickers(
-  Array.from({ length: 100 }, (_, index) => ({ symbol: `T${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: `US${String(index).padStart(9, "0")}0` })),
+const invalidIdentityBatch = selectDirectaPaperPreflightTickers(
+  Array.from({ length: 100 }, (_, index) => ({ symbol: `T${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: "BAD" })),
   200,
   ["XNAS"],
 );
-assert.equal(capped.tickers.length, 0, "synthetic invalid ISINs must not be accepted just to satisfy the preflight cap");
+assert.equal(invalidIdentityBatch.tickers.length, 0, "malformed ISINs must be rejected");
 
 const manyValid = selectDirectaPaperPreflightTickers(
-  Array.from({ length: 100 }, (_, index) => ({ symbol: `T${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: `US${String(index).padStart(9, "0")}1` })),
+  Array.from({ length: 100 }, (_, index) => ({ symbol: `T${index}`, assetClass: "equity", currency: "USD", exchangeMic: "XNAS", isin: "US5949181045" })),
   200,
   ["XNAS"],
 );
-assert.ok(manyValid.tickers.length <= 90, "Directa preflight must never exceed the DAPI max-90 ticker boundary");
+assert.equal(manyValid.tickers.length, 90, "Directa preflight must respect the DAPI max-90 ticker boundary");
 
 console.log("Directa paper-preflight selection invariants: PASS");
