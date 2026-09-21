@@ -59,7 +59,13 @@ function findExecutionEvidence(symbol, currency) {
   return executionObservations
     .filter((item) => String(item?.symbol || "").toUpperCase() === normalizedSymbol)
     .filter((item) => !normalizedCurrency || String(item?.currency || "").toUpperCase() === normalizedCurrency)
-    .map((item) => ({ source: item.source, price: Number(item.price), observedAt: item.observedAt }));
+    .map((item) => ({
+      source: item.source,
+      sourceFamily: item.sourceFamily,
+      eligibility: item.eligibility,
+      price: Number(item.price),
+      observedAt: item.observedAt,
+    }));
 }
 
 function latestObservedAt(evidence, fallback) {
@@ -244,6 +250,9 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
         riskMultiplier: operationalGate.riskMultiplier,
         marketDataState: operationalGate.marketData.state,
         marketDataSources: operationalGate.marketData.independentSources,
+        marketDataSourceFamilies: operationalGate.marketData.sourceFamilies,
+        marketDataRequiredEligibility: operationalGate.marketData.requiredEligibility,
+        marketDataIneligibleEvidence: operationalGate.marketData.ineligibleEvidence,
         marketDataSpreadPercent: operationalGate.marketData.maxSpreadPercent,
         eventRiskState: operationalGate.eventRisk.state,
         reasons: operationalGate.reasons,
