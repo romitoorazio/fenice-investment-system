@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   computePaperValidationFingerprint,
   validationFingerprintMatches,
@@ -36,4 +37,14 @@ try {
   await rm(root, { recursive: true, force: true });
 }
 
-console.log("Fenice validation fingerprint tests: PASS");
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const projectFingerprint = await computePaperValidationFingerprint(projectRoot);
+assert.equal(
+  projectFingerprint.complete,
+  true,
+  `default validation fingerprint references missing files: ${projectFingerprint.missingFiles.join(", ")}`,
+);
+assert.match(projectFingerprint.digest, /^[a-f0-9]{64}$/);
+assert(projectFingerprint.files.length >= 30, "validation fingerprint must cover the full safety-critical surface");
+
+console.log(`Fenice validation fingerprint tests: PASS (${projectFingerprint.files.length} safety-critical files)`);
