@@ -15,8 +15,12 @@ const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const campaignPath = path.join(root, "data", "paper-validation-campaign.json");
 const statePath = path.join(root, "data", "paper-oms-state.json");
+const coveragePath = path.join(root, "data", "execution-market-coverage.json");
+const executionEvidencePath = path.join(root, "data", "execution-market-evidence.json");
 const campaign = JSON.parse(await readFile(campaignPath, "utf8"));
 const state = JSON.parse(await readFile(statePath, "utf8"));
+const executionCoverage = JSON.parse(await readFile(coveragePath, "utf8"));
+const executionEvidence = JSON.parse(await readFile(executionEvidencePath, "utf8"));
 
 async function resolveCommit() {
   const envSha = String(process.env.GITHUB_SHA || "").trim();
@@ -24,6 +28,17 @@ async function resolveCommit() {
   const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
   const sha = String(stdout || "").trim();
   return /^[a-f0-9]{40}$/i.test(sha) ? sha.toLowerCase() : null;
+}
+
+function parseTime(value) {
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function timestampsMatch(left, right, toleranceMs = 1000) {
+  const a = parseTime(left);
+  const b = parseTime(right);
+  return a !== null && b !== null && Math.abs(a - b) <= toleranceMs;
 }
 
 if (!campaign?.startedAt || !campaign?.baselineCommit) {
@@ -48,6 +63,7 @@ if (!validationFingerprintMatches(campaign.baselineFingerprint, currentFingerpri
 }
 
 const now = new Date();
+const nowMs = now.getTime();
 const date = now.toISOString().slice(0, 10);
 const executions = Array.isArray(state.executions) ? state.executions : [];
 const paperFilled = executions.filter((item) => item?.status === "PAPER_FILLED").length;
@@ -59,6 +75,35 @@ const audit = verifyAuditChain(Array.isArray(state.auditChain) ? state.auditChai
 const tca = calculateTransactionCosts(executions);
 const executionQuality = evaluateExecutionQuality(executions);
 const existing = Array.isArray(campaign.dailyEvidence) ? campaign.dailyEvidence : [];
+const priorCumulativePaperFilled = existing.reduce((max, item) => {
+  const value = Math.max(0, Number(item?.cumulativePaperFilled || 0));
+  return Number.isFinite(value) ? Math.max(max, value) : max;
+}, 0);
+const newPaperFills = Math.max(0, paperFilled - priorCumulativePaperFilled);
+const coverageGeneratedAtMs = parseTime(executionCoverage?.generatedAt);
+const coverageAgeMinutes = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
+const coverageFresh = Number.isFinite(coverageAgeMinutes) && coverageAgeMinutes >= 0 && coverageAgeMinutes <= 30;
+const coverageMatchesEvidence = timestampsMatch(executionCoverage?.evidenceGeneratedAt, executionEvidence?.generatedAt);
+const coveragePolicyReady = Number(executionCoverage?.version || 0) >= 2
+  && executionCoverage?.policy?.requiredEligibility === "PAPER"
+  && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
+  && Number(executionCoverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
+  && executionCoverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
+  && executionCoverage?.policy?.liveTradingAllowed === false
+  && executionEvidence?.policy?.liveTradingAllowed === false
+  && executionEvidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true;
+const broadCoverageReady = Number(executionCoverage?.requestedSymbols || 0) >= 3
+  && Number(executionCoverage?.paperEligibleSymbols || 0) >= 3
+  && Number(executionCoverage?.paperEligiblePercent || 0) >= 25;
+const directaPilotCoverageReady = Number(executionCoverage?.directaPilotCandidateSymbols || 0) >= 3
+  && Number(executionCoverage?.directaPilotEligibleSymbols || 0) >= 3;
+const marketDataCoverageReady = coverageFresh
+  && coverageMatchesEvidence
+  && coveragePolicyReady
+  && broadCoverageReady
+  && directaPilotCoverageReady;
+const marketDataCoverageRequiredForNewFills = newPaperFills > 0;
+const marketDataCoverageSafe = !marketDataCoverageRequiredForNewFills || marketDataCoverageReady;
 const softwareCommit = await resolveCommit();
 const row = {
   date,
@@ -73,6 +118,7 @@ const row = {
   paperCycles: 1,
   cumulativeExecutions: executions.length,
   cumulativePaperFilled: paperFilled,
+  newPaperFills,
   cumulativeRiskRejected: riskRejected,
   openPositions: positions,
   killSwitchEngaged: state?.killSwitch?.engaged === true,
@@ -81,6 +127,21 @@ const row = {
   auditChainValid: audit.valid === true,
   auditChainEntries: Array.isArray(state.auditChain) ? state.auditChain.length : 0,
   consecutiveExecutionErrors: Number(state?.consecutiveExecutionErrors || 0),
+  executionMarketCoverage: {
+    requiredForNewFills: marketDataCoverageRequiredForNewFills,
+    safe: marketDataCoverageSafe,
+    fresh: coverageFresh,
+    matchesEvidence: coverageMatchesEvidence,
+    policyReady: coveragePolicyReady,
+    broadCoverageReady,
+    directaPilotCoverageReady,
+    ageMinutes: Number.isFinite(coverageAgeMinutes) ? Number(coverageAgeMinutes.toFixed(1)) : null,
+    requestedSymbols: Number(executionCoverage?.requestedSymbols || 0),
+    paperEligibleSymbols: Number(executionCoverage?.paperEligibleSymbols || 0),
+    paperEligiblePercent: Number(executionCoverage?.paperEligiblePercent || 0),
+    directaPilotCandidateSymbols: Number(executionCoverage?.directaPilotCandidateSymbols || 0),
+    directaPilotEligibleSymbols: Number(executionCoverage?.directaPilotEligibleSymbols || 0),
+  },
   executionQuality: {
     state: executionQuality.state,
     allowPilot: executionQuality.allowPilot,
@@ -99,8 +160,12 @@ const row = {
   brokerConnectivityAllowed: false,
 };
 
+if (marketDataCoverageRequiredForNewFills && !marketDataCoverageSafe) {
+  throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${newPaperFills} new paper fill(s) lack fresh Directa-pilot execution coverage evidence.`);
+}
+
 const dailyEvidence = [...existing.filter((item) => item?.date !== date), row]
   .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
 await writeFile(campaignPath, `${JSON.stringify({ ...campaign, dailyEvidence }, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
+console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, newFills=${newPaperFills}, executionCoverage=${marketDataCoverageSafe ? "PASS" : "FAIL"}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
