@@ -1,5 +1,6 @@
 import { isDirectaRealtimeMarketConfirmed, parseDirectaRealtimeMarketMics } from "./directa-realtime-entitlements.ts";
 import { normalizeExecutionSymbol, type ExecutionInstrument } from "./execution-market-data.ts";
+import { requireValidIsin } from "./instrument-identity.ts";
 
 export type DirectaPreflightInstrument = ExecutionInstrument & {
   country?: string;
@@ -13,11 +14,6 @@ export type DirectaPreflightSelection = {
 
 function isPilotAssetClass(value: unknown): boolean {
   return /equity|stock|etf|azione|azion/i.test(String(value || ""));
-}
-
-function normalizeIsin(value: unknown): string {
-  const isin = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) ? isin : "";
 }
 
 export function selectDirectaPaperPreflightTickers(
@@ -51,9 +47,9 @@ export function selectDirectaPaperPreflightTickers(
       rejected.push({ symbol, reason: "not Directa datafeed-safe" });
       continue;
     }
-    const isin = normalizeIsin(instrument?.isin);
+    const isin = requireValidIsin(instrument?.isin);
     if (!isin) {
-      rejected.push({ symbol, reason: "instrument-master ISIN missing; broker identity cannot be certified" });
+      rejected.push({ symbol, reason: "instrument-master ISIN missing or checksum-invalid; broker identity cannot be certified" });
       continue;
     }
     const mic = String(instrument?.exchangeMic || "").trim().toUpperCase();
