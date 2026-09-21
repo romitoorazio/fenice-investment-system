@@ -330,10 +330,12 @@ async function main() {
   const confidenceModel = computeIntelligenceConfidence({
     sourceQuality,
     criticalHealth: globalSourceHealth?.critical || {},
+    healthReportGeneratedAt: globalSourceHealth?.generatedAt || null,
     validations,
     sourceCount: sourceNames.size,
     assetClassCount: assetClasses.size,
     concentration,
+    now,
   });
   const intelligenceConfidence = confidenceModel.confidence;
 
@@ -364,6 +366,7 @@ async function main() {
       autonomousTrading: false,
       validationOnlyObservationsDoNotCreateTradeSignals: true,
       confidenceFailsClosedWithoutCriticalSourceGreen: true,
+      criticalHealthFreshnessRequiredHours: 24,
       boundedExternalValidationConcurrency: 8,
     },
   };
