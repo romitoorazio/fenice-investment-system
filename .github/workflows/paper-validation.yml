@@ -16,6 +16,8 @@ jobs:
   paper-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -38,10 +40,22 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
-          const started = Boolean(campaign?.startedAt && campaign?.baselineCommit && campaign?.liveTradingAllowed === false);
+          const fingerprint = campaign?.baselineFingerprint;
+          const started = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.liveTradingAllowed === false
+            && fingerprint?.complete === true
+            && fingerprint?.algorithm === 'sha256'
+            && /^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))
+          );
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `started=${started}\n`);
-          console.log(started ? 'Paper validation campaign active' : 'Paper validation campaign not started; no evidence will be written');
+          console.log(started ? 'Paper validation campaign active with immutable core fingerprint' : 'Paper validation campaign not started/invalid baseline; no evidence will be written');
           NODE
+
+      - name: Refresh independent execution market evidence
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run marketdata:execution
 
       - name: Exercise PAPER-only OMS
         if: steps.campaign.outputs.started == 'true'
@@ -69,6 +83,7 @@ jobs:
           cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
           cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
           cp data/paper-conditional-queue.json "$generated_dir/paper-conditional-queue.json"
+          cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
@@ -78,7 +93,8 @@ jobs:
             cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
             cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
             cp "$generated_dir/paper-conditional-queue.json" data/paper-conditional-queue.json
-            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json
+            cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json data/execution-market-evidence.json
 
             if git diff --cached --quiet; then
               echo "No paper validation changes to commit"
