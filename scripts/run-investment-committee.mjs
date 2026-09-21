@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -118,7 +119,7 @@ function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
   };
 }
 
-function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality) {
+function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calibrationPolicy) {
   const fundamentalScore = Math.round(clamp(fundamental?.scores?.overall ?? asset.fundamentalScore ?? asset.unifiedScore ?? 50));
   const qualityScore = Math.round(clamp(fundamental?.scores?.quality ?? fundamentalScore));
   const technicalScore = Math.round(clamp(asset.technicalScore ?? asset.technical?.scores?.technical ?? 50));
@@ -127,7 +128,8 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality) {
   const valuation = valuationScore(asset, dcf);
   const catalyst = catalystFor(asset, discoveries);
   const fresh = freshnessScore(asset.technical?.observedAt ?? asset.observedAt);
-  const sourceConfidence = Math.round(clamp((asset.confidence ?? dataQuality) * 0.55 + dataQuality * 0.25 + fresh * 0.2));
+  const rawSourceConfidence = Math.round(clamp((asset.confidence ?? dataQuality) * 0.55 + dataQuality * 0.25 + fresh * 0.2));
+  const sourceConfidence = applyCalibrationToConfidence(rawSourceConfidence, calibrationPolicy);
   const contradictionPenalty = dcf?.status === 'disponibile' && Number(dcf.upsideBasePercent) < -20 ? Math.min(20, Math.abs(Number(dcf.upsideBasePercent)) * 0.25) : 0;
   const committeeScore = Math.round(clamp(
     fundamentalScore * 0.24 +
@@ -183,6 +185,13 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality) {
     decision,
     committeeScore,
     confidence: sourceConfidence,
+    rawConfidenceBeforeCalibration: rawSourceConfidence,
+    calibration: {
+      horizon: calibrationPolicy.horizon,
+      state: calibrationPolicy.state,
+      multiplier: calibrationPolicy.multiplier,
+      evidenceMature: calibrationPolicy.evidenceMature,
+    },
     riskScore: risk,
     terminalDecision: asset.decision,
     maxWeightPercent,
@@ -194,6 +203,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality) {
       riskAdjusted,
       catalysts: catalyst.score,
       dataConfidence: sourceConfidence,
+      rawDataConfidence: rawSourceConfidence,
     },
     valuation: {
       status: dcf?.status || asset.valuation?.status || 'non disponibile',
@@ -226,6 +236,8 @@ const fundamentals = await readJson('fundamental-research.json', { companies: []
 const dcf = await readJson('dcf-analysis.json', { companies: [] });
 const snapshot = await readJson('latest-snapshot.json', { discoveries: [], warnings: [] });
 const sourceHealth = await readJson('global-source-health.json', { qualityScore: null, gate: 'UNKNOWN' });
+const calibration = await readJson('calibration-analysis.json', { horizons: {} });
+const calibrationPolicy = selectCalibrationPolicy(calibration);
 
 const fundamentalBySymbol = new Map((fundamentals.companies || []).map((item) => [String(item.ticker).toUpperCase(), item]));
 const dcfBySymbol = new Map((dcf.companies || []).map((item) => [String(item.symbol).toUpperCase(), item]));
@@ -242,6 +254,7 @@ const candidates = (terminal.assets || [])
     dcfBySymbol.get(String(asset.symbol).toUpperCase()),
     snapshot.discoveries || [],
     dataQuality,
+    calibrationPolicy,
   ))
   .sort((a, b) => b.committeeScore - a.committeeScore || b.confidence - a.confidence || a.riskScore - b.riskScore)
   .map((item, index) => ({ ...item, rank: index + 1 }));
@@ -249,7 +262,12 @@ const candidates = (terminal.assets || [])
 const buyCandidates = candidates.filter((item) => item.decision === 'COMPRA');
 const firstTrancheEuro = buyCandidates.reduce((sum, item) => sum + Number(item.entryPlan.firstTrancheEuro || 0), 0);
 const sourceGate = sourceHealth.gate || sourceHealth.institutionalGate || 'UNKNOWN';
-const executionGate = dataQuality < 65 || sourceGate === 'RED' ? 'BLOCCATO' : buyCandidates.length ? 'PRONTO_CON_CONFERMA' : 'ATTENDERE';
+const calibrationBlocksExecution = calibrationPolicy.evidenceMature && calibrationPolicy.state === 'POOR';
+const executionGate = dataQuality < 65 || sourceGate === 'RED' || calibrationBlocksExecution
+  ? 'BLOCCATO'
+  : buyCandidates.length
+    ? 'PRONTO_CON_CONFERMA'
+    : 'ATTENDERE';
 
 const report = {
   version: 1,
@@ -265,12 +283,15 @@ const report = {
   marketRegime: terminal.marketRegime || 'ATTENDERE',
   dataQuality,
   sourceGate,
+  calibrationPolicy,
   executionGate,
   candidateCount: candidates.length,
   buyCandidateCount: buyCandidates.length,
   proposedFirstTrancheEuro: executionGate === 'PRONTO_CON_CONFERMA' ? Math.min(Math.round(CAPITAL * 0.15), firstTrancheEuro) : 0,
   committeeRules: [
     'Nessun BUY con confidenza dati insufficiente o source gate RED.',
+    'La calibrazione sui risultati realizzati può solo ridurre la confidenza, mai aumentarla.',
+    'Una calibrazione matura classificata POOR blocca nuovi ingressi finché il modello non viene corretto.',
     'Il DCF profondamente sotto il prezzo blocca il BUY anche se trend e qualità sono forti.',
     'Ogni BUY deve avere peso massimo, prima tranche, tesi contraria e condizioni di invalidazione.',
     'Le posizioni speculative restano piccole anche quando il potenziale teorico è elevato.',
@@ -284,6 +305,8 @@ const report = {
     ...(dcf.coveragePercent < 70 ? [`Copertura DCF ancora limitata al ${dcf.coveragePercent || 0}%.`] : []),
     ...(sourceGate !== 'GREEN' ? [`Institutional Source Gate: ${sourceGate}.`] : []),
     ...(dataQuality < 75 ? [`Qualità dati Investment Committee ${dataQuality}/100: mantenere prudenza.`] : []),
+    ...(!calibrationPolicy.evidenceMature ? ['Calibrazione previsionale non ancora matura: confidenza ridotta in modo conservativo.'] : []),
+    ...(calibrationBlocksExecution ? ['Calibrazione previsionale POOR: nuovi ingressi bloccati.'] : []),
   ],
 };
 
@@ -291,4 +314,4 @@ await mkdir(historyDir, { recursive: true });
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 await writeFile(outputPath, serialized, 'utf8');
 await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(':', '-')}.json`), serialized, 'utf8');
-console.log(`Fenice Investment Committee: ${candidates.length} candidati, BUY ${buyCandidates.length}, gate ${executionGate}, qualità ${dataQuality}.`);
+console.log(`Fenice Investment Committee: ${candidates.length} candidati, BUY ${buyCandidates.length}, gate ${executionGate}, qualità ${dataQuality}, calibration=${calibrationPolicy.state}/${calibrationPolicy.multiplier}.`);
