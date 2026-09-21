@@ -24,12 +24,13 @@ async function resolveCommit() {
   return sha.toLowerCase();
 }
 
-const [campaign, state, sources, intelligence, executionMarket, governance, fingerprint] = await Promise.all([
+const [campaign, state, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint] = await Promise.all([
   readJson("data/paper-validation-campaign.json"),
   readJson("data/paper-oms-state.json"),
   readJson("data/global-source-health.json"),
   readJson("data/intelligence-quality.json"),
   readJson("data/execution-market-evidence.json"),
+  readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
   computePaperValidationFingerprint(root),
 ]);
@@ -51,6 +52,7 @@ const eligibility = evaluatePaperBaselineEligibility({
   sources,
   intelligence,
   executionMarket,
+  executionCoverage,
   governance,
   fingerprint,
 });
@@ -76,4 +78,4 @@ const next = {
 };
 
 await writeFile(campaignPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}.`);
+console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}.`);
