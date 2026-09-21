@@ -96,6 +96,9 @@ jobs:
       - name: Atomic state persistence and corruption handling
         run: npm run state:test
 
+      - name: Paper conditional OMS smoke test
+        run: npm run paper:conditional
+
       - name: Paper OMS runner smoke test
         run: npm run paper:run
 
@@ -116,6 +119,8 @@ jobs:
             'data/strategy-lab.json',
             'data/paper-oms-state.json',
             'data/paper-order-queue.json',
+            'data/paper-conditional-state.json',
+            'data/paper-conditional-queue.json',
             'data/execution-market-evidence.json',
             'data/market-risk-events.json',
           ];
@@ -143,6 +148,10 @@ jobs:
           if (!Array.isArray(evidence.observations)) throw new Error('Execution market evidence structure invalid');
           const eventRisk = JSON.parse(fs.readFileSync('data/market-risk-events.json', 'utf8'));
           if (!Array.isArray(eventRisk.events)) throw new Error('Market risk events structure invalid');
+          const conditional = JSON.parse(fs.readFileSync('data/paper-conditional-state.json', 'utf8'));
+          if (!conditional.book || !Array.isArray(conditional.book.singles) || !Array.isArray(conditional.book.ocoGroups)) {
+            throw new Error('Paper conditional state structure invalid');
+          }
           console.log('Critical datasets are structurally valid');
           NODE
 
