@@ -35,6 +35,7 @@ jobs:
       COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
       COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -70,15 +71,30 @@ jobs:
           if (!Number.isFinite(q.intelligenceConfidence)) throw new Error('Missing intelligence confidence');
           if (!Number.isFinite(q.coverage?.sourceConcentrationPercent)) throw new Error('Missing source concentration');
           if (!Array.isArray(q.crossSourceValidation?.checks)) throw new Error('Missing cross-source validation checks');
+          if (q.policy?.unknownTimestampEvidenceExcluded !== true) throw new Error('Unknown timestamp evidence must be excluded');
+
           const sourceHealth = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
           const sourceAge = Date.now() - Date.parse(sourceHealth.generatedAt || '');
           if (!Number.isFinite(sourceAge) || sourceAge < 0 || sourceAge > 60 * 60 * 1000) throw new Error('Global source health is not fresh');
           if (!sourceHealth.critical || !Number.isFinite(Number(sourceHealth.critical.total))) throw new Error('Critical source health missing');
+
           const execution = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
           const executionAge = Date.now() - Date.parse(execution.generatedAt || '');
           if (!Number.isFinite(executionAge) || executionAge < 0 || executionAge > 60 * 60 * 1000) throw new Error('Execution market evidence is not fresh');
+          if (Number(execution.version || 0) < 2) throw new Error('Execution market evidence schema is obsolete');
           if (!Array.isArray(execution.observations)) throw new Error('Execution market observations missing');
-          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'source gate:', sourceHealth.gate, 'execution observations:', execution.observations.length);
+          if (execution.policy?.validationOnlySourcesNeverSatisfyPaperQuorum !== true) throw new Error('Validation-only execution data policy missing');
+          if (execution.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly !== true) throw new Error('Legacy execution evidence must fail closed');
+          if (execution.policy?.liveEligibilityMustBeExplicit !== true) throw new Error('Live eligibility must be explicit');
+          if (execution.policy?.liveTradingAllowed !== false) throw new Error('Live trading must remain blocked');
+          const eligibility = new Set(['VALIDATION_ONLY', 'PAPER', 'LIVE']);
+          for (const observation of execution.observations) {
+            if (!observation?.source || !observation?.sourceFamily) throw new Error('Execution observation missing source provenance');
+            if (!eligibility.has(observation?.eligibility)) throw new Error('Execution observation has invalid eligibility');
+            if (!Number.isFinite(Number(observation?.price)) || Number(observation.price) <= 0) throw new Error('Execution observation has invalid price');
+            if (!Number.isFinite(Date.parse(String(observation?.observedAt || '')))) throw new Error('Execution observation has invalid timestamp');
+          }
+          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'source gate:', sourceHealth.gate, 'execution observations:', execution.observations.length, 'Twelve Data:', execution.capabilities?.twelveDataConfigured === true ? 'configured' : 'optional-unconfigured');
           NODE
 
       - name: Publish refreshed quality evidence
