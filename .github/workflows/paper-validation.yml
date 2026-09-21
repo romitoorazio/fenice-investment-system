@@ -77,35 +77,14 @@ jobs:
         if: steps.campaign.outputs.started == 'true'
         id: decision_data
         run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const sources = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import { evaluateDecisionDataGate } from './lib/trading/decision-data-gate.mjs';
+          const sourceHealth = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
           const intelligence = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
-          const now = Date.now();
-          const ageMinutes = (value) => {
-            const parsed = Date.parse(String(value || ''));
-            return Number.isFinite(parsed) ? (now - parsed) / 60000 : Infinity;
-          };
-          const sourceAge = ageMinutes(sources.generatedAt);
-          const intelligenceAge = ageMinutes(intelligence.generatedAt);
-          const criticalReady = Number(sources?.critical?.ready || 0);
-          const criticalTotal = Number(sources?.critical?.total || 0);
-          const sourceReady = sourceAge >= 0 && sourceAge <= 10
-            && sources?.critical?.gate === 'GREEN'
-            && criticalTotal > 0
-            && criticalReady === criticalTotal;
-          const dataReady = intelligenceAge >= 0 && intelligenceAge <= 10
-            && Number(intelligence?.intelligenceConfidence || 0) >= 90
-            && Number(intelligence?.coverage?.sourceConcentrationPercent ?? 100) <= 50
-            && Number(intelligence?.coverage?.marketSources || 0) >= 3
-            && Array.isArray(intelligence?.coverage?.assetClasses)
-            && intelligence.coverage.assetClasses.length >= 3
-            && Number(intelligence?.crossSourceValidation?.checked || 0) >= 10
-            && Number(intelligence?.crossSourceValidation?.divergent || 0) === 0
-            && intelligence?.policy?.unknownTimestampEvidenceExcluded === true;
-          const ready = sourceReady && dataReady;
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready}\n`);
-          console.log(`Daily decision-data gate: ${ready ? 'PASS' : 'BLOCK'}; sources=${criticalReady}/${criticalTotal}; confidence=${Number(intelligence?.intelligenceConfidence || 0)}; checks=${Number(intelligence?.crossSourceValidation?.checked || 0)}; divergence=${Number(intelligence?.crossSourceValidation?.divergent || 0)}; concentration=${Number(intelligence?.coverage?.sourceConcentrationPercent ?? 100)}.`);
+          const result = evaluateDecisionDataGate({ sourceHealth, intelligence });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${result.ready}\n`);
+          console.log(`Daily decision-data gate: ${result.ready ? 'PASS' : 'BLOCK'}; sources=${result.metrics.criticalReady}/${result.metrics.criticalTotal}; confidence=${result.metrics.confidence}; checks=${result.metrics.crossChecks}; divergence=${result.metrics.divergent}; concentration=${result.metrics.sourceConcentrationPercent}.`);
           NODE
 
       - name: Refresh independent execution market evidence
