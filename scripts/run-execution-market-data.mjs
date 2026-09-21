@@ -2,11 +2,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import {
+  classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
+  isAlphaVantageIntradayCandidate,
   isTwelveDataPaperCandidate,
   isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
   normalizeExecutionSymbol,
+  parseProviderLocalTimestamp,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
 } from "../lib/trading/execution-market-data.ts";
@@ -15,6 +18,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
 const outputPath = path.join(dataDir, "execution-market-evidence.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
+const alphaVantageApiKey = String(process.env.ALPHA_VANTAGE_API_KEY || "").trim();
+const alphaVantageProbeLimit = Math.max(0, Math.min(5, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -28,7 +33,7 @@ async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/1.2 execution-market-validation",
+        "user-agent": "FeniceInvestmentSystem/1.3 execution-market-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
@@ -119,6 +124,42 @@ async function fetchTwelveData(instrument) {
   });
 }
 
+async function fetchAlphaVantageIntraday(instrument) {
+  if (!alphaVantageApiKey) throw new Error("ALPHA_VANTAGE_NOT_CONFIGURED");
+  if (!isAlphaVantageIntradayCandidate(instrument)) throw new Error("ALPHA_VANTAGE_NOT_A_PAPER_CANDIDATE");
+  const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
+  if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
+  const data = await request(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${encodeURIComponent(providerSymbol)}&interval=1min&outputsize=compact&apikey=${encodeURIComponent(alphaVantageApiKey)}`, { timeoutMs: 12000 });
+  if (data?.["Error Message"]) throw new Error("ALPHA_VANTAGE_API_ERROR");
+  if (data?.Note) throw new Error("ALPHA_VANTAGE_RATE_LIMIT");
+  if (data?.Information) throw new Error("ALPHA_VANTAGE_INFORMATION");
+  const meta = data?.["Meta Data"] || {};
+  const returnedSymbol = normalizeExecutionSymbol(meta?.["2. Symbol"]);
+  if (!returnedSymbol || returnedSymbol !== providerSymbol) throw new Error("ALPHA_VANTAGE_SYMBOL_MISMATCH");
+  const series = data?.["Time Series (1min)"];
+  if (!series || typeof series !== "object") throw new Error("ALPHA_VANTAGE_INTRADAY_MISSING");
+  const lastRefreshed = String(meta?.["3. Last Refreshed"] || "").trim();
+  const latestKey = series[lastRefreshed] ? lastRefreshed : Object.keys(series).sort().at(-1);
+  const timeZone = String(meta?.["6. Time Zone"] || "").trim();
+  const observedAt = parseProviderLocalTimestamp(latestKey, timeZone);
+  const row = latestKey ? series[latestKey] : null;
+  const price = Number(row?.["4. close"]);
+  if (!observedAt || !Number.isFinite(price) || price <= 0) throw new Error("INVALID_ALPHA_VANTAGE_INTRADAY_QUOTE");
+  const eligibility = classifyPaperEligibilityByFreshness(observedAt, Date.now(), 120);
+  return normalizeExecutionEvidence({
+    symbol: providerSymbol,
+    currency: instrument.currency || "USD",
+    assetClass: instrument.assetClass,
+    source: eligibility === "PAPER"
+      ? "Alpha Vantage fresh intraday paper validation"
+      : "Alpha Vantage delayed intraday validation",
+    sourceFamily: "alpha-vantage",
+    eligibility,
+    price,
+    observedAt,
+  });
+}
+
 async function fetchCoinbase(instrument) {
   const symbol = String(instrument.symbol || "").toUpperCase();
   const data = await request(`https://api.exchange.coinbase.com/products/${encodeURIComponent(`${symbol}-USD`)}/ticker`);
@@ -196,6 +237,12 @@ const instruments = [...requested].map((symbol) => {
   };
 });
 
+const alphaVantageProbeSymbols = new Set(
+  instruments
+    .filter(isAlphaVantageIntradayCandidate)
+    .slice(0, alphaVantageProbeLimit)
+    .map((instrument) => instrument.symbol),
+);
 const observations = [];
 const errors = [];
 for (const instrument of instruments) {
@@ -205,6 +252,9 @@ for (const instrument of instruments) {
   ];
   if (twelveDataApiKey && isTwelveDataPaperCandidate(instrument)) {
     tasks.push(["twelve-data", () => fetchTwelveData(instrument)]);
+  }
+  if (alphaVantageApiKey && alphaVantageProbeSymbols.has(instrument.symbol)) {
+    tasks.push(["alpha-vantage", () => fetchAlphaVantageIntraday(instrument)]);
   }
   const assetClass = String(instrument.assetClass || "").toLowerCase();
   if (assetClass === "crypto" || assetClass === "criptovaluta") {
@@ -228,8 +278,9 @@ for (const instrument of instruments) {
 }
 
 const deduplicated = deduplicateExecutionEvidence(observations);
+const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
 const report = {
-  version: 3,
+  version: 4,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -238,6 +289,12 @@ const report = {
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
     twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; candidate tickers are accepted as PAPER evidence only after provider response proves a recognized US realtime venue and precise timestamp",
+    alphaVantageConfigured: Boolean(alphaVantageApiKey),
+    alphaVantageProbeLimit,
+    alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
+    alphaVantagePaperFreshObservations: alphaVantageEvidence.filter((item) => item.eligibility === "PAPER").length,
+    alphaVantageValidationOnlyObservations: alphaVantageEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
+    alphaVantagePaperRule: "intraday evidence is PAPER-eligible only when exact symbol identity is verified, provider timezone is converted safely, and latest bar age is <=120 seconds; otherwise it remains validation-only",
     directPaidFeedRequired: false,
   },
   policy: {
@@ -247,9 +304,10 @@ const report = {
     untaggedLegacyEvidenceDefaultsToValidationOnly: true,
     liveEligibilityMustBeExplicit: true,
     providerVenueMustBeVerifiedBeforePaperEligibility: true,
+    delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataCandidates=${report.capabilities.twelveDataCandidateCount}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
