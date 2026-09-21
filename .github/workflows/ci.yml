@@ -60,6 +60,9 @@ jobs:
       - name: Portfolio concentration and correlation invariants
         run: npm run risk:portfolio:test
 
+      - name: Portfolio factor stress invariants
+        run: npm run risk:stress:test
+
       - name: Market-data quorum fail-closed invariants
         run: npm run marketdata:quorum:test
 
@@ -92,6 +95,12 @@ jobs:
 
       - name: Intelligence quality engine invariants
         run: npm run intelligence:quality:test
+
+      - name: Forecast calibration invariants
+        run: npm run calibration:test
+
+      - name: Build current calibration analysis
+        run: npm run calibration:analyze
 
       - name: Institutional risk reconciliation shadow and recovery controls
         run: npm run institutional:test
@@ -129,6 +138,7 @@ jobs:
             'data/paper-conditional-queue.json',
             'data/execution-market-evidence.json',
             'data/market-risk-events.json',
+            'data/calibration-analysis.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -157,6 +167,13 @@ jobs:
           const conditional = JSON.parse(fs.readFileSync('data/paper-conditional-state.json', 'utf8'));
           if (!conditional.book || !Array.isArray(conditional.book.singles) || !Array.isArray(conditional.book.ocoGroups)) {
             throw new Error('Paper conditional state structure invalid');
+          }
+          const calibration = JSON.parse(fs.readFileSync('data/calibration-analysis.json', 'utf8'));
+          if (!calibration.horizons || !calibration.horizons['7d'] || !calibration.horizons['30d']) {
+            throw new Error('Calibration analysis structure invalid');
+          }
+          if (calibration.policy?.confidenceCanOnlyBeReducedByCalibration !== true || calibration.policy?.liveTradingAllowed !== false) {
+            throw new Error('Calibration policy invariant violated');
           }
           console.log('Critical datasets are structurally valid');
           NODE
