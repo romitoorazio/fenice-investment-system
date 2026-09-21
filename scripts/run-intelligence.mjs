@@ -7,6 +7,7 @@ import {
   computeSourceConcentration,
   deriveCryptoVenueTargets,
   deriveStooqTargets,
+  filterFreshValidationEvidence,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
 
@@ -311,6 +312,8 @@ async function main() {
     ? snapshot.marketObservations
     : markets;
   const observations = await collectIndependentMarketEvidence(preservedObservations);
+  const freshObservations = filterFreshValidationEvidence(observations, { now });
+  const staleEvidenceExcluded = Math.max(0, observations.length - freshObservations.length);
 
   const sourceQuality = providers.map((provider) => ({
     id: provider.id,
@@ -321,12 +324,12 @@ async function main() {
     coverageCount: Array.isArray(provider.coverage) ? provider.coverage.length : 0,
   })).sort((a, b) => b.qualityScore - a.qualityScore);
 
-  const validations = buildValidation(observations);
+  const validations = buildValidation(freshObservations);
   const confirmed = validations.filter((item) => item.status === "confermato").length;
   const divergent = validations.filter((item) => item.status === "divergente").length;
-  const sourceNames = new Set(observations.map((item) => item.source).filter(Boolean));
-  const assetClasses = new Set([...markets, ...observations].map((item) => item.assetClass).filter(Boolean));
-  const concentration = computeSourceConcentration(observations);
+  const sourceNames = new Set(freshObservations.map((item) => item.source).filter(Boolean));
+  const assetClasses = new Set(freshObservations.map((item) => item.assetClass).filter(Boolean));
+  const concentration = computeSourceConcentration(freshObservations);
   const confidenceModel = computeIntelligenceConfidence({
     sourceQuality,
     criticalHealth: globalSourceHealth?.critical || {},
@@ -349,12 +352,14 @@ async function main() {
       confirmed,
       divergent,
       checks: validations.slice(0, 100),
-      evidenceObservations: observations.length,
+      evidenceObservations: freshObservations.length,
+      rawEvidenceObservations: observations.length,
+      staleEvidenceExcluded,
       validationSources: [...sourceNames].sort(),
     },
     coverage: {
-      instruments: new Set(observations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
-      marketObservations: observations.length,
+      instruments: new Set(freshObservations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
+      marketObservations: freshObservations.length,
       marketSources: sourceNames.size,
       assetClasses: [...assetClasses].sort(),
       sourceConcentrationPercent: Math.round(concentration * 100),
@@ -367,13 +372,17 @@ async function main() {
       validationOnlyObservationsDoNotCreateTradeSignals: true,
       confidenceFailsClosedWithoutCriticalSourceGreen: true,
       criticalHealthFreshnessRequiredHours: 24,
+      validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 },
+      unknownTimestampEvidenceExcluded: true,
       boundedExternalValidationConcurrency: 8,
     },
   };
 
   snapshot.marketValidationEvidence = {
     generatedAt: report.generatedAt,
-    observations: observations.length,
+    observations: freshObservations.length,
+    rawObservations: observations.length,
+    staleEvidenceExcluded,
     sources: [...sourceNames].sort(),
     checks: validations.length,
     divergent,
@@ -388,10 +397,13 @@ async function main() {
   if (divergent > 0) {
     snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${divergent} strumenti presentano prezzi divergenti tra fonti indipendenti.`])];
   }
+  if (staleEvidenceExcluded > 0) {
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${staleEvidenceExcluded} osservazioni di mercato stale o senza timestamp escluse dalla validazione.`])];
+  }
 
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   await writeFile(qualityPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${observations.length} evidence observations, ${sourceNames.size} market sources.`);
+  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${freshObservations.length}/${observations.length} fresh evidence observations, ${sourceNames.size} market sources.`);
 }
 
 main().catch((error) => {
