@@ -47,6 +47,7 @@ assert.equal(
 assert.match(projectFingerprint.digest, /^[a-f0-9]{64}$/);
 assert(projectFingerprint.files.length >= 40, "validation fingerprint must cover the full safety-critical surface");
 for (const required of [
+  ".github/workflows/ci.yml",
   ".github/workflows/paper-validation.yml",
   "package.json",
   "lib/trading/paper-baseline.mjs",
