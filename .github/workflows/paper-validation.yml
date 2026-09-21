@@ -3,7 +3,10 @@ name: Fenice Paper Validation
 on:
   workflow_dispatch:
   schedule:
-    - cron: "35 0 * * *"
+    # 16:35 UTC keeps the recurring validation inside the regular US equity session
+    # in both daylight-saving and standard-time periods. Weekend runs remain useful
+    # as no-risk safety evidence and must naturally fail closed on stale quotes.
+    - cron: "35 16 * * *"
 
 permissions:
   contents: write
@@ -17,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "3"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "0"
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
 
     steps:
