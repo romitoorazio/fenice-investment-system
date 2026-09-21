@@ -104,7 +104,7 @@ export function stooqSymbolForInstrument(instrument: ExecutionInstrument): strin
   return `${symbol}${suffix}`.toLowerCase();
 }
 
-export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
+function isUsdNonCryptoCandidate(instrument: ExecutionInstrument): boolean {
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   if (!symbol || !/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) return false;
   const assetClass = String(instrument.assetClass || "").toLowerCase();
@@ -114,6 +114,14 @@ export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boo
   return String(instrument.currency || "").toUpperCase() === "USD";
 }
 
+export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
+  return isUsdNonCryptoCandidate(instrument);
+}
+
+export function isAlphaVantageIntradayCandidate(instrument: ExecutionInstrument): boolean {
+  return isUsdNonCryptoCandidate(instrument);
+}
+
 export function isTwelveDataUsRealtimeVenue(quote: { mic_code?: unknown; mic?: unknown; exchange?: unknown; currency?: unknown }): boolean {
   const mic = String(quote?.mic_code || quote?.mic || "").trim().toUpperCase();
   if (US_REALTIME_MICS.has(mic)) return true;
@@ -121,6 +129,77 @@ export function isTwelveDataUsRealtimeVenue(quote: { mic_code?: unknown; mic?: u
   if (currency && currency !== "USD") return false;
   const exchange = String(quote?.exchange || "").trim().toUpperCase().replace(/\s+/g, " ");
   return US_REALTIME_EXCHANGE_LABELS.some((label) => exchange === label || exchange.startsWith(`${label} `));
+}
+
+function zonedParts(timestampMs: number, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const values = Object.fromEntries(
+    formatter.formatToParts(new Date(timestampMs))
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
+/**
+ * Convert a provider-local wall clock (for example Alpha Vantage US/Eastern)
+ * to an ISO UTC timestamp. Invalid/unsupported zones fail closed with null.
+ */
+export function parseProviderLocalTimestamp(value: unknown, timeZone: unknown): string | null {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  const zone = String(timeZone || "").trim();
+  if (!match || !zone) return null;
+  const target = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] || 0),
+  };
+  if (target.month < 1 || target.month > 12 || target.day < 1 || target.day > 31 || target.hour > 23 || target.minute > 59 || target.second > 59) return null;
+  const targetAsUtc = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second);
+  let guess = targetAsUtc;
+  try {
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      const actual = zonedParts(guess, zone);
+      const actualAsUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
+      guess += targetAsUtc - actualAsUtc;
+    }
+    const verified = zonedParts(guess, zone);
+    if (Object.keys(target).some((key) => verified[key as keyof typeof verified] !== target[key as keyof typeof target])) return null;
+    return new Date(guess).toISOString();
+  } catch {
+    return null;
+  }
+}
+
+/** PAPER means suitable only for simulation. LIVE is never inferred here. */
+export function classifyPaperEligibilityByFreshness(observedAt: unknown, now = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
+  const timestamp = Date.parse(String(observedAt || ""));
+  const ageSeconds = (Number(now) - timestamp) / 1000;
+  return Number.isFinite(timestamp)
+    && Number.isFinite(ageSeconds)
+    && ageSeconds >= 0
+    && ageSeconds <= Math.max(1, Number(maxAgeSeconds) || 120)
+    ? "PAPER"
+    : "VALIDATION_ONLY";
 }
 
 export function normalizeExecutionEvidence(input: Partial<ExecutionMarketEvidence>): ExecutionMarketEvidence | null {
