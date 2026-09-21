@@ -7,13 +7,17 @@ on:
       - feature/professional-core-consolidation
     paths:
       - ".github/workflows/pr-live-evidence.yml"
+      - ".github/workflows/intelligence-quality.yml"
+      - ".github/workflows/paper-validation.yml"
       - "lib/intelligence/quality-engine.mjs"
       - "scripts/run-intelligence.mjs"
       - "scripts/run-execution-market-data.mjs"
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
       - "scripts/check-paper-baseline-eligibility.mjs"
+      - "scripts/check-certification-readiness.mjs"
       - "data/global-source-registry.json"
+      - "data/execution-market-coverage.json"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/market-data-quorum.ts"
       - "lib/trading/paper-baseline.mjs"
@@ -80,6 +84,23 @@ jobs:
             const t = Date.parse(value || '');
             return Number.isFinite(t) ? Math.max(0, (now - t) / 3600000) : null;
           };
+          const providerErrorCounts = new Map();
+          for (const error of Array.isArray(e.errors) ? e.errors : []) {
+            const provider = String(error?.provider || 'unknown').toLowerCase();
+            const code = String(error?.code || 'FETCH_FAILED').slice(0, 80);
+            const key = `${provider}:${code}`;
+            providerErrorCounts.set(key, (providerErrorCounts.get(key) || 0) + 1);
+          }
+          const executionProviderErrorSummary = [...providerErrorCounts.entries()]
+            .map(([key, count]) => {
+              const separator = key.indexOf(':');
+              return {
+                provider: separator >= 0 ? key.slice(0, separator) : key,
+                code: separator >= 0 ? key.slice(separator + 1) : 'FETCH_FAILED',
+                count,
+              };
+            })
+            .sort((a, b) => b.count - a.count || a.provider.localeCompare(b.provider) || a.code.localeCompare(b.code));
           const metrics = {
             generatedAt: new Date().toISOString(),
             auditedCommit: process.env.GITHUB_SHA,
@@ -100,6 +121,8 @@ jobs:
             executionObservations: Array.isArray(e.observations) ? e.observations.length : 0,
             executionProviders: [...new Set((e.observations || []).map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
             executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
+            executionProviderErrorSummary,
+            twelveDataConfigured: e.capabilities?.twelveDataConfigured === true,
             paperRequestedSymbols: Number(c.requestedSymbols || 0),
             paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
             paperEligiblePercent: Number(c.paperEligiblePercent || 0),
