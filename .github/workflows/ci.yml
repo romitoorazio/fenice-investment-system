@@ -57,6 +57,9 @@ jobs:
       - name: Risk-of-ruin firewall invariants
         run: npm run risk:ruin:test
 
+      - name: Portfolio concentration and correlation invariants
+        run: npm run risk:portfolio:test
+
       - name: Market-data quorum fail-closed invariants
         run: npm run marketdata:quorum:test
 
@@ -95,6 +98,9 @@ jobs:
 
       - name: Atomic state persistence and corruption handling
         run: npm run state:test
+
+      - name: Adverse-condition chaos resilience
+        run: npm run chaos:test
 
       - name: Paper conditional OMS smoke test
         run: npm run paper:conditional
