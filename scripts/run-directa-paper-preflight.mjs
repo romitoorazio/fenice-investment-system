@@ -30,6 +30,13 @@ async function readData(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
 }
 
+function masterIdentifier(instrument, type) {
+  const expectedType = String(type || "").trim().toLowerCase();
+  const identifiers = Array.isArray(instrument?.identifiers) ? instrument.identifiers : [];
+  const match = identifiers.find((item) => String(item?.type || "").trim().toLowerCase() === expectedType);
+  return String(match?.value || "").trim().toUpperCase() || undefined;
+}
+
 function runNodeScript(relativePath) {
   const result = spawnSync(process.execPath, ["--experimental-strip-types", path.join(root, relativePath)], {
     cwd: root,
@@ -77,6 +84,7 @@ const instruments = [...requested].map((symbol) => {
     currency: masterInstrument.currency || terminalAsset.currency || "USD",
     assetClass: masterInstrument.assetClass || terminalAsset.assetClass || terminalAsset.category || "unknown",
     exchangeMic: masterInstrument.exchangeMic,
+    isin: masterIdentifier(masterInstrument, "isin"),
     country: masterInstrument.country,
   };
 });
@@ -91,7 +99,7 @@ if (selection.tickers.length < 3) {
     .map((item) => `${item.symbol || "UNKNOWN"}: ${item.reason}`)
     .join(" | ");
   throw new Error(
-    `DIRECTA_PREFLIGHT_BLOCKED: only ${selection.tickers.length} eligible equity/ETF ticker(s) remain after market-entitlement filtering; minimum is 3. Confirmed MICs=${entitlement.confirmedMarketMics.join(",") || "none"}. ${rejectionSummary}`,
+    `DIRECTA_PREFLIGHT_BLOCKED: only ${selection.tickers.length} eligible equity/ETF ticker(s) remain after identity + market-entitlement filtering; minimum is 3. Confirmed MICs=${entitlement.confirmedMarketMics.join(",") || "none"}. ${rejectionSummary}`,
   );
 }
 
