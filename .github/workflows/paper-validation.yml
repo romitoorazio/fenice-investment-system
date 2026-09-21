@@ -57,6 +57,10 @@ jobs:
         if: steps.campaign.outputs.started == 'true'
         run: npm run marketdata:execution
 
+      - name: Refresh per-symbol PAPER execution coverage
+        if: steps.campaign.outputs.started == 'true'
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
       - name: Exercise PAPER-only OMS
         if: steps.campaign.outputs.started == 'true'
         run: |
@@ -84,6 +88,7 @@ jobs:
           cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
           cp data/paper-conditional-queue.json "$generated_dir/paper-conditional-queue.json"
           cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
+          cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
@@ -94,7 +99,8 @@ jobs:
             cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
             cp "$generated_dir/paper-conditional-queue.json" data/paper-conditional-queue.json
             cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
-            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json data/execution-market-evidence.json
+            cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json data/execution-market-evidence.json data/execution-market-coverage.json
 
             if git diff --cached --quiet; then
               echo "No paper validation changes to commit"
