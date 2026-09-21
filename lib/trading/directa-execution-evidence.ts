@@ -23,6 +23,8 @@ export type DirectaExecutionEvidenceResult = {
   reasons: string[];
   warnings: string[];
   snapshotAgeMs: number | null;
+  identityVerifiedQuotes: number;
+  identityRejectedQuotes: number;
 };
 
 function datePartsInZone(timestampMs: number, timeZone: string): { year: number; month: number; day: number } | null {
@@ -78,6 +80,11 @@ function quotePrice(quote: DirectaQuote): number | null {
   return Number.isFinite(last) && last > 0 ? last : null;
 }
 
+function normalizeIsin(value: unknown): string {
+  const isin = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) ? isin : "";
+}
+
 export function buildDirectaExecutionEvidence(
   snapshot: DirectaDatafeedSnapshot | null | undefined,
   instruments: readonly ExecutionInstrument[],
@@ -118,6 +125,8 @@ export function buildDirectaExecutionEvidence(
       reasons: ["Directa datafeed snapshot missing"],
       warnings,
       snapshotAgeMs: null,
+      identityVerifiedQuotes: 0,
+      identityRejectedQuotes: 0,
     };
   }
   if (!Number.isFinite(nowMs)) reasons.push("evaluation clock invalid");
@@ -162,6 +171,9 @@ export function buildDirectaExecutionEvidence(
   );
   const observations: ExecutionMarketEvidence[] = [];
   const marketWarnings = new Set<string>();
+  const identityWarnings = new Set<string>();
+  let identityVerifiedQuotes = 0;
+  let identityRejectedQuotes = 0;
 
   if (accepted) {
     for (const quote of Array.isArray(snapshot.quotes) ? snapshot.quotes : []) {
@@ -171,10 +183,28 @@ export function buildDirectaExecutionEvidence(
       const price = quotePrice(quote);
       const observedAt = localQuoteTimeToIso(quote.observedAt, snapshot.generatedAt, timeZone);
       if (!price || !observedAt) continue;
+
+      const expectedIsin = normalizeIsin(instrument.isin);
+      const observedIsin = normalizeIsin(quote.isin);
+      const identityVerified = Boolean(expectedIsin && observedIsin && expectedIsin === observedIsin);
+      if (identityVerified) {
+        identityVerifiedQuotes += 1;
+      } else {
+        identityRejectedQuotes += 1;
+        if (!expectedIsin) {
+          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: instrument-master ISIN missing`);
+        } else if (!observedIsin) {
+          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: DAPI ANAG ISIN missing`);
+        } else {
+          identityWarnings.add(`Directa identity mismatch for ${symbol}: expected ${expectedIsin}, observed ${observedIsin}`);
+        }
+      }
+
       const freshnessEligibility = classifyPaperEligibilityByFreshness(observedAt, nowMs, maxQuoteAgeSeconds);
       const marketEntitlementReason = directaRealtimeEntitlementReason(instrument, entitlementConfig);
       if (marketEntitlementReason) marketWarnings.add(marketEntitlementReason);
       const eligibility = paperEligibilityAllowed
+        && identityVerified
         && !marketEntitlementReason
         && freshnessEligibility === "PAPER"
         ? "PAPER"
@@ -184,7 +214,7 @@ export function buildDirectaExecutionEvidence(
         currency: instrument.currency || "USD",
         assetClass: instrument.assetClass,
         source: eligibility === "PAPER"
-          ? `Directa local DAPI explicitly-entitled realtime read-only market data (${String(instrument.exchangeMic || "UNKNOWN")})`
+          ? `Directa local DAPI ISIN-verified explicitly-entitled realtime read-only market data (${String(instrument.exchangeMic || "UNKNOWN")})`
           : "Directa local DAPI read-only validation data",
         sourceFamily: "directa",
         eligibility,
@@ -195,7 +225,7 @@ export function buildDirectaExecutionEvidence(
     }
   }
 
-  warnings.push(...marketWarnings);
+  warnings.push(...marketWarnings, ...identityWarnings);
   if (observations.length === 0 && accepted) reasons.push("Directa snapshot contains no usable requested quotes");
   return {
     accepted: reasons.length === 0,
@@ -206,5 +236,7 @@ export function buildDirectaExecutionEvidence(
     reasons,
     warnings,
     snapshotAgeMs,
+    identityVerifiedQuotes,
+    identityRejectedQuotes,
   };
 }
