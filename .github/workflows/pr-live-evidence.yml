@@ -12,9 +12,12 @@ on:
       - "scripts/run-execution-market-data.mjs"
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
+      - "scripts/check-paper-baseline-eligibility.mjs"
       - "data/global-source-registry.json"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/market-data-quorum.ts"
+      - "lib/trading/paper-baseline.mjs"
+      - "lib/trading/validation-fingerprint.mjs"
 
 permissions:
   contents: read
@@ -114,7 +117,7 @@ jobs:
             crossChecks10: metrics.crossChecks >= 10,
             zeroDivergence: metrics.divergent === 0,
             executionEvidencePresent: metrics.executionObservations > 0,
-            paperExecutionCoveragePresent: metrics.paperEligibleSymbols > 0,
+            paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
             liveTradingLocked: metrics.liveTradingAllowed === false,
           };
           const dataQualityGateNames = ['criticalSources', 'confidence90', 'concentration50', 'marketSources3', 'assetClasses3', 'crossChecks10', 'zeroDivergence'];
@@ -122,12 +125,15 @@ jobs:
             metrics,
             gates,
             dataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
-            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoveragePresent,
+            paperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperExecutionCoverage,
           };
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
           if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
           NODE
+
+      - name: Paper baseline eligibility on fresh ephemeral evidence
+        run: npm run paper:baseline:status
 
       - name: Certification status on fresh ephemeral evidence
         run: npm run certification:status
