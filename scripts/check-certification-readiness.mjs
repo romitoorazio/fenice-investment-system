@@ -80,18 +80,26 @@ const executionCoverageMatchesEvidence = Number.isFinite(executionEvidenceTimest
 const requestedExecutionSymbols = Math.max(0, Number(executionCoverage?.requestedSymbols || 0));
 const paperEligibleSymbols = Math.max(0, Number(executionCoverage?.paperEligibleSymbols || 0));
 const paperEligiblePercent = Math.max(0, Number(executionCoverage?.paperEligiblePercent || 0));
+const directaPilotCandidateSymbols = Math.max(0, Number(executionCoverage?.directaPilotCandidateSymbols || 0));
+const directaPilotEligibleSymbols = Math.max(0, Number(executionCoverage?.directaPilotEligibleSymbols || 0));
+const directaPilotEligiblePercent = Math.max(0, Number(executionCoverage?.directaPilotEligiblePercent || 0));
 const executionMarketCoverageReady = executionEvidenceFresh
   && executionCoverageFresh
   && executionCoverageMatchesEvidence
   && executionMarket?.policy?.liveTradingAllowed === false
   && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
   && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
+  && Number(executionCoverage?.version || 0) >= 2
   && executionCoverage?.policy?.requiredEligibility === "PAPER"
   && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
+  && Number(executionCoverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
+  && executionCoverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
   && executionCoverage?.policy?.liveTradingAllowed === false
   && requestedExecutionSymbols >= 3
   && paperEligibleSymbols >= 3
-  && paperEligiblePercent >= 25;
+  && paperEligiblePercent >= 25
+  && directaPilotCandidateSymbols >= 3
+  && directaPilotEligibleSymbols >= 3;
 
 const guardrails = governance?.guardrails || {};
 const prohibited = new Set(governance?.prohibitedActions || []);
@@ -171,6 +179,7 @@ const status = {
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     executionMarketCoverage: executionMarketCoverageReady ? "PASS" : "NOT_READY",
+    directaPilotCoverage: directaPilotEligibleSymbols >= 3 ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
@@ -203,6 +212,10 @@ const status = {
     paperEligiblePercent,
     minimumPaperEligibleSymbols: 3,
     minimumPaperEligiblePercent: 25,
+    directaPilotCandidateSymbols,
+    directaPilotEligibleSymbols,
+    directaPilotEligiblePercent,
+    minimumDirectaPilotEligibleSymbols: 3,
     terminalAssets: terminalAssets.length,
     researchCompanies: researchCompanies.length,
     paperRecords: records.length,
