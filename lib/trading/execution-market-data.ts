@@ -3,6 +3,7 @@ export type ExecutionInstrument = {
   currency?: string;
   assetClass?: string;
   exchangeMic?: string;
+  isin?: string;
 };
 
 export type ExecutionDataEligibility = "VALIDATION_ONLY" | "PAPER" | "LIVE";
@@ -99,156 +100,114 @@ export function yahooSymbolForInstrument(instrument: ExecutionInstrument): strin
 export function stooqSymbolForInstrument(instrument: ExecutionInstrument): string | null {
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   if (!symbol) return null;
-  const assetClass = String(instrument.assetClass || "").toLowerCase();
-  if (assetClass === "crypto" || assetClass === "criptovaluta") return null;
-  const mic = String(instrument.exchangeMic || "").toUpperCase();
-  const explicitSuffix = MIC_TO_STOOQ_SUFFIX[mic];
-  if (explicitSuffix) return `${symbol}${explicitSuffix}`.toLowerCase();
-  if (!mic && String(instrument.currency || "").toUpperCase() === "USD" && /^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) {
-    return `${symbol}.US`.toLowerCase();
-  }
-  return null;
-}
-
-function isUsdNonCryptoCandidate(instrument: ExecutionInstrument): boolean {
-  const symbol = normalizeExecutionSymbol(instrument.symbol);
-  if (!symbol || !/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) return false;
-  const assetClass = String(instrument.assetClass || "").toLowerCase();
-  if (assetClass === "crypto" || assetClass === "criptovaluta") return false;
-  const mic = String(instrument.exchangeMic || "").toUpperCase();
-  if (US_REALTIME_MICS.has(mic)) return true;
-  return String(instrument.currency || "").toUpperCase() === "USD";
+  const suffix = MIC_TO_STOOQ_SUFFIX[String(instrument.exchangeMic || "").toUpperCase()] || "";
+  if (!suffix) return null;
+  return `${symbol}${suffix}`.toLowerCase();
 }
 
 export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
-  return isUsdNonCryptoCandidate(instrument);
+  const assetClass = String(instrument.assetClass || "").toLowerCase();
+  const mic = String(instrument.exchangeMic || "").toUpperCase();
+  return /equity|stock|etf|azione|azion/i.test(assetClass) && US_REALTIME_MICS.has(mic);
 }
 
 export function isAlphaVantageIntradayCandidate(instrument: ExecutionInstrument): boolean {
-  return isUsdNonCryptoCandidate(instrument);
+  const assetClass = String(instrument.assetClass || "").toLowerCase();
+  const mic = String(instrument.exchangeMic || "").toUpperCase();
+  return /equity|stock|etf|azione|azion/i.test(assetClass) && US_REALTIME_MICS.has(mic);
 }
 
-export function isTwelveDataUsRealtimeVenue(quote: { mic_code?: unknown; mic?: unknown; exchange?: unknown; currency?: unknown }): boolean {
-  const mic = String(quote?.mic_code || quote?.mic || "").trim().toUpperCase();
-  if (US_REALTIME_MICS.has(mic)) return true;
-  const currency = String(quote?.currency || "").trim().toUpperCase();
-  if (currency && currency !== "USD") return false;
-  const exchange = String(quote?.exchange || "").trim().toUpperCase().replace(/\s+/g, " ");
-  return US_REALTIME_EXCHANGE_LABELS.some((label) => exchange === label || exchange.startsWith(`${label} `));
+export function isTwelveDataUsRealtimeVenue(value: unknown): boolean {
+  const data = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const exchange = String(data.exchange || data.mic_code || data.mic || "").trim().toUpperCase();
+  return US_REALTIME_MICS.has(exchange) || US_REALTIME_EXCHANGE_LABELS.includes(exchange);
 }
 
-function zonedParts(timestampMs: number, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
-  const values = Object.fromEntries(
-    formatter.formatToParts(new Date(timestampMs))
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
-  };
-}
-
-/**
- * Convert a provider-local wall clock (for example Alpha Vantage US/Eastern)
- * to an ISO UTC timestamp. Invalid/unsupported zones fail closed with null.
- */
 export function parseProviderLocalTimestamp(value: unknown, timeZone: unknown): string | null {
-  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  const raw = String(value || "").trim();
   const zone = String(timeZone || "").trim();
-  if (!match || !zone) return null;
-  const target = {
-    year: Number(match[1]),
-    month: Number(match[2]),
-    day: Number(match[3]),
-    hour: Number(match[4]),
-    minute: Number(match[5]),
-    second: Number(match[6] || 0),
-  };
-  if (target.month < 1 || target.month > 12 || target.day < 1 || target.day > 31 || target.hour > 23 || target.minute > 59 || target.second > 59) return null;
-  const targetAsUtc = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second);
-  let guess = targetAsUtc;
+  if (!raw) return null;
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(raw)) {
+    const parsed = Date.parse(raw);
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)) return null;
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  const utcGuess = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  if (!zone) return new Date(utcGuess).toISOString();
   try {
-    for (let iteration = 0; iteration < 3; iteration += 1) {
-      const actual = zonedParts(guess, zone);
-      const actualAsUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
-      guess += targetAsUtc - actualAsUtc;
-    }
-    const verified = zonedParts(guess, zone);
-    if (Object.keys(target).some((key) => verified[key as keyof typeof verified] !== target[key as keyof typeof target])) return null;
-    return new Date(guess).toISOString();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(utcGuess)).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    const zoneAsUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
+    const offsetMs = zoneAsUtc - utcGuess;
+    return new Date(utcGuess - offsetMs).toISOString();
   } catch {
     return null;
   }
 }
 
-/** PAPER means suitable only for simulation. LIVE is never inferred here. */
-export function classifyPaperEligibilityByFreshness(observedAt: unknown, now = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
-  const timestamp = Date.parse(String(observedAt || ""));
-  const ageSeconds = (Number(now) - timestamp) / 1000;
-  return Number.isFinite(timestamp)
+export function classifyPaperEligibilityByFreshness(
+  observedAt: string,
+  nowMs = Date.now(),
+  maxAgeSeconds = 120,
+): ExecutionDataEligibility {
+  const observedMs = Date.parse(String(observedAt || ""));
+  const ageSeconds = (Number(nowMs) - observedMs) / 1000;
+  return Number.isFinite(observedMs)
     && Number.isFinite(ageSeconds)
     && ageSeconds >= 0
-    && ageSeconds <= Math.max(1, Number(maxAgeSeconds) || 120)
+    && ageSeconds <= maxAgeSeconds
     ? "PAPER"
     : "VALIDATION_ONLY";
 }
 
-export function normalizeExecutionEvidence(input: Partial<ExecutionMarketEvidence>): ExecutionMarketEvidence | null {
-  const symbol = normalizeExecutionSymbol(input.symbol);
-  const source = String(input.source || "").trim();
-  const sourceFamily = String(input.sourceFamily || inferExecutionSourceFamily(source)).trim().toLowerCase();
-  const currency = String(input.currency || "").trim().toUpperCase();
-  const price = Number(input.price);
-  const observedAtMs = Date.parse(String(input.observedAt || ""));
-  const eligibility = (["VALIDATION_ONLY", "PAPER", "LIVE"] as const).includes(input.eligibility as ExecutionDataEligibility)
-    ? input.eligibility as ExecutionDataEligibility
+export function normalizeExecutionEvidence(value: Partial<ExecutionMarketEvidence>): ExecutionMarketEvidence | null {
+  const symbol = normalizeExecutionSymbol(value.symbol);
+  const source = String(value.source || "").trim();
+  const sourceFamily = String(value.sourceFamily || inferExecutionSourceFamily(source)).trim().toLowerCase();
+  const currency = String(value.currency || "").trim().toUpperCase();
+  const price = Number(value.price);
+  const observedAt = String(value.observedAt || "").trim();
+  const eligibility: ExecutionDataEligibility = value.eligibility === "LIVE" || value.eligibility === "PAPER"
+    ? value.eligibility
     : "VALIDATION_ONLY";
-  if (!symbol || !source || !sourceFamily || !currency || !Number.isFinite(price) || price <= 0 || !Number.isFinite(observedAtMs)) {
-    return null;
-  }
+  if (!symbol || !source || !sourceFamily || !currency || !Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(observedAt))) return null;
   return {
     symbol,
     currency,
-    assetClass: input.assetClass ? String(input.assetClass) : undefined,
+    assetClass: value.assetClass,
     source,
     sourceFamily,
     eligibility,
     price,
-    observedAt: new Date(observedAtMs).toISOString(),
+    observedAt: new Date(Date.parse(observedAt)).toISOString(),
   };
 }
 
-export function deduplicateExecutionEvidence(evidence: readonly ExecutionMarketEvidence[]): ExecutionMarketEvidence[] {
-  const byKey = new Map<string, ExecutionMarketEvidence>();
-  for (const raw of evidence) {
-    const item = normalizeExecutionEvidence(raw);
-    if (!item) continue;
-    const key = `${item.symbol}:${item.currency}:${item.sourceFamily}`;
-    const existing = byKey.get(key);
-    if (!existing) {
-      byKey.set(key, item);
-      continue;
+export function deduplicateExecutionEvidence(values: readonly ExecutionMarketEvidence[]): ExecutionMarketEvidence[] {
+  const map = new Map<string, ExecutionMarketEvidence>();
+  for (const item of values) {
+    const normalized = normalizeExecutionEvidence(item);
+    if (!normalized) continue;
+    const key = `${normalized.symbol}:${normalized.sourceFamily}`;
+    const previous = map.get(key);
+    if (!previous
+      || ELIGIBILITY_RANK[normalized.eligibility] > ELIGIBILITY_RANK[previous.eligibility]
+      || (ELIGIBILITY_RANK[normalized.eligibility] === ELIGIBILITY_RANK[previous.eligibility]
+        && Date.parse(normalized.observedAt) > Date.parse(previous.observedAt))) {
+      map.set(key, normalized);
     }
-    const itemTime = Date.parse(item.observedAt);
-    const existingTime = Date.parse(existing.observedAt);
-    const itemRank = ELIGIBILITY_RANK[item.eligibility];
-    const existingRank = ELIGIBILITY_RANK[existing.eligibility];
-    if (itemRank > existingRank || (itemRank === existingRank && itemTime > existingTime)) byKey.set(key, item);
   }
-  return [...byKey.values()].sort((a, b) => a.symbol.localeCompare(b.symbol) || a.sourceFamily.localeCompare(b.sourceFamily));
+  return [...map.values()].sort((a, b) => a.symbol.localeCompare(b.symbol) || a.sourceFamily.localeCompare(b.sourceFamily));
 }
