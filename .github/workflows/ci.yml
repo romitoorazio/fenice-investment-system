@@ -120,6 +120,12 @@ jobs:
       - name: Immutable paper validation core fingerprint invariants
         run: npm run paper:fingerprint:test
 
+      - name: Paper baseline eligibility fail-closed invariants
+        run: npm run paper:baseline:test
+
+      - name: Report current paper baseline eligibility
+        run: npm run paper:baseline:status
+
       - name: 30-day paper campaign invariants
         run: npm run paper:validation:test
 
