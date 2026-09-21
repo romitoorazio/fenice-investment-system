@@ -60,13 +60,30 @@ const MIC_TO_STOOQ_SUFFIX: Readonly<Record<string, string>> = {
 };
 
 const US_REALTIME_MICS = new Set(["XNAS", "XNYS", "ARCX", "BATS", "IEXG"]);
-const US_REALTIME_EXCHANGE_LABELS = ["NASDAQ", "NYSE", "NYSE ARCA", "NYSE AMERICAN", "AMEX", "CBOE", "BATS", "IEX"];
+const US_REALTIME_EXCHANGE_LABELS = new Set([
+  "NASDAQ",
+  "NASDAQ GLOBAL SELECT MARKET",
+  "NASDAQ GLOBAL MARKET",
+  "NASDAQ CAPITAL MARKET",
+  "NYSE",
+  "NEW YORK STOCK EXCHANGE",
+  "NYSE ARCA",
+  "NYSE AMERICAN",
+  "AMEX",
+  "CBOE",
+  "BATS",
+  "IEX",
+]);
 
 const ELIGIBILITY_RANK: Readonly<Record<ExecutionDataEligibility, number>> = {
   VALIDATION_ONLY: 0,
   PAPER: 1,
   LIVE: 2,
 };
+
+function isListedSecurity(assetClass: unknown): boolean {
+  return /equity|stock|etf|azione|azion/i.test(String(assetClass || ""));
+}
 
 export function normalizeExecutionSymbol(value: unknown): string {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
@@ -93,7 +110,11 @@ export function yahooSymbolForInstrument(instrument: ExecutionInstrument): strin
     return symbol.endsWith("-USD") ? symbol : `${symbol}-USD`;
   }
   if (/[.=^-]/.test(symbol)) return symbol;
-  const suffix = MIC_TO_YAHOO_SUFFIX[String(instrument.exchangeMic || "").toUpperCase()] || "";
+  const mic = String(instrument.exchangeMic || "").toUpperCase();
+  if (isListedSecurity(assetClass) && !mic) return "";
+  if (US_REALTIME_MICS.has(mic)) return symbol;
+  const suffix = MIC_TO_YAHOO_SUFFIX[mic] || "";
+  if (isListedSecurity(assetClass) && !suffix) return "";
   return `${symbol}${suffix}`;
 }
 
@@ -108,19 +129,20 @@ export function stooqSymbolForInstrument(instrument: ExecutionInstrument): strin
 export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
   const assetClass = String(instrument.assetClass || "").toLowerCase();
   const mic = String(instrument.exchangeMic || "").toUpperCase();
-  return /equity|stock|etf|azione|azion/i.test(assetClass) && US_REALTIME_MICS.has(mic);
+  return isListedSecurity(assetClass) && US_REALTIME_MICS.has(mic);
 }
 
 export function isAlphaVantageIntradayCandidate(instrument: ExecutionInstrument): boolean {
   const assetClass = String(instrument.assetClass || "").toLowerCase();
   const mic = String(instrument.exchangeMic || "").toUpperCase();
-  return /equity|stock|etf|azione|azion/i.test(assetClass) && US_REALTIME_MICS.has(mic);
+  return isListedSecurity(assetClass) && US_REALTIME_MICS.has(mic);
 }
 
 export function isTwelveDataUsRealtimeVenue(value: unknown): boolean {
   const data = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const exchange = String(data.exchange || data.mic_code || data.mic || "").trim().toUpperCase();
-  return US_REALTIME_MICS.has(exchange) || US_REALTIME_EXCHANGE_LABELS.includes(exchange);
+  const mic = String(data.mic_code || data.mic || "").trim().toUpperCase();
+  const exchange = String(data.exchange || "").trim().toUpperCase();
+  return US_REALTIME_MICS.has(mic) || US_REALTIME_EXCHANGE_LABELS.has(exchange);
 }
 
 export function parseProviderLocalTimestamp(value: unknown, timeZone: unknown): string | null {
