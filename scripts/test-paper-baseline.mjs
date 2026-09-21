@@ -25,12 +25,22 @@ const healthy = {
     policy: { liveTradingAllowed: false, validationOnlySourcesNeverSatisfyPaperQuorum: true },
   },
   executionCoverage: {
+    version: 2,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
     paperEligibleSymbols: 5,
     paperEligiblePercent: 41.7,
-    policy: { requiredEligibility: "PAPER", minIndependentSourceFamilies: 2, liveTradingAllowed: false },
+    directaPilotCandidateSymbols: 9,
+    directaPilotEligibleSymbols: 4,
+    directaPilotEligiblePercent: 44.4,
+    policy: {
+      requiredEligibility: "PAPER",
+      minIndependentSourceFamilies: 2,
+      minimumDirectaPilotEligibleSymbols: 3,
+      cryptoCannotSatisfyDirectaPilotCoverage: true,
+      liveTradingAllowed: false,
+    },
   },
   governance: {
     guardrails: { blockAutonomousTrading: true, requireHumanConfirmation: true },
@@ -44,7 +54,9 @@ const pass = evaluatePaperBaselineEligibility(healthy);
 assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
+assert.equal(pass.metrics.directaPilotEligibleSymbols, 4);
 assert.equal(pass.gates.executionSymbolCoverage, true);
+assert.equal(pass.gates.directaPilotCoverage, true);
 
 const lowQuality = evaluatePaperBaselineEligibility({
   ...healthy,
@@ -85,6 +97,22 @@ const narrowCoverage = evaluatePaperBaselineEligibility({
 assert.equal(narrowCoverage.eligible, false);
 assert.equal(narrowCoverage.gates.executionSymbolCoverage, false);
 assert.ok(narrowCoverage.reasons.some((reason) => reason.includes("per-symbol PAPER execution coverage")));
+
+const cryptoOnlyCoverage = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    requestedSymbols: 12,
+    paperEligibleSymbols: 5,
+    paperEligiblePercent: 41.7,
+    directaPilotCandidateSymbols: 9,
+    directaPilotEligibleSymbols: 0,
+    directaPilotEligiblePercent: 0,
+  },
+});
+assert.equal(cryptoOnlyCoverage.eligible, false, "crypto quorum must not certify the Directa equity/ETF pilot");
+assert.equal(cryptoOnlyCoverage.gates.directaPilotCoverage, false);
+assert.ok(cryptoOnlyCoverage.reasons.some((reason) => reason.includes("Directa pilot equity/ETF")));
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
