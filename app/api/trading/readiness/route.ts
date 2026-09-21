@@ -7,8 +7,10 @@ export const revalidate = 0;
 
 export async function GET() {
   const readiness = buildInstitutionalReadiness(intelligence, {
-    // These controls require runtime evidence from the local Directa bridge or
-    // time-matured validation. Cloud code must never mark them PASS by itself.
+    // These controls require runtime evidence from the local Directa bridge,
+    // execution-market quorum checks or time-matured validation. Cloud code
+    // must never mark them PASS by itself.
+    executionMarketQuorumVerified: false,
     brokerReadOnlyVerified: false,
     brokerReconciliationVerified: false,
     shadowExecutionVerified: false,
@@ -27,6 +29,6 @@ export async function GET() {
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
     capitalReady: false,
-    note: "Engineering readiness is not authorization to trade. Runtime Directa evidence and time-matured paper/shadow validation are still required.",
+    note: "Engineering readiness is not authorization to trade. Runtime quote-quorum/Directa evidence and time-matured paper/shadow validation are still required.",
   });
 }
