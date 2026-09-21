@@ -7,6 +7,12 @@ on:
       - feature/professional-core-consolidation
     paths:
       - ".github/workflows/pr-live-evidence.yml"
+      - "lib/intelligence/quality-engine.mjs"
+      - "scripts/run-intelligence.mjs"
+      - "scripts/run-execution-market-data.mjs"
+      - "scripts/check-global-sources.mjs"
+      - "data/global-source-registry.json"
+      - "lib/trading/execution-market-data.ts"
 
 permissions:
   contents: read
@@ -74,7 +80,7 @@ jobs:
             crossChecks: Number(q.crossSourceValidation?.checked || 0),
             divergent: Number(q.crossSourceValidation?.divergent || 0),
             freshEvidenceObservations: Number(q.crossSourceValidation?.evidenceObservations || 0),
-            staleEvidenceExcluded: Number(q.crossSourceValidation?.staleEvidenceExcluded || 0),
+            excludedValidationEvidence: Number(q.crossSourceValidation?.staleEvidenceExcluded || 0),
             criticalGate: s.critical?.gate || 'UNKNOWN',
             criticalReady: Number(s.critical?.ready || 0),
             criticalTotal: Number(s.critical?.total || 0),
