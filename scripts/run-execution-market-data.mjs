@@ -31,6 +31,13 @@ async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
 }
 
+function masterIdentifier(instrument, type) {
+  const expectedType = String(type || "").trim().toLowerCase();
+  const identifiers = Array.isArray(instrument?.identifiers) ? instrument.identifiers : [];
+  const match = identifiers.find((item) => String(item?.type || "").trim().toLowerCase() === expectedType);
+  return String(match?.value || "").trim().toUpperCase() || undefined;
+}
+
 async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -250,6 +257,7 @@ const instruments = [...requested].map((symbol) => {
     currency: masterInstrument.currency || terminalAsset.currency || "USD",
     assetClass: masterInstrument.assetClass || terminalAsset.assetClass || terminalAsset.category || "unknown",
     exchangeMic: masterInstrument.exchangeMic,
+    isin: masterIdentifier(masterInstrument, "isin"),
     country: masterInstrument.country,
   };
 });
@@ -316,7 +324,7 @@ const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
 const directaObservations = deduplicated.filter((item) => item.sourceFamily === "directa");
 const report = {
-  version: 7,
+  version: 8,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -325,9 +333,14 @@ const report = {
     directaLocalSnapshotDetected: Boolean(directaSnapshot),
     directaLocalSnapshotAccepted: directaEvidence.accepted,
     directaLocalSnapshotAgeMs: directaEvidence.snapshotAgeMs,
+    directaRealtimeEntitlementConfirmed: directaEvidence.realtimeEntitlementConfirmed,
+    directaConfirmedRealtimeMarketMics: directaEvidence.confirmedRealtimeMarketMics,
+    directaIdentityVerifiedQuotes: directaEvidence.identityVerifiedQuotes,
+    directaIdentityRejectedQuotes: directaEvidence.identityRejectedQuotes,
+    directaWarnings: directaEvidence.warnings,
     directaPaperFreshObservations: directaObservations.filter((item) => item.eligibility === "PAPER").length,
     directaValidationOnlyObservations: directaObservations.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    directaPaperRule: "only loopback read-only DAPI snapshots with writeTradingCommandsAllowed=false and fresh quote timestamps may satisfy PAPER quorum",
+    directaPaperRule: "PAPER requires loopback read-only DAPI, trading writes blocked, explicit realtime/historical API confirmation, explicit market-level MIC entitlement, matching instrument-master/DAPI ISIN identity, and <=120-second quote freshness",
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
     twelveDataProbeLimit,
@@ -354,9 +367,11 @@ const report = {
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
     localBrokerEvidenceMustProveReadOnlyBoundary: true,
+    localBrokerEvidenceMustMatchInstrumentIdentity: true,
+    localBrokerMarketEntitlementMustBeExplicit: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, directaIdentity=${directaEvidence.identityVerifiedQuotes}/${directaEvidence.identityVerifiedQuotes + directaEvidence.identityRejectedQuotes}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
