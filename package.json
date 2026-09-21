@@ -17,7 +17,7 @@
     "strategies": "node scripts/run-strategy-lab.mjs && node scripts/finalize-strategy-lab.mjs",
     "strategy:robustness:test": "node scripts/test-strategy-robustness.mjs",
     "sources:check": "node scripts/check-global-sources.mjs",
-    "instruments:validate": "node scripts/validate-instrument-master.mjs",
+    "instruments:validate": "node scripts/validate-instrument-master.mjs && node --experimental-strip-types scripts/test-instrument-identity.mjs",
     "knowledge:build": "node scripts/run-knowledge-engine.mjs",
     "report:validate": "node scripts/validate-generated-report.mjs",
     "broker:safety": "node --experimental-strip-types scripts/test-broker-safety.mjs",
