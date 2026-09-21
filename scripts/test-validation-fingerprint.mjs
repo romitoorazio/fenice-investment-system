@@ -45,16 +45,18 @@ assert.equal(
   `default validation fingerprint references missing files: ${projectFingerprint.missingFiles.join(", ")}`,
 );
 assert.match(projectFingerprint.digest, /^[a-f0-9]{64}$/);
-assert(projectFingerprint.files.length >= 56, "validation fingerprint must cover the expanded safety-critical surface");
+assert(projectFingerprint.files.length >= 59, "validation fingerprint must cover the expanded safety-critical surface");
 for (const required of [
   ".github/workflows/ci.yml",
   ".github/workflows/paper-validation.yml",
+  "data/instrument-master.json",
   "package.json",
   "lib/brokers/directa-datafeed.ts",
   "lib/brokers/directa-entitlement.ts",
   "lib/brokers/directa-readonly.ts",
   "lib/trading/directa-execution-evidence.ts",
   "lib/trading/directa-paper-preflight.ts",
+  "lib/trading/directa-realtime-entitlements.ts",
   "lib/trading/directa-shadow-cycle.ts",
   "lib/trading/execution-coverage.ts",
   "lib/trading/paper-baseline.mjs",
@@ -66,6 +68,7 @@ for (const required of [
   "scripts/run-directa-paper-preflight.mjs",
   "scripts/run-execution-market-data.mjs",
   "scripts/run-local-paper-validation-cycle.mjs",
+  "scripts/validate-instrument-master.mjs",
 ]) {
   assert(projectFingerprint.files.includes(required), `validation fingerprint must include ${required}`);
 }
