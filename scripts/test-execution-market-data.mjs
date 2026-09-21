@@ -7,10 +7,18 @@ import {
 } from "../lib/trading/execution-market-data.ts";
 
 assert.equal(yahooSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL", assetClass: "equity" }), "ENEL.MI");
+assert.equal(yahooSymbolForInstrument({ symbol: "SIE", exchangeMic: "XETR", assetClass: "equity" }), "SIE.DE");
+assert.equal(yahooSymbolForInstrument({ symbol: "MC", exchangeMic: "XPAR", assetClass: "equity" }), "MC.PA");
+assert.equal(yahooSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON", assetClass: "equity" }), "VOD.L");
+assert.equal(yahooSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS", assetClass: "equity" }), "ASML.AS");
+assert.equal(yahooSymbolForInstrument({ symbol: "IBE", exchangeMic: "XMAD", assetClass: "equity" }), "IBE.MC");
+assert.equal(yahooSymbolForInstrument({ symbol: "NOVN", exchangeMic: "XSWX", assetClass: "equity" }), "NOVN.SW");
 assert.equal(yahooSymbolForInstrument({ symbol: "NVDA", exchangeMic: "XNAS", assetClass: "equity" }), "NVDA");
 assert.equal(yahooSymbolForInstrument({ symbol: "BTC", assetClass: "crypto" }), "BTC-USD");
 assert.equal(stooqSymbolForInstrument({ symbol: "AAPL", exchangeMic: "XNAS" }), "aapl.us");
 assert.equal(stooqSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL" }), "enel.it");
+assert.equal(stooqSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON" }), "vod.uk");
+assert.equal(stooqSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS" }), "asml.nl");
 assert.equal(stooqSymbolForInstrument({ symbol: "7203", exchangeMic: "XTKS" }), null);
 
 const normalized = normalizeExecutionEvidence({
