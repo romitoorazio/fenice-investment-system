@@ -1,6 +1,10 @@
 import net from "node:net";
 import { resolveLocalDirectaDatafeedPort } from "../lib/brokers/directa-datafeed.ts";
 import { classifyDirectaDatafeedError } from "../lib/brokers/directa-entitlement.ts";
+import {
+  sanitizeDirectaDiagnosticError,
+  sanitizeSocketErrorCode,
+} from "../lib/brokers/directa-diagnostic-safety.ts";
 
 function readArg(name) {
   const index = process.argv.indexOf(name);
@@ -34,10 +38,7 @@ function consume(line) {
   const type = String(fields[0] || "UNKNOWN").trim().toUpperCase().slice(0, 32) || "UNKNOWN";
   count(type);
   if (type === "ERR") {
-    errors.push({
-      ticker: String(fields[1] || "").slice(0, 40),
-      code: Number.isFinite(Number(fields[2])) ? Number(fields[2]) : null,
-    });
+    errors.push(sanitizeDirectaDiagnosticError(fields[1], fields[2], tickers));
   }
 }
 
@@ -66,7 +67,7 @@ const completion = await new Promise((resolve) => {
     for (const line of parts) consume(line);
   });
   socket.on("error", (error) => {
-    errors.push({ ticker: "", code: null, socket: String(error.code || "SOCKET_ERROR") });
+    errors.push({ ticker: "", code: null, socket: sanitizeSocketErrorCode(error.code) });
     finish("socket-error");
   });
   socket.on("close", () => {
