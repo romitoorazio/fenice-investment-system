@@ -13,6 +13,7 @@ import {
   type ExecutionInstrument,
   type ExecutionMarketEvidence,
 } from "./execution-market-data.ts";
+import { requireValidIsin } from "./instrument-identity.ts";
 
 export type DirectaExecutionEvidenceResult = {
   accepted: boolean;
@@ -92,11 +93,6 @@ function quoteMarketView(quote: DirectaQuote): { price: number | null; executabl
     price: Number.isFinite(last) && last > 0 ? last : null,
     executableBook: false,
   };
-}
-
-function normalizeIsin(value: unknown): string {
-  const isin = String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) ? isin : "";
 }
 
 export function buildDirectaExecutionEvidence(
@@ -210,17 +206,17 @@ export function buildDirectaExecutionEvidence(
         bookWarnings.add(`Directa executable top-of-book missing or invalid for ${symbol}; last-price data is validation-only`);
       }
 
-      const expectedIsin = normalizeIsin(instrument.isin);
-      const observedIsin = normalizeIsin(quote.isin);
+      const expectedIsin = requireValidIsin(instrument.isin);
+      const observedIsin = requireValidIsin(quote.isin);
       const identityVerified = Boolean(expectedIsin && observedIsin && expectedIsin === observedIsin);
       if (identityVerified) {
         identityVerifiedQuotes += 1;
       } else {
         identityRejectedQuotes += 1;
         if (!expectedIsin) {
-          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: instrument-master ISIN missing`);
+          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: instrument-master ISIN missing or checksum-invalid`);
         } else if (!observedIsin) {
-          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: DAPI ANAG ISIN missing`);
+          identityWarnings.add(`Directa identity cannot be certified for ${symbol}: DAPI ANAG ISIN missing or checksum-invalid`);
         } else {
           identityWarnings.add(`Directa identity mismatch for ${symbol}: expected ${expectedIsin}, observed ${observedIsin}`);
         }
@@ -241,7 +237,7 @@ export function buildDirectaExecutionEvidence(
         currency: instrument.currency || "USD",
         assetClass: instrument.assetClass,
         source: eligibility === "PAPER"
-          ? `Directa local DAPI ISIN-verified entitled realtime executable top-of-book (${String(instrument.exchangeMic || "UNKNOWN")})`
+          ? `Directa local DAPI checksum-ISIN-verified entitled realtime executable top-of-book (${String(instrument.exchangeMic || "UNKNOWN")})`
           : "Directa local DAPI read-only validation data",
         sourceFamily: "directa",
         eligibility,
