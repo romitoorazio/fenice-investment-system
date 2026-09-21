@@ -57,6 +57,12 @@ jobs:
       - name: Market-data quorum fail-closed invariants
         run: npm run marketdata:quorum:test
 
+      - name: Execution market-data routing invariants
+        run: npm run marketdata:execution:test
+
+      - name: Combined operational gates fail-closed invariants
+        run: npm run operational:gates:test
+
       - name: Conditional STOP trailing OCO and bracket semantics
         run: npm run orders:conditional:test
 
@@ -104,6 +110,8 @@ jobs:
             'data/strategy-lab.json',
             'data/paper-oms-state.json',
             'data/paper-order-queue.json',
+            'data/execution-market-evidence.json',
+            'data/market-risk-events.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -125,6 +133,10 @@ jobs:
           }
           const research = JSON.parse(fs.readFileSync('data/fundamental-research.json', 'utf8'));
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
+          const evidence = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
+          if (!Array.isArray(evidence.observations)) throw new Error('Execution market evidence structure invalid');
+          const eventRisk = JSON.parse(fs.readFileSync('data/market-risk-events.json', 'utf8'));
+          if (!Array.isArray(eventRisk.events)) throw new Error('Market risk events structure invalid');
           console.log('Critical datasets are structurally valid');
           NODE
 
