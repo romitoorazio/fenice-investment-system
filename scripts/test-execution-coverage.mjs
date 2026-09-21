@@ -42,10 +42,12 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1);
-  assert.equal(report.directaPilotEligibleSymbols, 1);
+  assert.equal(report.paperEligibleSymbols, 1, "broad quorum may remain green with Directa + Yahoo");
+  assert.equal(report.directaPilotEligibleSymbols, 0, "Yahoo must not certify the broker pilot even when timestamp-fresh");
   assert.equal(report.rows[0].directaPaperEvidence, true);
-  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, true);
+  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, false);
+  assert.deepEqual(report.rows[0].approvedIndependentPaperFamilies, []);
+  assert(report.rows[0].reasons.some((reason) => reason.includes("approved independent realtime PAPER source")));
 }
 
 {
@@ -54,7 +56,37 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     requestedSymbols: ["MSFT"],
     observations: [
       observation("MSFT", "directa", 500),
-      observation("MSFT", "yahoo", 500.04, "VALIDATION_ONLY"),
+      observation("MSFT", "twelve-data", 500.04),
+    ],
+    errors: [],
+  }, now);
+  assert.equal(report.paperEligibleSymbols, 1);
+  assert.equal(report.directaPilotEligibleSymbols, 1);
+  assert.equal(report.rows[0].directaPaperEvidence, true);
+  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, true);
+  assert.deepEqual(report.rows[0].approvedIndependentPaperFamilies, ["twelve-data"]);
+}
+
+{
+  const report = evaluateExecutionCoverageReport({
+    generatedAt: fresh,
+    requestedSymbols: ["MSFT"],
+    observations: [
+      observation("MSFT", "directa", 500),
+      observation("MSFT", "alpha-vantage", 500.03),
+    ],
+    errors: [],
+  }, now);
+  assert.equal(report.directaPilotEligibleSymbols, 1, "realtime-entitled Alpha Vantage evidence may satisfy the approved second-source gate");
+}
+
+{
+  const report = evaluateExecutionCoverageReport({
+    generatedAt: fresh,
+    requestedSymbols: ["MSFT"],
+    observations: [
+      observation("MSFT", "directa", 500),
+      observation("MSFT", "twelve-data", 500.04, "VALIDATION_ONLY"),
     ],
     errors: [],
   }, now);
@@ -78,9 +110,9 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
   assert.equal(report.directaPilotEligibleSymbols, 0, "crypto quorum must not count toward Directa equity/ETF pilot");
 }
 
-assert.equal(
-  evaluateExecutionCoverageReport({ generatedAt: fresh, requestedSymbols: [], observations: [], errors: [] }, now).policy.requireDirectaPaperSourceForDirectaPilot,
-  true,
-);
+const policy = evaluateExecutionCoverageReport({ generatedAt: fresh, requestedSymbols: [], observations: [], errors: [] }, now).policy;
+assert.equal(policy.requireDirectaPaperSourceForDirectaPilot, true);
+assert.equal(policy.yahooCannotSatisfyDirectaPilotCoverage, true);
+assert.ok(policy.approvedIndependentPaperSourceFamiliesForDirectaPilot.includes("twelve-data"));
 
 console.log("Fenice broker-backed execution coverage tests: PASS");
