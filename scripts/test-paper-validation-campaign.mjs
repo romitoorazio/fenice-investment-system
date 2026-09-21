@@ -12,29 +12,46 @@ const baselineFingerprint = {
 const validFingerprint = { ...baselineFingerprint };
 const mismatchedFingerprint = { ...baselineFingerprint, digest: "b".repeat(64) };
 
-const dailyEvidence = Array.from({ length: 26 }, (_, index) => ({
-  date: new Date(Date.parse("2026-09-21T00:00:00Z") + index * 86_400_000).toISOString().slice(0, 10),
-  softwareCommit: "c".repeat(40),
-  validationFingerprint: validFingerprint,
-  paperCycles: 1,
-  cumulativeExecutions: index + 1,
-  cumulativePaperFilled: Math.min(12, index + 1),
-  cumulativeRiskRejected: 0,
-  liveOrders: 0,
-  liveTradingAllowed: false,
-  brokerConnectivityAllowed: false,
-  reconciliationBalanced: true,
-  reconciliationBreaks: 0,
-  auditChainValid: true,
-  executionQuality: {
-    state: index + 1 >= 10 ? "HEALTHY" : "INSUFFICIENT",
-    allowPilot: index + 1 >= 10,
-    fills: Math.min(12, index + 1),
-  },
-}));
+const dailyEvidence = Array.from({ length: 26 }, (_, index) => {
+  const cumulativePaperFilled = Math.min(12, index + 1);
+  const previousPaperFilled = index === 0 ? 0 : Math.min(12, index);
+  const newPaperFills = cumulativePaperFilled - previousPaperFilled;
+  return {
+    date: new Date(Date.parse("2026-09-21T00:00:00Z") + index * 86_400_000).toISOString().slice(0, 10),
+    softwareCommit: "c".repeat(40),
+    validationFingerprint: validFingerprint,
+    paperCycles: 1,
+    cumulativeExecutions: index + 1,
+    cumulativePaperFilled,
+    newPaperFills,
+    cumulativeRiskRejected: 0,
+    liveOrders: 0,
+    liveTradingAllowed: false,
+    brokerConnectivityAllowed: false,
+    reconciliationBalanced: true,
+    reconciliationBreaks: 0,
+    auditChainValid: true,
+    executionMarketCoverage: {
+      requiredForNewFills: newPaperFills > 0,
+      safe: true,
+      fresh: true,
+      matchesEvidence: true,
+      policyReady: true,
+      broadCoverageReady: true,
+      directaPilotCoverageReady: true,
+      directaPilotEligibleSymbols: 3,
+    },
+    executionQuality: {
+      state: index + 1 >= 10 ? "HEALTHY" : "INSUFFICIENT",
+      allowPilot: index + 1 >= 10,
+      fills: cumulativePaperFilled,
+    },
+  };
+});
 
 function campaign(overrides = {}) {
   return {
+    version: 4,
     startedAt,
     baselineCommit: "abc123",
     baselineFingerprint,
@@ -54,6 +71,7 @@ assert(matured.elapsedCalendarDays >= 30);
 assert.equal(matured.safetyEvidenceDays, 26);
 assert.equal(matured.fingerprintEvidenceDays, 26);
 assert.equal(matured.fingerprintMismatchDays, 0);
+assert.equal(matured.marketDataCoverageFailureDays, 0);
 assert.equal(matured.cumulativePaperFills, 12);
 assert.equal(matured.executionQualityReady, true);
 
@@ -65,6 +83,7 @@ assert.equal(immature.matured, false);
 assert.equal(immature.state, "ACTIVE");
 
 const notStarted = evaluatePaperValidationCampaign({
+  version: 4,
   startedAt: null,
   baselineCommit: null,
   baselineFingerprint: null,
@@ -90,6 +109,16 @@ const unsafe = evaluatePaperValidationCampaign(campaign({
     reconciliationBreaks: 0,
     auditChainValid: true,
     cumulativePaperFilled: 12,
+    newPaperFills: 0,
+    executionMarketCoverage: {
+      requiredForNewFills: false,
+      safe: true,
+      fresh: false,
+      matchesEvidence: true,
+      policyReady: true,
+      broadCoverageReady: false,
+      directaPilotCoverageReady: false,
+    },
     executionQuality: { state: "HEALTHY", allowPilot: true, fills: 12 },
   }],
 }), now);
@@ -109,6 +138,7 @@ const insufficientFills = evaluatePaperValidationCampaign(campaign({
   dailyEvidence: dailyEvidence.map((row) => ({
     ...row,
     cumulativePaperFilled: 3,
+    newPaperFills: 0,
     executionQuality: { state: "INSUFFICIENT", allowPilot: false, fills: 3 },
   })),
 }), now);
@@ -134,6 +164,45 @@ assert.equal(coreDrift.state, "INVALID");
 assert.equal(coreDrift.fingerprintMismatchDays, 1);
 assert.equal(coreDrift.fingerprintEvidenceDays, 25);
 assert(coreDrift.reasons.some((reason) => reason.includes("immutable validated-core fingerprint")));
+
+const missingCoverageOnFillDay = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: dailyEvidence.map((row, index) => index === 5
+    ? {
+        ...row,
+        newPaperFills: 1,
+        executionMarketCoverage: {
+          ...row.executionMarketCoverage,
+          requiredForNewFills: true,
+          safe: false,
+          fresh: false,
+          directaPilotCoverageReady: false,
+        },
+      }
+    : row),
+}), now);
+assert.equal(missingCoverageOnFillDay.matured, false);
+assert.equal(missingCoverageOnFillDay.state, "INVALID");
+assert.equal(missingCoverageOnFillDay.marketDataCoverageFailureDays, 1);
+assert(missingCoverageOnFillDay.reasons.some((reason) => reason.includes("market-data coverage")));
+
+const noFillClosedDayIsAllowed = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: dailyEvidence.map((row, index) => index === 20
+    ? {
+        ...row,
+        newPaperFills: 0,
+        executionMarketCoverage: {
+          ...row.executionMarketCoverage,
+          requiredForNewFills: false,
+          safe: true,
+          fresh: false,
+          broadCoverageReady: false,
+          directaPilotCoverageReady: false,
+        },
+      }
+    : row),
+}), now);
+assert.equal(noFillClosedDayIsAllowed.marketDataCoverageFailureDays, 0, "closed/no-fill day must not invalidate campaign solely for stale equity quotes");
+assert.equal(noFillClosedDayIsAllowed.matured, true, noFillClosedDayIsAllowed.reasons.join(" | "));
 
 const invalidLiveMode = evaluatePaperValidationCampaign(campaign({ liveTradingAllowed: true }), now);
 assert.equal(invalidLiveMode.state, "INVALID");
