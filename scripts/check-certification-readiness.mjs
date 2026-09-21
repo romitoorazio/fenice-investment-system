@@ -158,6 +158,10 @@ const historicalPaperEvidence = records.length >= 100
 const paperCampaignStatus = evaluatePaperValidationCampaign(paperCampaign, now);
 const paperCoreFingerprintReady = paperCampaignStatus.fingerprintMismatchDays === 0
   && paperCampaignStatus.fingerprintEvidenceDays >= paperCampaignStatus.minEvidenceDays;
+const paperMarketDataEvidenceReady = paperCampaignStatus.evidenceDays > 0
+  && paperCampaignStatus.marketDataCoverageFailureDays === 0;
+const paperFillAccountingReady = paperCampaignStatus.evidenceDays > 0
+  && paperCampaignStatus.fillAccountingMismatchDays === 0;
 const paperModeEvidence = historicalPaperEvidence && paperCampaignStatus.matured;
 
 const ready = sourceReady
@@ -185,6 +189,8 @@ const status = {
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
     paperCampaign30d: paperCampaignStatus.matured ? "PASS" : paperCampaignStatus.state,
     paperCoreFingerprint: paperCoreFingerprintReady ? "PASS" : paperCampaignStatus.state === "INVALID" ? "INVALID" : "NOT_VALIDATED",
+    paperMarketDataEvidence: paperMarketDataEvidenceReady ? "PASS" : paperCampaignStatus.state === "INVALID" ? "INVALID" : "NOT_VALIDATED",
+    paperFillAccounting: paperFillAccountingReady ? "PASS" : paperCampaignStatus.state === "INVALID" ? "INVALID" : "NOT_VALIDATED",
     paperExecutionQuality: paperCampaignStatus.executionQualityReady ? "PASS" : "NOT_VALIDATED",
     paperSafetyEvidence: paperCampaignStatus.safetyEvidenceDays >= paperCampaignStatus.minEvidenceDays ? "PASS" : "NOT_VALIDATED",
     paperMode: paperModeEvidence ? "PASS" : "NOT_VALIDATED",
@@ -229,6 +235,8 @@ const status = {
     paperCampaignSafetyEvidenceDays: paperCampaignStatus.safetyEvidenceDays,
     paperCampaignFingerprintEvidenceDays: paperCampaignStatus.fingerprintEvidenceDays,
     paperCampaignFingerprintMismatchDays: paperCampaignStatus.fingerprintMismatchDays,
+    paperCampaignMarketDataCoverageFailureDays: paperCampaignStatus.marketDataCoverageFailureDays,
+    paperCampaignFillAccountingMismatchDays: paperCampaignStatus.fillAccountingMismatchDays,
     paperCampaignBaselineFingerprintAlgorithm: paperCampaign?.baselineFingerprint?.algorithm || null,
     paperCampaignRequiredDays: paperCampaignStatus.requiredDays,
     paperCampaignMinimumEvidenceDays: paperCampaignStatus.minEvidenceDays,
