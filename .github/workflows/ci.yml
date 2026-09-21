@@ -17,7 +17,9 @@ permissions:
 
 concurrency:
   group: fenice-production-ci-${{ github.ref }}
-  cancel-in-progress: false
+  # Keep every main/scheduled production check, but a newer PR head supersedes
+  # older queued validation runs for the same pull request.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
