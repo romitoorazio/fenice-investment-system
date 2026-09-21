@@ -20,7 +20,7 @@ const outputPath = path.join(dataDir, "execution-market-evidence.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const alphaVantageApiKey = String(process.env.ALPHA_VANTAGE_API_KEY || "").trim();
 const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
-const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 0) || 0));
+const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -68,15 +68,19 @@ async function fetchYahoo(instrument) {
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp <= 0) {
     throw new Error("INVALID_YAHOO_QUOTE");
   }
+  const observedAt = new Date(timestamp * 1000).toISOString();
+  const eligibility = classifyPaperEligibilityByFreshness(observedAt, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: instrument.symbol,
     currency: result?.meta?.currency || instrument.currency || "USD",
     assetClass: instrument.assetClass,
-    source: "Yahoo Finance execution validation",
+    source: eligibility === "PAPER"
+      ? "Yahoo Finance fresh execution validation"
+      : "Yahoo Finance stale/delayed validation",
     sourceFamily: "yahoo",
-    eligibility: "PAPER",
+    eligibility,
     price,
-    observedAt: new Date(timestamp * 1000).toISOString(),
+    observedAt,
   });
 }
 
@@ -130,7 +134,7 @@ async function fetchAlphaVantageIntraday(instrument) {
   if (!isAlphaVantageIntradayCandidate(instrument)) throw new Error("ALPHA_VANTAGE_NOT_A_PAPER_CANDIDATE");
   const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
   if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
-  const data = await request(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${encodeURIComponent(providerSymbol)}&interval=1min&outputsize=compact&apikey=${encodeURIComponent(alphaVantageApiKey)}`, { timeoutMs: 12000 });
+  const data = await request(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${encodeURIComponent(providerSymbol)}&interval=1min&outputsize=compact&entitlement=realtime&apikey=${encodeURIComponent(alphaVantageApiKey)}`, { timeoutMs: 12000 });
   if (data?.["Error Message"]) throw new Error("ALPHA_VANTAGE_API_ERROR");
   if (data?.Note) throw new Error("ALPHA_VANTAGE_RATE_LIMIT");
   if (data?.Information) {
@@ -158,8 +162,8 @@ async function fetchAlphaVantageIntraday(instrument) {
     currency: instrument.currency || "USD",
     assetClass: instrument.assetClass,
     source: eligibility === "PAPER"
-      ? "Alpha Vantage fresh intraday paper validation"
-      : "Alpha Vantage delayed intraday validation",
+      ? "Alpha Vantage realtime-entitled paper validation"
+      : "Alpha Vantage realtime request returned stale validation",
     sourceFamily: "alpha-vantage",
     eligibility,
     price,
@@ -294,7 +298,7 @@ const deduplicated = deduplicateExecutionEvidence(observations);
 const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "twelve-data");
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
 const report = {
-  version: 5,
+  version: 6,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -312,7 +316,8 @@ const report = {
     alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
     alphaVantagePaperFreshObservations: alphaVantageEvidence.filter((item) => item.eligibility === "PAPER").length,
     alphaVantageValidationOnlyObservations: alphaVantageEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    alphaVantagePaperRule: "disabled by default because realtime US intraday requires explicit provider entitlement; when explicitly probed, exact symbol identity, timezone conversion and <=120 second freshness are still mandatory",
+    alphaVantagePaperRule: "explicit entitlement=realtime is mandatory; provider rejection, stale timestamps or missing entitlement remain validation failure and never satisfy PAPER quorum",
+    yahooPaperRule: "regularMarketTime must be no older than 120 seconds; closed-market and delayed quotes automatically downgrade to VALIDATION_ONLY",
     directPaidFeedRequired: false,
   },
   policy: {
