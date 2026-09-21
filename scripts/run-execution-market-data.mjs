@@ -3,7 +3,10 @@ import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import {
   deduplicateExecutionEvidence,
+  isTwelveDataPaperCandidate,
+  isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
+  normalizeExecutionSymbol,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
 } from "../lib/trading/execution-market-data.ts";
@@ -12,7 +15,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
 const outputPath = path.join(dataDir, "execution-market-evidence.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
-const US_REALTIME_MICS = new Set(["XNAS", "XNYS", "ARCX", "BATS"]);
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -26,7 +28,7 @@ async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/1.1 execution-market-validation",
+        "user-agent": "FeniceInvestmentSystem/1.2 execution-market-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
@@ -48,10 +50,6 @@ function parseStooqCsv(text) {
     ? new Date(`${row.Date}T${row.Time && row.Time !== "N/D" ? row.Time : "00:00:00"}Z`).toISOString()
     : null;
   return observedAt ? { price, observedAt } : null;
-}
-
-function isUsRealtimeInstrument(instrument) {
-  return US_REALTIME_MICS.has(String(instrument?.exchangeMic || "").toUpperCase());
 }
 
 async function fetchYahoo(instrument) {
@@ -96,19 +94,19 @@ async function fetchStooq(instrument) {
 
 async function fetchTwelveData(instrument) {
   if (!twelveDataApiKey) throw new Error("TWELVE_DATA_NOT_CONFIGURED");
-  if (!isUsRealtimeInstrument(instrument)) throw new Error("TWELVE_DATA_FREE_REALTIME_NOT_ELIGIBLE_FOR_VENUE");
-  const providerSymbol = String(instrument.symbol || "").toUpperCase();
+  if (!isTwelveDataPaperCandidate(instrument)) throw new Error("TWELVE_DATA_NOT_A_PAPER_CANDIDATE");
+  const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
   if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
-  const data = await request(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(providerSymbol)}&apikey=${encodeURIComponent(twelveDataApiKey)}`);
+  const data = await request(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(providerSymbol)}&interval=1min&apikey=${encodeURIComponent(twelveDataApiKey)}`);
   if (String(data?.status || "").toLowerCase() === "error" || data?.code) throw new Error("TWELVE_DATA_API_ERROR");
+  const returnedSymbol = normalizeExecutionSymbol(data?.symbol);
+  if (returnedSymbol && returnedSymbol !== providerSymbol) throw new Error("TWELVE_DATA_SYMBOL_MISMATCH");
+  if (!isTwelveDataUsRealtimeVenue(data || {})) throw new Error("TWELVE_DATA_NON_US_REALTIME_VENUE");
   const price = Number(data?.close ?? data?.price);
   const timestamp = Number(data?.timestamp);
-  const observedAt = Number.isFinite(timestamp) && timestamp > 0
-    ? new Date(timestamp * 1000).toISOString()
-    : Number.isFinite(Date.parse(String(data?.datetime || "")))
-      ? new Date(String(data.datetime)).toISOString()
-      : null;
-  if (!Number.isFinite(price) || price <= 0 || !observedAt) throw new Error("INVALID_TWELVE_DATA_QUOTE");
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp <= 0) {
+    throw new Error("INVALID_TWELVE_DATA_QUOTE");
+  }
   return normalizeExecutionEvidence({
     symbol: providerSymbol,
     currency: data?.currency || instrument.currency || "USD",
@@ -117,7 +115,7 @@ async function fetchTwelveData(instrument) {
     sourceFamily: "twelve-data",
     eligibility: "PAPER",
     price,
-    observedAt,
+    observedAt: new Date(timestamp * 1000).toISOString(),
   });
 }
 
@@ -205,7 +203,7 @@ for (const instrument of instruments) {
     ["yahoo", () => fetchYahoo(instrument)],
     ["stooq", () => fetchStooq(instrument)],
   ];
-  if (twelveDataApiKey && isUsRealtimeInstrument(instrument)) {
+  if (twelveDataApiKey && isTwelveDataPaperCandidate(instrument)) {
     tasks.push(["twelve-data", () => fetchTwelveData(instrument)]);
   }
   const assetClass = String(instrument.assetClass || "").toLowerCase();
@@ -231,14 +229,15 @@ for (const instrument of instruments) {
 
 const deduplicated = deduplicateExecutionEvidence(observations);
 const report = {
-  version: 2,
+  version: 3,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
   errors,
   capabilities: {
     twelveDataConfigured: Boolean(twelveDataApiKey),
-    twelveDataFreeRealtimeScope: "US equities/ETFs only; never assumed for European venues",
+    twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
+    twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; candidate tickers are accepted as PAPER evidence only after provider response proves a recognized US realtime venue and precise timestamp",
     directPaidFeedRequired: false,
   },
   policy: {
@@ -247,9 +246,10 @@ const report = {
     validationOnlySourcesNeverSatisfyPaperQuorum: true,
     untaggedLegacyEvidenceDefaultsToValidationOnly: true,
     liveEligibilityMustBeExplicit: true,
+    providerVenueMustBeVerifiedBeforePaperEligibility: true,
     liveTradingAllowed: false,
   },
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataCandidates=${report.capabilities.twelveDataCandidateCount}.`);

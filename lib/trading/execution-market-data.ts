@@ -58,6 +58,9 @@ const MIC_TO_STOOQ_SUFFIX: Readonly<Record<string, string>> = {
   XSWX: ".CH",
 };
 
+const US_REALTIME_MICS = new Set(["XNAS", "XNYS", "ARCX", "BATS", "IEXG"]);
+const US_REALTIME_EXCHANGE_LABELS = ["NASDAQ", "NYSE", "NYSE ARCA", "NYSE AMERICAN", "AMEX", "CBOE", "BATS", "IEX"];
+
 const ELIGIBILITY_RANK: Readonly<Record<ExecutionDataEligibility, number>> = {
   VALIDATION_ONLY: 0,
   PAPER: 1,
@@ -99,6 +102,25 @@ export function stooqSymbolForInstrument(instrument: ExecutionInstrument): strin
   const suffix = MIC_TO_STOOQ_SUFFIX[String(instrument.exchangeMic || "").toUpperCase()];
   if (!suffix) return null;
   return `${symbol}${suffix}`.toLowerCase();
+}
+
+export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
+  const symbol = normalizeExecutionSymbol(instrument.symbol);
+  if (!symbol || !/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) return false;
+  const assetClass = String(instrument.assetClass || "").toLowerCase();
+  if (assetClass === "crypto" || assetClass === "criptovaluta") return false;
+  const mic = String(instrument.exchangeMic || "").toUpperCase();
+  if (US_REALTIME_MICS.has(mic)) return true;
+  return String(instrument.currency || "").toUpperCase() === "USD";
+}
+
+export function isTwelveDataUsRealtimeVenue(quote: { mic_code?: unknown; mic?: unknown; exchange?: unknown; currency?: unknown }): boolean {
+  const mic = String(quote?.mic_code || quote?.mic || "").trim().toUpperCase();
+  if (US_REALTIME_MICS.has(mic)) return true;
+  const currency = String(quote?.currency || "").trim().toUpperCase();
+  if (currency && currency !== "USD") return false;
+  const exchange = String(quote?.exchange || "").trim().toUpperCase().replace(/\s+/g, " ");
+  return US_REALTIME_EXCHANGE_LABELS.some((label) => exchange === label || exchange.startsWith(`${label} `));
 }
 
 export function normalizeExecutionEvidence(input: Partial<ExecutionMarketEvidence>): ExecutionMarketEvidence | null {

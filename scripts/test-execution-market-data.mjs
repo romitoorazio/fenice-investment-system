@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   deduplicateExecutionEvidence,
   inferExecutionSourceFamily,
+  isTwelveDataPaperCandidate,
+  isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
@@ -24,6 +26,16 @@ assert.equal(stooqSymbolForInstrument({ symbol: "7203", exchangeMic: "XTKS" }), 
 assert.equal(inferExecutionSourceFamily("Yahoo Finance execution validation"), "yahoo");
 assert.equal(inferExecutionSourceFamily("Coinbase Exchange execution validation"), "coinbase");
 assert.equal(inferExecutionSourceFamily("Twelve Data realtime quote"), "twelve-data");
+
+assert.equal(isTwelveDataPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), true, "US-traded ADR candidates with incomplete master metadata should be probed and venue-verified from provider response");
+assert.equal(isTwelveDataPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isTwelveDataPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NYSE", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Market", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XPAR", exchange: "Euronext Paris", currency: "EUR" }), false);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "Unknown", currency: "USD" }), false, "unknown USD venue must fail closed");
 
 const normalized = normalizeExecutionEvidence({
   symbol: " enel ",
