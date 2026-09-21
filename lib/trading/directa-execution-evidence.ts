@@ -25,6 +25,8 @@ export type DirectaExecutionEvidenceResult = {
   snapshotAgeMs: number | null;
   identityVerifiedQuotes: number;
   identityRejectedQuotes: number;
+  executableBookVerifiedQuotes: number;
+  executableBookRejectedQuotes: number;
 };
 
 function datePartsInZone(timestampMs: number, timeZone: string): { year: number; month: number; day: number } | null {
@@ -70,14 +72,26 @@ function localQuoteTimeToIso(
   return best?.iso || null;
 }
 
-function quotePrice(quote: DirectaQuote): number | null {
+function quoteMarketView(quote: DirectaQuote): { price: number | null; executableBook: boolean } {
   const bid = Number(quote.bidPrice);
   const ask = Number(quote.askPrice);
-  if (Number.isFinite(bid) && bid > 0 && Number.isFinite(ask) && ask > 0 && ask >= bid) {
-    return (bid + ask) / 2;
-  }
+  const bidQuantity = Number(quote.bidQuantity);
+  const askQuantity = Number(quote.askQuantity);
+  const executableBook = Number.isFinite(bid)
+    && bid > 0
+    && Number.isFinite(ask)
+    && ask > 0
+    && ask >= bid
+    && Number.isFinite(bidQuantity)
+    && bidQuantity > 0
+    && Number.isFinite(askQuantity)
+    && askQuantity > 0;
+  if (executableBook) return { price: (bid + ask) / 2, executableBook: true };
   const last = Number(quote.lastPrice);
-  return Number.isFinite(last) && last > 0 ? last : null;
+  return {
+    price: Number.isFinite(last) && last > 0 ? last : null,
+    executableBook: false,
+  };
 }
 
 function normalizeIsin(value: unknown): string {
@@ -127,6 +141,8 @@ export function buildDirectaExecutionEvidence(
       snapshotAgeMs: null,
       identityVerifiedQuotes: 0,
       identityRejectedQuotes: 0,
+      executableBookVerifiedQuotes: 0,
+      executableBookRejectedQuotes: 0,
     };
   }
   if (!Number.isFinite(nowMs)) reasons.push("evaluation clock invalid");
@@ -172,17 +188,27 @@ export function buildDirectaExecutionEvidence(
   const observations: ExecutionMarketEvidence[] = [];
   const marketWarnings = new Set<string>();
   const identityWarnings = new Set<string>();
+  const bookWarnings = new Set<string>();
   let identityVerifiedQuotes = 0;
   let identityRejectedQuotes = 0;
+  let executableBookVerifiedQuotes = 0;
+  let executableBookRejectedQuotes = 0;
 
   if (accepted) {
     for (const quote of Array.isArray(snapshot.quotes) ? snapshot.quotes : []) {
       const symbol = normalizeExecutionSymbol(quote?.ticker);
       const instrument = instrumentBySymbol.get(symbol);
       if (!symbol || !instrument) continue;
-      const price = quotePrice(quote);
+      const marketView = quoteMarketView(quote);
       const observedAt = localQuoteTimeToIso(quote.observedAt, snapshot.generatedAt, timeZone);
-      if (!price || !observedAt) continue;
+      if (!marketView.price || !observedAt) continue;
+
+      if (marketView.executableBook) {
+        executableBookVerifiedQuotes += 1;
+      } else {
+        executableBookRejectedQuotes += 1;
+        bookWarnings.add(`Directa executable top-of-book missing or invalid for ${symbol}; last-price data is validation-only`);
+      }
 
       const expectedIsin = normalizeIsin(instrument.isin);
       const observedIsin = normalizeIsin(quote.isin);
@@ -205,6 +231,7 @@ export function buildDirectaExecutionEvidence(
       if (marketEntitlementReason) marketWarnings.add(marketEntitlementReason);
       const eligibility = paperEligibilityAllowed
         && identityVerified
+        && marketView.executableBook
         && !marketEntitlementReason
         && freshnessEligibility === "PAPER"
         ? "PAPER"
@@ -214,18 +241,18 @@ export function buildDirectaExecutionEvidence(
         currency: instrument.currency || "USD",
         assetClass: instrument.assetClass,
         source: eligibility === "PAPER"
-          ? `Directa local DAPI ISIN-verified explicitly-entitled realtime read-only market data (${String(instrument.exchangeMic || "UNKNOWN")})`
+          ? `Directa local DAPI ISIN-verified entitled realtime executable top-of-book (${String(instrument.exchangeMic || "UNKNOWN")})`
           : "Directa local DAPI read-only validation data",
         sourceFamily: "directa",
         eligibility,
-        price,
+        price: marketView.price,
         observedAt,
       });
       if (evidence) observations.push(evidence);
     }
   }
 
-  warnings.push(...marketWarnings, ...identityWarnings);
+  warnings.push(...marketWarnings, ...identityWarnings, ...bookWarnings);
   if (observations.length === 0 && accepted) reasons.push("Directa snapshot contains no usable requested quotes");
   return {
     accepted: reasons.length === 0,
@@ -238,5 +265,7 @@ export function buildDirectaExecutionEvidence(
     snapshotAgeMs,
     identityVerifiedQuotes,
     identityRejectedQuotes,
+    executableBookVerifiedQuotes,
+    executableBookRejectedQuotes,
   };
 }
