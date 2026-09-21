@@ -83,13 +83,16 @@ const paperEligiblePercent = Math.max(0, Number(executionCoverage?.paperEligible
 const directaPilotCandidateSymbols = Math.max(0, Number(executionCoverage?.directaPilotCandidateSymbols || 0));
 const directaPilotEligibleSymbols = Math.max(0, Number(executionCoverage?.directaPilotEligibleSymbols || 0));
 const directaPilotEligiblePercent = Math.max(0, Number(executionCoverage?.directaPilotEligiblePercent || 0));
+const directaCoveragePolicyReady = Number(executionCoverage?.version || 0) >= 3
+  && executionCoverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true
+  && executionCoverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true;
 const executionMarketCoverageReady = executionEvidenceFresh
   && executionCoverageFresh
   && executionCoverageMatchesEvidence
   && executionMarket?.policy?.liveTradingAllowed === false
   && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
   && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
-  && Number(executionCoverage?.version || 0) >= 2
+  && directaCoveragePolicyReady
   && executionCoverage?.policy?.requiredEligibility === "PAPER"
   && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
   && Number(executionCoverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
@@ -183,7 +186,8 @@ const status = {
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     executionMarketCoverage: executionMarketCoverageReady ? "PASS" : "NOT_READY",
-    directaPilotCoverage: directaPilotEligibleSymbols >= 3 ? "PASS" : "NOT_READY",
+    directaCoveragePolicy: directaCoveragePolicyReady ? "PASS" : "NOT_READY",
+    directaPilotCoverage: directaPilotEligibleSymbols >= 3 && directaCoveragePolicyReady ? "PASS" : "NOT_READY",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
@@ -213,6 +217,10 @@ const status = {
     executionEvidenceAgeMinutes: Number.isFinite(executionEvidenceAgeMinutes) ? Number(executionEvidenceAgeMinutes.toFixed(1)) : null,
     executionCoverageAgeMinutes: Number.isFinite(executionCoverageAgeMinutes) ? Number(executionCoverageAgeMinutes.toFixed(1)) : null,
     executionCoverageMatchesEvidence,
+    executionCoverageVersion: Number(executionCoverage?.version || 0),
+    directaCoverageRequiresBrokerPaperSource: executionCoverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true,
+    directaCoverageRequiresIndependentFallback: executionCoverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true,
+    directaRealtimeEntitlementConfirmed: executionMarket?.capabilities?.directaRealtimeEntitlementConfirmed === true,
     requestedExecutionSymbols,
     paperEligibleSymbols,
     paperEligiblePercent,
