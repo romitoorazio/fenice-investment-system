@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import {
+  classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
   inferExecutionSourceFamily,
+  isAlphaVantageIntradayCandidate,
   isTwelveDataPaperCandidate,
   isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
+  parseProviderLocalTimestamp,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
 } from "../lib/trading/execution-market-data.ts";
@@ -26,16 +29,30 @@ assert.equal(stooqSymbolForInstrument({ symbol: "7203", exchangeMic: "XTKS" }), 
 assert.equal(inferExecutionSourceFamily("Yahoo Finance execution validation"), "yahoo");
 assert.equal(inferExecutionSourceFamily("Coinbase Exchange execution validation"), "coinbase");
 assert.equal(inferExecutionSourceFamily("Twelve Data realtime quote"), "twelve-data");
+assert.equal(inferExecutionSourceFamily("Alpha Vantage intraday validation"), "alpha-vantage");
 
 assert.equal(isTwelveDataPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
 assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), true, "US-traded ADR candidates with incomplete master metadata should be probed and venue-verified from provider response");
 assert.equal(isTwelveDataPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
 assert.equal(isTwelveDataPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), true);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NYSE", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Market", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XPAR", exchange: "Euronext Paris", currency: "EUR" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "Unknown", currency: "USD" }), false, "unknown USD venue must fail closed");
+
+assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "US/Eastern"), "2026-09-21T20:00:00.000Z");
+assert.equal(parseProviderLocalTimestamp("2026-01-21 16:00:00", "US/Eastern"), "2026-01-21T21:00:00.000Z");
+assert.equal(parseProviderLocalTimestamp("bad", "US/Eastern"), null);
+assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "Not/AZone"), null);
+const paperNow = Date.parse("2026-09-21T20:00:30Z");
+assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:00:00Z", paperNow), "PAPER");
+assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:45:00Z", paperNow), "VALIDATION_ONLY");
+assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:01:00Z", paperNow), "VALIDATION_ONLY", "future timestamps must fail closed");
 
 const normalized = normalizeExecutionEvidence({
   symbol: " enel ",
