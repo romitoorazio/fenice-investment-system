@@ -79,7 +79,7 @@ export function evaluateMarketDataQuorum(
   const freshestByFamily = new Map<string, { source: string; sourceFamily: string; eligibility: MarketDataEligibility; price: number; observedAtMs: number }>();
   let invalidEvidence = 0;
   let ineligibleEvidence = 0;
-  const requiredEligibility = limits.requiredEligibility === "LIVE" ? "LIVE" : "PAPER";
+  const requiredEligibility: "PAPER" | "LIVE" = limits.requiredEligibility === "LIVE" ? "LIVE" : "PAPER";
   const minimumEligibilityRank = ELIGIBILITY_RANK[requiredEligibility];
 
   for (const item of evidence) {
@@ -137,7 +137,7 @@ export function evaluateMarketDataQuorum(
     || !Number.isFinite(maxSpreadPercent)
     || maxSpreadPercent > limits.maxSpreadPercent;
 
-  const decisionBase = {
+  const decisionBase: Omit<MarketDataQuorumDecision, "state" | "allowNewRisk"> = {
     independentSources: fresh.length,
     sourceFamilies: fresh.map((item) => item.sourceFamily).sort(),
     requiredEligibility,
