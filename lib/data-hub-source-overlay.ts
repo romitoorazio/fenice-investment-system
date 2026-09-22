@@ -15,6 +15,7 @@ export type SourceHealthReport = {
 
 const PROVIDER_ALIASES: Readonly<Record<string, string>> = {
   alphavantage: "alpha-vantage",
+  clinicaltrials: "clinical-trials",
 };
 
 function healthState(status: string | undefined): ProviderState | null {
@@ -31,8 +32,11 @@ function timestamp(value: unknown): number {
 }
 
 /**
- * Reconcile provider cards with the newest source-health probe without allowing
- * stale health evidence to overwrite a newer successful provider observation.
+ * Reconcile direct provider cards with the newest source-health probe without
+ * allowing stale health evidence to overwrite a newer successful observation.
+ * Internal derived pipelines (for example broad-news, sec-primary and
+ * clinical-primary) are intentionally not aliased to their upstream source:
+ * upstream availability does not prove that the derived pipeline succeeded.
  */
 export function overlaySourceHealth(
   snapshot: AutonomySnapshot,
