@@ -6,6 +6,7 @@ import { buildDirectaExecutionEvidence } from "../lib/trading/directa-execution-
 import {
   classifyExecutionPaperEligibility,
   deduplicateExecutionEvidence,
+  isAlpacaPaperCandidate,
   isAlphaVantageIntradayCandidate,
   isTwelveDataPaperCandidate,
   isTwelveDataUsRealtimeVenue,
@@ -24,8 +25,12 @@ const directaSnapshotPath = String(
 ).trim();
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const alphaVantageApiKey = String(process.env.ALPHA_VANTAGE_API_KEY || "").trim();
+const alpacaApiKeyId = String(process.env.APCA_API_KEY_ID || process.env.ALPACA_API_KEY || "").trim();
+const alpacaApiSecretKey = String(process.env.APCA_API_SECRET_KEY || process.env.ALPACA_API_SECRET || "").trim();
+const alpacaConfigured = Boolean(alpacaApiKeyId && alpacaApiSecretKey);
 const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
 const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
+const alpacaProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_ALPACA_EXECUTION_PROBES || 3) || 3));
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -38,7 +43,7 @@ function masterIdentifier(instrument, type) {
   return String(match?.value || "").trim().toUpperCase() || undefined;
 }
 
-async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
+async function request(url, { format = "json", timeoutMs = 8000, headers = {} } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -47,6 +52,7 @@ async function request(url, { format = "json", timeoutMs = 8000 } = {}) {
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
         "user-agent": "FeniceInvestmentSystem/1.4 execution-market-validation",
+        ...headers,
       },
     });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
@@ -139,6 +145,7 @@ async function fetchTwelveData(instrument) {
     observedAt,
     realtime: true,
     entitlement: "PAPER",
+    provenanceVerified: true,
   }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: providerSymbol,
@@ -187,6 +194,7 @@ async function fetchAlphaVantageIntraday(instrument) {
     observedAt,
     realtime: true,
     entitlement: "PAPER",
+    provenanceVerified: true,
   }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: providerSymbol,
@@ -196,6 +204,51 @@ async function fetchAlphaVantageIntraday(instrument) {
       ? "Alpha Vantage realtime-entitled paper validation"
       : "Alpha Vantage realtime request failed PAPER freshness/provenance gate",
     sourceFamily: "alpha-vantage",
+    eligibility,
+    price,
+    observedAt,
+  });
+}
+
+async function fetchAlpaca(instrument) {
+  if (!alpacaConfigured) throw new Error("ALPACA_NOT_CONFIGURED");
+  if (!isAlpacaPaperCandidate(instrument)) throw new Error("ALPACA_NOT_A_PAPER_CANDIDATE");
+  const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
+  if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
+  const data = await request(
+    `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(providerSymbol)}/quotes/latest?feed=iex`,
+    {
+      headers: {
+        "APCA-API-KEY-ID": alpacaApiKeyId,
+        "APCA-API-SECRET-KEY": alpacaApiSecretKey,
+      },
+    },
+  );
+  const quote = data?.quote;
+  const bid = Number(quote?.bp);
+  const ask = Number(quote?.ap);
+  const observedAt = String(quote?.t || "").trim();
+  if (!Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask <= 0 || ask < bid) {
+    throw new Error("INVALID_ALPACA_IEX_QUOTE");
+  }
+  if (!Number.isFinite(Date.parse(observedAt))) throw new Error("INVALID_ALPACA_IEX_TIMESTAMP");
+  const price = (bid + ask) / 2;
+  const eligibility = classifyExecutionPaperEligibility({
+    source: "Alpaca Basic IEX realtime latest quote",
+    sourceFamily: "alpaca",
+    observedAt,
+    realtime: true,
+    entitlement: "PAPER",
+    provenanceVerified: true,
+  }, Date.now(), 120);
+  return normalizeExecutionEvidence({
+    symbol: providerSymbol,
+    currency: instrument.currency || "USD",
+    assetClass: instrument.assetClass,
+    source: eligibility === "PAPER"
+      ? "Alpaca Basic IEX realtime paper validation"
+      : "Alpaca IEX quote failed PAPER freshness/provenance gate",
+    sourceFamily: "alpaca",
     eligibility,
     price,
     observedAt,
@@ -216,12 +269,13 @@ async function fetchCoinbase(instrument) {
     observedAt,
     realtime: true,
     entitlement: "PAPER",
+    provenanceVerified: false,
   }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol,
     currency: "USD",
     assetClass: instrument.assetClass,
-    source: "Coinbase Exchange timestamped public ticker",
+    source: "Coinbase Exchange timestamped public ticker; PAPER provenance not independently verified",
     sourceFamily: "coinbase",
     eligibility,
     price,
@@ -300,6 +354,12 @@ const alphaVantageProbeSymbols = new Set(
     .slice(0, alphaVantageProbeLimit)
     .map((instrument) => instrument.symbol),
 );
+const alpacaProbeSymbols = new Set(
+  instruments
+    .filter(isAlpacaPaperCandidate)
+    .slice(0, alpacaProbeLimit)
+    .map((instrument) => instrument.symbol),
+);
 const directaEvidence = buildDirectaExecutionEvidence(directaSnapshot, instruments);
 const observations = [...directaEvidence.observations];
 const errors = [];
@@ -323,6 +383,9 @@ for (const instrument of instruments) {
   }
   if (alphaVantageApiKey && alphaVantageProbeSymbols.has(instrument.symbol)) {
     tasks.push(["alpha-vantage", () => fetchAlphaVantageIntraday(instrument)]);
+  }
+  if (alpacaConfigured && alpacaProbeSymbols.has(instrument.symbol)) {
+    tasks.push(["alpaca", () => fetchAlpaca(instrument)]);
   }
   const assetClass = String(instrument.assetClass || "").toLowerCase();
   if (assetClass === "crypto" || assetClass === "criptovaluta") {
@@ -348,11 +411,12 @@ for (const instrument of instruments) {
 const deduplicated = deduplicateExecutionEvidence(observations);
 const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "twelve-data");
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
+const alpacaEvidence = deduplicated.filter((item) => item.sourceFamily === "alpaca");
 const directaObservations = deduplicated.filter((item) => item.sourceFamily === "directa");
 const coinbaseEvidence = deduplicated.filter((item) => item.sourceFamily === "coinbase");
 const krakenEvidence = deduplicated.filter((item) => item.sourceFamily === "kraken");
 const report = {
-  version: 9,
+  version: 10,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -368,23 +432,30 @@ const report = {
     directaWarnings: directaEvidence.warnings,
     directaPaperFreshObservations: directaObservations.filter((item) => item.eligibility === "PAPER").length,
     directaValidationOnlyObservations: directaObservations.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    directaPaperRule: "PAPER requires loopback read-only DAPI, trading writes blocked, explicit realtime/historical API confirmation, explicit market-level MIC entitlement, matching instrument-master/DAPI ISIN identity, and <=120-second quote freshness",
+    directaPaperRule: "Directa is optional for PAPER certification; when present, PAPER evidence requires loopback read-only DAPI, trading writes blocked, explicit market entitlement, matching instrument identity, and <=120-second freshness",
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
     twelveDataProbeLimit,
     twelveDataProbedSymbols: [...twelveDataProbeSymbols],
     twelveDataPaperFreshObservations: twelveDataEvidence.filter((item) => item.eligibility === "PAPER").length,
     twelveDataValidationOnlyObservations: twelveDataEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, explicit PAPER provenance and <=120-second freshness are all required",
+    twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, verified provider-specific PAPER provenance and <=120-second freshness are required",
+    alpacaConfigured,
+    alpacaCandidateCount: instruments.filter(isAlpacaPaperCandidate).length,
+    alpacaProbeLimit,
+    alpacaProbedSymbols: [...alpacaProbeSymbols],
+    alpacaPaperFreshObservations: alpacaEvidence.filter((item) => item.eligibility === "PAPER").length,
+    alpacaValidationOnlyObservations: alpacaEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
+    alpacaPaperRule: "Alpaca Basic IEX latest quote; authenticated IEX feed, positive bid/ask midpoint, provider timestamp, verified provenance and <=120-second freshness required",
     alphaVantageConfigured: Boolean(alphaVantageApiKey),
     alphaVantageProbeLimit,
     alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
     alphaVantagePaperFreshObservations: alphaVantageEvidence.filter((item) => item.eligibility === "PAPER").length,
     alphaVantageValidationOnlyObservations: alphaVantageEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    alphaVantagePaperRule: "explicit entitlement=realtime request, successful provider response, explicit PAPER provenance and <=120-second freshness are mandatory",
+    alphaVantagePaperRule: "explicit entitlement=realtime request must succeed; this route may require a paid provider entitlement and is not required for zero-cost PAPER certification",
     yahooPaperRule: "freshness alone is insufficient; Yahoo remains VALIDATION_ONLY until explicit PAPER provenance/entitlement is proven",
     coinbasePaperObservations: coinbaseEvidence.filter((item) => item.eligibility === "PAPER").length,
-    coinbasePaperRule: "timestamped public Exchange ticker plus explicit PAPER provenance and <=120-second freshness",
+    coinbasePaperRule: "timestamped public ticker remains VALIDATION_ONLY until provider-specific PAPER provenance is independently verified",
     krakenPaperObservations: krakenEvidence.filter((item) => item.eligibility === "PAPER").length,
     krakenPaperRule: "Ticker endpoint lacks a provider quote timestamp, so evidence remains VALIDATION_ONLY even when retrieval is recent",
     directPaidFeedRequired: false,
@@ -399,6 +470,7 @@ const report = {
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
     paperEligibilityRequiresExplicitRealtimeAndEntitlement: true,
+    paperEligibilityRequiresVerifiedProvenance: true,
     localBrokerEvidenceMustProveReadOnlyBoundary: true,
     localBrokerEvidenceMustMatchInstrumentIdentity: true,
     localBrokerMarketEntitlementMustBeExplicit: true,
@@ -407,4 +479,4 @@ const report = {
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, directaIdentity=${directaEvidence.identityVerifiedQuotes}/${directaEvidence.identityVerifiedQuotes + directaEvidence.identityRejectedQuotes}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
