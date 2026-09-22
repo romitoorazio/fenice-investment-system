@@ -80,8 +80,13 @@ const next = {
     minimumIntelligenceConfidence: 90,
     minimumCrossSourceChecks: 10,
     maximumSourceConcentrationPercent: 50,
-    minimumDirectaPilotEligibleSymbols: 3,
-    cryptoCannotSatisfyDirectaPilotCoverage: true,
+    minimumPaperEligibleSymbols: 3,
+    minimumPaperEligiblePercent: 25,
+    minimumIndependentPaperSourceFamilies: 2,
+    preferredIndependentPaperSourceFamilies: 3,
+    validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
+    directaPaidRealtimeRequired: false,
+    directaEvidenceOptionalForPaperCertification: true,
     liveTradingAllowed: false,
   },
   liveTradingAllowed: false,
@@ -89,4 +94,4 @@ const next = {
 };
 
 await writeFile(campaignPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; DirectaPilot=${eligibility.metrics.directaPilotEligibleSymbols}/${eligibility.metrics.directaPilotCandidateSymbols}; evidenceSchema=v${next.version}.`);
+console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; paperFamilies=${eligibility.metrics.paperEligibleSourceFamilies}; evidenceSchema=v${next.version}; liveTradingAllowed=false.`);
