@@ -33,13 +33,14 @@ const dailyEvidence = Array.from({ length: 26 }, (_, index) => {
     auditChainValid: true,
     executionMarketCoverage: {
       requiredForNewFills: newPaperFills > 0,
+      ready: true,
       safe: true,
       fresh: true,
       matchesEvidence: true,
       policyReady: true,
       broadCoverageReady: true,
-      directaPilotCoverageReady: true,
-      directaPilotEligibleSymbols: 3,
+      paperSourceRedundancyReady: true,
+      paperEligibleSourceFamilies: 2,
     },
     executionQuality: {
       state: index + 1 >= 10 ? "HEALTHY" : "INSUFFICIENT",
@@ -76,6 +77,18 @@ assert.equal(matured.fillAccountingMismatchDays, 0);
 assert.equal(matured.fillCounterRegressionDays, 0);
 assert.equal(matured.cumulativePaperFills, 12);
 assert.equal(matured.executionQualityReady, true);
+
+const legacyDirectaEvidence = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: dailyEvidence.map((row) => ({
+    ...row,
+    executionMarketCoverage: {
+      ...row.executionMarketCoverage,
+      paperSourceRedundancyReady: undefined,
+      directaPilotCoverageReady: true,
+    },
+  })),
+}), now);
+assert.equal(legacyDirectaEvidence.matured, true, "legacy pre-migration evidence remains readable without making Directa mandatory");
 
 const immature = evaluatePaperValidationCampaign(campaign({
   startedAt: "2026-10-10T12:00:00Z",
@@ -114,12 +127,13 @@ const unsafe = evaluatePaperValidationCampaign(campaign({
     newPaperFills: 0,
     executionMarketCoverage: {
       requiredForNewFills: false,
+      ready: false,
       safe: true,
       fresh: false,
       matchesEvidence: true,
       policyReady: true,
       broadCoverageReady: false,
-      directaPilotCoverageReady: false,
+      paperSourceRedundancyReady: false,
     },
     executionQuality: { state: "HEALTHY", allowPilot: true, fills: 12 },
   }],
@@ -185,9 +199,10 @@ const missingCoverageOnFillDay = evaluatePaperValidationCampaign(campaign({
         executionMarketCoverage: {
           ...row.executionMarketCoverage,
           requiredForNewFills: true,
+          ready: false,
           safe: false,
           fresh: false,
-          directaPilotCoverageReady: false,
+          paperSourceRedundancyReady: false,
         },
       }
     : row),
@@ -225,16 +240,64 @@ const noFillClosedDayIsAllowed = evaluatePaperValidationCampaign(campaign({
         executionMarketCoverage: {
           ...row.executionMarketCoverage,
           requiredForNewFills: false,
+          ready: false,
           safe: true,
           fresh: false,
           broadCoverageReady: false,
-          directaPilotCoverageReady: false,
+          paperSourceRedundancyReady: false,
         },
       }
     : row),
 }), now);
 assert.equal(noFillClosedDayIsAllowed.marketDataCoverageFailureDays, 0, "closed/no-fill day must not invalidate campaign solely for stale equity quotes");
 assert.equal(noFillClosedDayIsAllowed.matured, true, noFillClosedDayIsAllowed.reasons.join(" | "));
+
+const v5DailyEvidence = dailyEvidence.map((row) => {
+  const fills = Number(row.cumulativePaperFilled || 0);
+  const delta = Number(row.newPaperFills || 0);
+  const from = fills - delta;
+  return {
+    ...row,
+    fillEvidenceProof: {
+      version: 1,
+      requiredFills: delta,
+      coveredFills: delta,
+      complete: true,
+      windows: delta > 0 ? [{
+        observedAt: `${row.date}T12:00:00Z`,
+        fromCumulativePaperFilled: from,
+        toCumulativePaperFilled: fills,
+        newPaperFills: delta,
+        decisionData: { ready: true },
+        executionMarket: { ready: true },
+      }] : [],
+    },
+  };
+});
+const v5Matured = evaluatePaperValidationCampaign(campaign({ version: 5, dailyEvidence: v5DailyEvidence }), now);
+assert.equal(v5Matured.matured, true, v5Matured.reasons.join(" | "));
+assert.equal(v5Matured.fillEvidenceProofFailureDays, 0);
+assert.equal(v5Matured.decisionDataFailureDays, 0);
+
+const v5MissingMarketProof = evaluatePaperValidationCampaign(campaign({
+  version: 5,
+  dailyEvidence: v5DailyEvidence.map((row, index) => index === 4
+    ? {
+        ...row,
+        fillEvidenceProof: {
+          ...row.fillEvidenceProof,
+          windows: row.fillEvidenceProof.windows.map((window) => ({
+            ...window,
+            executionMarket: { ready: false },
+          })),
+        },
+      }
+    : row),
+}), now);
+assert.equal(v5MissingMarketProof.matured, false);
+assert.equal(v5MissingMarketProof.state, "INVALID");
+assert.equal(v5MissingMarketProof.marketDataCoverageFailureDays, 1);
+assert.equal(v5MissingMarketProof.fillEvidenceProofFailureDays, 1);
 
 const invalidLiveMode = evaluatePaperValidationCampaign(campaign({ liveTradingAllowed: true }), now);
 assert.equal(invalidLiveMode.state, "INVALID");
