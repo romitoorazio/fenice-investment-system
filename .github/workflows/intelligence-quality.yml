@@ -13,6 +13,8 @@ on:
       - "scripts/check-global-sources.mjs"
       - "data/global-source-registry.json"
       - "lib/trading/execution-market-data.ts"
+      - "lib/trading/paper-evidence-policy.ts"
+      - "lib/trading/execution-coverage.ts"
       - "lib/trading/market-data-quorum.ts"
       - "scripts/run-foundation-plus.mjs"
       - "scripts/run-foundation.mjs"
@@ -33,7 +35,10 @@ jobs:
       FENICE_JOB: intraday
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "3"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "3"
+      FENICE_ALPACA_EXECUTION_PROBES: "3"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
       COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
@@ -88,11 +93,12 @@ jobs:
           const execution = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
           const executionAge = Date.now() - Date.parse(execution.generatedAt || '');
           if (!Number.isFinite(executionAge) || executionAge < 0 || executionAge > 60 * 60 * 1000) throw new Error('Execution market evidence is not fresh');
-          if (Number(execution.version || 0) < 2) throw new Error('Execution market evidence schema is obsolete');
+          if (Number(execution.version || 0) < 10) throw new Error('Execution market evidence schema is obsolete');
           if (!Array.isArray(execution.observations)) throw new Error('Execution market observations missing');
           if (execution.policy?.validationOnlySourcesNeverSatisfyPaperQuorum !== true) throw new Error('Validation-only execution data policy missing');
           if (execution.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly !== true) throw new Error('Legacy execution evidence must fail closed');
           if (execution.policy?.liveEligibilityMustBeExplicit !== true) throw new Error('Live eligibility must be explicit');
+          if (execution.policy?.paperEligibilityRequiresVerifiedProvenance !== true) throw new Error('PAPER provenance must be explicitly verified');
           if (execution.policy?.liveTradingAllowed !== false) throw new Error('Live trading must remain blocked');
           const eligibility = new Set(['VALIDATION_ONLY', 'PAPER', 'LIVE']);
           for (const observation of execution.observations) {
@@ -100,19 +106,39 @@ jobs:
             if (!eligibility.has(observation?.eligibility)) throw new Error('Execution observation has invalid eligibility');
             if (!Number.isFinite(Number(observation?.price)) || Number(observation.price) <= 0) throw new Error('Execution observation has invalid price');
             if (!Number.isFinite(Date.parse(String(observation?.observedAt || '')))) throw new Error('Execution observation has invalid timestamp');
+            if ((observation?.eligibility === 'PAPER' || observation?.eligibility === 'LIVE') && observation?.provenanceVerified !== true) {
+              throw new Error('PAPER/LIVE observation missing persisted verified provenance');
+            }
           }
 
           const executionCoverage = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
           const coverageAge = Date.now() - Date.parse(executionCoverage.generatedAt || '');
           if (!Number.isFinite(coverageAge) || coverageAge < 0 || coverageAge > 60 * 60 * 1000) throw new Error('Execution market coverage is not fresh');
           if (executionCoverage.evidenceGeneratedAt !== execution.generatedAt) throw new Error('Execution coverage does not match the audited execution evidence snapshot');
+          if (Number(executionCoverage.version || 0) < 6) throw new Error('Execution market coverage schema is obsolete');
           if (!Array.isArray(executionCoverage.rows)) throw new Error('Execution market coverage rows missing');
           if (executionCoverage.policy?.requiredEligibility !== 'PAPER' || Number(executionCoverage.policy?.minIndependentSourceFamilies || 0) < 2) {
             throw new Error('Execution market coverage policy is unsafe');
           }
+          if (executionCoverage.policy?.paperEligibilityRequiresVerifiedProvenance !== true) {
+            throw new Error('Execution market coverage must enforce verified provenance');
+          }
+          if (executionCoverage.policy?.directaPaidRealtimeRequired !== false || executionCoverage.policy?.directaEvidenceOptionalForPaperCertification !== true) {
+            throw new Error('Directa paid realtime must remain optional for PAPER certification');
+          }
           if (executionCoverage.policy?.liveTradingAllowed !== false) throw new Error('Execution market coverage must preserve live lock');
 
-          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent, 'source gate:', sourceHealth.gate, 'execution observations:', execution.observations.length, 'paper eligible symbols:', executionCoverage.paperEligibleSymbols, '/', executionCoverage.requestedSymbols, 'Twelve Data:', execution.capabilities?.twelveDataConfigured === true ? 'configured' : 'optional-unconfigured');
+          console.log(
+            'Quality report valid:',
+            q.intelligenceConfidence,
+            q.coverage.sourceConcentrationPercent,
+            'source gate:', sourceHealth.gate,
+            'execution observations:', execution.observations.length,
+            'paper eligible symbols:', executionCoverage.paperEligibleSymbols, '/', executionCoverage.requestedSymbols,
+            'Twelve Data:', execution.capabilities?.twelveDataConfigured === true ? 'configured' : 'optional-unconfigured',
+            'Alpaca:', execution.capabilities?.alpacaConfigured === true ? 'configured' : 'optional-unconfigured',
+            'Directa paid realtime required: no',
+          );
           NODE
 
       - name: Publish refreshed quality evidence
