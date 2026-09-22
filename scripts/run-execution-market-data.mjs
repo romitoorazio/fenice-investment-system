@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import { buildDirectaExecutionEvidence } from "../lib/trading/directa-execution-evidence.ts";
 import {
-  classifyPaperEligibilityByFreshness,
+  classifyExecutionPaperEligibility,
   deduplicateExecutionEvidence,
   isAlphaVantageIntradayCandidate,
   isTwelveDataPaperCandidate,
@@ -81,14 +81,17 @@ async function fetchYahoo(instrument) {
     throw new Error("INVALID_YAHOO_QUOTE");
   }
   const observedAt = new Date(timestamp * 1000).toISOString();
-  const eligibility = classifyPaperEligibilityByFreshness(observedAt, Date.now(), 120);
+  const eligibility = classifyExecutionPaperEligibility({
+    source: "Yahoo Finance public quote validation",
+    sourceFamily: "yahoo",
+    observedAt,
+    realtime: true,
+  }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: instrument.symbol,
     currency: result?.meta?.currency || instrument.currency || "USD",
     assetClass: instrument.assetClass,
-    source: eligibility === "PAPER"
-      ? "Yahoo Finance fresh execution validation"
-      : "Yahoo Finance stale/delayed validation",
+    source: "Yahoo Finance public quote validation; PAPER entitlement unproven",
     sourceFamily: "yahoo",
     eligibility,
     price,
@@ -129,15 +132,25 @@ async function fetchTwelveData(instrument) {
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp <= 0) {
     throw new Error("INVALID_TWELVE_DATA_QUOTE");
   }
+  const observedAt = new Date(timestamp * 1000).toISOString();
+  const eligibility = classifyExecutionPaperEligibility({
+    source: "Twelve Data US realtime venue-verified quote",
+    sourceFamily: "twelve-data",
+    observedAt,
+    realtime: true,
+    entitlement: "PAPER",
+  }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: providerSymbol,
     currency: data?.currency || instrument.currency || "USD",
     assetClass: instrument.assetClass,
-    source: "Twelve Data US realtime paper validation",
+    source: eligibility === "PAPER"
+      ? "Twelve Data US realtime venue-verified paper validation"
+      : "Twelve Data US quote failed PAPER freshness/provenance gate",
     sourceFamily: "twelve-data",
-    eligibility: classifyPaperEligibilityByFreshness(new Date(timestamp * 1000).toISOString(), Date.now(), 120),
+    eligibility,
     price,
-    observedAt: new Date(timestamp * 1000).toISOString(),
+    observedAt,
   });
 }
 
@@ -168,14 +181,20 @@ async function fetchAlphaVantageIntraday(instrument) {
   const row = latestKey ? series[latestKey] : null;
   const price = Number(row?.["4. close"]);
   if (!observedAt || !Number.isFinite(price) || price <= 0) throw new Error("INVALID_ALPHA_VANTAGE_INTRADAY_QUOTE");
-  const eligibility = classifyPaperEligibilityByFreshness(observedAt, Date.now(), 120);
+  const eligibility = classifyExecutionPaperEligibility({
+    source: "Alpha Vantage explicit realtime-entitlement request",
+    sourceFamily: "alpha-vantage",
+    observedAt,
+    realtime: true,
+    entitlement: "PAPER",
+  }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol: providerSymbol,
     currency: instrument.currency || "USD",
     assetClass: instrument.assetClass,
     source: eligibility === "PAPER"
       ? "Alpha Vantage realtime-entitled paper validation"
-      : "Alpha Vantage realtime request returned stale validation",
+      : "Alpha Vantage realtime request failed PAPER freshness/provenance gate",
     sourceFamily: "alpha-vantage",
     eligibility,
     price,
@@ -191,13 +210,20 @@ async function fetchCoinbase(instrument) {
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(String(observedAt || "")))) {
     throw new Error("INVALID_COINBASE_QUOTE");
   }
+  const eligibility = classifyExecutionPaperEligibility({
+    source: "Coinbase Exchange timestamped public ticker",
+    sourceFamily: "coinbase",
+    observedAt,
+    realtime: true,
+    entitlement: "PAPER",
+  }, Date.now(), 120);
   return normalizeExecutionEvidence({
     symbol,
     currency: "USD",
     assetClass: instrument.assetClass,
-    source: "Coinbase Exchange execution validation",
+    source: "Coinbase Exchange timestamped public ticker",
     sourceFamily: "coinbase",
-    eligibility: "PAPER",
+    eligibility,
     price,
     observedAt,
   });
@@ -215,9 +241,9 @@ async function fetchKraken(instrument) {
     symbol,
     currency: "USD",
     assetClass: instrument.assetClass,
-    source: "Kraken execution validation",
+    source: "Kraken ticker validation; provider quote timestamp unavailable",
     sourceFamily: "kraken",
-    eligibility: "PAPER",
+    eligibility: "VALIDATION_ONLY",
     price,
     observedAt: new Date().toISOString(),
   });
@@ -323,8 +349,10 @@ const deduplicated = deduplicateExecutionEvidence(observations);
 const twelveDataEvidence = deduplicated.filter((item) => item.sourceFamily === "twelve-data");
 const alphaVantageEvidence = deduplicated.filter((item) => item.sourceFamily === "alpha-vantage");
 const directaObservations = deduplicated.filter((item) => item.sourceFamily === "directa");
+const coinbaseEvidence = deduplicated.filter((item) => item.sourceFamily === "coinbase");
+const krakenEvidence = deduplicated.filter((item) => item.sourceFamily === "kraken");
 const report = {
-  version: 8,
+  version: 9,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -347,14 +375,18 @@ const report = {
     twelveDataProbedSymbols: [...twelveDataProbeSymbols],
     twelveDataPaperFreshObservations: twelveDataEvidence.filter((item) => item.eligibility === "PAPER").length,
     twelveDataValidationOnlyObservations: twelveDataEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    twelveDataFreeRealtimeScope: "US-listed equities/ETFs; bounded probe budget is intentionally compatible with low-rate free tiers and every quote must still prove a recognized US realtime venue plus <=120 second freshness",
+    twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, explicit PAPER provenance and <=120-second freshness are all required",
     alphaVantageConfigured: Boolean(alphaVantageApiKey),
     alphaVantageProbeLimit,
     alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
     alphaVantagePaperFreshObservations: alphaVantageEvidence.filter((item) => item.eligibility === "PAPER").length,
     alphaVantageValidationOnlyObservations: alphaVantageEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    alphaVantagePaperRule: "explicit entitlement=realtime is mandatory; provider rejection, stale timestamps or missing entitlement remain validation failure and never satisfy PAPER quorum",
-    yahooPaperRule: "regularMarketTime must be no older than 120 seconds; closed-market and delayed quotes automatically downgrade to VALIDATION_ONLY",
+    alphaVantagePaperRule: "explicit entitlement=realtime request, successful provider response, explicit PAPER provenance and <=120-second freshness are mandatory",
+    yahooPaperRule: "freshness alone is insufficient; Yahoo remains VALIDATION_ONLY until explicit PAPER provenance/entitlement is proven",
+    coinbasePaperObservations: coinbaseEvidence.filter((item) => item.eligibility === "PAPER").length,
+    coinbasePaperRule: "timestamped public Exchange ticker plus explicit PAPER provenance and <=120-second freshness",
+    krakenPaperObservations: krakenEvidence.filter((item) => item.eligibility === "PAPER").length,
+    krakenPaperRule: "Ticker endpoint lacks a provider quote timestamp, so evidence remains VALIDATION_ONLY even when retrieval is recent",
     directPaidFeedRequired: false,
   },
   policy: {
@@ -366,6 +398,7 @@ const report = {
     providerVenueMustBeVerifiedBeforePaperEligibility: true,
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
+    paperEligibilityRequiresExplicitRealtimeAndEntitlement: true,
     localBrokerEvidenceMustProveReadOnlyBoundary: true,
     localBrokerEvidenceMustMatchInstrumentIdentity: true,
     localBrokerMarketEntitlementMustBeExplicit: true,
@@ -374,4 +407,4 @@ const report = {
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, directaIdentity=${directaEvidence.identityVerifiedQuotes}/${directaEvidence.identityVerifiedQuotes + directaEvidence.identityRejectedQuotes}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, directaIdentity=${directaEvidence.identityVerifiedQuotes}/${directaEvidence.identityVerifiedQuotes + directaEvidence.identityRejectedQuotes}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
