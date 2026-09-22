@@ -15,14 +15,16 @@ export type ExecutionCoverageEvidence = {
   errors?: Array<{ symbol?: string; provider?: string; code?: string }>;
 };
 
-const DIRECTA_PILOT_INDEPENDENT_PAPER_FAMILIES = new Set([
+// Directa is optional/read-only evidence for PAPER certification. These families
+// may independently contribute PAPER evidence when their terms/entitlements allow it.
+const APPROVED_INDEPENDENT_PAPER_FAMILIES = new Set([
   "twelve-data",
   "alpha-vantage",
   "massive",
   "alpaca",
 ]);
 
-function isDirectaPilotAssetClass(value: unknown): boolean {
+function isEquityOrEtf(value: unknown): boolean {
   return /equity|stock|etf|azione|azion/i.test(String(value || ""));
 }
 
@@ -49,7 +51,7 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
       observedAt: String(item?.observedAt || ""),
     }));
     const decision = evaluateMarketDataQuorum(symbolObservations, undefined, now);
-    const directaPilotCandidate = assetClasses.some(isDirectaPilotAssetClass);
+    const equityOrEtf = assetClasses.some(isEquityOrEtf);
     const directaPaperEvidence = rawObservations.some((item) =>
       String(item?.sourceFamily || "").trim().toLowerCase() === "directa"
         && normalizeEligibility(item?.eligibility) === "PAPER",
@@ -57,30 +59,23 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
     const approvedIndependentPaperFamilies = [...new Set(rawObservations
       .filter((item) => normalizeEligibility(item?.eligibility) === "PAPER")
       .map((item) => String(item?.sourceFamily || "").trim().toLowerCase())
-      .filter((family) => DIRECTA_PILOT_INDEPENDENT_PAPER_FAMILIES.has(family))
+      .filter((family) => APPROVED_INDEPENDENT_PAPER_FAMILIES.has(family))
     )].sort();
-    const independentNonDirectaPaperEvidence = approvedIndependentPaperFamilies.length > 0;
-    const directaPilotEligible = directaPilotCandidate
-      && decision.allowNewRisk
-      && directaPaperEvidence
-      && independentNonDirectaPaperEvidence;
-    const directaPilotReasons: string[] = [];
-    if (directaPilotCandidate && !directaPaperEvidence) directaPilotReasons.push("missing Directa PAPER source");
-    if (directaPilotCandidate && !independentNonDirectaPaperEvidence) {
-      directaPilotReasons.push("missing approved independent realtime PAPER source (Twelve Data / realtime-entitled Alpha Vantage / Massive / Alpaca)");
-    }
-    if (directaPilotCandidate && !decision.allowNewRisk) directaPilotReasons.push("market-data quorum blocks new risk");
+
+    // PAPER eligibility is determined by the generic fail-closed market-data quorum.
+    // Directa is diagnostic/optional here and cannot be a mandatory certification gate.
+    const paperEligible = decision.allowNewRisk;
+    const directaOptionalEvidence = equityOrEtf && directaPaperEvidence;
 
     return {
       symbol,
       assetClasses,
-      directaPilotCandidate,
+      equityOrEtf,
       state: decision.state,
-      paperEligible: decision.allowNewRisk,
+      paperEligible,
       directaPaperEvidence,
+      directaOptionalEvidence,
       approvedIndependentPaperFamilies,
-      independentNonDirectaPaperEvidence,
-      directaPilotEligible,
       independentSourceFamilies: decision.independentSources,
       sourceFamilies: decision.sourceFamilies,
       medianPrice: decision.medianPrice,
@@ -89,41 +84,30 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
       ineligibleEvidence: decision.ineligibleEvidence,
       invalidEvidence: decision.invalidEvidence,
       providerErrors: errors.filter((item) => String(item?.symbol || "").toUpperCase() === symbol),
-      reasons: [...decision.reasons, ...directaPilotReasons],
+      reasons: [...decision.reasons],
     };
   });
 
   const paperEligible = rows.filter((row) => row.paperEligible);
-  const directaPilotCandidates = rows.filter((row) => row.directaPilotCandidate);
-  const directaPilotEligible = rows.filter((row) => row.directaPilotEligible);
   return {
-    version: 4,
+    version: 5,
     generatedAt: new Date(now).toISOString(),
     evidenceGeneratedAt: evidence?.generatedAt || null,
     requestedSymbols: rows.length,
     paperEligibleSymbols: paperEligible.length,
     paperEligiblePercent: rows.length ? Number((paperEligible.length / rows.length * 100).toFixed(1)) : 0,
-    directaPilotCandidateSymbols: directaPilotCandidates.length,
-    directaPilotEligibleSymbols: directaPilotEligible.length,
-    directaPilotEligiblePercent: directaPilotCandidates.length
-      ? Number((directaPilotEligible.length / directaPilotCandidates.length * 100).toFixed(1))
-      : 0,
     greenSymbols: rows.filter((row) => row.state === "GREEN").map((row) => row.symbol),
     cautionSymbols: rows.filter((row) => row.state === "CAUTION").map((row) => row.symbol),
     blockedSymbols: rows.filter((row) => row.state === "BLOCKED").map((row) => row.symbol),
-    directaPilotGreenSymbols: directaPilotEligible.map((row) => row.symbol),
     rows,
     policy: {
       requiredEligibility: "PAPER",
       minIndependentSourceFamilies: 2,
       preferredIndependentSourceFamilies: 3,
-      minimumDirectaPilotEligibleSymbols: 3,
-      directaPilotAssetClasses: ["equity", "stock", "ETF"],
-      requireDirectaPaperSourceForDirectaPilot: true,
-      requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
-      approvedIndependentPaperSourceFamiliesForDirectaPilot: [...DIRECTA_PILOT_INDEPENDENT_PAPER_FAMILIES].sort(),
-      yahooCannotSatisfyDirectaPilotCoverage: true,
-      cryptoCannotSatisfyDirectaPilotCoverage: true,
+      directaPaidRealtimeRequired: false,
+      directaEvidenceOptionalForPaperCertification: true,
+      approvedIndependentPaperSourceFamilies: [...APPROVED_INDEPENDENT_PAPER_FAMILIES].sort(),
+      validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
       liveTradingAllowed: false,
     },
   };
