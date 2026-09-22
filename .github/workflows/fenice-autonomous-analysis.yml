@@ -15,12 +15,13 @@ concurrency:
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
 
     steps:
       - name: Checkout
@@ -36,33 +37,55 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Refresh authoritative source health
+        run: npm run sources:check
+
       - name: Run Fenice autonomous analysis
         run: npm run analyze
 
-      - name: Validate generated snapshot
+      - name: Validate synchronized status datasets
         run: |
-          node -e 'const fs=require("fs"); const p="data/latest-snapshot.json"; const x=JSON.parse(fs.readFileSync(p,"utf8")); if(!x.generatedAt||!Array.isArray(x.markets)||!Array.isArray(x.discoveries)||!Array.isArray(x.providers)) process.exit(1); console.log(`Snapshot valido: ${x.markets.length} mercati, ${x.discoveries.length} eventi, ${x.providers.length} fonti`);'
+          node - <<'NODE'
+          const fs = require('fs');
+          const snapshot = JSON.parse(fs.readFileSync('data/latest-snapshot.json', 'utf8'));
+          const health = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          if (!snapshot.generatedAt || !Array.isArray(snapshot.markets) || !Array.isArray(snapshot.discoveries) || !Array.isArray(snapshot.providers)) {
+            throw new Error('Invalid autonomous snapshot');
+          }
+          if (!health.generatedAt || !Array.isArray(health.sources) || !health.gate) {
+            throw new Error('Invalid source-health report');
+          }
+          const snapshotAt = Date.parse(snapshot.generatedAt);
+          const healthAt = Date.parse(health.generatedAt);
+          if (!Number.isFinite(snapshotAt) || !Number.isFinite(healthAt)) throw new Error('Invalid status timestamps');
+          if (snapshotAt - healthAt > 30 * 60 * 1000) {
+            throw new Error('Source-health evidence is too old relative to autonomous snapshot');
+          }
+          console.log(`Snapshot valido: ${snapshot.markets.length} mercati, ${snapshot.discoveries.length} eventi, ${snapshot.providers.length} provider; source gate ${health.gate}.`);
+          NODE
 
-      - name: Commit refreshed intelligence
+      - name: Commit refreshed intelligence and source health
         run: |
           git config user.name "Fenice Automation"
           git config user.email "actions@users.noreply.github.com"
 
-          generated_file="$(mktemp)"
-          cp data/latest-snapshot.json "$generated_file"
+          generated_dir="$(mktemp -d)"
+          cp data/latest-snapshot.json "$generated_dir/latest-snapshot.json"
+          cp data/global-source-health.json "$generated_dir/global-source-health.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            cp "$generated_file" data/latest-snapshot.json
-            git add data/latest-snapshot.json
+            cp "$generated_dir/latest-snapshot.json" data/latest-snapshot.json
+            cp "$generated_dir/global-source-health.json" data/global-source-health.json
+            git add data/latest-snapshot.json data/global-source-health.json
 
             if git diff --cached --quiet; then
               echo "Nessun cambiamento nei dati Fenice."
               exit 0
             fi
 
-            git commit -m "data: refresh Fenice intelligence snapshot"
+            git commit -m "data: refresh Fenice intelligence and source health"
             if git push origin HEAD:main; then
               exit 0
             fi
@@ -71,5 +94,5 @@ jobs:
             sleep $((attempt * 2))
           done
 
-          echo "Unable to publish autonomous snapshot after 3 attempts"
+          echo "Unable to publish synchronized Fenice status after 3 attempts"
           exit 1
