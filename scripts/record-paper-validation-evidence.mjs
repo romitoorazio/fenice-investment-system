@@ -53,48 +53,50 @@ function summarizeExecutionCoverage(coverage, evidence, nowMs) {
   const age = coverageGeneratedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - coverageGeneratedAtMs) / 60_000;
   const fresh = Number.isFinite(age) && age >= 0 && age <= 30;
   const matchesEvidence = timestampsMatch(coverage?.evidenceGeneratedAt, evidence?.generatedAt);
-  const approvedPilotFamilies = Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamiliesForDirectaPilot)
-    ? coverage.policy.approvedIndependentPaperSourceFamiliesForDirectaPilot.map((value) => String(value).trim().toLowerCase())
+  const approvedPaperFamilies = Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies)
+    ? coverage.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
     : [];
-  const policyReady = Number(coverage?.version || 0) >= 4
+  const paperEligibleFamilies = new Set(
+    (Array.isArray(evidence?.observations) ? evidence.observations : [])
+      .filter((row) => row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
+      .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const policyReady = Number(coverage?.version || 0) >= 5
     && coverage?.policy?.requiredEligibility === "PAPER"
     && Number(coverage?.policy?.minIndependentSourceFamilies || 0) >= 2
-    && Number(coverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
-    && coverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true
-    && coverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true
-    && coverage?.policy?.yahooCannotSatisfyDirectaPilotCoverage === true
-    && approvedPilotFamilies.includes("twelve-data")
-    && coverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
+    && Number(coverage?.policy?.preferredIndependentSourceFamilies || 0) >= 3
+    && coverage?.policy?.directaPaidRealtimeRequired === false
+    && coverage?.policy?.directaEvidenceOptionalForPaperCertification === true
+    && coverage?.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
+    && approvedPaperFamilies.length >= 2
     && coverage?.policy?.liveTradingAllowed === false
-    && Number(evidence?.version || 0) >= 8
+    && Number(evidence?.version || 0) >= 9
     && evidence?.policy?.liveTradingAllowed === false
     && evidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
-    && evidence?.policy?.localBrokerEvidenceMustProveReadOnlyBoundary === true
-    && evidence?.policy?.localBrokerEvidenceMustMatchInstrumentIdentity === true
-    && evidence?.policy?.localBrokerMarketEntitlementMustBeExplicit === true;
+    && evidence?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
+    && evidence?.policy?.providerVenueMustBeVerifiedBeforePaperEligibility === true
+    && evidence?.policy?.delayedIntradayEvidenceNeverSatisfiesPaperQuorum === true
+    && evidence?.policy?.paperEligibilityRequiresExplicitRealtimeAndEntitlement === true;
   const broadCoverageReady = Number(coverage?.requestedSymbols || 0) >= 3
     && Number(coverage?.paperEligibleSymbols || 0) >= 3
     && Number(coverage?.paperEligiblePercent || 0) >= 25;
-  const directaPilotCoverageReady = Number(coverage?.directaPilotCandidateSymbols || 0) >= 3
-    && Number(coverage?.directaPilotEligibleSymbols || 0) >= 3;
+  const paperSourceRedundancyReady = paperEligibleFamilies.size >= 2;
   return {
-    ready: fresh && matchesEvidence && policyReady && broadCoverageReady && directaPilotCoverageReady,
+    ready: fresh && matchesEvidence && policyReady && broadCoverageReady && paperSourceRedundancyReady,
     fresh,
     matchesEvidence,
     policyReady,
     broadCoverageReady,
-    directaPilotCoverageReady,
-    yahooExcludedFromPilot: coverage?.policy?.yahooCannotSatisfyDirectaPilotCoverage === true,
-    approvedPilotFamilies,
-    brokerReadOnlyPolicy: evidence?.policy?.localBrokerEvidenceMustProveReadOnlyBoundary === true,
-    brokerIdentityPolicy: evidence?.policy?.localBrokerEvidenceMustMatchInstrumentIdentity === true,
-    brokerMarketEntitlementPolicy: evidence?.policy?.localBrokerMarketEntitlementMustBeExplicit === true,
+    paperSourceRedundancyReady,
+    paperEligibleSourceFamilies: paperEligibleFamilies.size,
+    approvedPaperFamilies,
+    directaPaidRealtimeRequired: coverage?.policy?.directaPaidRealtimeRequired === true,
+    directaEvidenceOptionalForPaperCertification: coverage?.policy?.directaEvidenceOptionalForPaperCertification === true,
     ageMinutes: Number.isFinite(age) ? Number(age.toFixed(1)) : null,
     requestedSymbols: Number(coverage?.requestedSymbols || 0),
     paperEligibleSymbols: Number(coverage?.paperEligibleSymbols || 0),
     paperEligiblePercent: Number(coverage?.paperEligiblePercent || 0),
-    directaPilotCandidateSymbols: Number(coverage?.directaPilotCandidateSymbols || 0),
-    directaPilotEligibleSymbols: Number(coverage?.directaPilotEligibleSymbols || 0),
   };
 }
 
@@ -185,7 +187,7 @@ if (additionalPaperFills > 0) {
     throw new Error(`PAPER_CAMPAIGN_DECISION_DATA_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh institutional decision-data evidence.`);
   }
   if (!executionMarket.ready) {
-    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh hardened Directa-pilot execution coverage evidence.`);
+    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh provider-neutral PAPER execution coverage evidence.`);
   }
   fillEvidenceWindows.push({
     observedAt: now.toISOString(),
