@@ -1,3 +1,5 @@
+import { classifyPaperEvidence } from "./paper-evidence-policy.ts";
+
 export type ExecutionInstrument = {
   symbol: string;
   currency?: string;
@@ -20,66 +22,24 @@ export type ExecutionMarketEvidence = {
 };
 
 const MIC_TO_YAHOO_SUFFIX: Readonly<Record<string, string>> = {
-  XMIL: ".MI",
-  XETR: ".DE",
-  XPAR: ".PA",
-  XLON: ".L",
-  XAMS: ".AS",
-  XBRU: ".BR",
-  XMAD: ".MC",
-  XSWX: ".SW",
-  XWBO: ".VI",
-  XHEL: ".HE",
-  XSTO: ".ST",
-  XCSE: ".CO",
-  XOSL: ".OL",
-  XWAR: ".WA",
-  XIST: ".IS",
-  XTKS: ".T",
-  XHKG: ".HK",
-  XASX: ".AX",
-  XTSE: ".TO",
-  XNSE: ".NS",
-  BVMF: ".SA",
-  XSHG: ".SS",
+  XMIL: ".MI", XETR: ".DE", XPAR: ".PA", XLON: ".L", XAMS: ".AS", XBRU: ".BR",
+  XMAD: ".MC", XSWX: ".SW", XWBO: ".VI", XHEL: ".HE", XSTO: ".ST", XCSE: ".CO",
+  XOSL: ".OL", XWAR: ".WA", XIST: ".IS", XTKS: ".T", XHKG: ".HK", XASX: ".AX",
+  XTSE: ".TO", XNSE: ".NS", BVMF: ".SA", XSHG: ".SS",
 };
 
 const MIC_TO_STOOQ_SUFFIX: Readonly<Record<string, string>> = {
-  XNAS: ".US",
-  XNYS: ".US",
-  ARCX: ".US",
-  BATS: ".US",
-  XMIL: ".IT",
-  XETR: ".DE",
-  XPAR: ".FR",
-  XLON: ".UK",
-  XAMS: ".NL",
-  XBRU: ".BE",
-  XMAD: ".ES",
-  XSWX: ".CH",
+  XNAS: ".US", XNYS: ".US", ARCX: ".US", BATS: ".US", XMIL: ".IT", XETR: ".DE",
+  XPAR: ".FR", XLON: ".UK", XAMS: ".NL", XBRU: ".BE", XMAD: ".ES", XSWX: ".CH",
 };
 
 const US_REALTIME_MICS = new Set(["XNAS", "XNYS", "ARCX", "BATS", "IEXG"]);
 const US_REALTIME_EXCHANGE_LABELS = new Set([
-  "NASDAQ",
-  "NASDAQ GLOBAL SELECT MARKET",
-  "NASDAQ GLOBAL MARKET",
-  "NASDAQ CAPITAL MARKET",
-  "NYSE",
-  "NEW YORK STOCK EXCHANGE",
-  "NYSE ARCA",
-  "NYSE AMERICAN",
-  "AMEX",
-  "CBOE",
-  "BATS",
-  "IEX",
+  "NASDAQ", "NASDAQ GLOBAL SELECT MARKET", "NASDAQ GLOBAL MARKET", "NASDAQ CAPITAL MARKET",
+  "NYSE", "NEW YORK STOCK EXCHANGE", "NYSE ARCA", "NYSE AMERICAN", "AMEX", "CBOE", "BATS", "IEX",
 ]);
 
-const ELIGIBILITY_RANK: Readonly<Record<ExecutionDataEligibility, number>> = {
-  VALIDATION_ONLY: 0,
-  PAPER: 1,
-  LIVE: 2,
-};
+const ELIGIBILITY_RANK: Readonly<Record<ExecutionDataEligibility, number>> = { VALIDATION_ONLY: 0, PAPER: 1, LIVE: 2 };
 
 function isListedSecurity(assetClass: unknown): boolean {
   return /equity|stock|etf|azione|azion/i.test(String(assetClass || ""));
@@ -106,9 +66,7 @@ export function yahooSymbolForInstrument(instrument: ExecutionInstrument): strin
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   if (!symbol) return "";
   const assetClass = String(instrument.assetClass || "").toLowerCase();
-  if (assetClass === "crypto" || assetClass === "criptovaluta") {
-    return symbol.endsWith("-USD") ? symbol : `${symbol}-USD`;
-  }
+  if (assetClass === "crypto" || assetClass === "criptovaluta") return symbol.endsWith("-USD") ? symbol : `${symbol}-USD`;
   if (/[.=^-]/.test(symbol)) return symbol;
   const mic = String(instrument.exchangeMic || "").toUpperCase();
   if (isListedSecurity(assetClass) && !mic) return "";
@@ -122,20 +80,15 @@ export function stooqSymbolForInstrument(instrument: ExecutionInstrument): strin
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   if (!symbol) return null;
   const suffix = MIC_TO_STOOQ_SUFFIX[String(instrument.exchangeMic || "").toUpperCase()] || "";
-  if (!suffix) return null;
-  return `${symbol}${suffix}`.toLowerCase();
+  return suffix ? `${symbol}${suffix}`.toLowerCase() : null;
 }
 
 export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boolean {
-  const assetClass = String(instrument.assetClass || "").toLowerCase();
-  const mic = String(instrument.exchangeMic || "").toUpperCase();
-  return isListedSecurity(assetClass) && US_REALTIME_MICS.has(mic);
+  return isListedSecurity(instrument.assetClass) && US_REALTIME_MICS.has(String(instrument.exchangeMic || "").toUpperCase());
 }
 
 export function isAlphaVantageIntradayCandidate(instrument: ExecutionInstrument): boolean {
-  const assetClass = String(instrument.assetClass || "").toLowerCase();
-  const mic = String(instrument.exchangeMic || "").toUpperCase();
-  return isListedSecurity(assetClass) && US_REALTIME_MICS.has(mic);
+  return isListedSecurity(instrument.assetClass) && US_REALTIME_MICS.has(String(instrument.exchangeMic || "").toUpperCase());
 }
 
 export function isTwelveDataUsRealtimeVenue(value: unknown): boolean {
@@ -153,45 +106,36 @@ export function parseProviderLocalTimestamp(value: unknown, timeZone: unknown): 
     const parsed = Date.parse(raw);
     return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
   }
-  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)) return null;
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second] = match;
   const utcGuess = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
   if (!zone) return new Date(utcGuess).toISOString();
   try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: zone,
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const parts = Object.fromEntries(formatter.formatToParts(new Date(utcGuess)).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
     const zoneAsUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
-    const offsetMs = zoneAsUtc - utcGuess;
-    return new Date(utcGuess - offsetMs).toISOString();
-  } catch {
-    return null;
-  }
+    return new Date(utcGuess - (zoneAsUtc - utcGuess)).toISOString();
+  } catch { return null; }
 }
 
-export function classifyPaperEligibilityByFreshness(
-  observedAt: string,
-  nowMs = Date.now(),
-  maxAgeSeconds = 120,
-): ExecutionDataEligibility {
+/** Freshness is necessary but never sufficient for PAPER certification. */
+export function classifyPaperEligibilityByFreshness(observedAt: string, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
   const observedMs = Date.parse(String(observedAt || ""));
   const ageSeconds = (Number(nowMs) - observedMs) / 1000;
-  return Number.isFinite(observedMs)
-    && Number.isFinite(ageSeconds)
-    && ageSeconds >= 0
-    && ageSeconds <= maxAgeSeconds
-    ? "PAPER"
-    : "VALIDATION_ONLY";
+  return Number.isFinite(observedMs) && Number.isFinite(ageSeconds) && ageSeconds >= 0 && ageSeconds <= maxAgeSeconds ? "PAPER" : "VALIDATION_ONLY";
+}
+
+export function classifyExecutionPaperEligibility(input: {
+  source?: string;
+  sourceFamily?: string;
+  observedAt?: string;
+  realtime?: boolean;
+  entitlement?: string;
+}, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
+  const freshness = classifyPaperEligibilityByFreshness(String(input.observedAt || ""), nowMs, maxAgeSeconds);
+  if (freshness !== "PAPER") return "VALIDATION_ONLY";
+  return classifyPaperEvidence(input).eligibility;
 }
 
 export function normalizeExecutionEvidence(value: Partial<ExecutionMarketEvidence>): ExecutionMarketEvidence | null {
@@ -201,20 +145,9 @@ export function normalizeExecutionEvidence(value: Partial<ExecutionMarketEvidenc
   const currency = String(value.currency || "").trim().toUpperCase();
   const price = Number(value.price);
   const observedAt = String(value.observedAt || "").trim();
-  const eligibility: ExecutionDataEligibility = value.eligibility === "LIVE" || value.eligibility === "PAPER"
-    ? value.eligibility
-    : "VALIDATION_ONLY";
+  const eligibility: ExecutionDataEligibility = value.eligibility === "LIVE" || value.eligibility === "PAPER" ? value.eligibility : "VALIDATION_ONLY";
   if (!symbol || !source || !sourceFamily || !currency || !Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(observedAt))) return null;
-  return {
-    symbol,
-    currency,
-    assetClass: value.assetClass,
-    source,
-    sourceFamily,
-    eligibility,
-    price,
-    observedAt: new Date(Date.parse(observedAt)).toISOString(),
-  };
+  return { symbol, currency, assetClass: value.assetClass, source, sourceFamily, eligibility, price, observedAt: new Date(Date.parse(observedAt)).toISOString() };
 }
 
 export function deduplicateExecutionEvidence(values: readonly ExecutionMarketEvidence[]): ExecutionMarketEvidence[] {
@@ -224,12 +157,7 @@ export function deduplicateExecutionEvidence(values: readonly ExecutionMarketEvi
     if (!normalized) continue;
     const key = `${normalized.symbol}:${normalized.sourceFamily}`;
     const previous = map.get(key);
-    if (!previous
-      || ELIGIBILITY_RANK[normalized.eligibility] > ELIGIBILITY_RANK[previous.eligibility]
-      || (ELIGIBILITY_RANK[normalized.eligibility] === ELIGIBILITY_RANK[previous.eligibility]
-        && Date.parse(normalized.observedAt) > Date.parse(previous.observedAt))) {
-      map.set(key, normalized);
-    }
+    if (!previous || ELIGIBILITY_RANK[normalized.eligibility] > ELIGIBILITY_RANK[previous.eligibility] || (ELIGIBILITY_RANK[normalized.eligibility] === ELIGIBILITY_RANK[previous.eligibility] && Date.parse(normalized.observedAt) > Date.parse(previous.observedAt))) map.set(key, normalized);
   }
   return [...map.values()].sort((a, b) => a.symbol.localeCompare(b.symbol) || a.sourceFamily.localeCompare(b.sourceFamily));
 }
