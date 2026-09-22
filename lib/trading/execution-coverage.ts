@@ -11,27 +11,34 @@ export type ExecutionCoverageEvidence = {
     eligibility?: "VALIDATION_ONLY" | "PAPER" | "LIVE" | string;
     price?: number;
     observedAt?: string;
+    provenanceVerified?: boolean;
+    provenanceMethod?: string;
   }>;
   errors?: Array<{ symbol?: string; provider?: string; code?: string }>;
 };
 
 // Directa is optional/read-only evidence for PAPER certification. These families
-// may independently contribute PAPER evidence when their terms/entitlements allow it.
+// may independently contribute PAPER evidence only after provider-specific
+// provenance verification by the execution-data collector.
 const APPROVED_INDEPENDENT_PAPER_FAMILIES = new Set([
   "twelve-data",
   "alpha-vantage",
   "massive",
   "alpaca",
 ]);
+const PREFERRED_ZERO_COST_PAPER_FAMILIES = ["alpaca", "twelve-data"] as const;
 
 function isEquityOrEtf(value: unknown): boolean {
   return /equity|stock|etf|azione|azion/i.test(String(value || ""));
 }
 
-function normalizeEligibility(value: unknown): MarketDataEligibility {
-  return value === "LIVE" || value === "PAPER" || value === "VALIDATION_ONLY"
-    ? value
-    : "VALIDATION_ONLY";
+function normalizeEligibility(item: {
+  eligibility?: string;
+  provenanceVerified?: boolean;
+}): MarketDataEligibility {
+  if (item?.eligibility === "LIVE") return item?.provenanceVerified === true ? "LIVE" : "VALIDATION_ONLY";
+  if (item?.eligibility === "PAPER") return item?.provenanceVerified === true ? "PAPER" : "VALIDATION_ONLY";
+  return "VALIDATION_ONLY";
 }
 
 export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvidence, now = Date.now()) {
@@ -46,7 +53,7 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
     const symbolObservations = rawObservations.map((item) => ({
       source: String(item?.source || ""),
       sourceFamily: item?.sourceFamily ? String(item.sourceFamily) : undefined,
-      eligibility: normalizeEligibility(item?.eligibility),
+      eligibility: normalizeEligibility(item),
       price: Number(item?.price),
       observedAt: String(item?.observedAt || ""),
     }));
@@ -54,16 +61,20 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
     const equityOrEtf = assetClasses.some(isEquityOrEtf);
     const directaPaperEvidence = rawObservations.some((item) =>
       String(item?.sourceFamily || "").trim().toLowerCase() === "directa"
-        && normalizeEligibility(item?.eligibility) === "PAPER",
+        && normalizeEligibility(item) === "PAPER",
     );
     const approvedIndependentPaperFamilies = [...new Set(rawObservations
-      .filter((item) => normalizeEligibility(item?.eligibility) === "PAPER")
+      .filter((item) => normalizeEligibility(item) === "PAPER")
       .map((item) => String(item?.sourceFamily || "").trim().toLowerCase())
       .filter((family) => APPROVED_INDEPENDENT_PAPER_FAMILIES.has(family))
     )].sort();
+    const unverifiedPaperEvidence = rawObservations
+      .filter((item) => (item?.eligibility === "PAPER" || item?.eligibility === "LIVE") && item?.provenanceVerified !== true)
+      .map((item) => String(item?.sourceFamily || item?.source || "unknown"));
 
-    // PAPER eligibility is determined by the generic fail-closed market-data quorum.
-    // Directa is diagnostic/optional here and cannot be a mandatory certification gate.
+    // PAPER eligibility is determined by the generic fail-closed market-data quorum
+    // after any PAPER/LIVE row lacking persisted provenance has been downgraded.
+    // Directa is diagnostic/optional and cannot be a mandatory certification gate.
     const paperEligible = decision.allowNewRisk;
     const directaOptionalEvidence = equityOrEtf && directaPaperEvidence;
 
@@ -76,6 +87,7 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
       directaPaperEvidence,
       directaOptionalEvidence,
       approvedIndependentPaperFamilies,
+      unverifiedPaperEvidence,
       independentSourceFamilies: decision.independentSources,
       sourceFamilies: decision.sourceFamilies,
       medianPrice: decision.medianPrice,
@@ -84,13 +96,18 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
       ineligibleEvidence: decision.ineligibleEvidence,
       invalidEvidence: decision.invalidEvidence,
       providerErrors: errors.filter((item) => String(item?.symbol || "").toUpperCase() === symbol),
-      reasons: [...decision.reasons],
+      reasons: [
+        ...decision.reasons,
+        ...(unverifiedPaperEvidence.length > 0
+          ? [`${unverifiedPaperEvidence.length} PAPER/LIVE observation(s) downgraded: provenance not verified`]
+          : []),
+      ],
     };
   });
 
   const paperEligible = rows.filter((row) => row.paperEligible);
   return {
-    version: 5,
+    version: 6,
     generatedAt: new Date(now).toISOString(),
     evidenceGeneratedAt: evidence?.generatedAt || null,
     requestedSymbols: rows.length,
@@ -107,7 +124,10 @@ export function evaluateExecutionCoverageReport(evidence: ExecutionCoverageEvide
       directaPaidRealtimeRequired: false,
       directaEvidenceOptionalForPaperCertification: true,
       approvedIndependentPaperSourceFamilies: [...APPROVED_INDEPENDENT_PAPER_FAMILIES].sort(),
+      preferredZeroCostPaperSourceFamilies: [...PREFERRED_ZERO_COST_PAPER_FAMILIES],
       validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
+      paperEligibilityRequiresVerifiedProvenance: true,
+      alphaVantageRealtimeMayRequirePaidEntitlement: true,
       liveTradingAllowed: false,
     },
   };
