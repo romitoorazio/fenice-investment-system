@@ -161,6 +161,9 @@ jobs:
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
+      - name: Source-status reconciliation invariants
+        run: node --experimental-strip-types scripts/test-data-hub-source-overlay.mjs
+
       - name: Validate published datasets
         run: |
           node - <<'NODE'
