@@ -56,40 +56,54 @@ function summarizeExecutionCoverage(coverage, evidence, nowMs) {
   const approvedPaperFamilies = Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies)
     ? coverage.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
     : [];
+  const observations = Array.isArray(evidence?.observations) ? evidence.observations : [];
+  const unverifiedPaperEvidence = observations.filter((row) =>
+    (row?.eligibility === "PAPER" || row?.eligibility === "LIVE") && row?.provenanceVerified !== true,
+  );
   const paperEligibleFamilies = new Set(
-    (Array.isArray(evidence?.observations) ? evidence.observations : [])
-      .filter((row) => row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
+    observations
+      .filter((row) => (row?.eligibility === "PAPER" || row?.eligibility === "LIVE") && row?.provenanceVerified === true)
       .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
       .filter(Boolean),
   );
-  const policyReady = Number(coverage?.version || 0) >= 5
+  const policyReady = Number(coverage?.version || 0) >= 6
     && coverage?.policy?.requiredEligibility === "PAPER"
     && Number(coverage?.policy?.minIndependentSourceFamilies || 0) >= 2
     && Number(coverage?.policy?.preferredIndependentSourceFamilies || 0) >= 3
     && coverage?.policy?.directaPaidRealtimeRequired === false
     && coverage?.policy?.directaEvidenceOptionalForPaperCertification === true
     && coverage?.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
+    && coverage?.policy?.paperEligibilityRequiresVerifiedProvenance === true
     && approvedPaperFamilies.length >= 2
     && coverage?.policy?.liveTradingAllowed === false
-    && Number(evidence?.version || 0) >= 9
+    && Number(evidence?.version || 0) >= 10
     && evidence?.policy?.liveTradingAllowed === false
     && evidence?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
     && evidence?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
     && evidence?.policy?.providerVenueMustBeVerifiedBeforePaperEligibility === true
     && evidence?.policy?.delayedIntradayEvidenceNeverSatisfiesPaperQuorum === true
-    && evidence?.policy?.paperEligibilityRequiresExplicitRealtimeAndEntitlement === true;
+    && evidence?.policy?.paperEligibilityRequiresExplicitRealtimeAndEntitlement === true
+    && evidence?.policy?.paperEligibilityRequiresVerifiedProvenance === true;
   const broadCoverageReady = Number(coverage?.requestedSymbols || 0) >= 3
     && Number(coverage?.paperEligibleSymbols || 0) >= 3
     && Number(coverage?.paperEligiblePercent || 0) >= 25;
   const paperSourceRedundancyReady = paperEligibleFamilies.size >= 2;
   return {
-    ready: fresh && matchesEvidence && policyReady && broadCoverageReady && paperSourceRedundancyReady,
+    ready: fresh
+      && matchesEvidence
+      && policyReady
+      && broadCoverageReady
+      && paperSourceRedundancyReady
+      && unverifiedPaperEvidence.length === 0,
     fresh,
     matchesEvidence,
     policyReady,
     broadCoverageReady,
     paperSourceRedundancyReady,
     paperEligibleSourceFamilies: paperEligibleFamilies.size,
+    unverifiedPaperObservations: unverifiedPaperEvidence.length,
+    executionEvidenceVersion: Number(evidence?.version || 0),
+    executionCoverageVersion: Number(coverage?.version || 0),
     approvedPaperFamilies,
     directaPaidRealtimeRequired: coverage?.policy?.directaPaidRealtimeRequired === true,
     directaEvidenceOptionalForPaperCertification: coverage?.policy?.directaEvidenceOptionalForPaperCertification === true,
@@ -187,7 +201,7 @@ if (additionalPaperFills > 0) {
     throw new Error(`PAPER_CAMPAIGN_DECISION_DATA_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh institutional decision-data evidence.`);
   }
   if (!executionMarket.ready) {
-    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh provider-neutral PAPER execution coverage evidence.`);
+    throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh provenance-verified provider-neutral PAPER execution coverage evidence.`);
   }
   fillEvidenceWindows.push({
     observedAt: now.toISOString(),
