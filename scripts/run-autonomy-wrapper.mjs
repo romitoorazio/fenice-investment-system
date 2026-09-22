@@ -37,18 +37,41 @@ function repairGdeltUrl(value) {
   return url;
 }
 
-async function fetchGdelt(url, init) {
+async function waitForGdeltSlot() {
   const elapsed = Date.now() - lastGdeltRequestAt;
   if (elapsed < 7000) await sleep(7000 - elapsed);
   lastGdeltRequestAt = Date.now();
+}
 
-  let response = await nativeFetch(url, init);
-  if (response.status === 429) {
-    await sleep(15000);
-    lastGdeltRequestAt = Date.now();
-    response = await nativeFetch(url, init);
+async function gdeltResponseLooksJson(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (/application\/json|text\/json/i.test(contentType)) return true;
+  try {
+    const preview = (await response.clone().text()).trim();
+    return preview.startsWith("{") || preview.startsWith("[");
+  } catch {
+    return false;
   }
-  return response;
+}
+
+async function fetchGdelt(url, init) {
+  let lastResponse = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await waitForGdeltSlot();
+    const response = await nativeFetch(url, init);
+    lastResponse = response;
+
+    const transientStatus = response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500;
+    const invalidJson200 = response.ok && !(await gdeltResponseLooksJson(response));
+    if (!transientStatus && !invalidJson200) return response;
+
+    if (attempt < 3) {
+      const delay = response.status === 429 ? 15000 : 5000 * attempt;
+      await sleep(delay);
+    }
+  }
+
+  return lastResponse;
 }
 
 globalThis.fetch = async (input, init = {}) => {
