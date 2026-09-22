@@ -80,29 +80,39 @@ const executionCoverageMatchesEvidence = Number.isFinite(executionEvidenceTimest
 const requestedExecutionSymbols = Math.max(0, Number(executionCoverage?.requestedSymbols || 0));
 const paperEligibleSymbols = Math.max(0, Number(executionCoverage?.paperEligibleSymbols || 0));
 const paperEligiblePercent = Math.max(0, Number(executionCoverage?.paperEligiblePercent || 0));
-const directaPilotCandidateSymbols = Math.max(0, Number(executionCoverage?.directaPilotCandidateSymbols || 0));
-const directaPilotEligibleSymbols = Math.max(0, Number(executionCoverage?.directaPilotEligibleSymbols || 0));
-const directaPilotEligiblePercent = Math.max(0, Number(executionCoverage?.directaPilotEligiblePercent || 0));
-const directaCoveragePolicyReady = Number(executionCoverage?.version || 0) >= 3
-  && executionCoverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true
-  && executionCoverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true;
+const executionObservations = Array.isArray(executionMarket?.observations) ? executionMarket.observations : [];
+const paperEligibleSourceFamilies = new Set(
+  executionObservations
+    .filter((row) => row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
+    .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
+    .filter(Boolean),
+);
+const approvedIndependentPaperSourceFamilies = Array.isArray(executionCoverage?.policy?.approvedIndependentPaperSourceFamilies)
+  ? executionCoverage.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
+  : [];
+const zeroCostCoveragePolicyReady = Number(executionCoverage?.version || 0) >= 5
+  && executionCoverage?.policy?.requiredEligibility === "PAPER"
+  && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
+  && Number(executionCoverage?.policy?.preferredIndependentSourceFamilies || 0) >= 3
+  && executionCoverage?.policy?.directaPaidRealtimeRequired === false
+  && executionCoverage?.policy?.directaEvidenceOptionalForPaperCertification === true
+  && executionCoverage?.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
+  && approvedIndependentPaperSourceFamilies.length >= 2
+  && executionCoverage?.policy?.liveTradingAllowed === false;
 const executionMarketCoverageReady = executionEvidenceFresh
   && executionCoverageFresh
   && executionCoverageMatchesEvidence
   && executionMarket?.policy?.liveTradingAllowed === false
   && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
   && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
-  && directaCoveragePolicyReady
-  && executionCoverage?.policy?.requiredEligibility === "PAPER"
-  && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
-  && Number(executionCoverage?.policy?.minimumDirectaPilotEligibleSymbols || 0) >= 3
-  && executionCoverage?.policy?.cryptoCannotSatisfyDirectaPilotCoverage === true
-  && executionCoverage?.policy?.liveTradingAllowed === false
+  && paperEligibleSourceFamilies.size >= 2
+  && zeroCostCoveragePolicyReady
   && requestedExecutionSymbols >= 3
   && paperEligibleSymbols >= 3
-  && paperEligiblePercent >= 25
-  && directaPilotCandidateSymbols >= 3
-  && directaPilotEligibleSymbols >= 3;
+  && paperEligiblePercent >= 25;
+
+const coverageRows = Array.isArray(executionCoverage?.rows) ? executionCoverage.rows : [];
+const directaOptionalEvidenceSymbols = coverageRows.filter((row) => row?.directaOptionalEvidence === true).length;
 
 const guardrails = governance?.guardrails || {};
 const prohibited = new Set(governance?.prohibitedActions || []);
@@ -186,8 +196,10 @@ const status = {
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     executionMarketCoverage: executionMarketCoverageReady ? "PASS" : "NOT_READY",
-    directaCoveragePolicy: directaCoveragePolicyReady ? "PASS" : "NOT_READY",
-    directaPilotCoverage: directaPilotEligibleSymbols >= 3 && directaCoveragePolicyReady ? "PASS" : "NOT_READY",
+    zeroCostPaperCoveragePolicy: zeroCostCoveragePolicyReady ? "PASS" : "NOT_READY",
+    paperSourceRedundancy: paperEligibleSourceFamilies.size >= 2 ? "PASS" : "NOT_READY",
+    directaCoveragePolicy: "NOT_REQUIRED",
+    directaPilotCoverage: "NOT_REQUIRED",
     systemTests: systemTestsReady ? "PASS" : "NOT_READY",
     riskControls: riskControlsReady ? "PASS" : "NOT_READY",
     historicalPaperEvidence: historicalPaperEvidence ? "PASS" : "NOT_VALIDATED",
@@ -218,18 +230,16 @@ const status = {
     executionCoverageAgeMinutes: Number.isFinite(executionCoverageAgeMinutes) ? Number(executionCoverageAgeMinutes.toFixed(1)) : null,
     executionCoverageMatchesEvidence,
     executionCoverageVersion: Number(executionCoverage?.version || 0),
-    directaCoverageRequiresBrokerPaperSource: executionCoverage?.policy?.requireDirectaPaperSourceForDirectaPilot === true,
-    directaCoverageRequiresIndependentFallback: executionCoverage?.policy?.requireIndependentNonDirectaPaperSourceForDirectaPilot === true,
-    directaRealtimeEntitlementConfirmed: executionMarket?.capabilities?.directaRealtimeEntitlementConfirmed === true,
+    paperEligibleSourceFamilies: paperEligibleSourceFamilies.size,
+    approvedIndependentPaperSourceFamilies,
+    directaPaidRealtimeRequired: executionCoverage?.policy?.directaPaidRealtimeRequired === true,
+    directaEvidenceOptionalForPaperCertification: executionCoverage?.policy?.directaEvidenceOptionalForPaperCertification === true,
+    directaOptionalEvidenceSymbols,
     requestedExecutionSymbols,
     paperEligibleSymbols,
     paperEligiblePercent,
     minimumPaperEligibleSymbols: 3,
     minimumPaperEligiblePercent: 25,
-    directaPilotCandidateSymbols,
-    directaPilotEligibleSymbols,
-    directaPilotEligiblePercent,
-    minimumDirectaPilotEligibleSymbols: 3,
     terminalAssets: terminalAssets.length,
     researchCompanies: researchCompanies.length,
     paperRecords: records.length,
