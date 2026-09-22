@@ -38,17 +38,28 @@ const sourceFallbacksSafe = criticalFailures.every((id) => {
   return staleAgeHours >= 0 && staleAgeHours <= 24;
 });
 
-const criticalSourcesFresh = Array.isArray(sources?.sources)
-  && sources.sources.filter((source) => source?.critical === true).every((source) => {
+const criticalSourceRows = Array.isArray(sources?.sources)
+  ? sources.sources.filter((source) => source?.critical === true)
+  : [];
+const criticalSourcesFresh = criticalSourceRows.length > 0
+  && criticalSourceRows.every((source) => {
     const checkedAge = ageHours(source?.checkedAt);
     const successfulAge = ageHours(source?.lastSuccessfulAt);
-    if (source?.status === "healthy") return checkedAge >= 0 && checkedAge <= 24 && successfulAge >= 0 && successfulAge <= 24;
-    if (source?.status === "degraded" && source?.stale === true) return successfulAge >= 0 && successfulAge <= 24;
+    const checkedFresh = checkedAge >= 0 && checkedAge <= 24;
+    const successFresh = successfulAge >= 0 && successfulAge <= 24;
+
+    if (source?.status === "healthy") return checkedFresh && successFresh;
+    if (source?.status === "degraded" && source?.stale !== true) return checkedFresh && successFresh;
+    if (source?.status === "degraded" && source?.stale === true) return successFresh;
     return false;
   });
 
+const criticalCountMatches = Number(sources?.critical?.total || 0) > 0
+  && criticalSourceRows.length === Number(sources?.critical?.total || 0)
+  && Number(sources?.critical?.ready || 0) <= criticalSourceRows.length;
 const sourceReady = sourceReportFresh
   && criticalSourcesFresh
+  && criticalCountMatches
   && (sources?.critical?.gate === "GREEN" || (criticalFailures.length > 0 && sourceFallbacksSafe));
 
 const crossChecks = Number(intelligence?.crossSourceValidation?.checked || 0);
@@ -206,7 +217,7 @@ const status = {
   ready,
   gates: {
     criticalSources: sourceReady ? "PASS" : "NOT_READY",
-    sourceReportFreshness: sourceReportFresh && criticalSourcesFresh ? "PASS" : "NOT_READY",
+    sourceReportFreshness: sourceReportFresh && criticalSourcesFresh && criticalCountMatches ? "PASS" : "NOT_READY",
     intelligenceReportFreshness: intelligenceReportFresh ? "PASS" : "NOT_READY",
     dataQuality: dataQualityReady ? "PASS" : "NOT_READY",
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
@@ -233,9 +244,11 @@ const status = {
   metrics: {
     sourceGate: sources?.gate ?? "UNKNOWN",
     sourceReportAgeHours: Number.isFinite(reportAgeHours) ? Number(reportAgeHours.toFixed(2)) : null,
-    intelligenceReportAgeHours: Number.isFinite(intelligenceReportAgeHours) ? Number(intelligenceReportAgeHours.toFixed(2)) : null,
     criticalReady: Number(sources?.critical?.ready || 0),
     criticalTotal: Number(sources?.critical?.total || 0),
+    criticalRowsObserved: criticalSourceRows.length,
+    criticalDegradedFresh: criticalSourceRows.filter((source) => source?.status === "degraded" && source?.stale !== true).length,
+    intelligenceReportAgeHours: Number.isFinite(intelligenceReportAgeHours) ? Number(intelligenceReportAgeHours.toFixed(2)) : null,
     intelligenceConfidence: Number(intelligence?.intelligenceConfidence || 0),
     minimumCrossChecksRequired: 10,
     crossChecks,
