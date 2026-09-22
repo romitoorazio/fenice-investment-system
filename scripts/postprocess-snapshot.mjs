@@ -196,11 +196,17 @@ function recalculate(snapshot) {
   const strongDiscoveries = snapshot.discoveries.filter((item) => item.score >= 70).length;
   const discoveryHeat = round(clamp(snapshot.discoveries.length * 1.2 + strongDiscoveries * 1.8, 0, 90));
   const macroHealth = snapshot.macro.length ? round(clamp(50 + snapshot.macro.length * 3, 0, 70)) : snapshot.pulse.macroHealth;
-  const confidence = round(clamp(
-    20 +
-      snapshot.providers.filter((item) => item.state === "operativo").length * 11 +
-      snapshot.providers.filter((item) => item.state === "parziale").length * 5,
-  ));
+
+  const providerCount = snapshot.providers.length;
+  const operationalProviders = snapshot.providers.filter((item) => item.state === "operativo").length;
+  const partialProviders = snapshot.providers.filter((item) => item.state === "parziale").length;
+  const errorProviders = snapshot.providers.filter((item) => item.state === "errore").length;
+  const unconfiguredProviders = snapshot.providers.filter((item) => item.state === "non configurato").length;
+  const providerCoverage = providerCount
+    ? (operationalProviders + partialProviders * 0.55) / providerCount
+    : 0;
+  const confidence = round(clamp(20 + providerCoverage * 75, 0, 95));
+
   const opportunity = round(clamp(marketMomentum * 0.42 + macroHealth * 0.28 + discoveryHeat * 0.3));
   const risk = round(clamp(snapshot.pulse.risk + snapshot.discoveries.filter((item) => item.risk >= 88).length * 0.35, 0, 82));
 
@@ -218,7 +224,26 @@ function recalculate(snapshot) {
     macroHealth,
     discoveryHeat,
   };
-  snapshot.mode = confidence >= 65 ? "live" : confidence >= 40 ? "partial" : "bootstrap";
+
+  // "live" here means live/healthy data coverage, never live trading. It is
+  // intentionally fail-closed: any provider error or missing configuration
+  // keeps the intelligence layer in partial mode even if aggregate confidence
+  // remains usable for research.
+  snapshot.mode =
+    confidence >= 75 && errorProviders === 0 && unconfiguredProviders === 0
+      ? "live"
+      : confidence >= 40
+        ? "partial"
+        : "bootstrap";
+
+  snapshot.providerHealth = {
+    total: providerCount,
+    operational: operationalProviders,
+    partial: partialProviders,
+    error: errorProviders,
+    unconfigured: unconfiguredProviders,
+    weightedCoveragePercent: round(providerCoverage * 100),
+  };
 }
 
 async function main() {
