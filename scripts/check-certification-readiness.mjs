@@ -81,30 +81,46 @@ const requestedExecutionSymbols = Math.max(0, Number(executionCoverage?.requeste
 const paperEligibleSymbols = Math.max(0, Number(executionCoverage?.paperEligibleSymbols || 0));
 const paperEligiblePercent = Math.max(0, Number(executionCoverage?.paperEligiblePercent || 0));
 const executionObservations = Array.isArray(executionMarket?.observations) ? executionMarket.observations : [];
+const unverifiedPaperObservations = executionObservations.filter((row) =>
+  (row?.eligibility === "PAPER" || row?.eligibility === "LIVE") && row?.provenanceVerified !== true,
+);
 const paperEligibleSourceFamilies = new Set(
   executionObservations
-    .filter((row) => row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
+    .filter((row) => (row?.eligibility === "PAPER" || row?.eligibility === "LIVE") && row?.provenanceVerified === true)
     .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
     .filter(Boolean),
 );
 const approvedIndependentPaperSourceFamilies = Array.isArray(executionCoverage?.policy?.approvedIndependentPaperSourceFamilies)
   ? executionCoverage.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
   : [];
-const zeroCostCoveragePolicyReady = Number(executionCoverage?.version || 0) >= 5
+const preferredZeroCostPaperSourceFamilies = Array.isArray(executionCoverage?.policy?.preferredZeroCostPaperSourceFamilies)
+  ? executionCoverage.policy.preferredZeroCostPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
+  : [];
+const executionEvidencePolicyReady = Number(executionMarket?.version || 0) >= 10
+  && executionMarket?.policy?.liveTradingAllowed === false
+  && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
+  && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
+  && executionMarket?.policy?.providerVenueMustBeVerifiedBeforePaperEligibility === true
+  && executionMarket?.policy?.delayedIntradayEvidenceNeverSatisfiesPaperQuorum === true
+  && executionMarket?.policy?.paperEligibilityRequiresExplicitRealtimeAndEntitlement === true
+  && executionMarket?.policy?.paperEligibilityRequiresVerifiedProvenance === true;
+const zeroCostCoveragePolicyReady = Number(executionCoverage?.version || 0) >= 6
   && executionCoverage?.policy?.requiredEligibility === "PAPER"
   && Number(executionCoverage?.policy?.minIndependentSourceFamilies || 0) >= 2
   && Number(executionCoverage?.policy?.preferredIndependentSourceFamilies || 0) >= 3
   && executionCoverage?.policy?.directaPaidRealtimeRequired === false
   && executionCoverage?.policy?.directaEvidenceOptionalForPaperCertification === true
   && executionCoverage?.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
+  && executionCoverage?.policy?.paperEligibilityRequiresVerifiedProvenance === true
   && approvedIndependentPaperSourceFamilies.length >= 2
+  && preferredZeroCostPaperSourceFamilies.includes("twelve-data")
+  && preferredZeroCostPaperSourceFamilies.includes("alpaca")
   && executionCoverage?.policy?.liveTradingAllowed === false;
 const executionMarketCoverageReady = executionEvidenceFresh
   && executionCoverageFresh
   && executionCoverageMatchesEvidence
-  && executionMarket?.policy?.liveTradingAllowed === false
-  && executionMarket?.policy?.validationOnlySourcesNeverSatisfyPaperQuorum === true
-  && executionMarket?.policy?.untaggedLegacyEvidenceDefaultsToValidationOnly === true
+  && executionEvidencePolicyReady
+  && unverifiedPaperObservations.length === 0
   && paperEligibleSourceFamilies.size >= 2
   && zeroCostCoveragePolicyReady
   && requestedExecutionSymbols >= 3
@@ -196,6 +212,8 @@ const status = {
     validationEvidenceFreshness: validationFreshnessPolicyReady ? "PASS" : "NOT_READY",
     crossSourceValidation: crossValidationReady ? "PASS" : "NOT_READY",
     executionMarketCoverage: executionMarketCoverageReady ? "PASS" : "NOT_READY",
+    executionMarketProvenancePolicy: executionEvidencePolicyReady ? "PASS" : "NOT_READY",
+    verifiedPaperProvenance: unverifiedPaperObservations.length === 0 ? "PASS" : "NOT_READY",
     zeroCostPaperCoveragePolicy: zeroCostCoveragePolicyReady ? "PASS" : "NOT_READY",
     paperSourceRedundancy: paperEligibleSourceFamilies.size >= 2 ? "PASS" : "NOT_READY",
     directaCoveragePolicy: "NOT_REQUIRED",
@@ -229,9 +247,12 @@ const status = {
     executionEvidenceAgeMinutes: Number.isFinite(executionEvidenceAgeMinutes) ? Number(executionEvidenceAgeMinutes.toFixed(1)) : null,
     executionCoverageAgeMinutes: Number.isFinite(executionCoverageAgeMinutes) ? Number(executionCoverageAgeMinutes.toFixed(1)) : null,
     executionCoverageMatchesEvidence,
+    executionEvidenceVersion: Number(executionMarket?.version || 0),
     executionCoverageVersion: Number(executionCoverage?.version || 0),
     paperEligibleSourceFamilies: paperEligibleSourceFamilies.size,
+    unverifiedPaperObservations: unverifiedPaperObservations.length,
     approvedIndependentPaperSourceFamilies,
+    preferredZeroCostPaperSourceFamilies,
     directaPaidRealtimeRequired: executionCoverage?.policy?.directaPaidRealtimeRequired === true,
     directaEvidenceOptionalForPaperCertification: executionCoverage?.policy?.directaEvidenceOptionalForPaperCertification === true,
     directaOptionalEvidenceSymbols,
