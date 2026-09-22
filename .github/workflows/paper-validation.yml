@@ -18,7 +18,7 @@ concurrency:
 jobs:
   paper-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       FENICE_JOB: intraday
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "3"
@@ -49,10 +49,27 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Check campaign state
+      # Always rebuild current evidence before deciding whether a PAPER campaign
+      # may start. This keeps campaign start autonomous but strictly fail-closed.
+      - name: Refresh critical source health for PAPER baseline
+        run: npm run sources:check
+
+      - name: Build fresh intelligence quality for PAPER baseline
+        run: node scripts/run-intelligence.mjs
+
+      - name: Refresh independent execution market evidence
+        run: npm run marketdata:execution
+
+      - name: Refresh per-symbol PAPER execution coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Check or safely start PAPER campaign
         id: campaign
+        shell: bash
         run: |
-          node - <<'NODE'
+          set -u
+
+          current_state="$(node - <<'NODE'
           const fs = require('fs');
           const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
           const fingerprint = campaign?.baselineFingerprint;
@@ -64,17 +81,48 @@ jobs:
             && fingerprint?.algorithm === 'sha256'
             && /^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))
           );
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `started=${started}\n`);
-          console.log(started ? 'Paper validation campaign active with immutable core fingerprint' : 'Paper validation campaign not started/invalid baseline; no evidence will be written');
+          process.stdout.write(started ? 'started' : 'not-started');
           NODE
+          )"
 
-      - name: Refresh critical source health for decision-data gate
-        if: steps.campaign.outputs.started == 'true'
-        run: npm run sources:check
+          auto_started=false
+          baseline_ready=false
+          if [ "$current_state" = "started" ]; then
+            baseline_ready=true
+          else
+            if npm run paper:baseline:require; then
+              baseline_ready=true
+              npm run paper:validation:start
+              auto_started=true
+            else
+              echo "PAPER baseline is not yet eligible; campaign start remains fail-closed."
+            fi
+          fi
 
-      - name: Build fresh intelligence quality for decision-data gate
-        if: steps.campaign.outputs.started == 'true'
-        run: node scripts/run-intelligence.mjs
+          started="$(node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const fingerprint = campaign?.baselineFingerprint;
+          const started = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.liveTradingAllowed === false
+            && fingerprint?.complete === true
+            && fingerprint?.algorithm === 'sha256'
+            && /^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))
+          );
+          process.stdout.write(started ? 'true' : 'false');
+          NODE
+          )"
+
+          echo "started=$started" >> "$GITHUB_OUTPUT"
+          echo "auto_started=$auto_started" >> "$GITHUB_OUTPUT"
+          echo "baseline_ready=$baseline_ready" >> "$GITHUB_OUTPUT"
+          if [ "$started" = "true" ]; then
+            echo "Paper validation campaign active; auto_started=$auto_started"
+          else
+            echo "Paper validation campaign remains inactive; no evidence will be fabricated or backdated."
+          fi
 
       - name: Assess daily decision-data gate
         if: steps.campaign.outputs.started == 'true'
@@ -89,14 +137,6 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${result.ready}\n`);
           console.log(`Daily decision-data gate: ${result.ready ? 'PASS' : 'BLOCK'}; sources=${result.metrics.criticalReady}/${result.metrics.criticalTotal}; confidence=${result.metrics.confidence}; checks=${result.metrics.crossChecks}; divergence=${result.metrics.divergent}; concentration=${result.metrics.sourceConcentrationPercent}.`);
           NODE
-
-      - name: Refresh independent execution market evidence
-        if: steps.campaign.outputs.started == 'true'
-        run: npm run marketdata:execution
-
-      - name: Refresh per-symbol PAPER execution coverage
-        if: steps.campaign.outputs.started == 'true'
-        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
       - name: Exercise PAPER-only OMS
         if: steps.campaign.outputs.started == 'true' && steps.decision_data.outputs.ready == 'true'
