@@ -19,6 +19,8 @@ export type ExecutionMarketEvidence = {
   eligibility: ExecutionDataEligibility;
   price: number;
   observedAt: string;
+  provenanceVerified?: boolean;
+  provenanceMethod?: string;
 };
 
 const MIC_TO_YAHOO_SUFFIX: Readonly<Record<string, string>> = {
@@ -153,7 +155,18 @@ export function normalizeExecutionEvidence(value: Partial<ExecutionMarketEvidenc
   const observedAt = String(value.observedAt || "").trim();
   const eligibility: ExecutionDataEligibility = value.eligibility === "LIVE" || value.eligibility === "PAPER" ? value.eligibility : "VALIDATION_ONLY";
   if (!symbol || !source || !sourceFamily || !currency || !Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(observedAt))) return null;
-  return { symbol, currency, assetClass: value.assetClass, source, sourceFamily, eligibility, price, observedAt: new Date(Date.parse(observedAt)).toISOString() };
+  return {
+    symbol,
+    currency,
+    assetClass: value.assetClass,
+    source,
+    sourceFamily,
+    eligibility,
+    price,
+    observedAt: new Date(Date.parse(observedAt)).toISOString(),
+    provenanceVerified: value.provenanceVerified === true,
+    provenanceMethod: String(value.provenanceMethod || "").trim() || undefined,
+  };
 }
 
 export function deduplicateExecutionEvidence(values: readonly ExecutionMarketEvidence[]): ExecutionMarketEvidence[] {
