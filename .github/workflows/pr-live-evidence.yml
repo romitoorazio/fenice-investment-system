@@ -120,13 +120,17 @@ jobs:
               };
             })
             .sort((a, b) => b.count - a.count || a.provider.localeCompare(b.provider) || a.code.localeCompare(b.code));
+          const observations = Array.isArray(e.observations) ? e.observations : [];
           const approvedPaperFamilies = Array.isArray(c.policy?.approvedIndependentPaperSourceFamilies)
             ? c.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
             : [];
-          const paperEligibleSourceFamilies = [...new Set((Array.isArray(e.observations) ? e.observations : [])
-            .filter((row) => row?.eligibility === 'PAPER' || row?.eligibility === 'LIVE')
+          const paperEligibleSourceFamilies = [...new Set(observations
+            .filter((row) => (row?.eligibility === 'PAPER' || row?.eligibility === 'LIVE') && row?.provenanceVerified === true)
             .map((row) => String(row?.sourceFamily || '').trim().toLowerCase())
             .filter(Boolean))].sort();
+          const unverifiedPaperObservations = observations.filter((row) =>
+            (row?.eligibility === 'PAPER' || row?.eligibility === 'LIVE') && row?.provenanceVerified !== true
+          ).length;
           const metrics = {
             generatedAt: new Date().toISOString(),
             auditedCommit: process.env.GITHUB_SHA,
@@ -146,8 +150,8 @@ jobs:
             executionEvidenceAgeHours: ageHours(e.generatedAt),
             executionEvidenceVersion: Number(e.version || 0),
             executionCoverageVersion: Number(c.version || 0),
-            executionObservations: Array.isArray(e.observations) ? e.observations.length : 0,
-            executionProviders: [...new Set((e.observations || []).map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
+            executionObservations: observations.length,
+            executionProviders: [...new Set(observations.map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
             executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
             executionProviderErrorSummary,
             twelveDataConfigured: e.capabilities?.twelveDataConfigured === true,
@@ -165,11 +169,13 @@ jobs:
             paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
             paperEligiblePercent: Number(c.paperEligiblePercent || 0),
             paperEligibleSourceFamilies,
+            unverifiedPaperObservations,
             approvedIndependentPaperSourceFamilies: approvedPaperFamilies,
             directaPaidRealtimeRequired: c.policy?.directaPaidRealtimeRequired === true,
             directaEvidenceOptionalForPaperCertification: c.policy?.directaEvidenceOptionalForPaperCertification === true,
             validationOnlyEvidenceCannotSatisfyPaperQuorum: c.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true,
             provenanceRequired: e.policy?.paperEligibilityRequiresVerifiedProvenance === true,
+            coverageProvenanceRequired: c.policy?.paperEligibilityRequiresVerifiedProvenance === true,
             paperGreenSymbols: Array.isArray(c.greenSymbols) ? c.greenSymbols : [],
             paperCautionSymbols: Array.isArray(c.cautionSymbols) ? c.cautionSymbols : [],
             paperBlockedSymbols: Array.isArray(c.blockedSymbols) ? c.blockedSymbols : [],
@@ -183,15 +189,17 @@ jobs:
             assetClasses3: metrics.assetClasses >= 3,
             crossChecks10: metrics.crossChecks >= 10,
             zeroDivergence: metrics.divergent === 0,
-            hardenedExecutionSchema: metrics.executionEvidenceVersion >= 10 && metrics.executionCoverageVersion >= 5,
+            hardenedExecutionSchema: metrics.executionEvidenceVersion >= 10 && metrics.executionCoverageVersion >= 6,
             providerNeutralPaperPolicy: metrics.directaPaidRealtimeRequired === false
               && metrics.directaEvidenceOptionalForPaperCertification === true
               && metrics.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
               && metrics.provenanceRequired === true
+              && metrics.coverageProvenanceRequired === true
               && metrics.approvedIndependentPaperSourceFamilies.length >= 2,
             zeroCostSourceRoutesPresent: metrics.approvedIndependentPaperSourceFamilies.includes('twelve-data')
               && metrics.approvedIndependentPaperSourceFamilies.includes('alpaca'),
             executionEvidencePresent: metrics.executionObservations > 0,
+            provenanceClean: metrics.unverifiedPaperObservations === 0,
             paperSourceRedundancy: metrics.paperEligibleSourceFamilies.length >= 2,
             paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
             liveTradingLocked: metrics.liveTradingAllowed === false,
@@ -201,19 +209,19 @@ jobs:
             metrics,
             gates,
             cloudDataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
-            hardenedExecutionPolicyReady: gates.hardenedExecutionSchema && gates.providerNeutralPaperPolicy && gates.zeroCostSourceRoutesPresent && gates.liveTradingLocked,
-            broadPaperExecutionCoverageReady: gates.executionEvidencePresent && gates.paperSourceRedundancy && gates.paperExecutionCoverage,
+            hardenedExecutionPolicyReady: gates.hardenedExecutionSchema && gates.providerNeutralPaperPolicy && gates.zeroCostSourceRoutesPresent && gates.provenanceClean && gates.liveTradingLocked,
+            broadPaperExecutionCoverageReady: gates.executionEvidencePresent && gates.provenanceClean && gates.paperSourceRedundancy && gates.paperExecutionCoverage,
             zeroCostIndependentSourcesConfigured: metrics.twelveDataConfigured && metrics.alpacaConfigured,
             localDirectaEvidenceRequired: false,
             directaEvidenceRole: 'optional-readonly-shadow',
             cloudRunnerCanCertifyDirectaLocalFeed: false,
-            note: 'PAPER certification is provider-neutral and fail-closed. Twelve Data + Alpaca IEX are the preferred zero-cost US source pair when configured; Directa local evidence is optional for PAPER and remains useful for future read-only/shadow broker validation.',
+            note: 'PAPER certification is provider-neutral and fail-closed. Twelve Data + Alpaca IEX are the preferred zero-cost US source pair when configured. Alpaca Basic IEX is realtime but single-venue/incomplete and is accepted only as one independent PAPER/test source inside a multi-source quorum, never as NBBO/live-trading authority. Directa local evidence is optional for PAPER and remains useful for future read-only/shadow broker validation.',
           };
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
           if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
-          if (!gates.hardenedExecutionSchema || !gates.providerNeutralPaperPolicy || !gates.zeroCostSourceRoutesPresent) {
-            throw new Error('SAFETY_FAILURE: live audit is not using the hardened provider-neutral PAPER policy');
+          if (!gates.hardenedExecutionSchema || !gates.providerNeutralPaperPolicy || !gates.zeroCostSourceRoutesPresent || !gates.provenanceClean) {
+            throw new Error('SAFETY_FAILURE: live audit is not using the hardened provenance-safe provider-neutral PAPER policy');
           }
           NODE
 
