@@ -54,6 +54,7 @@ export function inferExecutionSourceFamily(source: unknown): string {
   if (!normalized) return "";
   if (normalized.includes("twelve data")) return "twelve-data";
   if (normalized.includes("alpha vantage")) return "alpha-vantage";
+  if (normalized.includes("alpaca")) return "alpaca";
   if (normalized.includes("yahoo")) return "yahoo";
   if (normalized.includes("stooq")) return "stooq";
   if (normalized.includes("coinbase")) return "coinbase";
@@ -88,6 +89,10 @@ export function isTwelveDataPaperCandidate(instrument: ExecutionInstrument): boo
 }
 
 export function isAlphaVantageIntradayCandidate(instrument: ExecutionInstrument): boolean {
+  return isListedSecurity(instrument.assetClass) && US_REALTIME_MICS.has(String(instrument.exchangeMic || "").toUpperCase());
+}
+
+export function isAlpacaPaperCandidate(instrument: ExecutionInstrument): boolean {
   return isListedSecurity(instrument.assetClass) && US_REALTIME_MICS.has(String(instrument.exchangeMic || "").toUpperCase());
 }
 
@@ -132,6 +137,7 @@ export function classifyExecutionPaperEligibility(input: {
   observedAt?: string;
   realtime?: boolean;
   entitlement?: string;
+  provenanceVerified?: boolean;
 }, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
   const freshness = classifyPaperEligibilityByFreshness(String(input.observedAt || ""), nowMs, maxAgeSeconds);
   if (freshness !== "PAPER") return "VALIDATION_ONLY";
