@@ -50,9 +50,9 @@ jobs:
       # Twelve Data Basic allows a small free per-minute budget. Six probes leave
       # headroom while making the >=3-symbol PAPER baseline less brittle.
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
-      # Realtime Alpha Vantage currently requires a paid entitlement on this route;
-      # keep support in code but do not spend requests in the zero-cost certification path.
-      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "0"
+      # The collector currently treats literal 0 as its default; a negative value
+      # is intentionally clamped to zero. This disables paid Alpha realtime probes.
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
       APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
@@ -165,6 +165,7 @@ jobs:
             alpacaProbeLimit: Number(e.capabilities?.alpacaProbeLimit || 0),
             alpacaPaperFreshObservations: Number(e.capabilities?.alpacaPaperFreshObservations || 0),
             alphaVantageConfigured: e.capabilities?.alphaVantageConfigured === true,
+            alphaVantageProbeLimit: Number(e.capabilities?.alphaVantageProbeLimit || 0),
             alphaVantagePaperFreshObservations: Number(e.capabilities?.alphaVantagePaperFreshObservations || 0),
             directaLocalSnapshotDetected: e.capabilities?.directaLocalSnapshotDetected === true,
             directaLocalSnapshotAccepted: e.capabilities?.directaLocalSnapshotAccepted === true,
@@ -204,6 +205,7 @@ jobs:
               && metrics.approvedIndependentPaperSourceFamilies.includes('alpaca'),
             executionEvidencePresent: metrics.executionObservations > 0,
             provenanceClean: metrics.unverifiedPaperObservations === 0,
+            paidAlphaRealtimeDisabled: metrics.alphaVantageProbeLimit === 0,
             paperSourceRedundancy: metrics.paperEligibleSourceFamilies.length >= 2,
             paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
             liveTradingLocked: metrics.liveTradingAllowed === false,
@@ -224,8 +226,8 @@ jobs:
           fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
           console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
           if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
-          if (!gates.hardenedExecutionSchema || !gates.providerNeutralPaperPolicy || !gates.zeroCostSourceRoutesPresent || !gates.provenanceClean) {
-            throw new Error('SAFETY_FAILURE: live audit is not using the hardened provenance-safe provider-neutral PAPER policy');
+          if (!gates.hardenedExecutionSchema || !gates.providerNeutralPaperPolicy || !gates.zeroCostSourceRoutesPresent || !gates.provenanceClean || !gates.paidAlphaRealtimeDisabled) {
+            throw new Error('SAFETY_FAILURE: live audit is not using the hardened zero-cost provenance-safe PAPER policy');
           }
           NODE
 
