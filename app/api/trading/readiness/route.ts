@@ -1,16 +1,20 @@
 import intelligence from "@/data/intelligence-quality.json";
+import executionMarket from "@/data/execution-market-evidence.json";
+import executionCoverage from "@/data/execution-market-coverage.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
+import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
+  const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const readiness = buildInstitutionalReadiness(intelligence, {
+    executionMarketQuorumVerified: executionReadiness.verified,
     // These controls require runtime evidence from the local Directa bridge,
-    // execution-market quorum checks or time-matured validation. Cloud code
+    // reconciliation/recovery proofs or time-matured validation. Cloud code
     // must never mark them PASS by itself.
-    executionMarketQuorumVerified: false,
     brokerReadOnlyVerified: false,
     brokerReconciliationVerified: false,
     shadowExecutionVerified: false,
@@ -26,9 +30,12 @@ export async function GET() {
   return Response.json({
     generatedAt: new Date().toISOString(),
     ...readiness,
+    executionReadiness,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
     capitalReady: false,
-    note: "Engineering readiness is not authorization to trade. Runtime quote-quorum/Directa evidence and time-matured paper/shadow validation are still required.",
+    note: executionReadiness.ownerActionRequired
+      ? executionReadiness.ownerAction
+      : "Engineering readiness is not authorization to trade. PAPER quote quorum, recovery/audit evidence and time-matured validation must all pass before any future capital-release review.",
   });
 }
