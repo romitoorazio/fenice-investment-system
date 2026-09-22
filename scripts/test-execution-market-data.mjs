@@ -4,6 +4,7 @@ import {
   classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
   inferExecutionSourceFamily,
+  isAlpacaPaperCandidate,
   isAlphaVantageIntradayCandidate,
   isTwelveDataPaperCandidate,
   isTwelveDataUsRealtimeVenue,
@@ -34,6 +35,7 @@ assert.equal(inferExecutionSourceFamily("Yahoo Finance execution validation"), "
 assert.equal(inferExecutionSourceFamily("Coinbase Exchange execution validation"), "coinbase");
 assert.equal(inferExecutionSourceFamily("Twelve Data realtime quote"), "twelve-data");
 assert.equal(inferExecutionSourceFamily("Alpha Vantage intraday validation"), "alpha-vantage");
+assert.equal(inferExecutionSourceFamily("Alpaca Basic IEX realtime quote"), "alpaca");
 
 assert.equal(isTwelveDataPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
 assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed; provider response must not repair incomplete instrument identity for PAPER routing");
@@ -43,6 +45,11 @@ assert.equal(isAlphaVantageIntradayCandidate({ symbol: "MSFT", currency: "USD", 
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed for Alpha Vantage PAPER routing");
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
 assert.equal(isAlphaVantageIntradayCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isAlpacaPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isAlpacaPaperCandidate({ symbol: "SPY", currency: "USD", exchangeMic: "ARCX", assetClass: "ETF" }), true);
+assert.equal(isAlpacaPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed for Alpaca PAPER routing");
+assert.equal(isAlpacaPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isAlpacaPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NYSE", currency: "USD" }), true);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Market", currency: "USD" }), true);
@@ -67,18 +74,28 @@ assert.equal(
 );
 assert.equal(
   classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER" }, paperNow),
-  "PAPER",
-  "fresh evidence with explicit realtime PAPER provenance may satisfy PAPER eligibility",
+  "VALIDATION_ONLY",
+  "entitlement without verified provenance must fail closed",
 );
 assert.equal(
-  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T19:45:00Z", realtime: true, entitlement: "PAPER" }, paperNow),
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "PAPER",
+  "fresh evidence with explicit realtime PAPER entitlement and verified provenance may satisfy PAPER eligibility",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "alpaca", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "PAPER",
+  "Alpaca IEX evidence may satisfy PAPER only after provider-specific provenance verification",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T19:45:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
   "VALIDATION_ONLY",
   "explicit entitlement must not override stale evidence",
 );
 assert.equal(
-  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: false, entitlement: "PAPER" }, paperNow),
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: false, entitlement: "PAPER", provenanceVerified: true }, paperNow),
   "VALIDATION_ONLY",
-  "PAPER provenance without realtime evidence must fail closed",
+  "verified PAPER provenance without realtime evidence must fail closed",
 );
 
 const normalized = normalizeExecutionEvidence({
