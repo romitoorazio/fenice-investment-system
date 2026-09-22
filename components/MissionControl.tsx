@@ -166,8 +166,8 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Gate di certificazione</p>
-              <p className="mt-1 text-xs text-slate-500">Stato derivato dall’API readiness, non da testo statico.</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Controlli istituzionali aperti</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Stato derivato dall’API readiness. Alcuni controlli riguardano la futura fase broker/live: la certificazione PAPER resta provider-neutral e non richiede il feed realtime Directa a pagamento.</p>
             </div>
             <Link href="/readiness" className="rounded-lg border border-white/10 px-3 py-2 text-[11px] font-bold text-slate-300">Dettagli</Link>
           </div>
@@ -179,7 +179,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
               </div>
             )) : (
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
-                Verifica dei gate in corso. Fenice non assume PASS in assenza di evidence.
+                Verifica dei controlli in corso. Fenice non assume PASS in assenza di evidence.
               </div>
             )}
           </div>
