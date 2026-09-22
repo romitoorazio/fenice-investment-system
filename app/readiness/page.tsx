@@ -1,5 +1,8 @@
 import Link from "next/link";
 import intelligence from "@/data/intelligence-quality.json";
+import executionMarket from "@/data/execution-market-evidence.json";
+import executionCoverage from "@/data/execution-market-coverage.json";
+import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 
@@ -20,9 +23,27 @@ const statusLabel: Record<InstitutionalEvidence, string> = {
   BLOCKED: "BLOCCANTE",
 };
 
+const executionStateStyle: Record<ExecutionReadinessState, string> = {
+  PASS: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
+  BLOCKED: "border-rose-400/25 bg-rose-400/10 text-rose-200",
+  STALE: "border-amber-400/25 bg-amber-400/10 text-amber-200",
+  UNCONFIGURED: "border-sky-400/25 bg-sky-400/10 text-sky-200",
+};
+
+const executionStateLabel: Record<ExecutionReadinessState, string> = {
+  PASS: "QUORUM PAPER VERIFICATO",
+  BLOCKED: "QUORUM PAPER BLOCCATO",
+  STALE: "EVIDENZA DA AGGIORNARE",
+  UNCONFIGURED: "FONTI GRATUITE DA CONFIGURARE",
+};
+
 export default function ReadinessPage() {
-  const { report, metrics } = buildInstitutionalReadiness(intelligence);
+  const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const { report, metrics } = buildInstitutionalReadiness(intelligence, {
+    executionMarketQuorumVerified: executionReadiness.verified,
+  });
   const pass = report.controls.filter((control) => control.status === "PASS").length;
+  const executionMetrics = executionReadiness.metrics;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-6 text-white sm:px-8">
@@ -31,7 +52,7 @@ export default function ReadinessPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Fenice Safety Center</p>
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">Prontezza istituzionale</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Questa pagina misura ciò che è realmente verificato. Un controllo implementato ma non ancora provato resta in collaudo; i controlli broker descrivono la futura fase live e non rendono il feed realtime Directa a pagamento un requisito della certificazione PAPER.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Questa pagina usa i gate reali disponibili nel repository. Un controllo implementato ma non ancora provato resta in collaudo; Directa può aggiungere evidenza read-only/shadow, ma il suo feed realtime a pagamento non è un requisito della certificazione PAPER.</p>
           </div>
           <Link href="/" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Oggi</Link>
         </header>
@@ -41,12 +62,33 @@ export default function ReadinessPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-300">Capitale reale</p>
               <p className="mt-2 text-3xl font-black text-rose-200">NON AUTORIZZATO</p>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Il live-lock di Fenice resta chiuso. Prima della certificazione servono quorum PAPER su fonti indipendenti, qualità dati e controlli di rischio verificati, recovery/audit e campagna PAPER maturata. Directa può aggiungere evidenza read-only/shadow, ma il suo feed realtime a pagamento non è obbligatorio.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Il live-lock di Fenice resta chiuso. Prima della certificazione servono quorum PAPER su fonti indipendenti, qualità dati e controlli di rischio verificati, recovery/audit e campagna PAPER maturata.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-center">
               <p className="text-xs uppercase tracking-wider text-slate-500">Engineering score</p>
               <p className="mt-1 text-4xl font-black">{report.engineeringScore}/100</p>
               <p className="mt-1 text-xs text-slate-500">{pass}/{report.controls.length} controlli PASS</p>
+            </div>
+          </div>
+        </section>
+
+        <section className={`rounded-3xl border p-5 ${executionStateStyle[executionReadiness.state]}`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">PAPER execution data</p>
+              <h2 className="mt-2 text-xl font-black">{executionStateLabel[executionReadiness.state]}</h2>
+              <p className="mt-2 text-sm leading-6 opacity-90">
+                {executionReadiness.ownerAction
+                  ?? executionReadiness.reasons[0]
+                  ?? "Due o più famiglie indipendenti con provenienza verificata stanno soddisfacendo il quorum PAPER."}
+              </p>
+              <p className="mt-2 text-xs opacity-70">Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
+            </div>
+            <div className="grid min-w-[220px] grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Simboli PAPER</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSymbols}/{executionMetrics.requestedSymbols}</p></div>
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Famiglie verificate</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSourceFamilies}/2</p></div>
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Fonti zero-cost</p><p className="mt-1 text-lg font-black">{executionMetrics.configuredZeroCostSourceFamilies}/2</p></div>
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Copertura</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligiblePercent}%</p></div>
             </div>
           </div>
         </section>
