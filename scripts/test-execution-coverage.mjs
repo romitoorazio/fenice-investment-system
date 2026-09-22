@@ -26,10 +26,9 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1, "two independent external PAPER families may satisfy broad PAPER quorum");
-  assert.equal(report.directaPilotEligibleSymbols, 0, "external-only quorum must never certify Directa pilot coverage");
-  assert.equal(report.rows[0].directaPaperEvidence, false);
-  assert(report.rows[0].reasons.some((reason) => reason.includes("missing Directa PAPER source")));
+  assert.equal(report.paperEligibleSymbols, 1, "two independent PAPER families may satisfy the generic PAPER quorum");
+  assert.equal(report.rows[0].directaPaperEvidence, false, "Directa evidence is optional for PAPER certification");
+  assert.equal(report.rows[0].paperEligible, true);
 }
 
 {
@@ -42,42 +41,9 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1, "broad quorum may remain green with Directa + Yahoo");
-  assert.equal(report.directaPilotEligibleSymbols, 0, "Yahoo must not certify the broker pilot even when timestamp-fresh");
+  assert.equal(report.paperEligibleSymbols, 1, "generic quorum remains provider-neutral");
   assert.equal(report.rows[0].directaPaperEvidence, true);
-  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, false);
-  assert.deepEqual(report.rows[0].approvedIndependentPaperFamilies, []);
-  assert(report.rows[0].reasons.some((reason) => reason.includes("approved independent realtime PAPER source")));
-}
-
-{
-  const report = evaluateExecutionCoverageReport({
-    generatedAt: fresh,
-    requestedSymbols: ["MSFT"],
-    observations: [
-      observation("MSFT", "directa", 500),
-      observation("MSFT", "twelve-data", 500.04),
-    ],
-    errors: [],
-  }, now);
-  assert.equal(report.paperEligibleSymbols, 1);
-  assert.equal(report.directaPilotEligibleSymbols, 1);
-  assert.equal(report.rows[0].directaPaperEvidence, true);
-  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, true);
-  assert.deepEqual(report.rows[0].approvedIndependentPaperFamilies, ["twelve-data"]);
-}
-
-{
-  const report = evaluateExecutionCoverageReport({
-    generatedAt: fresh,
-    requestedSymbols: ["MSFT"],
-    observations: [
-      observation("MSFT", "directa", 500),
-      observation("MSFT", "alpha-vantage", 500.03),
-    ],
-    errors: [],
-  }, now);
-  assert.equal(report.directaPilotEligibleSymbols, 1, "realtime-entitled Alpha Vantage evidence may satisfy the approved second-source gate");
+  assert.equal(report.rows[0].directaOptionalEvidence, true);
 }
 
 {
@@ -90,9 +56,7 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 0, "Directa alone cannot satisfy two-family PAPER quorum");
-  assert.equal(report.directaPilotEligibleSymbols, 0);
-  assert.equal(report.rows[0].independentNonDirectaPaperEvidence, false);
+  assert.equal(report.paperEligibleSymbols, 0, "VALIDATION_ONLY evidence cannot satisfy PAPER quorum");
 }
 
 {
@@ -105,14 +69,15 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1);
-  assert.equal(report.directaPilotCandidateSymbols, 0);
-  assert.equal(report.directaPilotEligibleSymbols, 0, "crypto quorum must not count toward Directa equity/ETF pilot");
+  assert.equal(report.paperEligibleSymbols, 1, "provider-neutral PAPER quorum also applies outside equities");
+  assert.equal(report.rows[0].equityOrEtf, false);
 }
 
 const policy = evaluateExecutionCoverageReport({ generatedAt: fresh, requestedSymbols: [], observations: [], errors: [] }, now).policy;
-assert.equal(policy.requireDirectaPaperSourceForDirectaPilot, true);
-assert.equal(policy.yahooCannotSatisfyDirectaPilotCoverage, true);
-assert.ok(policy.approvedIndependentPaperSourceFamiliesForDirectaPilot.includes("twelve-data"));
+assert.equal(policy.directaPaidRealtimeRequired, false);
+assert.equal(policy.directaEvidenceOptionalForPaperCertification, true);
+assert.equal(policy.minIndependentSourceFamilies, 2);
+assert.equal(policy.liveTradingAllowed, false);
+assert.ok(policy.approvedIndependentPaperSourceFamilies.includes("twelve-data"));
 
-console.log("Fenice broker-backed execution coverage tests: PASS");
+console.log("Fenice zero-cost PAPER execution coverage tests: PASS");
