@@ -44,6 +44,10 @@ function score(title = "") {
   return Math.min(95, value);
 }
 
+function errorMessage(reason) {
+  return reason instanceof Error ? reason.message : String(reason);
+}
+
 async function fetchTheme(theme) {
   const url = `${endpoint}?query=${encodeURIComponent(theme.query)}&mode=ArtList&maxrecords=50&format=json&sort=HybridRel`;
   const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "FeniceInvestmentSystem/1.0" } });
@@ -66,12 +70,18 @@ async function fetchTheme(theme) {
 
 const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
 const results = await Promise.allSettled(themes.map(fetchTheme));
-const warnings = [...(snapshot.warnings ?? [])];
+const inheritedWarnings = [...(snapshot.warnings ?? [])];
+const coreGdeltFailures = inheritedWarnings.filter((warning) => /^GDELT .* non acquisit[oa]:/i.test(String(warning)));
+const warnings = inheritedWarnings.filter((warning) => !/^GDELT .* non acquisit[oa]:/i.test(String(warning)));
 const incoming = [];
+const themeFailures = [];
 
 for (const [index, result] of results.entries()) {
-  if (result.status === "fulfilled") incoming.push(...result.value);
-  else warnings.push(`Flusso notizie ${themes[index].id} non disponibile: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+  if (result.status === "fulfilled") {
+    incoming.push(...result.value);
+  } else {
+    themeFailures.push({ theme: themes[index].id, error: errorMessage(result.reason) });
+  }
 }
 
 const domainCounts = new Map();
@@ -97,13 +107,21 @@ const discoveries = [...selected, ...existing]
   })
   .slice(0, 120);
 
+const failedThemeNames = themeFailures.map((item) => item.theme);
+if (coreGdeltFailures.length || themeFailures.length) {
+  const failedPart = failedThemeNames.length ? ` Temi non aggiornati: ${failedThemeNames.join(", ")}.` : "";
+  warnings.push(
+    `Copertura notizie GDELT parziale: Fenice mantiene i segnali incompleti fuori dalle conferme forti e riduce la fiducia finché la fonte non recupera.${failedPart}`,
+  );
+}
+
 const providers = (snapshot.providers ?? []).filter((item) => item.id !== "broad-news");
 providers.push({
   id: "broad-news",
   name: "Broad News Matrix",
-  state: selected.length >= 20 ? "operativo" : selected.length ? "parziale" : "errore",
+  state: selected.length >= 20 && themeFailures.length === 0 ? "operativo" : selected.length ? "parziale" : "errore",
   coverage: ["geopolitica", "macroeconomia", "AI", "biotech", "agritech", "fonti editoriali diversificate"],
-  detail: `${selected.length} notizie selezionate da ${domainCounts.size} domini distinti su ${themes.length} temi.`,
+  detail: `${selected.length} notizie selezionate da ${domainCounts.size} domini distinti; ${themes.length - themeFailures.length}/${themes.length} temi aggiornati.`,
   ...(selected.length ? { lastSuccessAt: now } : {}),
 });
 
@@ -115,8 +133,14 @@ snapshot.newsCoverage = {
   themes: themes.map((item) => item.id),
   distinctDomains: domainCounts.size,
   selectedArticles: selected.length,
-  rule: "Massimo due articoli per dominio per ridurre concentrazione e bias editoriale.",
+  successfulThemes: themes.length - themeFailures.length,
+  failedThemes: failedThemeNames,
+  diagnostics: [
+    ...coreGdeltFailures.map((warning) => ({ scope: "core", error: String(warning) })),
+    ...themeFailures.map((failure) => ({ scope: failure.theme, error: failure.error })),
+  ],
+  rule: "Massimo due articoli per dominio per ridurre concentrazione e bias editoriale. Errori tecnici transitori restano nei diagnostics e non vengono moltiplicati negli avvisi utente.",
 };
 
 await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
-console.log(`Broad news enrichment: ${selected.length} articoli, ${domainCounts.size} domini distinti.`);
+console.log(`Broad news enrichment: ${selected.length} articoli, ${domainCounts.size} domini distinti, ${themes.length - themeFailures.length}/${themes.length} temi aggiornati.`);
