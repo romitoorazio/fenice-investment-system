@@ -7,6 +7,7 @@ export type RawMarketObservation = {
   observedAt?: string;
   entitlement?: string;
   realtime?: boolean;
+  provenanceVerified?: boolean;
 };
 
 export type PaperEvidenceClassification = {
@@ -18,10 +19,11 @@ export type PaperEvidenceClassification = {
 /**
  * Conservative source classification for PAPER certification.
  *
- * This function deliberately does NOT infer PAPER eligibility from a provider
- * name alone. A source must carry explicit evidence that the observation is
- * permitted/appropriate for PAPER execution validation. Unknown, delayed,
- * historical, daily-close and legacy observations remain VALIDATION_ONLY.
+ * Provider identity, freshness, a realtime flag or an entitlement string are
+ * never sufficient on their own. PAPER requires explicit realtime evidence,
+ * explicit PAPER entitlement/provenance and a provider-specific verification
+ * step completed by the collector. Unknown, delayed, historical, daily-close
+ * and legacy observations remain VALIDATION_ONLY.
  *
  * No secret values are accepted or returned here.
  */
@@ -37,8 +39,20 @@ export function classifyPaperEvidence(observation: RawMarketObservation): PaperE
     return { sourceFamily: "unknown", eligibility: "VALIDATION_ONLY", reason: "missing source family" };
   }
 
-  if (observation?.realtime === true && entitlement === "PAPER") {
-    return { sourceFamily: family, eligibility: "PAPER", reason: "explicit realtime PAPER entitlement" };
+  if (observation?.realtime === true && entitlement === "PAPER" && observation?.provenanceVerified === true) {
+    return {
+      sourceFamily: family,
+      eligibility: "PAPER",
+      reason: "explicit realtime PAPER entitlement with verified provenance",
+    };
+  }
+
+  if (observation?.realtime === true && entitlement === "PAPER" && observation?.provenanceVerified !== true) {
+    return {
+      sourceFamily: family,
+      eligibility: "VALIDATION_ONLY",
+      reason: "PAPER provenance was not independently verified",
+    };
   }
 
   return {
