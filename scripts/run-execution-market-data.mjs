@@ -102,6 +102,8 @@ async function fetchYahoo(instrument) {
     eligibility,
     price,
     observedAt,
+    provenanceVerified: false,
+    provenanceMethod: "unverified-public-quote",
   });
 }
 
@@ -120,6 +122,8 @@ async function fetchStooq(instrument) {
     eligibility: "VALIDATION_ONLY",
     price: quote.price,
     observedAt: quote.observedAt,
+    provenanceVerified: false,
+    provenanceMethod: "end-of-day-validation-only",
   });
 }
 
@@ -158,6 +162,8 @@ async function fetchTwelveData(instrument) {
     eligibility,
     price,
     observedAt,
+    provenanceVerified: true,
+    provenanceMethod: "provider-response-us-realtime-venue",
   });
 }
 
@@ -207,6 +213,8 @@ async function fetchAlphaVantageIntraday(instrument) {
     eligibility,
     price,
     observedAt,
+    provenanceVerified: true,
+    provenanceMethod: "explicit-realtime-entitlement-response",
   });
 }
 
@@ -252,6 +260,8 @@ async function fetchAlpaca(instrument) {
     eligibility,
     price,
     observedAt,
+    provenanceVerified: true,
+    provenanceMethod: "authenticated-alpaca-iex-latest-quote",
   });
 }
 
@@ -280,6 +290,8 @@ async function fetchCoinbase(instrument) {
     eligibility,
     price,
     observedAt,
+    provenanceVerified: false,
+    provenanceMethod: "public-ticker-validation-only",
   });
 }
 
@@ -300,6 +312,8 @@ async function fetchKraken(instrument) {
     eligibility: "VALIDATION_ONLY",
     price,
     observedAt: new Date().toISOString(),
+    provenanceVerified: false,
+    provenanceMethod: "retrieval-time-only-validation",
   });
 }
 
@@ -432,7 +446,7 @@ const report = {
     directaWarnings: directaEvidence.warnings,
     directaPaperFreshObservations: directaObservations.filter((item) => item.eligibility === "PAPER").length,
     directaValidationOnlyObservations: directaObservations.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    directaPaperRule: "Directa is optional for PAPER certification; when present, PAPER evidence requires loopback read-only DAPI, trading writes blocked, explicit market entitlement, matching instrument identity, and <=120-second freshness",
+    directaPaperRule: "Directa is optional for PAPER certification; when present, PAPER evidence requires loopback read-only DAPI, trading writes blocked, explicit market entitlement, matching instrument identity, and <=120-second quote freshness",
     twelveDataConfigured: Boolean(twelveDataApiKey),
     twelveDataCandidateCount: instruments.filter(isTwelveDataPaperCandidate).length,
     twelveDataProbeLimit,
