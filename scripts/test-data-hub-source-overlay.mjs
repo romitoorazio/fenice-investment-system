@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { overlaySourceHealth } from "../lib/data-hub-source-overlay.ts";
+import { overlaySourceHealth } from "../lib/source-health-overlay.ts";
 
 function snapshot(overrides = {}) {
   return {
