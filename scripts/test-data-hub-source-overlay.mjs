@@ -11,6 +11,8 @@ function snapshot(overrides = {}) {
     providers: [
       { id: "gdelt", name: "GDELT", state: "errore", coverage: ["geopolitica"], detail: "Nessun flusso acquisito." },
       { id: "alphavantage", name: "Alpha Vantage", state: "parziale", coverage: ["azioni"], detail: "snapshot", lastSuccessAt: "2026-09-22T12:04:00.000Z" },
+      { id: "clinicaltrials", name: "ClinicalTrials.gov", state: "errore", coverage: ["studi clinici"], detail: "snapshot clinical" },
+      { id: "broad-news", name: "Broad News Matrix", state: "errore", coverage: ["news"], detail: "pipeline failed" },
     ],
     markets: [],
     macro: [],
@@ -26,6 +28,7 @@ const newerHealth = {
   sources: [
     { id: "gdelt", status: "degraded", detail: "Recuperata al tentativo 2.", checkedAt: "2026-09-22T12:05:00.000Z", lastSuccessfulAt: "2026-09-22T12:05:00.000Z" },
     { id: "alpha-vantage", status: "healthy", detail: "Probe OK", checkedAt: "2026-09-22T12:05:00.000Z", lastSuccessfulAt: "2026-09-22T12:05:00.000Z" },
+    { id: "clinical-trials", status: "healthy", detail: "ClinicalTrials probe OK", checkedAt: "2026-09-22T12:05:00.000Z", lastSuccessfulAt: "2026-09-22T12:05:00.000Z" },
   ],
 };
 
@@ -33,6 +36,8 @@ const reconciled = overlaySourceHealth(snapshot(), newerHealth);
 assert.equal(reconciled.providers[0].state, "parziale", "newer GDELT health must replace stale snapshot error");
 assert.equal(reconciled.providers[0].detail, "Recuperata al tentativo 2.");
 assert.equal(reconciled.providers[1].state, "operativo", "provider alias alphavantage -> alpha-vantage must reconcile");
+assert.equal(reconciled.providers[2].state, "operativo", "provider alias clinicaltrials -> clinical-trials must reconcile");
+assert.equal(reconciled.providers[3].state, "errore", "derived pipelines must not be promoted by unrelated upstream source health");
 
 const olderReport = overlaySourceHealth(snapshot(), {
   generatedAt: "2026-09-22T11:59:00.000Z",
@@ -53,4 +58,4 @@ const unknownStatus = overlaySourceHealth(snapshot(), {
 });
 assert.equal(unknownStatus.providers[0].state, "errore", "unknown health states must fail closed by leaving snapshot state untouched");
 
-console.log("Fenice Data Hub source-health overlay tests: PASS");
+console.log("Fenice source-health overlay tests: PASS");
