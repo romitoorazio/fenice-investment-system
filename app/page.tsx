@@ -13,13 +13,17 @@ export default function Home() {
   return (
     <>
       <MissionControl initialData={mission} />
-      <nav className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-2xl items-center justify-around rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur">
-        <Link href="/" className="rounded-xl bg-amber-300 px-4 py-3 text-xs font-black text-slate-950">Oggi</Link>
-        <Link href="/radar" className="rounded-xl px-3 py-3 text-xs font-black text-cyan-300 transition hover:bg-white/5">Radar</Link>
-        <Link href="/portfolio" className="rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Portafoglio</Link>
-        <Link href="/discovery" className="rounded-xl px-3 py-3 text-xs font-bold text-violet-300 transition hover:bg-white/5">Scoperte</Link>
-        <Link href="/data-hub" className="rounded-xl px-3 py-3 text-xs font-bold text-cyan-300 transition hover:bg-white/5">Dati</Link>
-        <Link href="/readiness" className="rounded-xl px-3 py-3 text-xs font-black text-rose-300 transition hover:bg-white/5">Sicurezza</Link>
+      <nav
+        className="fixed inset-x-3 z-50 mx-auto flex max-w-2xl items-center gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur sm:justify-around"
+        style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        aria-label="Navigazione principale Fenice"
+      >
+        <Link href="/" className="shrink-0 rounded-xl bg-amber-300 px-4 py-3 text-xs font-black text-slate-950">Oggi</Link>
+        <Link href="/radar" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-cyan-300 transition hover:bg-white/5">Radar</Link>
+        <Link href="/portfolio" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Portafoglio</Link>
+        <Link href="/discovery" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-violet-300 transition hover:bg-white/5">Scoperte</Link>
+        <Link href="/data-hub" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-cyan-300 transition hover:bg-white/5">Dati</Link>
+        <Link href="/readiness" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-rose-300 transition hover:bg-white/5">Sicurezza</Link>
       </nav>
     </>
   );
