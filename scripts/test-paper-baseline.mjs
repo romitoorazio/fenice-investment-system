@@ -18,31 +18,35 @@ const healthy = {
   executionMarket: {
     generatedAt: executionGeneratedAt,
     observations: [
-      { sourceFamily: "directa", eligibility: "PAPER" },
       { sourceFamily: "twelve-data", eligibility: "PAPER" },
-      { sourceFamily: "twelve-data", eligibility: "PAPER" },
+      { sourceFamily: "alpha-vantage", eligibility: "PAPER" },
+      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY" },
     ],
-    policy: { liveTradingAllowed: false, validationOnlySourcesNeverSatisfyPaperQuorum: true },
+    policy: {
+      liveTradingAllowed: false,
+      validationOnlySourcesNeverSatisfyPaperQuorum: true,
+      untaggedLegacyEvidenceDefaultsToValidationOnly: true,
+    },
   },
   executionCoverage: {
-    version: 4,
+    version: 5,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
     paperEligibleSymbols: 5,
     paperEligiblePercent: 41.7,
-    directaPilotCandidateSymbols: 9,
-    directaPilotEligibleSymbols: 4,
-    directaPilotEligiblePercent: 44.4,
+    rows: [
+      { symbol: "SPY", paperEligible: true, directaOptionalEvidence: false },
+      { symbol: "QQQ", paperEligible: true, directaOptionalEvidence: true },
+    ],
     policy: {
       requiredEligibility: "PAPER",
       minIndependentSourceFamilies: 2,
-      minimumDirectaPilotEligibleSymbols: 3,
-      requireDirectaPaperSourceForDirectaPilot: true,
-      requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
-      approvedIndependentPaperSourceFamiliesForDirectaPilot: ["alpha-vantage", "alpaca", "massive", "twelve-data"],
-      yahooCannotSatisfyDirectaPilotCoverage: true,
-      cryptoCannotSatisfyDirectaPilotCoverage: true,
+      preferredIndependentSourceFamilies: 3,
+      directaPaidRealtimeRequired: false,
+      directaEvidenceOptionalForPaperCertification: true,
+      approvedIndependentPaperSourceFamilies: ["alpha-vantage", "alpaca", "massive", "twelve-data"],
+      validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
       liveTradingAllowed: false,
     },
   },
@@ -58,12 +62,22 @@ const pass = evaluatePaperBaselineEligibility(healthy);
 assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
-assert.equal(pass.metrics.directaPilotEligibleSymbols, 4);
-assert.equal(pass.metrics.coverageRequiresDirectaPaperSource, true);
-assert.equal(pass.metrics.coverageExcludesYahooFromPilot, true);
-assert.ok(pass.metrics.approvedPilotIndependentSourceFamilies.includes("twelve-data"));
+assert.equal(pass.metrics.directaPaidRealtimeRequired, false);
+assert.equal(pass.metrics.directaEvidenceOptionalForPaperCertification, true);
+assert.equal(pass.metrics.directaOptionalEvidenceSymbols, 1);
+assert.ok(pass.metrics.approvedIndependentPaperSourceFamilies.includes("twelve-data"));
 assert.equal(pass.gates.executionSymbolCoverage, true);
-assert.equal(pass.gates.directaPilotCoverage, true);
+assert.equal(pass.gates.zeroCostPaperPolicy, true);
+
+const noDirectaEvidence = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    rows: healthy.executionCoverage.rows.map((row) => ({ ...row, directaOptionalEvidence: false })),
+  },
+});
+assert.equal(noDirectaEvidence.eligible, true, "Directa evidence must be optional for PAPER certification");
+assert.equal(noDirectaEvidence.metrics.directaOptionalEvidenceSymbols, 0);
 
 const lowQuality = evaluatePaperBaselineEligibility({
   ...healthy,
@@ -93,6 +107,18 @@ const fakeRedundancy = evaluatePaperBaselineEligibility({
 assert.equal(fakeRedundancy.eligible, false);
 assert.equal(fakeRedundancy.metrics.paperEligibleSourceFamilies, 1);
 
+const validationOnlySecondSource = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionMarket: {
+    ...healthy.executionMarket,
+    observations: [
+      { sourceFamily: "twelve-data", eligibility: "PAPER" },
+      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY" },
+    ],
+  },
+});
+assert.equal(validationOnlySecondSource.eligible, false, "VALIDATION_ONLY evidence must not satisfy PAPER redundancy");
+
 const narrowCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
@@ -105,76 +131,50 @@ assert.equal(narrowCoverage.eligible, false);
 assert.equal(narrowCoverage.gates.executionSymbolCoverage, false);
 assert.ok(narrowCoverage.reasons.some((reason) => reason.includes("per-symbol PAPER execution coverage")));
 
-const cryptoOnlyCoverage = evaluatePaperBaselineEligibility({
+const legacyDirectaPolicy = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
     ...healthy.executionCoverage,
-    requestedSymbols: 12,
-    paperEligibleSymbols: 5,
-    paperEligiblePercent: 41.7,
-    directaPilotCandidateSymbols: 9,
-    directaPilotEligibleSymbols: 0,
-    directaPilotEligiblePercent: 0,
-  },
-});
-assert.equal(cryptoOnlyCoverage.eligible, false, "crypto quorum must not certify the Directa equity/ETF pilot");
-assert.equal(cryptoOnlyCoverage.gates.directaPilotCoverage, false);
-assert.ok(cryptoOnlyCoverage.reasons.some((reason) => reason.includes("Directa pilot equity/ETF")));
-
-const oldCoverageSchema = evaluatePaperBaselineEligibility({
-  ...healthy,
-  executionCoverage: { ...healthy.executionCoverage, version: 3 },
-});
-assert.equal(oldCoverageSchema.eligible, false, "campaign must not start from a pre-hardening coverage schema");
-
-const externalOnlyPretendingToBeDirecta = evaluatePaperBaselineEligibility({
-  ...healthy,
-  executionCoverage: {
-    ...healthy.executionCoverage,
+    version: 4,
     policy: {
-      ...healthy.executionCoverage.policy,
-      requireDirectaPaperSourceForDirectaPilot: false,
+      requiredEligibility: "PAPER",
+      minIndependentSourceFamilies: 2,
+      minimumDirectaPilotEligibleSymbols: 3,
+      requireDirectaPaperSourceForDirectaPilot: true,
+      requireIndependentNonDirectaPaperSourceForDirectaPilot: true,
+      liveTradingAllowed: false,
     },
   },
 });
-assert.equal(externalOnlyPretendingToBeDirecta.eligible, false, "Directa pilot coverage must prove a Directa PAPER source");
-assert.equal(externalOnlyPretendingToBeDirecta.gates.directaPilotCoverage, false);
+assert.equal(legacyDirectaPolicy.eligible, false, "legacy Directa-mandatory coverage policy must not certify the zero-cost baseline");
+assert.equal(legacyDirectaPolicy.gates.zeroCostPaperPolicy, false);
 
-const missingIndependentFallback = evaluatePaperBaselineEligibility({
+const paidDirectaRequired = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
     ...healthy.executionCoverage,
-    policy: {
-      ...healthy.executionCoverage.policy,
-      requireIndependentNonDirectaPaperSourceForDirectaPilot: false,
-    },
+    policy: { ...healthy.executionCoverage.policy, directaPaidRealtimeRequired: true },
   },
 });
-assert.equal(missingIndependentFallback.eligible, false, "Directa alone must not certify its own execution prices");
+assert.equal(paidDirectaRequired.eligible, false, "paid Directa realtime must never become a PAPER prerequisite");
 
-const yahooAllowed = evaluatePaperBaselineEligibility({
+const directaNotOptional = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
     ...healthy.executionCoverage,
-    policy: {
-      ...healthy.executionCoverage.policy,
-      yahooCannotSatisfyDirectaPilotCoverage: false,
-    },
+    policy: { ...healthy.executionCoverage.policy, directaEvidenceOptionalForPaperCertification: false },
   },
 });
-assert.equal(yahooAllowed.eligible, false, "paper campaign policy must explicitly prevent Yahoo from certifying Directa pilot coverage");
+assert.equal(directaNotOptional.eligible, false, "policy must explicitly keep Directa evidence optional");
 
-const noApprovedRealtimeProvider = evaluatePaperBaselineEligibility({
+const validationAllowed = evaluatePaperBaselineEligibility({
   ...healthy,
   executionCoverage: {
     ...healthy.executionCoverage,
-    policy: {
-      ...healthy.executionCoverage.policy,
-      approvedIndependentPaperSourceFamiliesForDirectaPilot: ["yahoo"],
-    },
+    policy: { ...healthy.executionCoverage.policy, validationOnlyEvidenceCannotSatisfyPaperQuorum: false },
   },
 });
-assert.equal(noApprovedRealtimeProvider.eligible, false, "baseline must include at least the Twelve Data approved realtime route");
+assert.equal(validationAllowed.eligible, false, "validation-only evidence must never satisfy the PAPER quorum");
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
