@@ -16,20 +16,25 @@ const healthy = {
     policy: { unknownTimestampEvidenceExcluded: true },
   },
   executionMarket: {
+    version: 10,
     generatedAt: executionGeneratedAt,
     observations: [
-      { sourceFamily: "twelve-data", eligibility: "PAPER" },
-      { sourceFamily: "alpha-vantage", eligibility: "PAPER" },
-      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY" },
+      { sourceFamily: "twelve-data", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY", provenanceVerified: false },
     ],
     policy: {
       liveTradingAllowed: false,
       validationOnlySourcesNeverSatisfyPaperQuorum: true,
       untaggedLegacyEvidenceDefaultsToValidationOnly: true,
+      providerVenueMustBeVerifiedBeforePaperEligibility: true,
+      delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
+      paperEligibilityRequiresExplicitRealtimeAndEntitlement: true,
+      paperEligibilityRequiresVerifiedProvenance: true,
     },
   },
   executionCoverage: {
-    version: 5,
+    version: 6,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
@@ -47,6 +52,7 @@ const healthy = {
       directaEvidenceOptionalForPaperCertification: true,
       approvedIndependentPaperSourceFamilies: ["alpha-vantage", "alpaca", "massive", "twelve-data"],
       validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
+      paperEligibilityRequiresVerifiedProvenance: true,
       liveTradingAllowed: false,
     },
   },
@@ -61,11 +67,13 @@ const healthy = {
 const pass = evaluatePaperBaselineEligibility(healthy);
 assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
+assert.equal(pass.metrics.unverifiedPaperObservations, 0);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
 assert.equal(pass.metrics.directaPaidRealtimeRequired, false);
 assert.equal(pass.metrics.directaEvidenceOptionalForPaperCertification, true);
 assert.equal(pass.metrics.directaOptionalEvidenceSymbols, 1);
 assert.ok(pass.metrics.approvedIndependentPaperSourceFamilies.includes("twelve-data"));
+assert.equal(pass.gates.executionMarketProvenancePolicy, true);
 assert.equal(pass.gates.executionSymbolCoverage, true);
 assert.equal(pass.gates.zeroCostPaperPolicy, true);
 
@@ -98,22 +106,48 @@ const fakeRedundancy = evaluatePaperBaselineEligibility({
   executionMarket: {
     ...healthy.executionMarket,
     observations: [
-      { sourceFamily: "same-provider", eligibility: "PAPER" },
-      { sourceFamily: "same-provider", eligibility: "PAPER" },
-      { sourceFamily: "validator", eligibility: "VALIDATION_ONLY" },
+      { sourceFamily: "same-provider", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "same-provider", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "validator", eligibility: "VALIDATION_ONLY", provenanceVerified: false },
     ],
   },
 });
 assert.equal(fakeRedundancy.eligible, false);
 assert.equal(fakeRedundancy.metrics.paperEligibleSourceFamilies, 1);
 
+const unverifiedPaper = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionMarket: {
+    ...healthy.executionMarket,
+    observations: [
+      { sourceFamily: "twelve-data", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: false },
+    ],
+  },
+});
+assert.equal(unverifiedPaper.eligible, false, "PAPER-labelled evidence without persisted provenance must fail closed");
+assert.equal(unverifiedPaper.metrics.paperEligibleSourceFamilies, 1);
+assert.equal(unverifiedPaper.metrics.unverifiedPaperObservations, 1);
+assert.equal(unverifiedPaper.gates.executionMarketData, false);
+
+const legacyEvidenceSchema = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionMarket: {
+    ...healthy.executionMarket,
+    version: 9,
+    policy: { ...healthy.executionMarket.policy, paperEligibilityRequiresVerifiedProvenance: undefined },
+  },
+});
+assert.equal(legacyEvidenceSchema.eligible, false, "pre-provenance execution evidence schema must not certify a new PAPER baseline");
+assert.equal(legacyEvidenceSchema.gates.executionMarketProvenancePolicy, false);
+
 const validationOnlySecondSource = evaluatePaperBaselineEligibility({
   ...healthy,
   executionMarket: {
     ...healthy.executionMarket,
     observations: [
-      { sourceFamily: "twelve-data", eligibility: "PAPER" },
-      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY" },
+      { sourceFamily: "twelve-data", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "stooq", eligibility: "VALIDATION_ONLY", provenanceVerified: false },
     ],
   },
 });
@@ -175,6 +209,16 @@ const validationAllowed = evaluatePaperBaselineEligibility({
   },
 });
 assert.equal(validationAllowed.eligible, false, "validation-only evidence must never satisfy the PAPER quorum");
+
+const provenancePolicyDisabled = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: { ...healthy.executionCoverage.policy, paperEligibilityRequiresVerifiedProvenance: false },
+  },
+});
+assert.equal(provenancePolicyDisabled.eligible, false, "coverage policy must explicitly require persisted PAPER provenance");
+assert.equal(provenancePolicyDisabled.gates.zeroCostPaperPolicy, false);
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
