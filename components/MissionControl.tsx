@@ -7,6 +7,7 @@ import type { MissionControl as MissionControlData, RankedAsset } from "@/lib/mi
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 type ReadinessStatus = "PASS" | "TESTING" | "MISSING" | "BLOCKED";
+type ExecutionReadinessState = "PASS" | "BLOCKED" | "STALE" | "UNCONFIGURED";
 
 type ReadinessControl = {
   id: string;
@@ -26,6 +27,21 @@ type ReadinessPayload = {
     blockers: ReadinessControl[];
     testing: ReadinessControl[];
     controls: ReadinessControl[];
+  };
+  executionReadiness?: {
+    verified: boolean;
+    state: ExecutionReadinessState;
+    ownerActionRequired: boolean;
+    ownerAction: string | null;
+    reasons: string[];
+    metrics: {
+      paperEligibleSourceFamilies: number;
+      configuredZeroCostSourceFamilies: number;
+      requestedSymbols: number;
+      paperEligibleSymbols: number;
+      paperEligiblePercent: number;
+      directaPaidRealtimeRequired: boolean;
+    };
   };
   liveTradingReleased: boolean;
   liveTradingAllowed: boolean;
@@ -52,6 +68,20 @@ function readinessTone(status: ReadinessStatus) {
   if (status === "TESTING") return "border-sky-400/20 bg-sky-400/[0.06] text-sky-100";
   if (status === "BLOCKED") return "border-rose-400/20 bg-rose-400/[0.08] text-rose-100";
   return "border-white/10 bg-white/[0.04] text-slate-300";
+}
+
+function executionTone(state: ExecutionReadinessState) {
+  if (state === "PASS") return "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-100";
+  if (state === "UNCONFIGURED") return "border-sky-400/20 bg-sky-400/[0.06] text-sky-100";
+  if (state === "STALE") return "border-amber-400/20 bg-amber-400/[0.06] text-amber-100";
+  return "border-rose-400/20 bg-rose-400/[0.08] text-rose-100";
+}
+
+function executionLabel(state: ExecutionReadinessState) {
+  if (state === "PASS") return "PAPER QUORUM PASS";
+  if (state === "UNCONFIGURED") return "FONTI PAPER DA CONFIGURARE";
+  if (state === "STALE") return "EVIDENZA PAPER DA AGGIORNARE";
+  return "PAPER QUORUM BLOCCATO";
 }
 
 export default function MissionControl({ initialData }: { initialData: MissionControlData }) {
@@ -105,6 +135,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
   const criticalSummary = report ? `${report.criticalPassed}/${report.criticalTotal}` : "—";
   const engineeringSummary = report ? `${report.engineeringScore}/100` : "—";
   const liveLocked = readiness ? readiness.liveTradingAllowed === false && readiness.liveTradingReleased === false : true;
+  const execution = readiness?.executionReadiness;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-36 pt-6 text-white sm:px-8">
@@ -162,6 +193,26 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
             <p className="mt-2 text-lg font-black text-rose-200">{liveLocked ? "BLOCCATO" : "NON VERIFICATO"}</p>
           </article>
         </section>
+
+        {execution ? (
+          <section className={`rounded-2xl border p-5 ${executionTone(execution.state)}`}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">Execution-grade PAPER</p>
+                <h2 className="mt-1 text-lg font-black">{executionLabel(execution.state)}</h2>
+                <p className="mt-2 text-xs leading-5 opacity-80">
+                  {execution.ownerAction ?? execution.reasons[0] ?? "Quorum indipendente verificato."}
+                </p>
+                <p className="mt-2 text-[11px] opacity-60">Feed realtime Directa a pagamento richiesto: <strong>{execution.metrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Simboli</p><p className="mt-1 text-base font-black">{execution.metrics.paperEligibleSymbols}/{execution.metrics.requestedSymbols}</p></div>
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Famiglie</p><p className="mt-1 text-base font-black">{execution.metrics.paperEligibleSourceFamilies}/2</p></div>
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Zero-cost</p><p className="mt-1 text-base font-black">{execution.metrics.configuredZeroCostSourceFamilies}/2</p></div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
           <div className="flex items-center justify-between gap-3">
