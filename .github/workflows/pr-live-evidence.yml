@@ -17,10 +17,12 @@ on:
       - "scripts/check-global-sources.mjs"
       - "scripts/check-paper-baseline-eligibility.mjs"
       - "scripts/check-certification-readiness.mjs"
+      - "scripts/start-paper-validation-campaign.mjs"
       - "scripts/validate-instrument-master.mjs"
       - "data/global-source-registry.json"
       - "data/instrument-master.json"
       - "data/execution-market-coverage.json"
+      - "data/paper-validation-campaign.json"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/paper-evidence-policy.ts"
       - "lib/trading/execution-coverage.ts"
@@ -32,6 +34,7 @@ on:
       - "lib/trading/smart-order-router.ts"
       - "lib/trading/signal-conditional-orders.ts"
       - "lib/trading/paper-baseline.mjs"
+      - "lib/trading/paper-validation.mjs"
       - "lib/trading/validation-fingerprint.mjs"
 
 permissions:
@@ -234,7 +237,45 @@ jobs:
       - name: Paper baseline eligibility on fresh ephemeral evidence
         run: npm run paper:baseline:status
 
-      - name: Certification status on fresh ephemeral evidence
+      - name: Prove PAPER campaign bootstrap in ephemeral workspace
+        run: |
+          npm run paper:validation:start
+          node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const fingerprint = campaign?.baselineFingerprint;
+          const gates = campaign?.baselineEligibility?.gates || {};
+          const requiredGates = [
+            'criticalSources',
+            'dataQuality',
+            'executionMarketData',
+            'executionMarketProvenancePolicy',
+            'executionSymbolCoverage',
+            'zeroCostPaperPolicy',
+            'liveTradingLocked',
+            'validationFingerprint',
+          ];
+          if (!campaign?.startedAt || !/^[a-f0-9]{40}$/i.test(String(campaign?.baselineCommit || ''))) {
+            throw new Error('PAPER_BOOTSTRAP_FAILURE: missing immutable start timestamp or baseline commit');
+          }
+          if (Number(campaign?.version || 0) < 5) throw new Error('PAPER_BOOTSTRAP_FAILURE: campaign schema is too old');
+          if (campaign?.liveTradingAllowed !== false) throw new Error('PAPER_BOOTSTRAP_SAFETY: live trading must remain false');
+          if (fingerprint?.complete !== true || fingerprint?.algorithm !== 'sha256' || !/^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))) {
+            throw new Error('PAPER_BOOTSTRAP_FAILURE: immutable core fingerprint is incomplete');
+          }
+          for (const gate of requiredGates) {
+            if (gates[gate] !== true) throw new Error(`PAPER_BOOTSTRAP_FAILURE: baseline gate ${gate} is not true`);
+          }
+          if (campaign?.evidencePolicy?.directaPaidRealtimeRequired !== false
+            || campaign?.evidencePolicy?.directaEvidenceOptionalForPaperCertification !== true
+            || campaign?.evidencePolicy?.validationOnlyEvidenceCannotSatisfyPaperQuorum !== true) {
+            throw new Error('PAPER_BOOTSTRAP_FAILURE: zero-cost provider-neutral evidence policy not preserved');
+          }
+          console.log(`Fenice PAPER bootstrap dry-run: PASS; version=${campaign.version}; baseline=${campaign.baselineCommit.slice(0, 12)}; liveTradingAllowed=false.`);
+          NODE
+          npm run paper:validation:status
+
+      - name: Certification status after ephemeral PAPER bootstrap
         run: npm run certification:status
 
       - name: Upload ephemeral evidence artifact
@@ -249,3 +290,4 @@ jobs:
             data/global-source-health.json
             data/execution-market-evidence.json
             data/execution-market-coverage.json
+            data/paper-validation-campaign.json
