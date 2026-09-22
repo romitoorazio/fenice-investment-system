@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  classifyExecutionPaperEligibility,
   classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
   inferExecutionSourceFamily,
@@ -58,6 +59,27 @@ assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:00:00Z", paperNo
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:45:00Z", paperNow), "VALIDATION_ONLY");
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:01:00Z", paperNow), "VALIDATION_ONLY", "future timestamps must fail closed");
 assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:57:59Z", paperNow, 120), "VALIDATION_ONLY", "quotes older than 120 seconds cannot satisfy PAPER execution quorum");
+
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "yahoo", observedAt: "2026-09-21T20:00:00Z", realtime: true }, paperNow),
+  "VALIDATION_ONLY",
+  "freshness alone must never certify PAPER evidence",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER" }, paperNow),
+  "PAPER",
+  "fresh evidence with explicit realtime PAPER provenance may satisfy PAPER eligibility",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T19:45:00Z", realtime: true, entitlement: "PAPER" }, paperNow),
+  "VALIDATION_ONLY",
+  "explicit entitlement must not override stale evidence",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: false, entitlement: "PAPER" }, paperNow),
+  "VALIDATION_ONLY",
+  "PAPER provenance without realtime evidence must fail closed",
+);
 
 const normalized = normalizeExecutionEvidence({
   symbol: " enel ",
