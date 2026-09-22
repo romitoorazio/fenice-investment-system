@@ -31,7 +31,7 @@ export default function ReadinessPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Fenice Safety Center</p>
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">Prontezza istituzionale</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Questa pagina misura ciò che è realmente verificato. Un controllo implementato ma non ancora provato con Directa o nel tempo resta in collaudo.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Questa pagina misura ciò che è realmente verificato. Un controllo implementato ma non ancora provato resta in collaudo; i controlli broker descrivono la futura fase live e non rendono il feed realtime Directa a pagamento un requisito della certificazione PAPER.</p>
           </div>
           <Link href="/" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Oggi</Link>
         </header>
@@ -41,7 +41,7 @@ export default function ReadinessPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-300">Capitale reale</p>
               <p className="mt-2 text-3xl font-black text-rose-200">NON AUTORIZZATO</p>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Il live-lock di Fenice è chiuso. Anche con tutti i test software verdi, servono evidenza Directa reale, shadow prolungato, recovery e checkpoint paper maturati.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Il live-lock di Fenice resta chiuso. Prima della certificazione servono quorum PAPER su fonti indipendenti, qualità dati e controlli di rischio verificati, recovery/audit e campagna PAPER maturata. Directa può aggiungere evidenza read-only/shadow, ma il suo feed realtime a pagamento non è obbligatorio.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-center">
               <p className="text-xs uppercase tracking-wider text-slate-500">Engineering score</p>
@@ -55,7 +55,7 @@ export default function ReadinessPage() {
           <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Intelligence</p><p className="mt-2 text-xl font-black">{metrics.intelligenceConfidence}/100</p><p className="mt-1 text-[11px] text-slate-500">soglia 90</p></article>
           <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Concentrazione fonti</p><p className="mt-2 text-xl font-black">{metrics.sourceConcentrationPercent}%</p><p className="mt-1 text-[11px] text-slate-500">target ≤ 50%</p></article>
           <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cross-check</p><p className="mt-2 text-xl font-black">{metrics.crossChecks}</p><p className="mt-1 text-[11px] text-slate-500">divergenti {metrics.divergentChecks}</p></article>
-          <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Critical controls</p><p className="mt-2 text-xl font-black">{report.criticalPassed}/{report.criticalTotal}</p><p className="mt-1 text-[11px] text-slate-500">tutti richiesti</p></article>
+          <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Critical controls</p><p className="mt-2 text-xl font-black">{report.criticalPassed}/{report.criticalTotal}</p><p className="mt-1 text-[11px] text-slate-500">engineering + futura fase live</p></article>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -71,7 +71,8 @@ export default function ReadinessPage() {
         </section>
 
         <section className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-5">
-          <h2 className="text-lg font-black text-amber-200">Blocchi prima del denaro reale</h2>
+          <h2 className="text-lg font-black text-amber-200">Controlli istituzionali ancora aperti</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Questa lista include anche controlli destinati alla futura fase broker/live. La certificazione PAPER resta provider-neutral e fail-closed.</p>
           <div className="mt-3 space-y-2 text-sm text-slate-300">
             {report.blockers.map((control) => <p key={control.id}>• {control.label} — {statusLabel[control.status]}</p>)}
           </div>
