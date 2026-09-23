@@ -16,7 +16,7 @@ const dataDir = path.join(root, "data");
 const evidencePath = path.join(dataDir, "execution-market-evidence.json");
 const masterPath = path.join(dataDir, "instrument-master.json");
 const apiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
-const probeLimit = Math.max(0, Math.min(8, Number(process.env.FENICE_TWELVE_DATA_BATCH_PROBES || 6) || 6));
+const probeLimit = Math.max(0, Math.min(8, Number(process.env.FENICE_TWELVE_DATA_BATCH_PROBES || 4) || 4));
 const maxRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_BATCH_429_RETRIES || 2) || 2));
 const retryBaseMs = Math.max(1000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_BATCH_RETRY_MS || 10_000) || 10_000));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
