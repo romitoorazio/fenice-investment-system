@@ -1,0 +1,175 @@
+import assert from "node:assert/strict";
+import {
+  classifyExecutionPaperEligibility,
+  deduplicateExecutionEvidence,
+  inferExecutionSourceFamily,
+  isAlpacaPaperCandidate,
+  isAlphaVantageIntradayCandidate,
+  isExecutionObservationFresh,
+  isTwelveDataPaperCandidate,
+  isTwelveDataUsRealtimeVenue,
+  normalizeExecutionEvidence,
+  parseProviderLocalTimestamp,
+  prioritizeZeroCostPaperProbeCandidates,
+  stooqSymbolForInstrument,
+  yahooSymbolForInstrument,
+} from "../lib/trading/execution-market-data.ts";
+
+assert.equal(yahooSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL", assetClass: "equity" }), "ENEL.MI");
+assert.equal(yahooSymbolForInstrument({ symbol: "SIE", exchangeMic: "XETR", assetClass: "equity" }), "SIE.DE");
+assert.equal(yahooSymbolForInstrument({ symbol: "MC", exchangeMic: "XPAR", assetClass: "equity" }), "MC.PA");
+assert.equal(yahooSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON", assetClass: "equity" }), "VOD.L");
+assert.equal(yahooSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS", assetClass: "equity" }), "ASML.AS");
+assert.equal(yahooSymbolForInstrument({ symbol: "IBE", exchangeMic: "XMAD", assetClass: "equity" }), "IBE.MC");
+assert.equal(yahooSymbolForInstrument({ symbol: "NOVN", exchangeMic: "XSWX", assetClass: "equity" }), "NOVN.SW");
+assert.equal(yahooSymbolForInstrument({ symbol: "NVDA", exchangeMic: "XNAS", assetClass: "equity" }), "NVDA");
+assert.equal(yahooSymbolForInstrument({ symbol: "BTC", assetClass: "crypto" }), "BTC-USD");
+assert.equal(yahooSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), "", "listed security with missing MIC must fail closed instead of guessing a Yahoo venue");
+assert.equal(stooqSymbolForInstrument({ symbol: "AAPL", exchangeMic: "XNAS" }), "aapl.us");
+assert.equal(stooqSymbolForInstrument({ symbol: "MSFT", currency: "USD", assetClass: "equity" }), null, "missing MIC must fail closed instead of inferring a US Stooq venue from currency");
+assert.equal(stooqSymbolForInstrument({ symbol: "ENEL", exchangeMic: "XMIL" }), "enel.it");
+assert.equal(stooqSymbolForInstrument({ symbol: "VOD", exchangeMic: "XLON" }), "vod.uk");
+assert.equal(stooqSymbolForInstrument({ symbol: "ASML", exchangeMic: "XAMS" }), "asml.nl");
+assert.equal(stooqSymbolForInstrument({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), null);
+assert.equal(stooqSymbolForInstrument({ symbol: "7203", exchangeMic: "XTKS" }), null);
+assert.equal(inferExecutionSourceFamily("Yahoo Finance execution validation"), "yahoo");
+assert.equal(inferExecutionSourceFamily("Coinbase Exchange execution validation"), "coinbase");
+assert.equal(inferExecutionSourceFamily("Twelve Data realtime quote"), "twelve-data");
+assert.equal(inferExecutionSourceFamily("Alpha Vantage intraday validation"), "alpha-vantage");
+assert.equal(inferExecutionSourceFamily("Alpaca Basic IEX realtime quote"), "alpaca");
+
+assert.equal(isTwelveDataPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isTwelveDataPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed; provider response must not repair incomplete instrument identity for PAPER routing");
+assert.equal(isTwelveDataPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isTwelveDataPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed for Alpha Vantage PAPER routing");
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isAlphaVantageIntradayCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isAlpacaPaperCandidate({ symbol: "MSFT", currency: "USD", exchangeMic: "XNAS", assetClass: "equity" }), true);
+assert.equal(isAlpacaPaperCandidate({ symbol: "SPY", currency: "USD", exchangeMic: "ARCX", assetClass: "ETF" }), true);
+assert.equal(isAlpacaPaperCandidate({ symbol: "TSM", currency: "USD", assetClass: "equity" }), false, "missing MIC must fail closed for Alpaca PAPER routing");
+assert.equal(isAlpacaPaperCandidate({ symbol: "ENEL", currency: "EUR", exchangeMic: "XMIL", assetClass: "equity" }), false);
+assert.equal(isAlpacaPaperCandidate({ symbol: "BTC", currency: "USD", assetClass: "crypto" }), false);
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NYSE", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Market", currency: "USD" }), true);
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ Global Select Market", currency: "USD" }), true, "explicit MIC must remain authoritative even with descriptive exchange label");
+assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XPAR", exchange: "Euronext Paris", currency: "EUR" }), false);
+assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "Unknown", currency: "USD" }), false, "unknown USD venue must fail closed");
+
+const fallbackProbeUniverse = [
+  { symbol: "ASML", country: "NL", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "TSM", country: "TW", exchangeMic: "XNYS", assetClass: "equity" },
+  { symbol: "MSFT", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "SPY", country: "US", exchangeMic: "ARCX", assetClass: "etf" },
+  { symbol: "QQQ", country: "US", exchangeMic: "XNAS", assetClass: "etf" },
+  { symbol: "META", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "GOOGL", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "NVDA", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "AMZN", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "AAPL", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "IWM", country: "US", exchangeMic: "ARCX", assetClass: "etf" },
+];
+const prioritizedFallback = prioritizeZeroCostPaperProbeCandidates(fallbackProbeUniverse).map((item) => item.symbol);
+assert.deepEqual(
+  prioritizedFallback.slice(0, 6),
+  ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "IWM"],
+  "fallback PAPER probes should spend scarce free calls on liquid US symbols first",
+);
+assert.ok(prioritizedFallback.indexOf("ASML") > prioritizedFallback.indexOf("META"));
+assert.ok(prioritizedFallback.indexOf("TSM") > prioritizedFallback.indexOf("AMZN"));
+assert.deepEqual(
+  prioritizeZeroCostPaperProbeCandidates([
+    { symbol: "ZZZ", country: "US" },
+    { symbol: "YYY", country: "US" },
+    { symbol: "XXX", country: "NL" },
+  ]).map((item) => item.symbol),
+  ["ZZZ", "YYY", "XXX"],
+  "unknown symbols must remain stable after the preferred group rather than being reshuffled arbitrarily",
+);
+
+assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "US/Eastern"), "2026-09-21T20:00:00.000Z");
+assert.equal(parseProviderLocalTimestamp("2026-01-21 16:00:00", "US/Eastern"), "2026-01-21T21:00:00.000Z");
+assert.equal(parseProviderLocalTimestamp("bad", "US/Eastern"), null);
+assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "Not/AZone"), null);
+const paperNow = Date.parse("2026-09-21T20:00:30Z");
+assert.equal(isExecutionObservationFresh("2026-09-21T20:00:00Z", paperNow), true);
+assert.equal(isExecutionObservationFresh("2026-09-21T19:45:00Z", paperNow), false);
+assert.equal(isExecutionObservationFresh("2026-09-21T20:01:00Z", paperNow), false, "future timestamps must fail closed");
+assert.equal(isExecutionObservationFresh("2026-09-21T19:57:59Z", paperNow, 120), false, "quotes older than 120 seconds cannot satisfy timely execution evidence");
+
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "yahoo", observedAt: "2026-09-21T20:00:00Z", realtime: true }, paperNow),
+  "VALIDATION_ONLY",
+  "freshness alone must never certify PAPER evidence",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER" }, paperNow),
+  "VALIDATION_ONLY",
+  "entitlement without verified provenance must fail closed",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "PAPER",
+  "fresh evidence with explicit realtime PAPER entitlement and verified provenance may satisfy PAPER eligibility",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "alpaca", observedAt: "2026-09-21T20:00:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "PAPER",
+  "Alpaca IEX evidence may satisfy PAPER only after provider-specific provenance verification",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T19:45:00Z", realtime: true, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "VALIDATION_ONLY",
+  "explicit entitlement must not override stale evidence",
+);
+assert.equal(
+  classifyExecutionPaperEligibility({ sourceFamily: "twelve-data", observedAt: "2026-09-21T20:00:00Z", realtime: false, entitlement: "PAPER", provenanceVerified: true }, paperNow),
+  "VALIDATION_ONLY",
+  "verified PAPER provenance without realtime evidence must fail closed",
+);
+
+const normalized = normalizeExecutionEvidence({
+  symbol: " enel ",
+  currency: "eur",
+  source: "Yahoo Finance execution validation",
+  eligibility: "PAPER",
+  price: 8.5,
+  observedAt: "2026-09-21T12:00:00Z",
+});
+assert.ok(normalized);
+assert.equal(normalized.symbol, "ENEL");
+assert.equal(normalized.currency, "EUR");
+assert.equal(normalized.sourceFamily, "yahoo");
+assert.equal(normalized.eligibility, "PAPER");
+assert.equal(normalized.observedAt, "2026-09-21T12:00:00.000Z");
+
+const legacy = normalizeExecutionEvidence({
+  symbol: "ENEL",
+  currency: "EUR",
+  source: "Legacy Provider",
+  price: 8.5,
+  observedAt: "2026-09-21T12:00:00Z",
+});
+assert.equal(legacy?.eligibility, "VALIDATION_ONLY", "untagged evidence must fail closed to validation-only");
+
+assert.equal(normalizeExecutionEvidence({ symbol: "ENEL", currency: "EUR", source: "A", price: -1, observedAt: "2026-09-21T12:00:00Z" }), null);
+assert.equal(normalizeExecutionEvidence({ symbol: "ENEL", currency: "EUR", source: "A", price: 8.5, observedAt: "bad-date" }), null);
+
+const deduped = deduplicateExecutionEvidence([
+  { symbol: "ENEL", currency: "EUR", source: "A label 1", sourceFamily: "provider-a", eligibility: "PAPER", price: 8.4, observedAt: "2026-09-21T11:00:00Z" },
+  { symbol: "ENEL", currency: "EUR", source: "A label 2", sourceFamily: "provider-a", eligibility: "PAPER", price: 8.5, observedAt: "2026-09-21T12:00:00Z" },
+  { symbol: "ENEL", currency: "EUR", source: "B", sourceFamily: "provider-b", eligibility: "PAPER", price: 8.51, observedAt: "2026-09-21T12:00:10Z" },
+]);
+assert.equal(deduped.length, 2);
+assert.equal(deduped.find((item) => item.sourceFamily === "provider-a")?.price, 8.5);
+
+const eligibilityPreferred = deduplicateExecutionEvidence([
+  { symbol: "NVDA", currency: "USD", source: "P", sourceFamily: "same", eligibility: "PAPER", price: 100, observedAt: "2026-09-21T12:00:00Z" },
+  { symbol: "NVDA", currency: "USD", source: "V", sourceFamily: "same", eligibility: "VALIDATION_ONLY", price: 101, observedAt: "2026-09-21T12:01:00Z" },
+]);
+assert.equal(eligibilityPreferred.length, 1);
+assert.equal(eligibilityPreferred[0].eligibility, "PAPER", "fresh validation-only data must not replace eligible evidence from same family");
+
+console.log("Fenice execution market-data routing tests: PASS");

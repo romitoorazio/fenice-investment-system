@@ -6,6 +6,49 @@ import type { MissionControl as MissionControlData, RankedAsset } from "@/lib/mi
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
+type ReadinessStatus = "PASS" | "TESTING" | "MISSING" | "BLOCKED";
+type ExecutionReadinessState = "PASS" | "BLOCKED" | "STALE" | "UNCONFIGURED";
+
+type ReadinessControl = {
+  id: string;
+  label: string;
+  critical: boolean;
+  status: ReadinessStatus;
+};
+
+type ReadinessPayload = {
+  generatedAt: string;
+  report: {
+    engineeringScore: number;
+    criticalPassed: number;
+    criticalTotal: number;
+    shadowReady: boolean;
+    capitalReady: boolean;
+    blockers: ReadinessControl[];
+    testing: ReadinessControl[];
+    controls: ReadinessControl[];
+  };
+  executionReadiness?: {
+    verified: boolean;
+    state: ExecutionReadinessState;
+    ownerActionRequired: boolean;
+    ownerAction: string | null;
+    reasons: string[];
+    metrics: {
+      paperEligibleSourceFamilies: number;
+      configuredZeroCostSourceFamilies: number;
+      requestedSymbols: number;
+      paperEligibleSymbols: number;
+      paperEligiblePercent: number;
+      directaPaidRealtimeRequired: boolean;
+    };
+  };
+  liveTradingReleased: boolean;
+  liveTradingAllowed: boolean;
+  capitalReady: boolean;
+  note?: string;
+};
+
 function freshnessLabel(status: MissionControlData["freshnessStatus"]) {
   if (status === "near-real-time") return "Quasi in tempo reale";
   if (status === "aggiornato") return "Aggiornato";
@@ -20,56 +63,212 @@ function actionStyle(action: RankedAsset["action"]) {
   return { label: "SCARTA", tone: "border-rose-400/30 bg-rose-400/10 text-rose-300" };
 }
 
+function readinessTone(status: ReadinessStatus) {
+  if (status === "PASS") return "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200";
+  if (status === "TESTING") return "border-sky-400/20 bg-sky-400/[0.06] text-sky-100";
+  if (status === "BLOCKED") return "border-rose-400/20 bg-rose-400/[0.08] text-rose-100";
+  return "border-white/10 bg-white/[0.04] text-slate-300";
+}
+
+function executionTone(state: ExecutionReadinessState) {
+  if (state === "PASS") return "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-100";
+  if (state === "UNCONFIGURED") return "border-sky-400/20 bg-sky-400/[0.06] text-sky-100";
+  if (state === "STALE") return "border-amber-400/20 bg-amber-400/[0.06] text-amber-100";
+  return "border-rose-400/20 bg-rose-400/[0.08] text-rose-100";
+}
+
+function executionLabel(state: ExecutionReadinessState) {
+  if (state === "PASS") return "PAPER QUORUM PASS";
+  if (state === "UNCONFIGURED") return "FONTI PAPER DA CONFIGURARE";
+  if (state === "STALE") return "EVIDENZA PAPER DA AGGIORNARE";
+  return "PAPER QUORUM BLOCCATO";
+}
+
 export default function MissionControl({ initialData }: { initialData: MissionControlData }) {
   const [data, setData] = useState<MissionControlData>(initialData);
+  const [readiness, setReadiness] = useState<ReadinessPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
+
     async function load() {
       try {
         const timeout = window.setTimeout(() => controller.abort(), 12_000);
-        const response = await fetch("/api/mission", { cache: "no-store", signal: controller.signal });
+        const missionResponse = await fetch("/api/mission", { cache: "no-store", signal: controller.signal });
+        if (!missionResponse.ok) throw new Error("Mission API non disponibile");
+        const nextMission = (await missionResponse.json()) as MissionControlData;
+
+        let nextReadiness: ReadinessPayload | null = null;
+        try {
+          const readinessResponse = await fetch("/api/trading/readiness", { cache: "no-store", signal: controller.signal });
+          if (readinessResponse.ok) nextReadiness = (await readinessResponse.json()) as ReadinessPayload;
+        } catch {
+          nextReadiness = null;
+        }
+
         window.clearTimeout(timeout);
-        if (!response.ok) throw new Error("Mission API non disponibile");
-        const next = (await response.json()) as MissionControlData;
-        if (active) { setData(next); setError(null); }
+        if (active) {
+          setData(nextMission);
+          if (nextReadiness) setReadiness(nextReadiness);
+          setError(null);
+        }
       } catch (reason) {
         if (active) setError(reason instanceof Error ? reason.message : "Aggiornamento dati non disponibile");
       }
     }
+
     void load();
     const timer = window.setInterval(() => void load(), 5 * 60 * 1000);
-    return () => { active = false; controller.abort(); window.clearInterval(timer); };
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(timer);
+    };
   }, []);
 
   const topAssets = useMemo(() => data.rankedAssets.slice(0, 6), [data]);
   const cashAmount = data.capital;
+  const report = readiness?.report;
+  const blockerPreview = report?.blockers.slice(0, 4) ?? [];
+  const criticalSummary = report ? `${report.criticalPassed}/${report.criticalTotal}` : "—";
+  const engineeringSummary = report ? `${report.engineeringScore}/100` : "—";
+  const liveLocked = readiness ? readiness.liveTradingAllowed === false && readiness.liveTradingReleased === false : true;
+  const execution = readiness?.executionReadiness;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 pb-28 pt-6 text-white sm:px-8">
+    <main className="min-h-screen bg-slate-950 px-4 pb-36 pt-6 text-white sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        {error ? <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">I dati visibili sono l’ultima versione disponibile. Aggiornamento in tempo reale temporaneamente non riuscito.</div> : null}
-        <header className="flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Fenice AI</p><h1 className="mt-1 text-2xl font-black">Preparazione investimento</h1></div><Link href="/autonomia" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Analisi</Link></header>
+        {error ? (
+          <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
+            I dati visibili sono l’ultima versione disponibile. Aggiornamento in tempo reale temporaneamente non riuscito.
+          </div>
+        ) : null}
+
+        <header className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Fenice AI</p>
+            <h1 className="mt-1 text-2xl font-black">Preparazione investimento</h1>
+          </div>
+          <Link href="/readiness" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+            Readiness
+          </Link>
+        </header>
 
         <section className="rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-300/[0.10] to-white/[0.02] p-6 shadow-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Stato attuale</p><h2 className="mt-3 text-3xl font-black text-amber-300 sm:text-5xl">NON INVESTIRE ANCORA</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Broker scelto: Directa SIM. L’abilitazione API Directa è stata effettuata; il collegamento locale read-only è in collaudo protetto. Il portafoglio reale resta vuoto e il trading live rimane bloccato finché tutti i gate di qualità, rischio, paper e shadow mode non saranno certificati.</p>
-          <div className="mt-5 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-black/20 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Investito realmente</p><p className="mt-2 text-2xl font-black">{euro.format(0)}</p></div><div className="rounded-2xl bg-black/20 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Capitale disponibile</p><p className="mt-2 text-2xl font-black">{euro.format(cashAmount)}</p></div></div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Stato attuale</p>
+          <h2 className="mt-3 text-3xl font-black text-amber-300 sm:text-5xl">NON INVESTIRE ANCORA</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            Fenice resta in modalità studio/PAPER. I candidati possono essere analizzati, ma nessun punteggio equivale a un’autorizzazione d’acquisto. Il live rimane bloccato finché tutti i gate critici, la validazione PAPER e gli evidence runtime non risultano certificati.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wider text-slate-500">Investito realmente</p>
+              <p className="mt-2 text-2xl font-black">{euro.format(0)}</p>
+            </div>
+            <div className="rounded-2xl bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wider text-slate-500">Capitale disponibile</p>
+              <p className="mt-2 text-2xl font-black">{euro.format(cashAmount)}</p>
+            </div>
+          </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Prima di comprare</p><div className="mt-4 space-y-3">
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] p-4"><span className="text-emerald-300">✓</span><p className="text-sm font-bold text-emerald-200">Broker scelto: Directa SIM · API abilitata</p></div>
-          <div className="flex items-center gap-3 rounded-xl border border-sky-400/20 bg-sky-400/[0.06] p-4"><span className="text-sky-300">2</span><p className="text-sm font-bold text-sky-100">Collaudare bridge read-only, riconciliazione e shadow execution</p></div>
-          <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] p-4"><span className="text-slate-500">3</span><p className="text-sm font-bold text-slate-300">Certificare qualità dati, recovery, paper mode e limiti di rischio</p></div>
-          <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] p-4"><span className="text-slate-500">4</span><p className="text-sm font-bold text-slate-300">Valutare il live solo dopo tutti i gate PASS e conferma esplicita</p></div>
-        </div></section>
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Readiness tecnica</p>
+            <p className="mt-2 text-lg font-black">{engineeringSummary}</p>
+          </article>
+          <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gate critici PASS</p>
+            <p className="mt-2 text-lg font-black">{criticalSummary}</p>
+          </article>
+          <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Fiducia dati</p>
+            <p className="mt-2 text-lg font-black">{data.dataQuality}/100</p>
+            <p className="mt-1 text-[10px] text-slate-500">{freshnessLabel(data.freshnessStatus)}</p>
+          </article>
+          <article className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-200/70">Live trading</p>
+            <p className="mt-2 text-lg font-black text-rose-200">{liveLocked ? "BLOCCATO" : "NON VERIFICATO"}</p>
+          </article>
+        </section>
 
-        <section className="grid grid-cols-3 gap-3"><article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Portafoglio</p><p className="mt-2 text-lg font-black">VUOTO</p></article><article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Fiducia dati</p><p className="mt-2 text-lg font-black">{data.dataQuality}/100</p></article><article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Broker</p><p className="mt-2 text-sm font-black text-emerald-300">DIRECTA SIM</p></article></section>
+        {execution ? (
+          <section className={`rounded-2xl border p-5 ${executionTone(execution.state)}`}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">Execution-grade PAPER</p>
+                <h2 className="mt-1 text-lg font-black">{executionLabel(execution.state)}</h2>
+                <p className="mt-2 text-xs leading-5 opacity-80">
+                  {execution.ownerAction ?? execution.reasons[0] ?? "Quorum indipendente verificato."}
+                </p>
+                <p className="mt-2 text-[11px] opacity-60">Feed realtime Directa a pagamento richiesto: <strong>{execution.metrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Simboli</p><p className="mt-1 text-base font-black">{execution.metrics.paperEligibleSymbols}/{execution.metrics.requestedSymbols}</p></div>
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Famiglie</p><p className="mt-1 text-base font-black">{execution.metrics.paperEligibleSourceFamilies}/2</p></div>
+                <div className="rounded-xl border border-current/15 bg-black/15 px-3 py-2"><p className="text-[9px] uppercase opacity-60">Zero-cost</p><p className="mt-1 text-base font-black">{execution.metrics.configuredZeroCostSourceFamilies}/2</p></div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
-        <section><div className="mb-3"><h2 className="text-xl font-black">Candidati da monitorare</h2><p className="mt-1 text-xs text-slate-500">Directa SIM è il broker selezionato. Nessun ordine reale è consentito finché Fenice non supera tutti i gate e non viene rilasciato esplicitamente il blocco live.</p></div><div className="space-y-3">{topAssets.map((asset, index) => { const style = actionStyle(asset.action); return <article key={`${asset.symbol}-${asset.source}`} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold text-slate-500">#{index + 1} · {asset.assetClass}</p><h3 className="mt-1 text-xl font-black">{asset.symbol}</h3><p className="mt-1 text-sm text-slate-400">{asset.name}</p></div><span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black ${style.tone}`}>{style.label}</span></div><p className="mt-4 text-sm leading-6 text-slate-300">{asset.reason}</p><div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-500"><span className="rounded-lg bg-white/5 px-2 py-1">Convinzione {asset.conviction}/100</span><span className="rounded-lg bg-white/5 px-2 py-1">Rischio {asset.risk}/100</span><span className="rounded-lg bg-white/5 px-2 py-1">Fonte: {asset.source}</span></div></article>; })}</div></section>
-        <footer className="pb-4 text-center text-xs leading-5 text-slate-500">Aggiornato {new Date(data.generatedAt).toLocaleString("it-IT")}. Fenice è in modalità studio: nessun ordine, nessun capitale investito.</footer>
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Controlli istituzionali aperti</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Stato derivato dall’API readiness. Alcuni controlli riguardano la futura fase broker/live: la certificazione PAPER resta provider-neutral e non richiede il feed realtime Directa a pagamento.</p>
+            </div>
+            <Link href="/readiness" className="rounded-lg border border-white/10 px-3 py-2 text-[11px] font-bold text-slate-300">Dettagli</Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {blockerPreview.length > 0 ? blockerPreview.map((control) => (
+              <div key={control.id} className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${readinessTone(control.status)}`}>
+                <p className="text-sm font-bold">{control.label}</p>
+                <span className="rounded-full border border-current/20 px-2 py-1 text-[10px] font-black">{control.status}</span>
+              </div>
+            )) : (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
+                Verifica dei controlli in corso. Fenice non assume PASS in assenza di evidence.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3">
+            <h2 className="text-xl font-black">Candidati da monitorare</h2>
+            <p className="mt-1 text-xs text-slate-500">Ranking informativo: nessun candidato può diventare un ordine reale finché il gate operativo resta chiuso.</p>
+          </div>
+          <div className="space-y-3">
+            {topAssets.map((asset, index) => {
+              const style = actionStyle(asset.action);
+              return (
+                <article key={`${asset.symbol}-${asset.source}`} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold text-slate-500">#{index + 1} · {asset.assetClass}</p>
+                      <h3 className="mt-1 text-xl font-black">{asset.symbol}</h3>
+                      <p className="mt-1 text-sm text-slate-400">{asset.name}</p>
+                    </div>
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black ${style.tone}`}>{style.label}</span>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-300">{asset.reason}</p>
+                  <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                    <span className="rounded-lg bg-white/5 px-2 py-1">Convinzione {asset.conviction}/100</span>
+                    <span className="rounded-lg bg-white/5 px-2 py-1">Rischio {asset.risk}/100</span>
+                    <span className="rounded-lg bg-white/5 px-2 py-1">Fonte: {asset.source}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <footer className="pb-4 text-center text-xs leading-5 text-slate-500">
+          Dati mission aggiornati {new Date(data.generatedAt).toLocaleString("it-IT")}. Readiness aggiornata {readiness ? new Date(readiness.generatedAt).toLocaleString("it-IT") : "in verifica"}. Nessun ordine reale autorizzato.
+        </footer>
       </div>
     </main>
   );

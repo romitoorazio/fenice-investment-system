@@ -12,6 +12,9 @@ on:
       - "scripts/finalize-terminal-allocation.mjs"
       - "scripts/run-dcf-engine.mjs"
       - "scripts/run-investment-committee.mjs"
+      - "scripts/run-decision-ledger.mjs"
+      - "scripts/run-calibration-analysis.mjs"
+      - "lib/intelligence/calibration-engine.mjs"
       - "lib/terminal.ts"
       - "lib/terminal-runtime.ts"
       - "components/TerminalEngine.tsx"
@@ -62,6 +65,7 @@ jobs:
           node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);if(t.assetCount<10||t.coveragePercent<50)process.exit(1);if(!t.allocationCheck?.valid||Math.abs(t.allocationCheck.totalPercent-100)>.2)process.exit(1);if(t.guardrails?.violations?.length)process.exit(1);for(const a of t.assets){if(!a.technical||!a.technical.freshness||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1);if(['ATTENDI','EVITA'].includes(a.decision)&&a.targetWeightPercent>0)process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore,'freshness',t.freshnessStatus,'invested',t.allocationCheck.investedPercent,'reserve',t.allocationCheck.reservePercent)"
           node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('data/terminal-alerts.json'));const s=JSON.parse(fs.readFileSync('data/terminal-state.json'));if(!Array.isArray(a.alerts)||!s.assets)process.exit(1);console.log('Alerts stored:',a.alerts.length,'state assets:',Object.keys(s.assets).length)"
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/investment-committee.json'));if(!Array.isArray(c.topDecisions)||!Array.isArray(c.allDecisions)||!Number.isFinite(c.dataQuality)||!c.executionGate||!c.goal)process.exit(1);for(const d of c.allDecisions){if(!Number.isFinite(d.committeeScore)||!Number.isFinite(d.confidence)||!Number.isFinite(d.riskScore)||!d.scorecard||!d.entryPlan||!Array.isArray(d.bearCase)||!Array.isArray(d.invalidation))process.exit(1)};if(c.executionGate==='BLOCCATO'&&c.proposedFirstTrancheEuro>0)process.exit(1);console.log('Committee:',c.candidateCount,'BUY',c.buyCandidateCount,'gate',c.executionGate,'quality',c.dataQuality,'tranche',c.proposedFirstTrancheEuro)"
+          node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/calibration-analysis.json'));if(!c.horizons?.['7d']||!c.horizons?.['30d']||!c.horizons?.['90d'])process.exit(1);if(c.policy?.confidenceCanOnlyBeReducedByCalibration!==true||c.policy?.liveTradingAllowed!==false)process.exit(1);for(const h of Object.values(c.horizons)){if(!['INSUFFICIENT','CALIBRATED','WATCH','POOR'].includes(h.state))process.exit(1);if(!Number.isFinite(h.sampleSize)||!Number.isFinite(h.confidenceMultiplier)||h.confidenceMultiplier>1)process.exit(1)};console.log('Calibration 7d:',c.horizons['7d'].state,c.horizons['7d'].sampleSize,'30d:',c.horizons['30d'].state,c.horizons['30d'].sampleSize)"
 
       - name: Commit terminal intelligence
         run: |

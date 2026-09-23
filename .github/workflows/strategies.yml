@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths:
       - "scripts/run-strategy-lab.mjs"
+      - "scripts/finalize-strategy-lab.mjs"
+      - "scripts/test-strategy-robustness.mjs"
+      - "lib/intelligence/strategy-robustness.mjs"
       - "lib/strategy.ts"
       - "components/StrategyLab.tsx"
       - "app/api/strategies/**"
@@ -42,12 +45,30 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Validate institutional strategy robustness engine
+        run: npm run strategy:robustness:test
+
       - name: Run out of sample strategy tests
         run: npm run strategies
 
       - name: Validate strategy report
         run: |
-          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('data/strategy-lab.json'));if(!Array.isArray(s.assets)||!Number.isFinite(s.coveragePercent)||!s.source)process.exit(1);if(s.assetCount<12||s.coveragePercent<60)process.exit(1);for(const a of s.assets){if(!Array.isArray(a.families)||a.families.length!==2||!Number.isFinite(a.bestRobustnessScore))process.exit(1);for(const f of a.families){if(!Array.isArray(f.variants)||f.variants.length!==3)process.exit(1);for(const v of f.variants){if(!v.inSample||!v.outOfSample||!v.fullPeriod)process.exit(1)}}};console.log('Strategy assets:',s.assetCount,'coverage',s.coveragePercent,'robust',s.robustCount)"
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=JSON.parse(fs.readFileSync('data/strategy-lab.json'));
+          if(!Array.isArray(s.assets)||!Number.isFinite(s.coveragePercent)||!s.source)process.exit(1);
+          if(s.assetCount<12||s.coveragePercent<60)process.exit(1);
+          for(const a of s.assets){
+            if(!Array.isArray(a.families)||a.families.length!==2||!Number.isFinite(a.bestRobustnessScore))process.exit(1);
+            for(const f of a.families){
+              if(!Array.isArray(f.variants)||f.variants.length!==3)process.exit(1);
+              if(!f.parameterStability||!Number.isFinite(Number(f.parameterStability.score)))process.exit(1);
+              if(f.verdict==='ROBUSTA'&&f.parameterStability.state!=='STABLE')process.exit(1);
+              for(const v of f.variants){if(!v.inSample||!v.outOfSample||!v.fullPeriod)process.exit(1)}
+            }
+          }
+          console.log('Strategy assets:',s.assetCount,'coverage',s.coveragePercent,'robust',s.robustCount);
+          NODE
 
       - name: Commit strategy analysis
         run: |

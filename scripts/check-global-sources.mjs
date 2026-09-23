@@ -9,6 +9,7 @@ const historyDir = path.join(root, "data", "source-history");
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 const now = new Date();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const FINRA_TOKEN_URL = "https://ews.fip.finra.org/fip/rest/ews/oauth2/access_token?grant_type=client_credentials";
 
 let previousReport = null;
 try {
@@ -17,11 +18,12 @@ try {
   previousReport = null;
 }
 
-const secretValues = [...new Set(
-  registry.sources
-    .map(source => source.secret ? process.env[source.secret] : null)
-    .filter(value => typeof value === "string" && value.length > 0),
-)];
+const secretValues = [...new Set([
+  ...registry.sources
+    .map(source => source.secret ? process.env[source.secret] : null),
+  process.env.FINRA_CLIENT_ID,
+  process.env.FINRA_CLIENT_SECRET,
+].filter(value => typeof value === "string" && value.length > 0))];
 const sensitiveQueryKeys = new Set(["api_key", "apikey", "key", "token", "access_token"]);
 
 function redactString(value) {
@@ -80,6 +82,11 @@ function payloadLooksValid(source, text, contentType) {
   if (source.id === "clinical-trials") return /studies|protocolSection/i.test(trimmed);
   if (source.id === "fred") return /seriess|series/i.test(trimmed);
   if (source.id === "alpha-vantage") return /markets|market_type|endpoint|Information/i.test(trimmed);
+  if (source.id === "bls") return /status|Results|series|seriesID/i.test(trimmed);
+  if (source.id === "us-treasury-fiscal") return /record_date|tot_pub_debt_out_amt|debt_held_public_amt/i.test(trimmed);
+  if (source.id === "finra-fixed-income") return /tradeDate|dealerCustomerVolume|interdealer|yearsToMaturity/i.test(trimmed);
+  if (source.id === "coinbase-exchange") return /price|bid|ask|trade_id/i.test(trimmed);
+  if (source.id === "kraken") return /result|error|XXBT|XBTUSD|c\"/i.test(trimmed);
   return true;
 }
 
@@ -149,7 +156,98 @@ async function request(source, endpoint, attempt) {
   }
 }
 
+async function probeFinra(source) {
+  const clientId = String(process.env.FINRA_CLIENT_ID || "").trim();
+  const clientSecret = String(process.env.FINRA_CLIENT_SECRET || "").trim();
+  if (!clientId || !clientSecret) {
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "unconfigured", checkedAt: now.toISOString(),
+      latencyMs: null, httpStatus: null,
+      detail: "FINRA Public OAuth non configurato: servono FINRA_CLIENT_ID e FINRA_CLIENT_SECRET; nessun outage dichiarato.",
+      regions: source.regions, endpointUsed: null, attempts: 0, stale: false,
+    };
+  }
+
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const basic = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+    const tokenResponse = await fetch(FINRA_TOKEN_URL, {
+      method: "POST",
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        accept: "application/json",
+        authorization: `Basic ${basic}`,
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent": "FeniceInvestmentSystem/3.8 finra-public-health",
+      },
+    });
+    if (!tokenResponse.ok) throw new Error(`FINRA token HTTP ${tokenResponse.status}`);
+    const tokenPayload = await tokenResponse.json();
+    const token = String(tokenPayload?.access_token || "").trim();
+    if (!token) throw new Error("FINRA OAuth token mancante");
+
+    const response = await fetch(source.endpoint, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "FeniceInvestmentSystem/3.8 finra-public-health",
+      },
+    });
+    const text = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) throw new Error(`FINRA data HTTP ${response.status}`);
+    if (!payloadLooksValid(source, text, contentType)) throw new Error("FINRA payload vuoto o inatteso");
+
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "healthy", checkedAt: now.toISOString(),
+      lastSuccessfulAt: now.toISOString(), stale: false,
+      latencyMs: Date.now() - startedAt, httpStatus: response.status,
+      detail: `FINRA Public OAuth valido; payload valido (${text.length} bytes).`,
+      regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+      bytes: text.length, contentType,
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const previous = previousSuccessfulSource(source.id);
+    if (previous && /fetch failed|abort|timeout|HTTP 5\d\d/i.test(detail)) {
+      const lastSuccessfulAt = previous.lastSuccessfulAt || previous.checkedAt;
+      const staleAgeMs = now.getTime() - Date.parse(lastSuccessfulAt);
+      const maxStaleMs = 72 * 60 * 60 * 1000;
+      if (Number.isFinite(staleAgeMs) && staleAgeMs >= 0 && staleAgeMs <= maxStaleMs) {
+        return {
+          id: source.id, name: source.name, category: source.category, authority: source.authority,
+          critical: Boolean(source.critical), status: "degraded", checkedAt: now.toISOString(),
+          lastSuccessfulAt, stale: true, staleAgeMinutes: Math.round(staleAgeMs / 60000),
+          latencyMs: Date.now() - startedAt, httpStatus: null,
+          detail: `FINRA OAuth temporaneamente non raggiungibile (${detail}); mantenuto l'ultimo stato valido senza considerarlo dato nuovo.`,
+          regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+          bytes: 0, contentType: "",
+        };
+      }
+    }
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(), stale: false,
+      latencyMs: Date.now() - startedAt, httpStatus: null,
+      detail: `FINRA Public OAuth configurato ma probe fallito: ${detail}`,
+      regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+      bytes: 0, contentType: "",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function probe(source) {
+  if (source.id === "finra-fixed-income") return probeFinra(source);
+
   const endpoints = endpointsFor(source);
   if (!endpoints.length) {
     return {
@@ -214,6 +312,25 @@ async function probe(source) {
   };
 }
 
+async function probeSources(sources, concurrency = 4) {
+  const list = Array.isArray(sources) ? sources : [];
+  if (!list.length) return [];
+  const limit = Math.max(1, Math.min(6, Number(concurrency) || 4));
+  const results = new Array(list.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= list.length) return;
+      results[index] = await probe(list[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, list.length) }, () => worker()));
+  return results;
+}
+
 async function pruneHistory(maxFiles = 120) {
   const entries = (await readdir(historyDir, { withFileTypes: true }))
     .filter(entry => entry.isFile() && entry.name.endsWith(".json"))
@@ -224,8 +341,8 @@ async function pruneHistory(maxFiles = 120) {
 }
 
 await mkdir(historyDir, { recursive: true });
-const results = [];
-for (const source of registry.sources) results.push(await probe(source));
+const configuredConcurrency = Number(process.env.FENICE_SOURCE_PROBE_CONCURRENCY || 4);
+const results = await probeSources(registry.sources, configuredConcurrency);
 
 const counts = results.reduce((acc, source) => {
   acc[source.status] = (acc[source.status] || 0) + 1;
@@ -264,8 +381,11 @@ const report = sanitizeForStorage({
   },
   sources: results,
 });
-const serialized = `${JSON.stringify(report, null, 2)}\n`;
-await writeFile(outputPath, serialized, "utf8");
-await writeFile(path.join(historyDir, `${now.toISOString().replaceAll(":", "-")}.json`), serialized, "utf8");
+
+await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+const historyName = `${now.toISOString().replace(/[:.]/g, "-")}.json`;
+await writeFile(path.join(historyDir, historyName), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 await pruneHistory();
-console.log(`Global sources checked: ${results.length}; reliability ${reliabilityScore}/100; gate ${gate}; healthy ${counts.healthy}; degraded ${counts.degraded}; failed ${counts.failed}; unconfigured ${counts.unconfigured}`);
+
+console.log(`Global source health: ${gate} (${reliabilityScore}/100), critical ${criticalReady}/${criticalSources.length}, total ${results.length}.`);
+if (criticalFailures.length) console.log(`Critical failures: ${criticalFailures.join(", ")}`);

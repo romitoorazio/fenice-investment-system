@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "47 * * * *"
   push:
-    branches: [main]
+    branches: [main, feature/professional-core-consolidation]
     paths-ignore:
       - "data/history/**"
       - "**/*.md"
@@ -17,7 +17,9 @@ permissions:
 
 concurrency:
   group: fenice-production-ci-${{ github.ref }}
-  cancel-in-progress: false
+  # Keep every main/scheduled production check, but a newer PR head supersedes
+  # older queued validation runs for the same pull request.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -45,11 +47,122 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Instrument master identity and venue validation
+        run: npm run instruments:validate
+
+      - name: Broker recognition and compile-time live lock
+        run: npm run broker:safety
+
+      - name: Institutional paper OMS safety
+        run: npm run trading:ops
+
+      - name: Execution-quality pilot gate invariants
+        run: npm run execution:quality:test
+
+      - name: Smart Order Router best-execution and live-lock invariants
+        run: npm run routing:sor:test
+
+      - name: Position sizing and drawdown risk invariants
+        run: npm run risk:advanced:test
+
+      - name: Risk-of-ruin firewall invariants
+        run: npm run risk:ruin:test
+
+      - name: Portfolio concentration and correlation invariants
+        run: npm run risk:portfolio:test
+
+      - name: Portfolio factor stress invariants
+        run: npm run risk:stress:test
+
+      - name: Multi-factor exposure regression invariants
+        run: npm run risk:factor:test
+
+      - name: Strategy walk-forward bootstrap and cost robustness invariants
+        run: npm run strategy:robustness:test
+
+      - name: Market-data quorum fail-closed invariants
+        run: npm run marketdata:quorum:test
+
+      - name: Execution market-data routing invariants
+        run: npm run marketdata:execution:test
+
+      - name: Combined operational gates fail-closed invariants
+        run: npm run operational:gates:test
+
+      - name: Conditional STOP trailing OCO and bracket semantics
+        run: npm run orders:conditional:test
+
+      - name: Persistent paper conditional book invariants
+        run: npm run orders:conditional-book:test
+
+      - name: Signal and macro conditioned activation invariants
+        run: npm run orders:signal:test
+
+      - name: Event-risk gate invariants
+        run: npm run events:risk:test
+
+      - name: Directa read-only protocol firewall
+        run: npm run directa:readonly:test
+
+      - name: Directa read-only market-data protocol
+        run: npm run directa:datafeed:test
+
+      - name: Directa diagnostic redaction safety
+        run: npm run directa:diagnostic-safety:test
+
+      - name: Directa entitlement fallback safety
+        run: npm run directa:entitlement:test
+
+      - name: Intelligence quality engine invariants
+        run: npm run intelligence:quality:test
+
+      - name: Forecast calibration invariants
+        run: npm run calibration:test
+
+      - name: Calibration policy cannot increase confidence
+        run: npm run calibration:policy:test
+
+      - name: Build current calibration analysis
+        run: npm run calibration:analyze
+
+      - name: Runtime readiness evidence fail-closed invariants
+        run: npm run readiness:evidence:test
+
+      - name: Immutable paper validation core fingerprint invariants
+        run: npm run paper:fingerprint:test
+
+      - name: Build PAPER execution coverage from repository evidence
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Paper baseline eligibility fail-closed invariants
+        run: npm run paper:baseline:test
+
+      - name: Report current paper baseline eligibility
+        run: npm run paper:baseline:status
+
+      - name: 30-day paper campaign invariants
+        run: npm run paper:validation:test
+
+      - name: Institutional risk reconciliation shadow and recovery controls
+        run: npm run institutional:test
+
+      - name: Atomic state persistence and corruption handling
+        run: npm run state:test
+
+      - name: Adverse-condition chaos resilience
+        run: npm run chaos:test
+
+      - name: Paper conditional OMS smoke test
+        run: npm run paper:conditional
+
+      - name: Paper OMS runner smoke test
+        run: npm run paper:run
+
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
       - name: Source-status reconciliation invariants
-        run: node --experimental-strip-types scripts/test-source-health-overlay.mjs
+        run: node --experimental-strip-types scripts/test-data-hub-source-overlay.mjs
 
       - name: Validate published datasets
         run: |
@@ -63,6 +176,15 @@ jobs:
             'data/terminal-state.json',
             'data/dcf-analysis.json',
             'data/strategy-lab.json',
+            'data/paper-oms-state.json',
+            'data/paper-order-queue.json',
+            'data/paper-conditional-state.json',
+            'data/paper-conditional-queue.json',
+            'data/execution-market-evidence.json',
+            'data/execution-market-coverage.json',
+            'data/market-risk-events.json',
+            'data/calibration-analysis.json',
+            'data/paper-validation-campaign.json',
           ];
           for (const file of files) {
             const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -84,6 +206,32 @@ jobs:
           }
           const research = JSON.parse(fs.readFileSync('data/fundamental-research.json', 'utf8'));
           if (!Array.isArray(research.companies) || research.companies.length < 8) throw new Error('Research coverage insufficient');
+          const evidence = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
+          if (!Array.isArray(evidence.observations)) throw new Error('Execution market evidence structure invalid');
+          const coverage = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
+          if (!Array.isArray(coverage.rows) || coverage.policy?.requiredEligibility !== 'PAPER' || Number(coverage.policy?.minIndependentSourceFamilies || 0) < 2 || coverage.policy?.liveTradingAllowed !== false) {
+            throw new Error('Execution market coverage policy invariant violated');
+          }
+          const eventRisk = JSON.parse(fs.readFileSync('data/market-risk-events.json', 'utf8'));
+          if (!Array.isArray(eventRisk.events)) throw new Error('Market risk events structure invalid');
+          const conditional = JSON.parse(fs.readFileSync('data/paper-conditional-state.json', 'utf8'));
+          if (!conditional.book || !Array.isArray(conditional.book.singles) || !Array.isArray(conditional.book.ocoGroups)) {
+            throw new Error('Paper conditional state structure invalid');
+          }
+          const calibration = JSON.parse(fs.readFileSync('data/calibration-analysis.json', 'utf8'));
+          if (!calibration.horizons || !calibration.horizons['7d'] || !calibration.horizons['30d']) {
+            throw new Error('Calibration analysis structure invalid');
+          }
+          if (calibration.policy?.confidenceCanOnlyBeReducedByCalibration !== true || calibration.policy?.liveTradingAllowed !== false) {
+            throw new Error('Calibration policy invariant violated');
+          }
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          if (campaign.liveTradingAllowed !== false || Number(campaign.requiredDays) < 30 || Number(campaign.minPaperFills) < 10) {
+            throw new Error('Paper validation campaign policy invariant violated');
+          }
+          if (campaign.startedAt && (!campaign.baselineFingerprint || campaign.baselineFingerprint.complete !== true || campaign.baselineFingerprint.algorithm !== 'sha256')) {
+            throw new Error('Started paper campaign must have a complete SHA-256 core fingerprint');
+          }
           console.log('Critical datasets are structurally valid');
           NODE
 

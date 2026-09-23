@@ -2,10 +2,25 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  computeIntelligenceConfidence,
+  computeSourceConcentration,
+  deriveCryptoVenueTargets,
+  deriveStooqTargets,
+  filterFreshValidationEvidence,
+  parseStooqTimestamp,
+  settleWithConcurrency,
+} from "../lib/intelligence/quality-engine.mjs";
+import {
+  buildCrossSourceValidation,
+  deriveCryptoConflictEscalationTargets,
+  mergeEvidenceBySource,
+} from "../lib/intelligence/cross-source-consensus.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = path.join(root, "data", "latest-snapshot.json");
 const qualityPath = path.join(root, "data", "intelligence-quality.json");
+const globalSourceHealthPath = path.join(root, "data", "global-source-health.json");
 const comparisonUniverse = [
   ["spy.us", "SPY", "ETF"],
   ["qqq.us", "QQQ", "ETF"],
@@ -86,7 +101,7 @@ async function request(url, { format = "json", timeoutMs = 12000 } = {}) {
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/3.3 data-quality-validation",
+        "user-agent": "FeniceInvestmentSystem/3.5 data-quality-validation",
       },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -104,7 +119,9 @@ function parseStooqQuote(text) {
   const row = Object.fromEntries(headers.map((header, index) => [header, values[index]]));
   const price = Number(row.Close);
   if (!Number.isFinite(price) || price <= 0) return null;
-  return { price, observedAt: row.Date || undefined };
+  const observedAt = parseStooqTimestamp(row.Date, row.Time);
+  if (!observedAt) return null;
+  return { price, observedAt };
 }
 
 async function fetchStooqEvidence(code, symbol, assetClass) {
@@ -162,6 +179,43 @@ async function fetchYahooEvidence(symbol, assetClass, expectedName) {
   };
 }
 
+async function fetchCoinbaseEvidence(symbol, expectedName) {
+  const canonicalSymbol = normalizeSymbol(symbol);
+  const data = await request(`https://api.exchange.coinbase.com/products/${encodeURIComponent(`${canonicalSymbol}-USD`)}/ticker`);
+  const price = Number(data?.price);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Coinbase quote non valido");
+  return {
+    symbol: canonicalSymbol,
+    name: expectedName,
+    assetClass: "Criptovaluta",
+    price,
+    currency: "USD",
+    source: "Coinbase Exchange independent validation",
+    observedAt: data?.time && Number.isFinite(Date.parse(data.time)) ? new Date(data.time).toISOString() : new Date().toISOString(),
+    validationOnly: true,
+  };
+}
+
+async function fetchKrakenEvidence(symbol, expectedName) {
+  const canonicalSymbol = normalizeSymbol(symbol);
+  const pair = canonicalSymbol === "BTC" ? "XBTUSD" : `${canonicalSymbol}USD`;
+  const data = await request(`https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(pair)}`);
+  if (!Array.isArray(data?.error) || data.error.length) throw new Error("Kraken API error");
+  const result = data?.result && typeof data.result === "object" ? Object.values(data.result)[0] : null;
+  const price = Number(result?.c?.[0]);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Kraken quote non valido");
+  return {
+    symbol: canonicalSymbol,
+    name: expectedName,
+    assetClass: "Criptovaluta",
+    price,
+    currency: "USD",
+    source: "Kraken independent validation",
+    observedAt: new Date().toISOString(),
+    validationOnly: true,
+  };
+}
+
 async function collectIndependentMarketEvidence(baseObservations) {
   const evidence = baseObservations
     .filter((item) => normalizeSymbol(item.symbol) && Number.isFinite(Number(item.price)))
@@ -191,70 +245,68 @@ async function collectIndependentMarketEvidence(baseObservations) {
     }
   }
 
-  const tasks = [
-    ...comparisonUniverse.map(([code, symbol, assetClass]) => fetchStooqEvidence(code, symbol, assetClass)),
-    ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => fetchYahooEvidence(symbol, assetClass, expectedName)),
+  const stooqTargets = deriveStooqTargets(evidence, comparisonUniverse, 32);
+  const cryptoVenueTargets = deriveCryptoVenueTargets(evidence, 12);
+  const taskFactories = [
+    ...stooqTargets.map(([code, symbol, assetClass]) => () => fetchStooqEvidence(code, symbol, assetClass)),
+    ...[...yahooTargets.values()].map(({ symbol, assetClass, expectedName }) => () => fetchYahooEvidence(symbol, assetClass, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => () => fetchCoinbaseEvidence(symbol, expectedName)),
+    ...cryptoVenueTargets.map(([symbol, expectedName]) => () => fetchKrakenEvidence(symbol, expectedName)),
   ];
-  const results = await Promise.allSettled(tasks);
+  const results = await settleWithConcurrency(taskFactories, 8);
   for (const result of results) {
     if (result.status === "fulfilled") evidence.push(result.value);
   }
 
-  const unique = new Map();
-  for (const item of evidence) {
-    const key = `${normalizeSymbol(item.symbol)}:${String(item.currency || "USD").toUpperCase()}:${item.source}`;
-    const existing = unique.get(key);
-    if (!existing || Date.parse(item.observedAt || 0) > Date.parse(existing.observedAt || 0)) unique.set(key, item);
-  }
-  return [...unique.values()];
+  return mergeEvidenceBySource(evidence, []);
 }
 
-function buildValidation(observations) {
-  const groups = new Map();
-  for (const item of observations) {
-    const symbol = normalizeSymbol(item.symbol);
-    if (!symbol || !Number.isFinite(Number(item.price))) continue;
-    const key = `${symbol}:${String(item.currency || "").toUpperCase()}`;
-    const list = groups.get(key) || [];
-    list.push(item);
-    groups.set(key, list);
+async function escalateCryptoConflicts(observations, now) {
+  const fresh = filterFreshValidationEvidence(observations, { now });
+  const targets = deriveCryptoConflictEscalationTargets(fresh, { limit: 4 });
+  if (!targets.length) return { observations, targets: [], recovered: 0 };
+
+  const taskFactories = [];
+  for (const target of targets) {
+    const existing = new Set(target.existingSources || []);
+    if (!existing.has("Coinbase Exchange independent validation")) {
+      taskFactories.push(() => fetchCoinbaseEvidence(target.symbol, target.name));
+    }
+    if (!existing.has("Kraken independent validation")) {
+      taskFactories.push(() => fetchKrakenEvidence(target.symbol, target.name));
+    }
   }
 
-  const checks = [];
-  for (const [key, items] of groups) {
-    const bySource = new Map();
-    for (const item of items) {
-      if (!item.source || !Number.isFinite(Number(item.price))) continue;
-      bySource.set(item.source, item);
-    }
-    const independent = [...bySource.values()];
-    if (independent.length < 2) continue;
-    const prices = independent.map((item) => Number(item.price));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const midpoint = (min + max) / 2 || 1;
-    const spreadPercent = ((max - min) / midpoint) * 100;
-    checks.push({
-      instrument: key,
-      sources: independent.map((item) => item.source),
-      observations: independent.length,
-      spreadPercent: Number(spreadPercent.toFixed(3)),
-      status: spreadPercent <= 0.5 ? "confermato" : spreadPercent <= 2 ? "attenzione" : "divergente",
-    });
-  }
-  return checks.sort((a, b) => b.spreadPercent - a.spreadPercent);
+  const results = await settleWithConcurrency(taskFactories, 4);
+  const additions = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  return {
+    observations: mergeEvidenceBySource(observations, additions),
+    targets,
+    recovered: additions.length,
+  };
 }
 
 async function main() {
   await runFoundation();
   const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
+  let globalSourceHealth = {};
+  try {
+    globalSourceHealth = JSON.parse(await readFile(globalSourceHealthPath, "utf8"));
+  } catch {
+    globalSourceHealth = {};
+  }
+
   const now = Date.now();
   const providers = Array.isArray(snapshot.providers) ? snapshot.providers : [];
   const markets = Array.isArray(snapshot.markets) ? snapshot.markets : [];
   const preservedObservations = Array.isArray(snapshot.marketObservations) && snapshot.marketObservations.length
     ? snapshot.marketObservations
     : markets;
-  const observations = await collectIndependentMarketEvidence(preservedObservations);
+  let observations = await collectIndependentMarketEvidence(preservedObservations);
+  const escalation = await escalateCryptoConflicts(observations, now);
+  observations = escalation.observations;
+  const freshObservations = filterFreshValidationEvidence(observations, { now });
+  const staleEvidenceExcluded = Math.max(0, observations.length - freshObservations.length);
 
   const sourceQuality = providers.map((provider) => ({
     id: provider.id,
@@ -265,43 +317,48 @@ async function main() {
     coverageCount: Array.isArray(provider.coverage) ? provider.coverage.length : 0,
   })).sort((a, b) => b.qualityScore - a.qualityScore);
 
-  const validations = buildValidation(observations);
+  const validations = buildCrossSourceValidation(freshObservations);
   const confirmed = validations.filter((item) => item.status === "confermato").length;
   const divergent = validations.filter((item) => item.status === "divergente").length;
-  const operational = providers.filter((item) => item.state === "operativo").length;
-  const partial = providers.filter((item) => item.state === "parziale").length;
-  const sourceNames = new Set(observations.map((item) => item.source).filter(Boolean));
-  const assetClasses = new Set([...markets, ...observations].map((item) => item.assetClass).filter(Boolean));
-  const concentration = observations.length
-    ? Math.max(...[...sourceNames].map((source) => observations.filter((item) => item.source === source).length)) / observations.length
-    : 1;
-
-  const averageQuality = sourceQuality.length
-    ? sourceQuality.reduce((sum, item) => sum + item.qualityScore, 0) / sourceQuality.length
-    : 0;
-  const validationBonus = Math.min(12, confirmed * 2);
-  const divergencePenalty = Math.min(24, divergent * 6);
-  const concentrationPenalty = concentration > 0.75 ? 18 : concentration > 0.55 ? 10 : concentration > 0.4 ? 5 : 0;
-  const coverageBonus = Math.min(12, assetClasses.size * 2);
-  const intelligenceConfidence = Math.round(clamp(
-    averageQuality * 0.55 + operational * 4 + partial * 2 + validationBonus + coverageBonus - divergencePenalty - concentrationPenalty,
-  ));
+  const attention = validations.filter((item) => item.status === "attenzione").length;
+  const sourceNames = new Set(freshObservations.map((item) => item.source).filter(Boolean));
+  const assetClasses = new Set(freshObservations.map((item) => item.assetClass).filter(Boolean));
+  const concentration = computeSourceConcentration(freshObservations);
+  const confidenceModel = computeIntelligenceConfidence({
+    sourceQuality,
+    criticalHealth: globalSourceHealth?.critical || {},
+    healthReportGeneratedAt: globalSourceHealth?.generatedAt || null,
+    validations,
+    sourceCount: sourceNames.size,
+    assetClassCount: assetClasses.size,
+    concentration,
+    now,
+  });
+  const intelligenceConfidence = confidenceModel.confidence;
 
   const report = {
     generatedAt: new Date().toISOString(),
     intelligenceConfidence,
+    confidenceModel,
     sourceQuality,
     crossSourceValidation: {
       checked: validations.length,
       confirmed,
+      attention,
       divergent,
       checks: validations.slice(0, 100),
-      evidenceObservations: observations.length,
+      evidenceObservations: freshObservations.length,
+      rawEvidenceObservations: observations.length,
+      staleEvidenceExcluded,
       validationSources: [...sourceNames].sort(),
+      cryptoConflictEscalation: {
+        targets: escalation.targets.map((item) => ({ symbol: item.symbol, spreadPercent: item.spreadPercent })),
+        additionalVenueObservations: escalation.recovered,
+      },
     },
     coverage: {
-      instruments: new Set(observations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
-      marketObservations: observations.length,
+      instruments: new Set(freshObservations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
+      marketObservations: freshObservations.length,
       marketSources: sourceNames.size,
       assetClasses: [...assetClasses].sort(),
       sourceConcentrationPercent: Math.round(concentration * 100),
@@ -312,30 +369,50 @@ async function main() {
       singleSourceSignalsCapped: true,
       autonomousTrading: false,
       validationOnlyObservationsDoNotCreateTradeSignals: true,
+      confidenceFailsClosedWithoutCriticalSourceGreen: true,
+      criticalHealthFreshnessRequiredHours: 24,
+      validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 },
+      unknownTimestampEvidenceExcluded: true,
+      boundedExternalValidationConcurrency: 8,
+      twoSourceCryptoDivergenceEscalatesToIndependentVenues: true,
+      multiSourceOutlierRequiresStrictMajorityConsensus: true,
+      divergenceThresholdPercentUnchanged: 2,
+      confirmationBandPercentUnchanged: 0.5,
     },
   };
 
   snapshot.marketValidationEvidence = {
     generatedAt: report.generatedAt,
-    observations: observations.length,
+    observations: freshObservations.length,
+    rawObservations: observations.length,
+    staleEvidenceExcluded,
     sources: [...sourceNames].sort(),
     checks: validations.length,
+    attention,
     divergent,
+    cryptoConflictEscalationTargets: escalation.targets.length,
+    cryptoConflictEscalationRecovered: escalation.recovered,
   };
   snapshot.intelligence = report;
   snapshot.pulse = snapshot.pulse || {};
   snapshot.pulse.rawConfidence = snapshot.pulse.confidence;
   snapshot.pulse.confidence = intelligenceConfidence;
-  if (concentrationPenalty >= 10) {
+  if (concentration > 0.5) {
     snapshot.warnings = [...new Set([...(snapshot.warnings || []), "Copertura di mercato concentrata su poche fonti: fiducia ridotta automaticamente."])];
   }
   if (divergent > 0) {
-    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${divergent} strumenti presentano prezzi divergenti tra fonti indipendenti.`])];
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${divergent} strumenti presentano prezzi divergenti tra fonti indipendenti anche dopo escalation di consenso.`])];
+  }
+  if (attention > 0) {
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${attention} strumenti richiedono attenzione per dispersione prezzi o presenza di outlier tra fonti indipendenti.`])];
+  }
+  if (staleEvidenceExcluded > 0) {
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${staleEvidenceExcluded} osservazioni di mercato stale o senza timestamp escluse dalla validazione.`])];
   }
 
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   await writeFile(qualityPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${observations.length} evidence observations.`);
+  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${freshObservations.length}/${observations.length} fresh evidence observations, ${sourceNames.size} market sources, crypto escalations=${escalation.targets.length}, recovered=${escalation.recovered}.`);
 }
 
 main().catch((error) => {

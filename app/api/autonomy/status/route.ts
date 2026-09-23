@@ -7,7 +7,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
-  const data = overlaySourceHealth(snapshot as AutonomySnapshot, sourceHealth);
+  const data = overlaySourceHealth(
+    snapshot as AutonomySnapshot,
+    sourceHealth,
+  );
 
   return Response.json(
     {

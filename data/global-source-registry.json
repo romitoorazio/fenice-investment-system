@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "updatedAt": "2026-08-29T10:30:00.000Z",
+  "version": 6,
+  "updatedAt": "2026-09-23T10:10:00.000Z",
   "sources": [
     {"id":"world-bank","name":"World Bank Indicators","category":"macro","authority":"institutional","critical":true,"endpoint":"https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=1","auth":"none","regions":["global"]},
     {"id":"ecb","name":"ECB Data Portal","category":"macro","authority":"central-bank","critical":true,"endpoint":"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&lastNObservations=1","auth":"none","regions":["euro-area","global-fx"]},
@@ -8,6 +8,10 @@
     {"id":"oecd","name":"OECD Data Explorer SDMX","category":"macro","authority":"institutional","endpoint":"https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_KEI@DF_KEI,/.M.PRVM.IX.BTE..?startPeriod=2026-02&dimensionAtObservation=AllDimensions","fallbackEndpoints":["https://sdmx.oecd.org/public/rest/dataflow/OECD.SDD.STES/DSD_KEI@DF_KEI/?references=all"],"auth":"none","regions":["oecd","global"]},
     {"id":"imf","name":"IMF DataMapper","category":"macro","authority":"institutional","critical":true,"endpoint":"https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH","auth":"none","regions":["global"]},
     {"id":"bis","name":"Bank for International Settlements","category":"banking","authority":"institutional","endpoint":"https://stats.bis.org/api/v1/data/WS_CBPOL?format=csvfile","auth":"none","regions":["global"]},
+    {"id":"bls","name":"U.S. Bureau of Labor Statistics","category":"macro","authority":"institutional","endpoint":"https://api.bls.gov/publicAPI/v1/timeseries/data/CUSR0000SA0","fallbackEndpoints":["https://api.bls.gov/publicAPI/v1/timeseries/data/LNS14000000"],"auth":"none","regions":["usa","inflation","labor"]},
+    {"id":"us-treasury-fiscal","name":"U.S. Treasury Fiscal Data","category":"fiscal","authority":"institutional","endpoint":"https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page%5Bsize%5D=1","auth":"none","regions":["usa","sovereign-debt"]},
+    {"id":"cftc-tff","name":"CFTC Traders in Financial Futures","category":"positioning","authority":"regulator","endpoint":"https://publicreporting.cftc.gov/resource/gpe5-46if.json?$limit=1&$order=report_date_as_yyyy_mm_dd%20DESC","auth":"none","regions":["usa","global-futures"]},
+    {"id":"finra-fixed-income","name":"FINRA Fixed Income API","category":"fixed-income","authority":"regulator","endpoint":"https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates?limit=1","fallbackEndpoints":["https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregatesMock?limit=1"],"auth":"oauth2-public","clientIdSecret":"FINRA_CLIENT_ID","clientSecretSecret":"FINRA_CLIENT_SECRET","regions":["usa","treasuries"]},
     {"id":"sec","name":"SEC EDGAR","category":"companies","authority":"regulator","critical":true,"endpoint":"https://www.sec.gov/files/company_tickers.json","fallbackEndpoints":["https://data.sec.gov/submissions/CIK0000320193.json"],"auth":"user-agent","regions":["usa","global-issuers"]},
     {"id":"clinical-trials","name":"ClinicalTrials.gov","category":"biotech","authority":"institutional","critical":true,"endpoint":"https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json","auth":"none","regions":["global"]},
     {"id":"openfda","name":"openFDA","category":"biotech","authority":"regulator","critical":true,"endpoint":"https://api.fda.gov/drug/event.json?limit=1","auth":"optional-key","regions":["usa","global-pharma"]},
@@ -15,6 +19,8 @@
     {"id":"eia","name":"U.S. Energy Information Administration","category":"energy","authority":"institutional","critical":true,"endpoint":"https://api.eia.gov/v2/?api_key={key}","auth":"api-key","secret":"EIA_API_KEY","regions":["usa","global-energy"]},
     {"id":"gdelt","name":"GDELT Project","category":"geopolitics","authority":"research-network","endpoint":"https://api.gdeltproject.org/api/v2/doc/doc?query=markets&mode=ArtList&maxrecords=1&format=json","fallbackEndpoints":["https://api.gdeltproject.org/api/v2/doc/doc?query=geopolitics&mode=ArtList&maxrecords=1&format=json"],"auth":"none","regions":["global"]},
     {"id":"coingecko","name":"CoinGecko","category":"crypto","authority":"market-data","endpoint":"https://api.coingecko.com/api/v3/ping","auth":"optional-key","secret":"COINGECKO_API_KEY","regions":["global"]},
+    {"id":"coinbase-exchange","name":"Coinbase Exchange Market Data","category":"crypto","authority":"market-data","endpoint":"https://api.exchange.coinbase.com/products/BTC-USD/ticker","auth":"none","regions":["global"]},
+    {"id":"kraken","name":"Kraken Public Market Data","category":"crypto","authority":"market-data","endpoint":"https://api.kraken.com/0/public/Ticker?pair=XBTUSD","auth":"none","regions":["global"]},
     {"id":"alpha-vantage","name":"Alpha Vantage","category":"markets","authority":"market-data","critical":true,"endpoint":"https://www.alphavantage.co/query?function=MARKET_STATUS&apikey={key}","auth":"api-key","secret":"ALPHA_VANTAGE_API_KEY","regions":["global"]},
     {"id":"fred","name":"FRED","category":"macro","authority":"central-bank","critical":true,"endpoint":"https://api.stlouisfed.org/fred/series?series_id=GDP&api_key={key}&file_type=json","auth":"api-key","secret":"FRED_API_KEY","regions":["usa","global-macro"]}
   ]

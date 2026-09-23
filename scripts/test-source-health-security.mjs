@@ -26,5 +26,17 @@ if (!/source\.id === "sec" && result\.httpStatus === 403/.test(checker)) {
 if (!/stale:\s*true/.test(checker) || !/lastSuccessfulAt/.test(checker)) {
   throw new Error("Transient source fallback must be explicitly marked stale and preserve lastSuccessfulAt.");
 }
+if (!checker.includes("FINRA_CLIENT_ID") || !checker.includes("FINRA_CLIENT_SECRET") || !checker.includes("FINRA_TOKEN_URL")) {
+  throw new Error("FINRA source health must use explicit Public OAuth client credentials.");
+}
+if (!/source\.id === "finra-fixed-income"\) return probeFinra\(source\)/.test(checker)) {
+  throw new Error("FINRA must bypass the anonymous generic source probe.");
+}
+if (!/status:\s*"unconfigured"/.test(checker) || !/nessun outage dichiarato/.test(checker)) {
+  throw new Error("Missing FINRA OAuth credentials must be classified as unconfigured, not provider failure.");
+}
+if (!/authorization:\s*`Basic \$\{basic\}`/.test(checker) || !/authorization:\s*`Bearer \$\{token\}`/.test(checker)) {
+  throw new Error("FINRA health probe must implement OAuth client_credentials and Bearer data access.");
+}
 
 console.log("Source checker security invariants PASS.");

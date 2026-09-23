@@ -1,0 +1,232 @@
+name: Fenice Paper Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 16:35 UTC keeps the recurring validation inside the regular US equity session
+    # in both daylight-saving and standard-time periods. Alpaca's authoritative
+    # clock remains the final arbiter; holidays/weekends become no-risk evidence.
+    - cron: "35 16 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-data-writer
+  cancel-in-progress: false
+
+jobs:
+  paper-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FENICE_JOB: intraday
+      # Legacy per-symbol Twelve Data polling is intentionally disabled. The
+      # coherent batch refresh below spends four Basic credits and requires the
+      # provider last_quote_at timestamp before evidence can become PAPER-grade.
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      # Always rebuild current evidence before deciding whether a PAPER campaign
+      # may start. This keeps campaign start autonomous but strictly fail-closed.
+      - name: Refresh critical source health for PAPER baseline
+        run: npm run sources:check
+
+      - name: Build fresh intelligence quality for PAPER baseline
+        run: node scripts/run-intelligence.mjs
+
+      - name: Refresh independent execution market evidence
+        run: npm run marketdata:execution
+
+      - name: Refresh coherent Twelve Data batch evidence
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+
+      - name: Refresh per-symbol PAPER execution coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Read authoritative PAPER market session
+        id: market_session
+        shell: bash
+        run: |
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/paper-market-session.json', 'utf8'));
+          const observedAt = Date.parse(String(report?.evidence?.observedAt || ''));
+          const ageSeconds = Number.isFinite(observedAt) ? Math.max(0, (Date.now() - observedAt) / 1000) : Infinity;
+          const riskAllowed = report?.configured === true
+            && report?.evidence?.authoritative === true
+            && report?.evidence?.state === 'OPEN'
+            && report?.decision?.allowed === true
+            && ageSeconds <= 120
+            && report?.liveTradingAllowed === false;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `risk_allowed=${riskAllowed}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `state=${String(report?.evidence?.state || 'UNKNOWN')}\n`);
+          console.log(`Persistent PAPER session gate: ${riskAllowed ? 'OPEN' : 'NO_RISK'}; state=${report?.evidence?.state || 'UNKNOWN'}; authoritative=${report?.evidence?.authoritative === true}; age=${Number.isFinite(ageSeconds) ? ageSeconds.toFixed(3) : 'unknown'}s.`);
+          NODE
+
+      - name: Check or safely start PAPER campaign
+        id: campaign
+        shell: bash
+        run: |
+          set -u
+
+          current_state="$(node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const fingerprint = campaign?.baselineFingerprint;
+          const started = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.liveTradingAllowed === false
+            && fingerprint?.complete === true
+            && fingerprint?.algorithm === 'sha256'
+            && /^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))
+          );
+          process.stdout.write(started ? 'started' : 'not-started');
+          NODE
+          )"
+
+          auto_started=false
+          baseline_ready=false
+          if [ "$current_state" = "started" ]; then
+            baseline_ready=true
+          else
+            if npm run paper:baseline:require; then
+              baseline_ready=true
+              npm run paper:validation:start
+              auto_started=true
+            else
+              echo "PAPER baseline is not yet eligible; campaign start remains fail-closed."
+            fi
+          fi
+
+          started="$(node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const fingerprint = campaign?.baselineFingerprint;
+          const started = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.liveTradingAllowed === false
+            && fingerprint?.complete === true
+            && fingerprint?.algorithm === 'sha256'
+            && /^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))
+          );
+          process.stdout.write(started ? 'true' : 'false');
+          NODE
+          )"
+
+          echo "started=$started" >> "$GITHUB_OUTPUT"
+          echo "auto_started=$auto_started" >> "$GITHUB_OUTPUT"
+          echo "baseline_ready=$baseline_ready" >> "$GITHUB_OUTPUT"
+          if [ "$started" = "true" ]; then
+            echo "Paper validation campaign active; auto_started=$auto_started"
+          else
+            echo "Paper validation campaign remains inactive; no evidence will be fabricated or backdated."
+          fi
+
+      - name: Assess daily decision-data gate
+        if: steps.campaign.outputs.started == 'true'
+        id: decision_data
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import { evaluateDecisionDataGate } from './lib/trading/decision-data-gate.mjs';
+          const sourceHealth = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          const intelligence = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
+          const result = evaluateDecisionDataGate({ sourceHealth, intelligence });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `ready=${result.ready}\n`);
+          console.log(`Daily decision-data gate: ${result.ready ? 'PASS' : 'BLOCK'}; sources=${result.metrics.criticalReady}/${result.metrics.criticalTotal}; confidence=${result.metrics.confidence}; checks=${result.metrics.crossChecks}; divergence=${result.metrics.divergent}; concentration=${result.metrics.sourceConcentrationPercent}.`);
+          NODE
+
+      - name: Exercise PAPER-only OMS
+        if: steps.campaign.outputs.started == 'true' && steps.market_session.outputs.risk_allowed == 'true' && steps.decision_data.outputs.ready == 'true'
+        run: |
+          npm run paper:conditional
+          npm run paper:run
+
+      - name: Confirm fail-closed no-risk day
+        if: steps.campaign.outputs.started == 'true' && (steps.market_session.outputs.risk_allowed != 'true' || steps.decision_data.outputs.ready != 'true')
+        run: echo "Authoritative session or decision-data gate blocked new PAPER risk; OMS execution intentionally skipped."
+
+      - name: Record daily validation evidence
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run paper:validation:record
+
+      - name: Inspect campaign status
+        if: steps.campaign.outputs.started == 'true'
+        run: npm run paper:validation:status
+
+      - name: Publish paper validation evidence
+        if: steps.campaign.outputs.started == 'true'
+        run: |
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
+          cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
+          cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
+          cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
+          cp data/paper-conditional-queue.json "$generated_dir/paper-conditional-queue.json"
+          cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
+          cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
+            cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
+            cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
+            cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
+            cp "$generated_dir/paper-conditional-queue.json" data/paper-conditional-queue.json
+            cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
+            cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json data/execution-market-evidence.json data/execution-market-coverage.json
+
+            if git diff --cached --quiet; then
+              echo "No paper validation changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: record Fenice paper validation evidence"
+            if git push origin HEAD:main; then
+              echo "Paper validation evidence published"
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish paper validation evidence after 3 attempts"
+          exit 1

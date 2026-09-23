@@ -1,0 +1,153 @@
+name: Fenice PR Live Evidence Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/professional-core-consolidation
+    paths:
+      - ".github/workflows/pr-live-evidence.yml"
+      - ".github/workflows/intelligence-quality.yml"
+      - ".github/workflows/paper-validation.yml"
+      - ".github/workflows/paper-probe-staging.yml"
+      - "package.json"
+      - "lib/intelligence/quality-engine.mjs"
+      - "lib/intelligence/cross-source-consensus.mjs"
+      - "lib/intelligence/optional-source-recovery.mjs"
+      - "lib/trading/paper-bootstrap-audit.mjs"
+      - "lib/trading/twelve-data-batch.mjs"
+      - "scripts/run-intelligence.mjs"
+      - "scripts/run-execution-market-data.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence.mjs"
+      - "scripts/test-twelve-data-batch.mjs"
+      - "scripts/check-execution-market-coverage.mjs"
+      - "scripts/check-global-sources.mjs"
+      - "scripts/check-paper-market-session.mjs"
+      - "scripts/check-paper-baseline-eligibility.mjs"
+      - "scripts/check-certification-readiness.mjs"
+      - "scripts/start-paper-validation-campaign.mjs"
+      - "scripts/build-pr-live-evidence-audit.mjs"
+      - "scripts/audit-pr-paper-bootstrap.mjs"
+      - "scripts/test-paper-bootstrap-audit.mjs"
+      - "scripts/paper-validation-stager.mjs"
+      - "scripts/stage-paper-validation-order.mjs"
+      - "scripts/test-paper-validation-stager.mjs"
+      - "scripts/validate-instrument-master.mjs"
+      - "data/global-source-registry.json"
+      - "data/instrument-master.json"
+      - "data/execution-market-coverage.json"
+      - "data/paper-validation-campaign.json"
+      - "data/paper-validation-approval.json"
+      - "lib/trading/execution-market-data.ts"
+      - "lib/trading/paper-evidence-policy.ts"
+      - "lib/trading/execution-coverage.ts"
+      - "lib/trading/instrument-identity.ts"
+      - "lib/trading/directa-execution-evidence.ts"
+      - "lib/trading/directa-paper-preflight.ts"
+      - "lib/trading/directa-realtime-entitlements.ts"
+      - "lib/trading/market-session.ts"
+      - "lib/trading/market-data-quorum.ts"
+      - "lib/trading/smart-order-router.ts"
+      - "lib/trading/signal-conditional-orders.ts"
+      - "lib/trading/paper-baseline.mjs"
+      - "lib/trading/paper-validation.mjs"
+      - "lib/trading/validation-fingerprint.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-pr-live-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FENICE_JOB: intraday
+      # Twelve Data Basic exposes 8 API credits/minute. Keep this audit at four
+      # symbols so market-open readiness may independently use the other four.
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
+
+    steps:
+      - name: Checkout exact audited commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Validate instrument identities and PAPER venues
+        run: npm run instruments:validate
+
+      - name: Regression-test PAPER validation stager
+        run: node scripts/test-paper-validation-stager.mjs
+
+      - name: Refresh critical source health in ephemeral workspace
+        run: npm run sources:check
+
+      - name: Build current intelligence quality in ephemeral workspace
+        run: node scripts/run-intelligence.mjs
+
+      - name: Build base execution market evidence in ephemeral workspace
+        run: npm run marketdata:execution
+
+      - name: Refresh coherent Twelve Data batch evidence
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+
+      - name: Measure per-symbol PAPER execution quorum coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Assess provider-neutral live evidence without publishing
+        run: node scripts/build-pr-live-evidence-audit.mjs
+
+      - name: Paper baseline eligibility on fresh ephemeral evidence
+        run: npm run paper:baseline:status
+
+      - name: Refresh authoritative PAPER market session immediately before bootstrap
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+
+      - name: Audit PAPER campaign bootstrap against authoritative market session
+        run: node scripts/audit-pr-paper-bootstrap.mjs
+
+      - name: Certification status after ephemeral PAPER audit
+        run: npm run certification:status
+
+      - name: Upload ephemeral evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-pr-live-evidence
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            data/pr-live-evidence-audit.json
+            data/pr-paper-bootstrap-audit.json
+            data/paper-market-session.json
+            data/intelligence-quality.json
+            data/global-source-health.json
+            data/execution-market-evidence.json
+            data/execution-market-coverage.json
+            data/paper-validation-campaign.json

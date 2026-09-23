@@ -1,0 +1,97 @@
+import { execFile } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
+import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
+
+const execFileAsync = promisify(execFile);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const campaignPath = path.join(root, "data", "paper-validation-campaign.json");
+const statePath = path.join(root, "data", "paper-oms-state.json");
+
+async function readJson(relativePath) {
+  return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
+}
+
+async function resolveCommit() {
+  const envSha = String(process.env.GITHUB_SHA || "").trim();
+  if (/^[a-f0-9]{40}$/i.test(envSha)) return envSha.toLowerCase();
+  const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+  const sha = String(stdout || "").trim();
+  if (!/^[a-f0-9]{40}$/i.test(sha)) throw new Error("PAPER_CAMPAIGN_BASELINE_SHA_INVALID");
+  return sha.toLowerCase();
+}
+
+const [campaign, state, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint] = await Promise.all([
+  readJson("data/paper-validation-campaign.json"),
+  readJson("data/paper-oms-state.json"),
+  readJson("data/global-source-health.json"),
+  readJson("data/intelligence-quality.json"),
+  readJson("data/execution-market-evidence.json"),
+  readJson("data/execution-market-coverage.json"),
+  readJson("data/decision-governance.json"),
+  computePaperValidationFingerprint(root),
+]);
+
+if (campaign?.startedAt || campaign?.baselineCommit) {
+  throw new Error("PAPER_CAMPAIGN_ALREADY_STARTED: existing campaign must not be silently reset or backdated.");
+}
+if (campaign?.liveTradingAllowed !== false) {
+  throw new Error("PAPER_CAMPAIGN_SAFETY: liveTradingAllowed must be false before campaign start.");
+}
+if (state?.mode !== "PAPER" || state?.liveTradingAllowed === true || state?.brokerConnectivityAllowed === true) {
+  throw new Error("PAPER_CAMPAIGN_SAFETY: OMS must be PAPER-only with broker writes disabled.");
+}
+if (!fingerprint.complete) {
+  throw new Error(`PAPER_CAMPAIGN_FINGERPRINT_INCOMPLETE: ${fingerprint.missingFiles.join(",")}`);
+}
+
+const eligibility = evaluatePaperBaselineEligibility({
+  sources,
+  intelligence,
+  executionMarket,
+  executionCoverage,
+  governance,
+  fingerprint,
+});
+if (!eligibility.eligible) {
+  throw new Error(`PAPER_CAMPAIGN_BASELINE_NOT_ELIGIBLE: ${eligibility.reasons.join(" | ")}`);
+}
+
+const baselineCommit = await resolveCommit();
+const startedAt = new Date().toISOString();
+const next = {
+  ...campaign,
+  version: Math.max(5, Number(campaign?.version || 1)),
+  startedAt,
+  baselineCommit,
+  baselineFingerprint: fingerprint,
+  baselineEligibility: {
+    verifiedAt: startedAt,
+    gates: eligibility.gates,
+    metrics: eligibility.metrics,
+  },
+  evidencePolicy: {
+    decisionDataRequiredForEveryNewPaperFill: true,
+    marketDataCoverageRequiredForEveryNewPaperFill: true,
+    perFillEvidenceWindowsMustBeContiguous: true,
+    minimumIntelligenceConfidence: 90,
+    minimumCrossSourceChecks: 10,
+    maximumSourceConcentrationPercent: 50,
+    minimumPaperEligibleSymbols: 3,
+    minimumPaperEligiblePercent: 25,
+    minimumIndependentPaperSourceFamilies: 2,
+    preferredIndependentPaperSourceFamilies: 3,
+    validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
+    directaPaidRealtimeRequired: false,
+    directaEvidenceOptionalForPaperCertification: true,
+    liveTradingAllowed: false,
+  },
+  liveTradingAllowed: false,
+  dailyEvidence: [],
+};
+
+await writeFile(campaignPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; paperFamilies=${eligibility.metrics.paperEligibleSourceFamilies}; evidenceSchema=v${next.version}; liveTradingAllowed=false.`);
