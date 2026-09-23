@@ -9,6 +9,7 @@ const historyDir = path.join(root, "data", "source-history");
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 const now = new Date();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const FINRA_TOKEN_URL = "https://ews.fip.finra.org/fip/rest/ews/oauth2/access_token?grant_type=client_credentials";
 
 let previousReport = null;
 try {
@@ -17,11 +18,12 @@ try {
   previousReport = null;
 }
 
-const secretValues = [...new Set(
-  registry.sources
-    .map(source => source.secret ? process.env[source.secret] : null)
-    .filter(value => typeof value === "string" && value.length > 0),
-)];
+const secretValues = [...new Set([
+  ...registry.sources
+    .map(source => source.secret ? process.env[source.secret] : null),
+  process.env.FINRA_CLIENT_ID,
+  process.env.FINRA_CLIENT_SECRET,
+].filter(value => typeof value === "string" && value.length > 0))];
 const sensitiveQueryKeys = new Set(["api_key", "apikey", "key", "token", "access_token"]);
 
 function redactString(value) {
@@ -154,7 +156,98 @@ async function request(source, endpoint, attempt) {
   }
 }
 
+async function probeFinra(source) {
+  const clientId = String(process.env.FINRA_CLIENT_ID || "").trim();
+  const clientSecret = String(process.env.FINRA_CLIENT_SECRET || "").trim();
+  if (!clientId || !clientSecret) {
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "unconfigured", checkedAt: now.toISOString(),
+      latencyMs: null, httpStatus: null,
+      detail: "FINRA Public OAuth non configurato: servono FINRA_CLIENT_ID e FINRA_CLIENT_SECRET; nessun outage dichiarato.",
+      regions: source.regions, endpointUsed: null, attempts: 0, stale: false,
+    };
+  }
+
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const basic = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+    const tokenResponse = await fetch(FINRA_TOKEN_URL, {
+      method: "POST",
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        accept: "application/json",
+        authorization: `Basic ${basic}`,
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent": "FeniceInvestmentSystem/3.8 finra-public-health",
+      },
+    });
+    if (!tokenResponse.ok) throw new Error(`FINRA token HTTP ${tokenResponse.status}`);
+    const tokenPayload = await tokenResponse.json();
+    const token = String(tokenPayload?.access_token || "").trim();
+    if (!token) throw new Error("FINRA OAuth token mancante");
+
+    const response = await fetch(source.endpoint, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "FeniceInvestmentSystem/3.8 finra-public-health",
+      },
+    });
+    const text = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) throw new Error(`FINRA data HTTP ${response.status}`);
+    if (!payloadLooksValid(source, text, contentType)) throw new Error("FINRA payload vuoto o inatteso");
+
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "healthy", checkedAt: now.toISOString(),
+      lastSuccessfulAt: now.toISOString(), stale: false,
+      latencyMs: Date.now() - startedAt, httpStatus: response.status,
+      detail: `FINRA Public OAuth valido; payload valido (${text.length} bytes).`,
+      regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+      bytes: text.length, contentType,
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const previous = previousSuccessfulSource(source.id);
+    if (previous && /fetch failed|abort|timeout|HTTP 5\d\d/i.test(detail)) {
+      const lastSuccessfulAt = previous.lastSuccessfulAt || previous.checkedAt;
+      const staleAgeMs = now.getTime() - Date.parse(lastSuccessfulAt);
+      const maxStaleMs = 72 * 60 * 60 * 1000;
+      if (Number.isFinite(staleAgeMs) && staleAgeMs >= 0 && staleAgeMs <= maxStaleMs) {
+        return {
+          id: source.id, name: source.name, category: source.category, authority: source.authority,
+          critical: Boolean(source.critical), status: "degraded", checkedAt: now.toISOString(),
+          lastSuccessfulAt, stale: true, staleAgeMinutes: Math.round(staleAgeMs / 60000),
+          latencyMs: Date.now() - startedAt, httpStatus: null,
+          detail: `FINRA OAuth temporaneamente non raggiungibile (${detail}); mantenuto l'ultimo stato valido senza considerarlo dato nuovo.`,
+          regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+          bytes: 0, contentType: "",
+        };
+      }
+    }
+    return {
+      id: source.id, name: source.name, category: source.category, authority: source.authority,
+      critical: Boolean(source.critical), status: "failed", checkedAt: now.toISOString(), stale: false,
+      latencyMs: Date.now() - startedAt, httpStatus: null,
+      detail: `FINRA Public OAuth configurato ma probe fallito: ${detail}`,
+      regions: source.regions, endpointUsed: redactString(source.endpoint), attempts: 2,
+      bytes: 0, contentType: "",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function probe(source) {
+  if (source.id === "finra-fixed-income") return probeFinra(source);
+
   const endpoints = endpointsFor(source);
   if (!endpoints.length) {
     return {
