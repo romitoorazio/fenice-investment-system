@@ -167,6 +167,7 @@ jobs:
             alpacaConfigured: e.capabilities?.alpacaConfigured === true,
             alpacaProbeLimit: Number(e.capabilities?.alpacaProbeLimit || 0),
             alpacaPaperFreshObservations: Number(e.capabilities?.alpacaPaperFreshObservations || 0),
+            alpacaLatestTradeFallbackObservations: Number(e.capabilities?.alpacaLatestTradeFallbackObservations || 0),
             alphaVantageConfigured: e.capabilities?.alphaVantageConfigured === true,
             alphaVantageProbeLimit: Number(e.capabilities?.alphaVantageProbeLimit || 0),
             alphaVantagePaperFreshObservations: Number(e.capabilities?.alphaVantagePaperFreshObservations || 0),
@@ -279,6 +280,7 @@ jobs:
         run: npm run certification:status
 
       - name: Upload ephemeral evidence artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fenice-pr-live-evidence
