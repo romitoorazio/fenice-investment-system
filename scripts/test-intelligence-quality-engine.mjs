@@ -82,6 +82,53 @@ const healthy = computeIntelligenceConfidence({
 assert(healthy.confidence >= 90, `healthy confidence too low: ${healthy.confidence}`);
 assert.equal(healthy.metrics.criticalHealthFresh, true);
 
+// Regression from the 2026-09-23 live audit: 8 hard confirmations plus 12
+// non-divergent crypto ATTENTION checks must not collapse confidence merely
+// because evidence crossed the confirmation boundary by a small amount. The
+// consensus engine supplies bounded credits; the global 90 threshold is not
+// lowered and divergent evidence still fails closed below.
+const liveLikeAttentionCredits = [
+  0.185, 1, 1, 0.629, 0.646, 1, 1, 0.831, 0.851, 0.907, 0.945, 1,
+];
+const gradedAttention = computeIntelligenceConfidence({
+  sourceQuality: [
+    { state: "operativo", qualityScore: 93 },
+    { state: "operativo", qualityScore: 93 },
+    { state: "parziale", qualityScore: 91.8 },
+    { state: "errore", qualityScore: 8 },
+  ],
+  criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  healthReportGeneratedAt: freshHealthAt,
+  validations: [
+    ...Array.from({ length: 8 }, () => ({ status: "confermato" })),
+    ...liveLikeAttentionCredits.map((confidenceCredit) => ({ status: "attenzione", confidenceCredit })),
+  ],
+  sourceCount: 3,
+  assetClassCount: 4,
+  concentration: 0.4627,
+  now,
+});
+assert(gradedAttention.confidence >= 90, `graded non-divergent evidence should remain institutionally usable, got ${gradedAttention.confidence}`);
+assert.equal(gradedAttention.metrics.divergent, 0);
+assert.equal(gradedAttention.metrics.attention, 12);
+assert(gradedAttention.metrics.weightedValidationCredit > 17.9);
+assert(gradedAttention.metrics.validationCreditPercent > 89);
+
+const legacyAttentionWithoutCredit = computeIntelligenceConfidence({
+  sourceQuality: [{ state: "operativo", qualityScore: 100 }],
+  criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+  healthReportGeneratedAt: freshHealthAt,
+  validations: [
+    ...Array.from({ length: 9 }, () => ({ status: "confermato" })),
+    { status: "attenzione" },
+  ],
+  sourceCount: 4,
+  assetClassCount: 4,
+  concentration: 0.2,
+  now,
+});
+assert.equal(legacyAttentionWithoutCredit.metrics.weightedValidationCredit, 9, "ATTENTION without consensus-engine credit must remain fail-closed at zero contribution");
+
 const missingCritical = computeIntelligenceConfidence({
   sourceQuality: [{ state: "operativo", qualityScore: 100 }],
   criticalHealth: { gate: "RED", ready: 8, total: 9 },
@@ -125,7 +172,7 @@ const divergent = computeIntelligenceConfidence({
   healthReportGeneratedAt: freshHealthAt,
   validations: [
     ...Array.from({ length: 12 }, () => ({ status: "confermato" })),
-    { status: "divergente" },
+    { status: "divergente", confidenceCredit: 1 },
   ],
   sourceCount: 5,
   assetClassCount: 5,
@@ -133,6 +180,7 @@ const divergent = computeIntelligenceConfidence({
   now,
 });
 assert(divergent.confidence <= 84);
+assert.equal(divergent.metrics.weightedValidationCredit, 12, "divergent rows must ignore any attempted positive confidence credit");
 
 let active = 0;
 let peak = 0;
