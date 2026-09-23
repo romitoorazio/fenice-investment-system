@@ -11,6 +11,11 @@ import {
   parseStooqTimestamp,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
+import {
+  buildCrossSourceValidation,
+  deriveCryptoConflictEscalationTargets,
+  mergeEvidenceBySource,
+} from "../lib/intelligence/cross-source-consensus.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = path.join(root, "data", "latest-snapshot.json");
@@ -253,49 +258,32 @@ async function collectIndependentMarketEvidence(baseObservations) {
     if (result.status === "fulfilled") evidence.push(result.value);
   }
 
-  const unique = new Map();
-  for (const item of evidence) {
-    const key = `${normalizeSymbol(item.symbol)}:${String(item.currency || "USD").toUpperCase()}:${item.source}`;
-    const existing = unique.get(key);
-    if (!existing || Date.parse(item.observedAt || 0) > Date.parse(existing.observedAt || 0)) unique.set(key, item);
-  }
-  return [...unique.values()];
+  return mergeEvidenceBySource(evidence, []);
 }
 
-function buildValidation(observations) {
-  const groups = new Map();
-  for (const item of observations) {
-    const symbol = normalizeSymbol(item.symbol);
-    if (!symbol || !Number.isFinite(Number(item.price))) continue;
-    const key = `${symbol}:${String(item.currency || "").toUpperCase()}`;
-    const list = groups.get(key) || [];
-    list.push(item);
-    groups.set(key, list);
+async function escalateCryptoConflicts(observations, now) {
+  const fresh = filterFreshValidationEvidence(observations, { now });
+  const targets = deriveCryptoConflictEscalationTargets(fresh, { limit: 4 });
+  if (!targets.length) return { observations, targets: [], recovered: 0 };
+
+  const taskFactories = [];
+  for (const target of targets) {
+    const existing = new Set(target.existingSources || []);
+    if (!existing.has("Coinbase Exchange independent validation")) {
+      taskFactories.push(() => fetchCoinbaseEvidence(target.symbol, target.name));
+    }
+    if (!existing.has("Kraken independent validation")) {
+      taskFactories.push(() => fetchKrakenEvidence(target.symbol, target.name));
+    }
   }
 
-  const checks = [];
-  for (const [key, items] of groups) {
-    const bySource = new Map();
-    for (const item of items) {
-      if (!item.source || !Number.isFinite(Number(item.price))) continue;
-      bySource.set(item.source, item);
-    }
-    const independent = [...bySource.values()];
-    if (independent.length < 2) continue;
-    const prices = independent.map((item) => Number(item.price));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const midpoint = (min + max) / 2 || 1;
-    const spreadPercent = ((max - min) / midpoint) * 100;
-    checks.push({
-      instrument: key,
-      sources: independent.map((item) => item.source),
-      observations: independent.length,
-      spreadPercent: Number(spreadPercent.toFixed(3)),
-      status: spreadPercent <= 0.5 ? "confermato" : spreadPercent <= 2 ? "attenzione" : "divergente",
-    });
-  }
-  return checks.sort((a, b) => b.spreadPercent - a.spreadPercent);
+  const results = await settleWithConcurrency(taskFactories, 4);
+  const additions = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  return {
+    observations: mergeEvidenceBySource(observations, additions),
+    targets,
+    recovered: additions.length,
+  };
 }
 
 async function main() {
@@ -314,7 +302,9 @@ async function main() {
   const preservedObservations = Array.isArray(snapshot.marketObservations) && snapshot.marketObservations.length
     ? snapshot.marketObservations
     : markets;
-  const observations = await collectIndependentMarketEvidence(preservedObservations);
+  let observations = await collectIndependentMarketEvidence(preservedObservations);
+  const escalation = await escalateCryptoConflicts(observations, now);
+  observations = escalation.observations;
   const freshObservations = filterFreshValidationEvidence(observations, { now });
   const staleEvidenceExcluded = Math.max(0, observations.length - freshObservations.length);
 
@@ -327,9 +317,10 @@ async function main() {
     coverageCount: Array.isArray(provider.coverage) ? provider.coverage.length : 0,
   })).sort((a, b) => b.qualityScore - a.qualityScore);
 
-  const validations = buildValidation(freshObservations);
+  const validations = buildCrossSourceValidation(freshObservations);
   const confirmed = validations.filter((item) => item.status === "confermato").length;
   const divergent = validations.filter((item) => item.status === "divergente").length;
+  const attention = validations.filter((item) => item.status === "attenzione").length;
   const sourceNames = new Set(freshObservations.map((item) => item.source).filter(Boolean));
   const assetClasses = new Set(freshObservations.map((item) => item.assetClass).filter(Boolean));
   const concentration = computeSourceConcentration(freshObservations);
@@ -353,12 +344,17 @@ async function main() {
     crossSourceValidation: {
       checked: validations.length,
       confirmed,
+      attention,
       divergent,
       checks: validations.slice(0, 100),
       evidenceObservations: freshObservations.length,
       rawEvidenceObservations: observations.length,
       staleEvidenceExcluded,
       validationSources: [...sourceNames].sort(),
+      cryptoConflictEscalation: {
+        targets: escalation.targets.map((item) => ({ symbol: item.symbol, spreadPercent: item.spreadPercent })),
+        additionalVenueObservations: escalation.recovered,
+      },
     },
     coverage: {
       instruments: new Set(freshObservations.map((item) => normalizeSymbol(item.symbol)).filter(Boolean)).size,
@@ -378,6 +374,10 @@ async function main() {
       validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 },
       unknownTimestampEvidenceExcluded: true,
       boundedExternalValidationConcurrency: 8,
+      twoSourceCryptoDivergenceEscalatesToIndependentVenues: true,
+      multiSourceOutlierRequiresStrictMajorityConsensus: true,
+      divergenceThresholdPercentUnchanged: 2,
+      confirmationBandPercentUnchanged: 0.5,
     },
   };
 
@@ -388,7 +388,10 @@ async function main() {
     staleEvidenceExcluded,
     sources: [...sourceNames].sort(),
     checks: validations.length,
+    attention,
     divergent,
+    cryptoConflictEscalationTargets: escalation.targets.length,
+    cryptoConflictEscalationRecovered: escalation.recovered,
   };
   snapshot.intelligence = report;
   snapshot.pulse = snapshot.pulse || {};
@@ -398,7 +401,10 @@ async function main() {
     snapshot.warnings = [...new Set([...(snapshot.warnings || []), "Copertura di mercato concentrata su poche fonti: fiducia ridotta automaticamente."])];
   }
   if (divergent > 0) {
-    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${divergent} strumenti presentano prezzi divergenti tra fonti indipendenti.`])];
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${divergent} strumenti presentano prezzi divergenti tra fonti indipendenti anche dopo escalation di consenso.`])];
+  }
+  if (attention > 0) {
+    snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${attention} strumenti richiedono attenzione per dispersione prezzi o presenza di outlier tra fonti indipendenti.`])];
   }
   if (staleEvidenceExcluded > 0) {
     snapshot.warnings = [...new Set([...(snapshot.warnings || []), `${staleEvidenceExcluded} osservazioni di mercato stale o senza timestamp escluse dalla validazione.`])];
@@ -406,7 +412,7 @@ async function main() {
 
   await writeFile(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   await writeFile(qualityPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${freshObservations.length}/${observations.length} fresh evidence observations, ${sourceNames.size} market sources.`);
+  console.log(`Fenice intelligence completed: confidence ${intelligenceConfidence}/100, ${validations.length} cross-source checks, ${freshObservations.length}/${observations.length} fresh evidence observations, ${sourceNames.size} market sources, crypto escalations=${escalation.targets.length}, recovered=${escalation.recovered}.`);
 }
 
 main().catch((error) => {
