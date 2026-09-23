@@ -17,12 +17,15 @@ const base = {
     liveTradingAllowed: false,
     brokerConnectivityAllowed: false,
     expiresAt: "2026-10-24T23:59:59Z",
-    approvalId: "approval-1",
-    idPrefix: "fenice-paper-validation-",
+    approvalId: "approval-v3",
+    idPrefix: "fenice-paper-validation-v2-",
     targetPaperFills: 10,
     maxProbeAttemptsTotal: 20,
     maxOrdersPerDay: 1,
-    maxNotionalEuroPerOrder: 100,
+    maxNotionalEuroPerOrder: 300,
+    maxCapitalPercentPerProbe: 3,
+    minTcaProbeNotionalEuro: 250,
+    maxSingleAssetWeightPercentForProbe: 15,
     riskFxToEuroByCurrency: { EUR: 1, USD: 2 },
     minCommitteeScore: 70,
     minConfidence: 90,
@@ -50,6 +53,7 @@ const base = {
     killSwitch: { engaged: false },
     reconciliation: { balanced: true, breaks: [] },
     executions: [],
+    positions: [],
   },
   queue: { version: 1, mode: "PAPER", orders: [] },
   terminal: {
@@ -73,9 +77,60 @@ assert.equal(staged.order.humanConfirmed, true);
 assert.equal(staged.order.validationProbe, true);
 assert.equal(staged.order.fxToEuro, 2);
 assert.equal(staged.order.validationRationale.coverageState, "CAUTION");
-assert(staged.order.quantity * 773.5 * staged.order.fxToEuro <= 100.001);
+const stagedReferenceNotional = staged.order.quantity * 773.5 * staged.order.fxToEuro;
+assert(stagedReferenceNotional <= 300.001);
+assert(stagedReferenceNotional >= 299.9, `expected economically meaningful ~EUR300 probe, got ${stagedReferenceNotional}`);
+assert.equal(staged.order.validationRationale.maxCapitalPercentPerProbe, 3);
+assert.equal(staged.order.validationRationale.minTcaProbeNotionalEuro, 250);
+assert.equal(staged.order.validationRationale.maxSingleAssetWeightPercentForProbe, 15);
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
+
+const rotationCoverage = {
+  ...base.coverage,
+  rows: [
+    { symbol: "SPY", paperEligible: true, state: "CAUTION", independentSourceFamilies: 2, medianPrice: 773.5 },
+    { symbol: "QQQ", paperEligible: true, state: "CAUTION", independentSourceFamilies: 2, medianPrice: 610 },
+  ],
+};
+const rotationTerminal = {
+  ...base.terminal,
+  assets: [
+    ...base.terminal.assets,
+    { symbol: "QQQ", currency: "USD", confidence: 95, riskScore: 32, decision: "ACCUMULA" },
+  ],
+};
+const rotationCommittee = {
+  ...base.committee,
+  topDecisions: [
+    { symbol: "SPY", currency: "USD", decision: "ACCUMULA", committeeScore: 90, confidence: 95, riskScore: 30 },
+    { symbol: "QQQ", currency: "USD", decision: "OSSERVA", committeeScore: 71, confidence: 95, riskScore: 32 },
+  ],
+};
+const rotationState = {
+  ...base.state,
+  positions: [{ symbol: "SPY", quantity: 0.387847, averagePrice: 770, currency: "USD", fxToEuro: 2 }],
+};
+const rotated = buildPaperValidationProbe({
+  ...base,
+  coverage: rotationCoverage,
+  terminal: rotationTerminal,
+  committee: rotationCommittee,
+  state: rotationState,
+});
+assert.equal(rotated.staged, true);
+assert.equal(rotated.order.symbol, "QQQ", "probe selection must rotate toward the least-used eligible symbol instead of repeatedly concentrating the top committee name");
+assert.equal(rotated.order.validationRationale.existingPositionNotionalEuro, 0);
+
+const headroomBlocked = buildPaperValidationProbe({
+  ...base,
+  state: {
+    ...base.state,
+    positions: [{ symbol: "SPY", quantity: 1300 / (773.5 * 2), averagePrice: 773.5, currency: "USD", fxToEuro: 2 }],
+  },
+});
+assert.equal(headroomBlocked.staged, false, "a symbol with less than the TCA floor remaining under the single-asset cap must not be used");
+assert.equal(headroomBlocked.reason, "no-eligible-validation-candidate");
 
 const blockedCoverage = buildPaperValidationProbe({
   ...base,
@@ -132,7 +187,7 @@ assert.equal(liveLeak.staged, false);
 assert.equal(liveLeak.reason, "oms-not-paper-only");
 
 const priorRejects = Array.from({ length: 10 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
+  clientOrderId: `fenice-paper-validation-v2-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
   status: "RISK_REJECTED",
   createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
@@ -153,7 +208,7 @@ assert.equal(targetComplete.staged, false);
 assert.equal(targetComplete.reason, "campaign-paper-fill-target-complete");
 
 const attemptCeiling = Array.from({ length: 20 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-attempt-${index}`,
+  clientOrderId: `fenice-paper-validation-v2-attempt-${index}`,
   status: "RISK_REJECTED",
   createdAt: `2026-08-${String((index % 20) + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
