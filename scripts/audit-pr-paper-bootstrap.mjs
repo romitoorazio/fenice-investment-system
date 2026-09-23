@@ -4,7 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifyPaperBootstrapAudit } from "../lib/trading/paper-bootstrap-audit.mjs";
 import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
-import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
+import {
+  computePaperValidationFingerprint,
+  validationFingerprintMatches,
+} from "../lib/trading/validation-fingerprint.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(root, "data", "pr-paper-bootstrap-audit.json");
@@ -57,7 +60,7 @@ function assertCampaign(campaign) {
 }
 
 async function main() {
-  const [session, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint] = await Promise.all([
+  const [session, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint, existingCampaign] = await Promise.all([
     readJson("data/paper-market-session.json"),
     readJson("data/global-source-health.json"),
     readJson("data/intelligence-quality.json"),
@@ -65,6 +68,7 @@ async function main() {
     readJson("data/execution-market-coverage.json"),
     readJson("data/decision-governance.json"),
     computePaperValidationFingerprint(root),
+    readJson("data/paper-validation-campaign.json"),
   ]);
 
   const baselineEligibility = evaluatePaperBaselineEligibility({
@@ -77,7 +81,7 @@ async function main() {
   });
   const classification = classifyPaperBootstrapAudit(session, baselineEligibility, { maxSessionAgeSeconds: 120 });
   const audit = {
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
     auditedCommit: process.env.GITHUB_SHA || null,
     status: classification.status,
@@ -99,6 +103,41 @@ async function main() {
     reason: classification.reason,
     liveTradingAllowed: false,
   };
+
+  const alreadyStarted = Boolean(existingCampaign?.startedAt && existingCampaign?.baselineCommit);
+  if (alreadyStarted) {
+    assertCampaign(existingCampaign);
+    if (!validationFingerprintMatches(existingCampaign.baselineFingerprint, fingerprint)) {
+      await writeAudit({
+        ...audit,
+        status: "ACTIVE_CAMPAIGN_CORE_DRIFT",
+        campaignStarted: true,
+        baselineCommit: existingCampaign.baselineCommit,
+        baselineFingerprint: existingCampaign.baselineFingerprint?.digest || null,
+        currentFingerprint: fingerprint?.digest || null,
+        reason: "persisted PAPER campaign fingerprint no longer matches the current validated core",
+      });
+      throw new Error("PAPER_BOOTSTRAP_FAILURE: active campaign core fingerprint drift detected");
+    }
+    const status = runNodeScript("scripts/check-paper-validation-campaign.mjs");
+    if (status.status !== 0) {
+      await writeAudit({ ...audit, status: "ACTIVE_CAMPAIGN_INVALID", campaignStarted: true, reason: `campaign status exited with ${status.status}` });
+      throw new Error(`PAPER_BOOTSTRAP_FAILURE: active campaign status exited with ${status.status}`);
+    }
+    const completed = {
+      ...audit,
+      status: "CAMPAIGN_ACTIVE_PROVEN",
+      campaignStartAllowed: false,
+      campaignStarted: true,
+      baselineCommit: existingCampaign.baselineCommit,
+      baselineFingerprint: existingCampaign.baselineFingerprint?.digest || null,
+      currentFingerprint: fingerprint?.digest || null,
+      reason: "persisted PAPER campaign is active and its immutable core fingerprint matches the current validated core",
+    };
+    await writeAudit(completed);
+    console.log(`Fenice PAPER active-campaign audit: PASS; version=${existingCampaign.version}; baseline=${existingCampaign.baselineCommit.slice(0, 12)}; fingerprint=${String(existingCampaign.baselineFingerprint?.digest || "").slice(0, 12)}; liveTradingAllowed=false.`);
+    return;
+  }
 
   if (classification.status === "WAIT_MARKET_OPEN") {
     await writeAudit(audit);
