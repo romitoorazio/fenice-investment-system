@@ -8,6 +8,10 @@ import {
   parseStooqTimestamp,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
+import {
+  recoverFinra,
+  recoverOptionalIntelligenceSources,
+} from "../lib/intelligence/optional-source-recovery.mjs";
 
 const observations = [
   { symbol: "BTC", name: "Bitcoin", assetClass: "Criptovaluta", currency: "USD", source: "CoinGecko" },
@@ -142,5 +146,73 @@ const tasks = Array.from({ length: 20 }, (_, index) => async () => {
 const results = await settleWithConcurrency(tasks, 4);
 assert.equal(results.filter((item) => item.status === "fulfilled").length, 20);
 assert(peak <= 4, `concurrency exceeded: ${peak}`);
+
+const recoverySnapshot = {
+  providers: [
+    { id: "gdelt", name: "GDELT", state: "errore", coverage: [] },
+    { id: "finra-fixed-income", name: "FINRA Fixed Income API", state: "errore", coverage: [] },
+  ],
+  discoveries: [],
+};
+const recoveryHealth = [];
+const fakeGdeltFetch = async (url) => {
+  assert(String(url).includes("api.gdeltproject.org"));
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        articles: [{
+          title: "Quantum company raises funding round",
+          seendate: "20260923T120000Z",
+          domain: "example.test",
+          url: "https://example.test/story",
+        }],
+      };
+    },
+  };
+};
+const optionalRecovery = await recoverOptionalIntelligenceSources(recoverySnapshot, recoveryHealth, {
+  env: {},
+  fetchImpl: fakeGdeltFetch,
+  timeoutMs: 1_000,
+});
+assert.equal(optionalRecovery.gdelt.state, "operativo");
+assert.equal(optionalRecovery.gdelt.successes, 2);
+assert.equal(recoverySnapshot.providers.find((item) => item.id === "gdelt")?.state, "operativo");
+assert.equal(recoverySnapshot.providers.find((item) => item.id === "finra-fixed-income")?.state, "non configurato");
+assert.equal(recoveryHealth.find((item) => item.id === "finra-fixed-income")?.status, "unconfigured");
+assert.equal(recoverySnapshot.discoveries.length, 1);
+
+const finraSnapshot = { providers: [], discoveries: [] };
+const finraHealth = [];
+const finraCalls = [];
+const fakeFinraFetch = async (url, options = {}) => {
+  finraCalls.push({ url: String(url), authorization: options?.headers?.authorization || "" });
+  if (String(url).includes("ews.fip.finra.org")) {
+    return { ok: true, status: 200, async json() { return { access_token: "test-token" }; } };
+  }
+  if (String(url).includes("api.finra.org")) {
+    assert.equal(options?.headers?.authorization, "Bearer test-token");
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return [{ tradeDate: "2026-09-22", dealerCustomerVolume: 1.2 }];
+      },
+    };
+  }
+  throw new Error(`unexpected URL ${url}`);
+};
+const finraRecovery = await recoverFinra(finraSnapshot, finraHealth, {
+  env: { FINRA_CLIENT_ID: "client", FINRA_CLIENT_SECRET: "secret" },
+  fetchImpl: fakeFinraFetch,
+  timeoutMs: 1_000,
+});
+assert.equal(finraRecovery.state, "operativo");
+assert.equal(finraSnapshot.providers.find((item) => item.id === "finra-fixed-income")?.state, "operativo");
+assert.equal(finraHealth.find((item) => item.id === "finra-fixed-income")?.status, "healthy");
+assert.equal(finraCalls.length, 2);
+assert(finraCalls[0].authorization.startsWith("Basic "));
 
 console.log("Fenice intelligence quality engine tests: PASS");
