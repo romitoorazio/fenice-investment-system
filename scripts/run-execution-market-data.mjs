@@ -32,6 +32,9 @@ const alpacaConfigured = Boolean(alpacaApiKeyId && alpacaApiSecretKey);
 const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
 const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
 const alpacaProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_ALPACA_EXECUTION_PROBES || 3) || 3));
+const stooqExecutionValidationEnabled = ["1", "true", "yes", "on"].includes(
+  String(process.env.FENICE_STOOQ_EXECUTION_VALIDATION || "").trim().toLowerCase(),
+);
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -427,8 +430,10 @@ if (directaSnapshot && !directaEvidence.accepted) {
 for (const instrument of instruments) {
   const tasks = [
     ["yahoo", () => fetchYahoo(instrument)],
-    ["stooq", () => fetchStooq(instrument)],
   ];
+  if (stooqExecutionValidationEnabled) {
+    tasks.push(["stooq", () => fetchStooq(instrument)]);
+  }
   if (twelveDataApiKey && twelveDataProbeSymbols.has(instrument.symbol)) {
     tasks.push(["twelve-data", () => fetchTwelveData(instrument)]);
   }
@@ -475,6 +480,8 @@ const report = {
   capabilities: {
     usingTerminalFallback,
     probeUniverse: probeUniverse.map((instrument) => instrument.symbol),
+    stooqExecutionValidationEnabled,
+    stooqExecutionRole: "validation-only and opt-in; never eligible for PAPER quorum",
     directaLocalSnapshotDetected: Boolean(directaSnapshot),
     directaLocalSnapshotAccepted: directaEvidence.accepted,
     directaLocalSnapshotAgeMs: directaEvidence.snapshotAgeMs,
@@ -533,4 +540,4 @@ const report = {
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alpacaTradeFallback=${report.capabilities.alpacaLatestTradeFallbackObservations}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, stooqExecution=${stooqExecutionValidationEnabled ? "enabled" : "disabled"}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alpacaTradeFallback=${report.capabilities.alpacaLatestTradeFallbackObservations}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
