@@ -24,7 +24,7 @@ import { classifyPaperEvidence } from "../lib/trading/paper-evidence-policy.ts";
     entitlement: "PAPER",
     provenanceVerified: true,
   });
-  assert.equal(result.eligibility, "PAPER", "verified realtime PAPER provenance may satisfy PAPER classification");
+  assert.equal(result.eligibility, "PAPER", "approved free US realtime source with verified provenance may satisfy PAPER classification");
 }
 
 {
@@ -39,7 +39,29 @@ import { classifyPaperEvidence } from "../lib/trading/paper-evidence-policy.ts";
     entitlement: "PAPER",
     provenanceVerified: true,
   });
-  assert.equal(result.eligibility, "PAPER", "classification remains provider-neutral when provenance is independently verified");
+  assert.equal(result.eligibility, "VALIDATION_ONLY", "caller-supplied provenance cannot register an unknown provider for PAPER certification");
+  assert.match(result.reason, /not approved/i);
+}
+
+{
+  const result = classifyPaperEvidence({
+    sourceFamily: "alpha-vantage",
+    realtime: true,
+    entitlement: "PAPER",
+    provenanceVerified: true,
+  });
+  assert.equal(result.eligibility, "VALIDATION_ONLY", "Alpha Vantage realtime US equities are not an approved zero-cost PAPER source");
+  assert.match(result.reason, /zero-cost/i);
+}
+
+{
+  const result = classifyPaperEvidence({
+    sourceFamily: "alpaca",
+    realtime: true,
+    entitlement: "PAPER",
+    provenanceVerified: true,
+  });
+  assert.equal(result.eligibility, "PAPER", "Alpaca Basic IEX may qualify after authenticated realtime provenance verification");
 }
 
 {
