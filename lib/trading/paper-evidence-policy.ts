@@ -17,18 +17,17 @@ export type PaperEvidenceClassification = {
 };
 
 /**
- * Explicitly approved source families for zero-cost PAPER certification.
+ * Explicitly approved generic source families for zero-cost PAPER certification.
  *
  * Registration here is intentionally fail-closed: a caller cannot promote a
  * new provider to PAPER merely by setting provenanceVerified=true. Directa is
- * included only as an optional read-only evidence family; its separate
- * entitlement/identity/top-of-book checks still decide whether its evidence
- * may actually be marked PAPER.
+ * intentionally excluded from this generic path because its dedicated
+ * read-only evidence builder performs stronger entitlement, identity and
+ * executable top-of-book checks before assigning PAPER eligibility.
  */
 const ZERO_COST_PAPER_SOURCE_FAMILIES = new Set([
   "twelve-data",
   "alpaca",
-  "directa",
 ]);
 
 /**
@@ -59,7 +58,7 @@ export function classifyPaperEvidence(observation: RawMarketObservation): PaperE
     return {
       sourceFamily: family,
       eligibility: "VALIDATION_ONLY",
-      reason: "source family is not approved for zero-cost PAPER certification",
+      reason: "source family is not approved for generic zero-cost PAPER certification",
     };
   }
 
