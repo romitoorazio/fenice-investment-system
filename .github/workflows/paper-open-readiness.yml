@@ -18,11 +18,13 @@ on:
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
       - "scripts/run-intelligence.mjs"
+      - "scripts/run-foundation-plus.mjs"
       - "lib/trading/market-session.ts"
       - "lib/trading/paper-baseline.mjs"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/execution-coverage.ts"
       - "lib/intelligence/quality-engine.mjs"
+      - "lib/intelligence/optional-source-recovery.mjs"
       - "data/global-source-registry.json"
       - "data/instrument-master.json"
 
@@ -51,6 +53,8 @@ jobs:
       COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
 
     steps:
       - name: Checkout exact audited commit
