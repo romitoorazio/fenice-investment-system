@@ -6,7 +6,7 @@ import {
   readDirectaRealtimeEntitlementConfig,
 } from "./directa-realtime-entitlements.ts";
 import {
-  classifyPaperEligibilityByFreshness,
+  isExecutionObservationFresh,
   normalizeExecutionEvidence,
   normalizeExecutionSymbol,
   parseProviderLocalTimestamp,
@@ -213,7 +213,7 @@ export function buildDirectaExecutionEvidence(
       if (marketView.executableBook) {
         executableBookVerifiedQuotes += 1;
         if (bookObservedAt !== null) {
-          bookFresh = classifyPaperEligibilityByFreshness(bookObservedAt, nowMs, maxQuoteAgeSeconds) === "PAPER";
+          bookFresh = isExecutionObservationFresh(bookObservedAt, nowMs, maxQuoteAgeSeconds);
         }
         if (bookFresh) freshExecutableBookQuotes += 1;
         else {
