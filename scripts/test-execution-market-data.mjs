@@ -10,6 +10,7 @@ import {
   isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
   parseProviderLocalTimestamp,
+  prioritizeZeroCostPaperProbeCandidates,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
 } from "../lib/trading/execution-market-data.ts";
@@ -56,6 +57,37 @@ assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "NASDAQ Global Select Marke
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XNAS", exchange: "NASDAQ Global Select Market", currency: "USD" }), true, "explicit MIC must remain authoritative even with descriptive exchange label");
 assert.equal(isTwelveDataUsRealtimeVenue({ mic_code: "XPAR", exchange: "Euronext Paris", currency: "EUR" }), false);
 assert.equal(isTwelveDataUsRealtimeVenue({ exchange: "Unknown", currency: "USD" }), false, "unknown USD venue must fail closed");
+
+const fallbackProbeUniverse = [
+  { symbol: "ASML", country: "NL", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "TSM", country: "TW", exchangeMic: "XNYS", assetClass: "equity" },
+  { symbol: "MSFT", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "SPY", country: "US", exchangeMic: "ARCX", assetClass: "etf" },
+  { symbol: "QQQ", country: "US", exchangeMic: "XNAS", assetClass: "etf" },
+  { symbol: "META", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "GOOGL", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "NVDA", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "AMZN", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "AAPL", country: "US", exchangeMic: "XNAS", assetClass: "equity" },
+  { symbol: "IWM", country: "US", exchangeMic: "ARCX", assetClass: "etf" },
+];
+const prioritizedFallback = prioritizeZeroCostPaperProbeCandidates(fallbackProbeUniverse).map((item) => item.symbol);
+assert.deepEqual(
+  prioritizedFallback.slice(0, 6),
+  ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "IWM"],
+  "fallback PAPER probes should spend scarce free calls on liquid US symbols first",
+);
+assert.ok(prioritizedFallback.indexOf("ASML") > prioritizedFallback.indexOf("META"));
+assert.ok(prioritizedFallback.indexOf("TSM") > prioritizedFallback.indexOf("AMZN"));
+assert.deepEqual(
+  prioritizeZeroCostPaperProbeCandidates([
+    { symbol: "ZZZ", country: "US" },
+    { symbol: "YYY", country: "US" },
+    { symbol: "XXX", country: "NL" },
+  ]).map((item) => item.symbol),
+  ["ZZZ", "YYY", "XXX"],
+  "unknown symbols must remain stable after the preferred group rather than being reshuffled arbitrarily",
+);
 
 assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "US/Eastern"), "2026-09-21T20:00:00.000Z");
 assert.equal(parseProviderLocalTimestamp("2026-01-21 16:00:00", "US/Eastern"), "2026-01-21T21:00:00.000Z");
