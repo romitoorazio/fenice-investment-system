@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectPublicMarkets } from "./collect-public-markets.mjs";
+import { collectInstitutionalSignals } from "./collect-institutional-signals.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = path.join(root, "data", "latest-snapshot.json");
@@ -28,13 +29,18 @@ async function main() {
     healthDocument = JSON.parse(await readFile(healthPath, "utf8"));
   } catch {}
 
+  // These collectors both update snapshot/providers and source-health. Keep them
+  // sequential so their upsert operations cannot race or overwrite one another.
   await collectPublicMarkets(snapshot, healthDocument.sources);
+  await collectInstitutionalSignals(snapshot, healthDocument.sources);
+
   snapshot.providers.sort((a, b) => a.name.localeCompare(b.name));
   snapshot.markets.sort((a, b) => (b.score || 0) - (a.score || 0));
   snapshot.foundation = {
     ...(snapshot.foundation || {}),
-    version: Math.max(2, Number(snapshot.foundation?.version || 0)),
+    version: Math.max(3, Number(snapshot.foundation?.version || 0)),
     resilientMarketFallbacks: true,
+    institutionalSourceDiversity: true,
     sourceHealth: {
       healthy: healthDocument.sources.filter((item) => item.status === "healthy").length,
       total: healthDocument.sources.length,

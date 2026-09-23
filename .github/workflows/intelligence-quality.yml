@@ -10,6 +10,9 @@ on:
       - "scripts/run-intelligence.mjs"
       - "scripts/run-foundation-plus.mjs"
       - "scripts/run-foundation.mjs"
+      - "scripts/collect-institutional-signals.mjs"
+      - "scripts/collect-exchange-market-validation.mjs"
+      - "data/global-source-registry.json"
       - ".github/workflows/intelligence-quality.yml"
 
 permissions:
@@ -48,7 +51,9 @@ jobs:
         run: npm install --no-audit --no-fund --package-lock=false
 
       - name: Build current intelligence quality report
-        run: node scripts/run-intelligence.mjs
+        run: |
+          node scripts/run-intelligence.mjs
+          node scripts/collect-exchange-market-validation.mjs
 
       - name: Validate quality report
         run: |
@@ -60,7 +65,18 @@ jobs:
           if (!Number.isFinite(q.intelligenceConfidence)) throw new Error('Missing intelligence confidence');
           if (!Number.isFinite(q.coverage?.sourceConcentrationPercent)) throw new Error('Missing source concentration');
           if (!Array.isArray(q.crossSourceValidation?.checks)) throw new Error('Missing cross-source validation checks');
-          console.log('Quality report valid:', q.intelligenceConfidence, q.coverage.sourceConcentrationPercent);
+          const exchange = q.exchangeMarketValidation;
+          if (!exchange || !Number.isFinite(exchange.grade)) throw new Error('Missing public exchange validation grade');
+          if (!Array.isArray(exchange.checks)) throw new Error('Missing public exchange validation checks');
+          if (exchange.brokerNativeMarketDataPresent !== false) throw new Error('Broker-native market-data state must remain explicitly false until verified');
+          if (exchange.executionGradeEligible !== false) throw new Error('Public market feeds must not be promoted to execution-grade automatically');
+          console.log('Quality report valid:', {
+            confidence: q.intelligenceConfidence,
+            concentration: q.coverage.sourceConcentrationPercent,
+            exchangeGrade: exchange.grade,
+            exchangeSources: exchange.sourceCount,
+            brokerNative: exchange.brokerNativeMarketDataPresent,
+          });
           NODE
 
       - name: Publish refreshed quality evidence

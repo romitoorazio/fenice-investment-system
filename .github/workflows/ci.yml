@@ -45,6 +45,21 @@ jobs:
       - name: TypeScript and production build
         run: npm run build
 
+      - name: Institutional source hardening syntax and registry
+        run: |
+          node --check scripts/collect-institutional-signals.mjs
+          node --check scripts/collect-exchange-market-validation.mjs
+          node - <<'NODE'
+          const fs = require('fs');
+          const registry = JSON.parse(fs.readFileSync('data/global-source-registry.json', 'utf8'));
+          const ids = registry.sources.map(source => source.id);
+          if (new Set(ids).size !== ids.length) throw new Error('Duplicate source IDs in registry');
+          for (const required of ['bls', 'us-treasury-fiscal', 'cftc-cot', 'finra-trace']) {
+            if (!ids.includes(required)) throw new Error(`Missing institutional source: ${required}`);
+          }
+          console.log('Institutional source registry valid:', ids.length, 'sources');
+          NODE
+
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
 
