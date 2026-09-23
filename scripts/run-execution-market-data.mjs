@@ -224,26 +224,52 @@ async function fetchAlpaca(instrument) {
   if (!isAlpacaPaperCandidate(instrument)) throw new Error("ALPACA_NOT_A_PAPER_CANDIDATE");
   const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
   if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
+  const headers = {
+    "APCA-API-KEY-ID": alpacaApiKeyId,
+    "APCA-API-SECRET-KEY": alpacaApiSecretKey,
+  };
   const data = await request(
     `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(providerSymbol)}/quotes/latest?feed=iex`,
-    {
-      headers: {
-        "APCA-API-KEY-ID": alpacaApiKeyId,
-        "APCA-API-SECRET-KEY": alpacaApiSecretKey,
-      },
-    },
+    { headers },
   );
   const quote = data?.quote;
   const bid = Number(quote?.bp);
   const ask = Number(quote?.ap);
-  const observedAt = String(quote?.t || "").trim();
-  if (!Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask <= 0 || ask < bid) {
-    throw new Error("INVALID_ALPACA_IEX_QUOTE");
+  const quoteObservedAt = String(quote?.t || "").trim();
+  const quoteValid = Number.isFinite(bid)
+    && bid > 0
+    && Number.isFinite(ask)
+    && ask > 0
+    && ask >= bid
+    && Number.isFinite(Date.parse(quoteObservedAt));
+
+  let price;
+  let observedAt;
+  let provenanceMethod;
+  let sourceLabel;
+  if (quoteValid) {
+    price = (bid + ask) / 2;
+    observedAt = quoteObservedAt;
+    provenanceMethod = "authenticated-alpaca-iex-latest-quote";
+    sourceLabel = "Alpaca Basic IEX realtime latest quote";
+  } else {
+    const tradeData = await request(
+      `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(providerSymbol)}/trades/latest?feed=iex`,
+      { headers },
+    );
+    const trade = tradeData?.trade;
+    const tradePrice = Number(trade?.p ?? trade?.price);
+    const tradeObservedAt = String(trade?.t ?? trade?.timestamp ?? "").trim();
+    if (!Number.isFinite(tradePrice) || tradePrice <= 0) throw new Error("INVALID_ALPACA_IEX_TRADE");
+    if (!Number.isFinite(Date.parse(tradeObservedAt))) throw new Error("INVALID_ALPACA_IEX_TRADE_TIMESTAMP");
+    price = tradePrice;
+    observedAt = tradeObservedAt;
+    provenanceMethod = "authenticated-alpaca-iex-latest-trade-fallback";
+    sourceLabel = "Alpaca Basic IEX authenticated latest trade fallback";
   }
-  if (!Number.isFinite(Date.parse(observedAt))) throw new Error("INVALID_ALPACA_IEX_TIMESTAMP");
-  const price = (bid + ask) / 2;
+
   const eligibility = classifyExecutionPaperEligibility({
-    source: "Alpaca Basic IEX realtime latest quote",
+    source: sourceLabel,
     sourceFamily: "alpaca",
     observedAt,
     realtime: true,
@@ -255,14 +281,14 @@ async function fetchAlpaca(instrument) {
     currency: instrument.currency || "USD",
     assetClass: instrument.assetClass,
     source: eligibility === "PAPER"
-      ? "Alpaca Basic IEX realtime paper validation"
-      : "Alpaca IEX quote failed PAPER freshness/provenance gate",
+      ? `${sourceLabel} paper validation`
+      : `${sourceLabel} failed PAPER freshness/provenance gate`,
     sourceFamily: "alpaca",
     eligibility,
     price,
     observedAt,
     provenanceVerified: true,
-    provenanceMethod: "authenticated-alpaca-iex-latest-quote",
+    provenanceMethod,
   });
 }
 
@@ -473,7 +499,8 @@ const report = {
     alpacaProbedSymbols: [...alpacaProbeSymbols],
     alpacaPaperFreshObservations: alpacaEvidence.filter((item) => item.eligibility === "PAPER").length,
     alpacaValidationOnlyObservations: alpacaEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
-    alpacaPaperRule: "Alpaca Basic IEX latest quote; authenticated IEX feed, positive bid/ask midpoint, provider timestamp, verified provenance and <=120-second freshness required",
+    alpacaLatestTradeFallbackObservations: alpacaEvidence.filter((item) => item.provenanceMethod === "authenticated-alpaca-iex-latest-trade-fallback").length,
+    alpacaPaperRule: "Alpaca Basic IEX latest quote preferred; authenticated IEX latest trade may be used only as a fallback when the quote is unusable. Provider timestamp, verified provenance and <=120-second freshness remain mandatory",
     alphaVantageConfigured: Boolean(alphaVantageApiKey),
     alphaVantageProbeLimit,
     alphaVantageProbedSymbols: [...alphaVantageProbeSymbols],
@@ -506,4 +533,4 @@ const report = {
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alpacaTradeFallback=${report.capabilities.alpacaLatestTradeFallbackObservations}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
