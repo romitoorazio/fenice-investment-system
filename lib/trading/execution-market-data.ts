@@ -127,10 +127,21 @@ export function parseProviderLocalTimestamp(value: unknown, timeZone: unknown): 
 }
 
 /** Freshness is necessary but never sufficient for PAPER certification. */
-export function classifyPaperEligibilityByFreshness(observedAt: string, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
+export function isExecutionObservationFresh(observedAt: string, nowMs = Date.now(), maxAgeSeconds = 120): boolean {
   const observedMs = Date.parse(String(observedAt || ""));
   const ageSeconds = (Number(nowMs) - observedMs) / 1000;
-  return Number.isFinite(observedMs) && Number.isFinite(ageSeconds) && ageSeconds >= 0 && ageSeconds <= maxAgeSeconds ? "PAPER" : "VALIDATION_ONLY";
+  return Number.isFinite(observedMs)
+    && Number.isFinite(ageSeconds)
+    && ageSeconds >= 0
+    && ageSeconds <= maxAgeSeconds;
+}
+
+/**
+ * @deprecated Freshness does not confer PAPER eligibility.
+ * Use isExecutionObservationFresh for timing checks and classifyExecutionPaperEligibility for PAPER certification.
+ */
+export function classifyPaperEligibilityByFreshness(observedAt: string, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
+  return isExecutionObservationFresh(observedAt, nowMs, maxAgeSeconds) ? "PAPER" : "VALIDATION_ONLY";
 }
 
 export function classifyExecutionPaperEligibility(input: {
@@ -141,8 +152,7 @@ export function classifyExecutionPaperEligibility(input: {
   entitlement?: string;
   provenanceVerified?: boolean;
 }, nowMs = Date.now(), maxAgeSeconds = 120): ExecutionDataEligibility {
-  const freshness = classifyPaperEligibilityByFreshness(String(input.observedAt || ""), nowMs, maxAgeSeconds);
-  if (freshness !== "PAPER") return "VALIDATION_ONLY";
+  if (!isExecutionObservationFresh(String(input.observedAt || ""), nowMs, maxAgeSeconds)) return "VALIDATION_ONLY";
   return classifyPaperEvidence(input).eligibility;
 }
 
