@@ -2,6 +2,7 @@ import Link from "next/link";
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
+import paperCampaign from "@/data/paper-validation-campaign.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
@@ -37,6 +38,11 @@ const executionStateLabel: Record<ExecutionReadinessState, string> = {
   UNCONFIGURED: "FONTI GRATUITE DA CONFIGURARE",
 };
 
+function boundedPercent(value: number, target: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(target) || target <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
+}
+
 export default function ReadinessPage() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const { report, metrics } = buildInstitutionalReadiness(intelligence, {
@@ -44,6 +50,21 @@ export default function ReadinessPage() {
   });
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
+
+  const paperEvidence = Array.isArray(paperCampaign.dailyEvidence) ? paperCampaign.dailyEvidence : [];
+  const latestPaperEvidence = paperEvidence.at(-1);
+  const evidenceDays = new Set(paperEvidence.map((item) => item.date).filter(Boolean)).size;
+  const requiredDays = Number(paperCampaign.requiredDays || 30);
+  const minEvidenceDays = Number(paperCampaign.minEvidenceDays || 25);
+  const minPaperFills = Number(paperCampaign.minPaperFills || 10);
+  const paperFills = Number(latestPaperEvidence?.cumulativePaperFilled || 0);
+  const preferredSourceFamilies = Number(paperCampaign.evidencePolicy?.preferredIndependentPaperSourceFamilies || 3);
+  const minimumSourceFamilies = Number(paperCampaign.evidencePolicy?.minimumIndependentPaperSourceFamilies || 2);
+  const executionQualityState = String(latestPaperEvidence?.executionQuality?.state || "NON AVVIATA");
+  const executionQualityFills = Number(latestPaperEvidence?.executionQuality?.fills || 0);
+  const campaignSafe = paperCampaign.liveTradingAllowed === false
+    && latestPaperEvidence?.liveTradingAllowed === false
+    && latestPaperEvidence?.brokerConnectivityAllowed === false;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-6 text-white sm:px-8">
@@ -72,6 +93,28 @@ export default function ReadinessPage() {
           </div>
         </section>
 
+        <section className="rounded-3xl border border-violet-400/20 bg-violet-400/[0.05] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Campagna PAPER certificante</p>
+                <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${campaignSafe ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>
+                  {campaignSafe ? "LIVE LOCK OK" : "SAFETY CHECK"}
+                </span>
+              </div>
+              <h2 className="mt-2 text-xl font-black">Evidenza operativa in maturazione</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-300">La campagna non viene retrodatata: deve accumulare giorni reali, fill PAPER e qualità di esecuzione mantenendo fingerprint, audit, riconciliazione e blocco LIVE invariati.</p>
+              <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaign.baselineCommit || "n/d").slice(0, 10)}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
+            </div>
+            <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Giorni evidenza</p><p className="mt-1 text-lg font-black">{evidenceDays}/{minEvidenceDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, minEvidenceDays)}%` }} /></div></div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Durata campagna</p><p className="mt-1 text-lg font-black">{evidenceDays}/{requiredDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, requiredDays)}%` }} /></div></div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Fill PAPER</p><p className="mt-1 text-lg font-black">{paperFills}/{minPaperFills}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(paperFills, minPaperFills)}%` }} /></div></div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Ultimo audit</p><p className="mt-1 text-lg font-black">{latestPaperEvidence?.auditChainValid ? "VALIDO" : "N/D"}</p><p className="mt-1 text-[10px] text-slate-500">recon {latestPaperEvidence?.reconciliationBalanced ? "bilanciata" : "da verificare"}</p></div>
+            </div>
+          </div>
+        </section>
+
         <section className={`rounded-3xl border p-5 ${executionStateStyle[executionReadiness.state]}`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
@@ -82,12 +125,12 @@ export default function ReadinessPage() {
                   ?? executionReadiness.reasons[0]
                   ?? "Due o più famiglie indipendenti con provenienza verificata stanno soddisfacendo il quorum PAPER."}
               </p>
-              <p className="mt-2 text-xs opacity-70">Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
+              <p className="mt-2 text-xs opacity-70">Quorum minimo: <strong>{minimumSourceFamilies}</strong> famiglie. Ridondanza professionale preferita: <strong>{preferredSourceFamilies}</strong>. Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
             </div>
             <div className="grid min-w-[220px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Simboli PAPER</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSymbols}/{executionMetrics.requestedSymbols}</p></div>
-              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Famiglie verificate</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSourceFamilies}/2</p></div>
-              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Fonti zero-cost</p><p className="mt-1 text-lg font-black">{executionMetrics.configuredZeroCostSourceFamilies}/2</p></div>
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Famiglie verificate</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSourceFamilies}/{preferredSourceFamilies}</p><p className="mt-1 text-[9px] opacity-60">minimo {minimumSourceFamilies}</p></div>
+              <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Fonti zero-cost</p><p className="mt-1 text-lg font-black">{executionMetrics.configuredZeroCostSourceFamilies}/{minimumSourceFamilies}</p></div>
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Copertura</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligiblePercent}%</p></div>
             </div>
           </div>
