@@ -13,6 +13,7 @@ import {
   normalizeExecutionEvidence,
   normalizeExecutionSymbol,
   parseProviderLocalTimestamp,
+  prioritizeZeroCostPaperProbeCandidates,
   stooqSymbolForInstrument,
   yahooSymbolForInstrument,
 } from "../lib/trading/execution-market-data.ts";
@@ -331,12 +332,14 @@ const terminalBySymbol = new Map(
   (Array.isArray(terminal.assets) ? terminal.assets : []).map((asset) => [String(asset.symbol || "").toUpperCase(), asset]),
 );
 
+const queueOrders = Array.isArray(queue.orders) ? queue.orders : [];
 const requested = new Set(
-  (Array.isArray(queue.orders) ? queue.orders : [])
+  queueOrders
     .map((order) => String(order?.symbol || "").toUpperCase())
     .filter(Boolean),
 );
-if (requested.size === 0) {
+const usingTerminalFallback = requested.size === 0;
+if (usingTerminalFallback) {
   for (const asset of (Array.isArray(terminal.assets) ? terminal.assets : []).slice(0, 12)) {
     const symbol = String(asset?.symbol || "").toUpperCase();
     if (symbol) requested.add(symbol);
@@ -356,20 +359,28 @@ const instruments = [...requested].map((symbol) => {
   };
 });
 
+// When there is no actual PAPER queue, spend the scarce free probes on the
+// most liquid/provider-friendly US instruments present in the radar. If real
+// queued orders exist, preserve their original order and never substitute a
+// different symbol merely to make certification easier.
+const probeUniverse = usingTerminalFallback
+  ? prioritizeZeroCostPaperProbeCandidates(instruments)
+  : instruments;
+
 const twelveDataProbeSymbols = new Set(
-  instruments
+  probeUniverse
     .filter(isTwelveDataPaperCandidate)
     .slice(0, twelveDataProbeLimit)
     .map((instrument) => instrument.symbol),
 );
 const alphaVantageProbeSymbols = new Set(
-  instruments
+  probeUniverse
     .filter(isAlphaVantageIntradayCandidate)
     .slice(0, alphaVantageProbeLimit)
     .map((instrument) => instrument.symbol),
 );
 const alpacaProbeSymbols = new Set(
-  instruments
+  probeUniverse
     .filter(isAlpacaPaperCandidate)
     .slice(0, alpacaProbeLimit)
     .map((instrument) => instrument.symbol),
@@ -436,6 +447,8 @@ const report = {
   observations: deduplicated,
   errors,
   capabilities: {
+    usingTerminalFallback,
+    probeUniverse: probeUniverse.map((instrument) => instrument.symbol),
     directaLocalSnapshotDetected: Boolean(directaSnapshot),
     directaLocalSnapshotAccepted: directaEvidence.accepted,
     directaLocalSnapshotAgeMs: directaEvidence.snapshotAgeMs,
