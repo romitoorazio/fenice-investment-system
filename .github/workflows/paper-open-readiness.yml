@@ -2,6 +2,11 @@ name: Fenice PAPER Market-Open Readiness
 
 on:
   workflow_dispatch:
+  schedule:
+    # 15:05 UTC is inside the regular US equity session under both US DST
+    # and standard time. Alpaca's authoritative clock still decides OPEN/CLOSED,
+    # so holidays, exceptional closures and early closes remain fail-closed.
+    - cron: "5 15 * * 1-5"
   push:
     branches:
       - feature/professional-core-consolidation
