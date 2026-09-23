@@ -17,12 +17,31 @@ concurrency:
 jobs:
   dispatch-canonical-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 50
     steps:
-      - name: Dispatch canonical PAPER validation workflow
+      - name: Dispatch and verify fresh PAPER baseline workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           gh workflow run paper-validation.yml --repo "$GITHUB_REPOSITORY" --ref main
-          echo "Canonical Fenice Paper Validation dispatched from immutable v2 bootstrap trigger."
+          sleep 8
+          validation_run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$validation_run"
+          echo "Watching canonical PAPER validation run $validation_run"
+          gh run watch "$validation_run" --repo "$GITHUB_REPOSITORY" --exit-status
+
+      - name: Dispatch and verify corrected PAPER probe cycle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main
+          sleep 8
+          probe_run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$probe_run"
+          echo "Watching canonical PAPER probe run $probe_run"
+          gh run watch "$probe_run" --repo "$GITHUB_REPOSITORY" --exit-status
+
+      - name: Confirm bootstrap completed without LIVE permissions
+        run: echo "Fenice PAPER v2 baseline and probe bootstrap completed; LIVE and broker connectivity remain governed by the canonical fail-closed workflows."
