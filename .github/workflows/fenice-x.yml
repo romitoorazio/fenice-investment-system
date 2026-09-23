@@ -49,20 +49,54 @@ jobs:
         run: npm run foundation
       - name: Validate generated report
         run: node scripts/validate-generated-report.mjs
-      - name: Commit generated intelligence
+      - name: Commit generated intelligence without touching PAPER state
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "fenice-autopilot[bot]"
           git config user.email "fenice-autopilot[bot]@users.noreply.github.com"
 
           generated_dir="$(mktemp -d)"
-          cp -a data "$generated_dir/data"
+          mapfile -t changed_data < <(
+            {
+              git diff --name-only -- data
+              git ls-files --others --exclude-standard -- data
+            } | sort -u
+          )
+
+          generated_files=()
+          for file in "${changed_data[@]}"; do
+            [ -n "$file" ] || continue
+            case "$file" in
+              data/paper-*|data/execution-market-*)
+                echo "Protected PAPER dataset not published by Fenice X: $file"
+                continue
+                ;;
+            esac
+            if [ -f "$file" ]; then
+              generated_files+=("$file")
+              mkdir -p "$generated_dir/$(dirname "$file")"
+              cp "$file" "$generated_dir/$file"
+            fi
+          done
+
+          if [ "${#generated_files[@]}" -eq 0 ]; then
+            echo "No intelligence changes to publish"
+            exit 0
+          fi
+
+          printf 'Fenice X will publish only:\n'
+          printf ' - %s\n' "${generated_files[@]}"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p data
-            cp -a "$generated_dir/data/." data/
-            git add data
+
+            for file in "${generated_files[@]}"; do
+              mkdir -p "$(dirname "$file")"
+              cp "$generated_dir/$file" "$file"
+            done
+            git add -- "${generated_files[@]}"
 
             if git diff --cached --quiet; then
               echo "No intelligence changes to commit"

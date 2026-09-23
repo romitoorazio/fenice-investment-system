@@ -21,7 +21,10 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-data-writer
+  # Keep the campaign-critical probe out of the broad fenice-data-writer group.
+  # GitHub keeps only one pending run per concurrency group; unrelated scheduled
+  # writers can otherwise evict a waiting PAPER probe.
+  group: fenice-paper-validation-probe
   cancel-in-progress: false
 
 jobs:
@@ -189,33 +192,59 @@ jobs:
           git config user.name "fenice-paper-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          owned_files=(
+            data/paper-validation-campaign.json
+            data/paper-oms-state.json
+            data/paper-order-queue.json
+            data/execution-market-evidence.json
+            data/execution-market-coverage.json
+          )
+
           generated_dir="$(mktemp -d)"
-          cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
-          cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
-          cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
-          cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
-          cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
+          for file in "${owned_files[@]}"; do
+            mkdir -p "$generated_dir/$(dirname "$file")"
+            cp "$file" "$generated_dir/$file"
+          done
 
-          git fetch origin main
-          current_remote="$(git rev-parse origin/main)"
-          if [ "$current_remote" != "$FENICE_BASE_SHA" ]; then
-            echo "Main changed during the serialized probe cycle; refusing to overwrite newer evidence."
-            exit 1
-          fi
+          for attempt in 1 2 3; do
+            git fetch origin main
 
-          git reset --hard origin/main
-          cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
-          cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
-          cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
-          cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
-          cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
-          git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/execution-market-evidence.json data/execution-market-coverage.json
+            protected_conflict=false
+            for file in "${owned_files[@]}"; do
+              base_blob="$(git rev-parse "$FENICE_BASE_SHA:$file" 2>/dev/null || printf 'MISSING')"
+              remote_blob="$(git rev-parse "origin/main:$file" 2>/dev/null || printf 'MISSING')"
+              if [ "$base_blob" != "$remote_blob" ]; then
+                echo "Protected PAPER dataset changed concurrently: $file"
+                protected_conflict=true
+              fi
+            done
 
-          if git diff --cached --quiet; then
-            echo "No atomic PAPER probe changes to publish."
-            exit 0
-          fi
+            if [ "$protected_conflict" = true ]; then
+              echo "Refusing to overwrite newer PAPER-owned evidence."
+              exit 1
+            fi
 
-          git commit -m "data: record Fenice PAPER validation probe"
-          git push origin HEAD:main
-          echo "Atomic PAPER validation probe result published; queue returned to empty."
+            git reset --hard origin/main
+            for file in "${owned_files[@]}"; do
+              mkdir -p "$(dirname "$file")"
+              cp "$generated_dir/$file" "$file"
+            done
+            git add -- "${owned_files[@]}"
+
+            if git diff --cached --quiet; then
+              echo "No atomic PAPER probe changes to publish."
+              exit 0
+            fi
+
+            git commit -m "data: record Fenice PAPER validation probe"
+            if git push origin HEAD:main; then
+              echo "Atomic PAPER validation probe result published; queue returned to empty."
+              exit 0
+            fi
+
+            echo "Main advanced during PAPER publish; retrying after protected-file recheck ($attempt/3)."
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish PAPER probe atomically after 3 attempts."
+          exit 1

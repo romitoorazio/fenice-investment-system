@@ -41,7 +41,7 @@ const base = {
     paperEligibleSymbols: 4,
     paperEligiblePercent: 33.3,
     policy: { liveTradingAllowed: false, minIndependentSourceFamilies: 2 },
-    rows: [{ symbol: "SPY", paperEligible: true, state: "GREEN", independentSourceFamilies: 2, medianPrice: 773.5 }],
+    rows: [{ symbol: "SPY", paperEligible: true, state: "CAUTION", independentSourceFamilies: 2, medianPrice: 773.5 }],
   },
   state: {
     mode: "PAPER",
@@ -67,14 +67,35 @@ const base = {
 };
 
 const staged = buildPaperValidationProbe(base);
-assert.equal(staged.staged, true);
+assert.equal(staged.staged, true, "CAUTION with paperEligible=true and two independent families must satisfy the minimum PAPER quorum");
 assert.equal(staged.order.symbol, "SPY");
 assert.equal(staged.order.humanConfirmed, true);
 assert.equal(staged.order.validationProbe, true);
 assert.equal(staged.order.fxToEuro, 2);
+assert.equal(staged.order.validationRationale.coverageState, "CAUTION");
 assert(staged.order.quantity * 773.5 * staged.order.fxToEuro <= 100.001);
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
+
+const blockedCoverage = buildPaperValidationProbe({
+  ...base,
+  coverage: {
+    ...base.coverage,
+    rows: [{ ...base.coverage.rows[0], state: "BLOCKED" }],
+  },
+});
+assert.equal(blockedCoverage.staged, false, "BLOCKED market-data state must stay fail-closed even if malformed input claims paperEligible=true");
+assert.equal(blockedCoverage.reason, "no-eligible-validation-candidate");
+
+const unknownCoverageState = buildPaperValidationProbe({
+  ...base,
+  coverage: {
+    ...base.coverage,
+    rows: [{ ...base.coverage.rows[0], state: "UNKNOWN" }],
+  },
+});
+assert.equal(unknownCoverageState.staged, false, "unknown market-data states must fail closed");
+assert.equal(unknownCoverageState.reason, "no-eligible-validation-candidate");
 
 const duplicate = buildPaperValidationProbe({ ...base, queue: staged.queue });
 assert.equal(duplicate.staged, false);

@@ -79,20 +79,54 @@ jobs:
           node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('data/fundamental-research.json'));if(!Array.isArray(r.companies)||!Number.isFinite(r.coveragePercent)||!r.source)process.exit(1);console.log('Fundamental companies:',r.companyCount,'coverage',r.coveragePercent,'average',r.averageScore)"
           node -e "const fs=require('fs');const t=JSON.parse(fs.readFileSync('data/terminal-intelligence.json'));if(!Array.isArray(t.assets)||!Array.isArray(t.portfolio)||!Number.isFinite(t.coveragePercent)||!Number.isFinite(t.dataQuality)||!t.source)process.exit(1);for(const a of t.assets){if(!a.technical||!Number.isFinite(a.unifiedScore)||!Number.isFinite(a.riskScore)||!Array.isArray(a.technical.strategies))process.exit(1)};console.log('Terminal assets:',t.assetCount,'coverage',t.coveragePercent,'quality',t.dataQuality,'score',t.averageUnifiedScore)"
 
-      - name: Commit data history
+      - name: Commit data history without touching PAPER state
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "fenice-foundation-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           generated_dir="$(mktemp -d)"
-          cp -a data "$generated_dir/data"
+          mapfile -t changed_data < <(
+            {
+              git diff --name-only -- data
+              git ls-files --others --exclude-standard -- data
+            } | sort -u
+          )
+
+          generated_files=()
+          for file in "${changed_data[@]}"; do
+            [ -n "$file" ] || continue
+            case "$file" in
+              data/paper-*|data/execution-market-*)
+                echo "Protected PAPER dataset not published by Foundation: $file"
+                continue
+                ;;
+            esac
+            if [ -f "$file" ]; then
+              generated_files+=("$file")
+              mkdir -p "$generated_dir/$(dirname "$file")"
+              cp "$file" "$generated_dir/$file"
+            fi
+          done
+
+          if [ "${#generated_files[@]}" -eq 0 ]; then
+            echo "No Foundation data changes to publish"
+            exit 0
+          fi
+
+          printf 'Foundation will publish only:\n'
+          printf ' - %s\n' "${generated_files[@]}"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p data
-            cp -a "$generated_dir/data/." data/
-            git add data
+
+            for file in "${generated_files[@]}"; do
+              mkdir -p "$(dirname "$file")"
+              cp "$generated_dir/$file" "$file"
+            done
+            git add -- "${generated_files[@]}"
 
             if git diff --cached --quiet; then
               echo "No data changes to commit"
