@@ -2,6 +2,15 @@ name: Fenice PAPER Validation Probe Cycle
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/paper-probe-staging.yml"
+      - "scripts/paper-validation-stager.mjs"
+      - "scripts/stage-paper-validation-order.mjs"
+      - "scripts/test-paper-validation-stager.mjs"
+      - "data/paper-validation-approval.json"
   schedule:
     # Runs after the regular 16:35 UTC PAPER validation cycle. This job performs
     # a complete same-run evidence -> stage -> PAPER OMS -> evidence-record cycle,
