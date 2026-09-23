@@ -9,6 +9,7 @@ on:
       - ".github/workflows/pr-live-evidence.yml"
       - ".github/workflows/intelligence-quality.yml"
       - ".github/workflows/paper-validation.yml"
+      - ".github/workflows/paper-probe-staging.yml"
       - "package.json"
       - "lib/intelligence/quality-engine.mjs"
       - "lib/intelligence/cross-source-consensus.mjs"
@@ -28,11 +29,15 @@ on:
       - "scripts/build-pr-live-evidence-audit.mjs"
       - "scripts/audit-pr-paper-bootstrap.mjs"
       - "scripts/test-paper-bootstrap-audit.mjs"
+      - "scripts/paper-validation-stager.mjs"
+      - "scripts/stage-paper-validation-order.mjs"
+      - "scripts/test-paper-validation-stager.mjs"
       - "scripts/validate-instrument-master.mjs"
       - "data/global-source-registry.json"
       - "data/instrument-master.json"
       - "data/execution-market-coverage.json"
       - "data/paper-validation-campaign.json"
+      - "data/paper-validation-approval.json"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/paper-evidence-policy.ts"
       - "lib/trading/execution-coverage.ts"
@@ -96,6 +101,9 @@ jobs:
 
       - name: Validate instrument identities and PAPER venues
         run: npm run instruments:validate
+
+      - name: Regression-test PAPER validation stager
+        run: node scripts/test-paper-validation-stager.mjs
 
       - name: Refresh critical source health in ephemeral workspace
         run: npm run sources:check
