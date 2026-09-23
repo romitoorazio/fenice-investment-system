@@ -219,6 +219,25 @@ async function probe(source) {
   };
 }
 
+async function probeSources(sources, concurrency = 4) {
+  const list = Array.isArray(sources) ? sources : [];
+  if (!list.length) return [];
+  const limit = Math.max(1, Math.min(6, Number(concurrency) || 4));
+  const results = new Array(list.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= list.length) return;
+      results[index] = await probe(list[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, list.length) }, () => worker()));
+  return results;
+}
+
 async function pruneHistory(maxFiles = 120) {
   const entries = (await readdir(historyDir, { withFileTypes: true }))
     .filter(entry => entry.isFile() && entry.name.endsWith(".json"))
@@ -229,8 +248,8 @@ async function pruneHistory(maxFiles = 120) {
 }
 
 await mkdir(historyDir, { recursive: true });
-const results = [];
-for (const source of registry.sources) results.push(await probe(source));
+const configuredConcurrency = Number(process.env.FENICE_SOURCE_PROBE_CONCURRENCY || 4);
+const results = await probeSources(registry.sources, configuredConcurrency);
 
 const counts = results.reduce((acc, source) => {
   acc[source.status] = (acc[source.status] || 0) + 1;
