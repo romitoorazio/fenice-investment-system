@@ -8,8 +8,10 @@ on:
       - ".github/workflows/paper-probe-regression.yml"
       - ".github/workflows/paper-probe-staging.yml"
       - "scripts/paper-validation-stager.mjs"
+      - "scripts/paper-validation-fill-cap.mjs"
       - "scripts/stage-paper-validation-order.mjs"
       - "scripts/test-paper-validation-stager.mjs"
+      - "scripts/test-paper-validation-fill-cap.mjs"
       - "data/paper-validation-approval.json"
   push:
     branches: [main]
@@ -17,8 +19,10 @@ on:
       - ".github/workflows/paper-probe-regression.yml"
       - ".github/workflows/paper-probe-staging.yml"
       - "scripts/paper-validation-stager.mjs"
+      - "scripts/paper-validation-fill-cap.mjs"
       - "scripts/stage-paper-validation-order.mjs"
       - "scripts/test-paper-validation-stager.mjs"
+      - "scripts/test-paper-validation-fill-cap.mjs"
       - "data/paper-validation-approval.json"
 
 permissions:
@@ -44,3 +48,6 @@ jobs:
 
       - name: Test PAPER validation stager fail-closed rules
         run: node scripts/test-paper-validation-stager.mjs
+
+      - name: Test PAPER validation hard fill cap
+        run: node scripts/test-paper-validation-fill-cap.mjs
