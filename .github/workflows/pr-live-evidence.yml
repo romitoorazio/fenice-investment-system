@@ -11,13 +11,20 @@ on:
       - ".github/workflows/paper-validation.yml"
       - "package.json"
       - "lib/intelligence/quality-engine.mjs"
+      - "lib/intelligence/cross-source-consensus.mjs"
+      - "lib/intelligence/optional-source-recovery.mjs"
+      - "lib/trading/paper-bootstrap-audit.mjs"
       - "scripts/run-intelligence.mjs"
       - "scripts/run-execution-market-data.mjs"
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
+      - "scripts/check-paper-market-session.mjs"
       - "scripts/check-paper-baseline-eligibility.mjs"
       - "scripts/check-certification-readiness.mjs"
       - "scripts/start-paper-validation-campaign.mjs"
+      - "scripts/build-pr-live-evidence-audit.mjs"
+      - "scripts/audit-pr-paper-bootstrap.mjs"
+      - "scripts/test-paper-bootstrap-audit.mjs"
       - "scripts/validate-instrument-master.mjs"
       - "data/global-source-registry.json"
       - "data/instrument-master.json"
@@ -30,6 +37,7 @@ on:
       - "lib/trading/directa-execution-evidence.ts"
       - "lib/trading/directa-paper-preflight.ts"
       - "lib/trading/directa-realtime-entitlements.ts"
+      - "lib/trading/market-session.ts"
       - "lib/trading/market-data-quorum.ts"
       - "lib/trading/smart-order-router.ts"
       - "lib/trading/signal-conditional-orders.ts"
@@ -50,11 +58,7 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
-      # Twelve Data Basic allows a small free per-minute budget. Six probes leave
-      # headroom while making the >=3-symbol PAPER baseline less brittle.
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
-      # The collector currently treats literal 0 as its default; a negative value
-      # is intentionally clamped to zero. This disables paid Alpha realtime probes.
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -66,6 +70,8 @@ jobs:
       COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
 
     steps:
       - name: Checkout exact audited commit
@@ -98,185 +104,18 @@ jobs:
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
       - name: Assess provider-neutral live evidence without publishing
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const q = JSON.parse(fs.readFileSync('data/intelligence-quality.json', 'utf8'));
-          const s = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
-          const e = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
-          const c = JSON.parse(fs.readFileSync('data/execution-market-coverage.json', 'utf8'));
-          const now = Date.now();
-          const ageHours = (value) => {
-            const t = Date.parse(value || '');
-            return Number.isFinite(t) ? Math.max(0, (now - t) / 3600000) : null;
-          };
-          const providerErrorCounts = new Map();
-          for (const error of Array.isArray(e.errors) ? e.errors : []) {
-            const provider = String(error?.provider || 'unknown').toLowerCase();
-            const code = String(error?.code || 'FETCH_FAILED').slice(0, 80);
-            const key = `${provider}:${code}`;
-            providerErrorCounts.set(key, (providerErrorCounts.get(key) || 0) + 1);
-          }
-          const executionProviderErrorSummary = [...providerErrorCounts.entries()]
-            .map(([key, count]) => {
-              const separator = key.indexOf(':');
-              return {
-                provider: separator >= 0 ? key.slice(0, separator) : key,
-                code: separator >= 0 ? key.slice(separator + 1) : 'FETCH_FAILED',
-                count,
-              };
-            })
-            .sort((a, b) => b.count - a.count || a.provider.localeCompare(b.provider) || a.code.localeCompare(b.code));
-          const observations = Array.isArray(e.observations) ? e.observations : [];
-          const approvedPaperFamilies = Array.isArray(c.policy?.approvedIndependentPaperSourceFamilies)
-            ? c.policy.approvedIndependentPaperSourceFamilies.map((value) => String(value).trim().toLowerCase()).filter(Boolean)
-            : [];
-          const paperEligibleSourceFamilies = [...new Set(observations
-            .filter((row) => (row?.eligibility === 'PAPER' || row?.eligibility === 'LIVE') && row?.provenanceVerified === true)
-            .map((row) => String(row?.sourceFamily || '').trim().toLowerCase())
-            .filter(Boolean))].sort();
-          const unverifiedPaperObservations = observations.filter((row) =>
-            (row?.eligibility === 'PAPER' || row?.eligibility === 'LIVE') && row?.provenanceVerified !== true
-          ).length;
-          const metrics = {
-            generatedAt: new Date().toISOString(),
-            auditedCommit: process.env.GITHUB_SHA,
-            intelligenceConfidence: Number(q.intelligenceConfidence || 0),
-            sourceConcentrationPercent: Number(q.coverage?.sourceConcentrationPercent || 100),
-            marketSources: Number(q.coverage?.marketSources || 0),
-            assetClasses: Array.isArray(q.coverage?.assetClasses) ? q.coverage.assetClasses.length : 0,
-            crossChecks: Number(q.crossSourceValidation?.checked || 0),
-            divergent: Number(q.crossSourceValidation?.divergent || 0),
-            freshEvidenceObservations: Number(q.crossSourceValidation?.evidenceObservations || 0),
-            excludedValidationEvidence: Number(q.crossSourceValidation?.staleEvidenceExcluded || 0),
-            criticalGate: s.critical?.gate || 'UNKNOWN',
-            criticalReady: Number(s.critical?.ready || 0),
-            criticalTotal: Number(s.critical?.total || 0),
-            sourceReportAgeHours: ageHours(s.generatedAt),
-            intelligenceReportAgeHours: ageHours(q.generatedAt),
-            executionEvidenceAgeHours: ageHours(e.generatedAt),
-            executionEvidenceVersion: Number(e.version || 0),
-            executionCoverageVersion: Number(c.version || 0),
-            executionObservations: observations.length,
-            executionProviders: [...new Set(observations.map((row) => row.sourceFamily || row.source).filter(Boolean))].sort(),
-            executionErrors: Array.isArray(e.errors) ? e.errors.length : 0,
-            executionProviderErrorSummary,
-            twelveDataConfigured: e.capabilities?.twelveDataConfigured === true,
-            twelveDataProbeLimit: Number(e.capabilities?.twelveDataProbeLimit || 0),
-            twelveDataPaperFreshObservations: Number(e.capabilities?.twelveDataPaperFreshObservations || 0),
-            alpacaConfigured: e.capabilities?.alpacaConfigured === true,
-            alpacaProbeLimit: Number(e.capabilities?.alpacaProbeLimit || 0),
-            alpacaPaperFreshObservations: Number(e.capabilities?.alpacaPaperFreshObservations || 0),
-            alpacaLatestTradeFallbackObservations: Number(e.capabilities?.alpacaLatestTradeFallbackObservations || 0),
-            alphaVantageConfigured: e.capabilities?.alphaVantageConfigured === true,
-            alphaVantageProbeLimit: Number(e.capabilities?.alphaVantageProbeLimit || 0),
-            alphaVantagePaperFreshObservations: Number(e.capabilities?.alphaVantagePaperFreshObservations || 0),
-            directaLocalSnapshotDetected: e.capabilities?.directaLocalSnapshotDetected === true,
-            directaLocalSnapshotAccepted: e.capabilities?.directaLocalSnapshotAccepted === true,
-            directaPaperFreshObservations: Number(e.capabilities?.directaPaperFreshObservations || 0),
-            paperRequestedSymbols: Number(c.requestedSymbols || 0),
-            paperEligibleSymbols: Number(c.paperEligibleSymbols || 0),
-            paperEligiblePercent: Number(c.paperEligiblePercent || 0),
-            paperEligibleSourceFamilies,
-            unverifiedPaperObservations,
-            approvedIndependentPaperSourceFamilies: approvedPaperFamilies,
-            directaPaidRealtimeRequired: c.policy?.directaPaidRealtimeRequired === true,
-            directaEvidenceOptionalForPaperCertification: c.policy?.directaEvidenceOptionalForPaperCertification === true,
-            validationOnlyEvidenceCannotSatisfyPaperQuorum: c.policy?.validationOnlyEvidenceCannotSatisfyPaperQuorum === true,
-            provenanceRequired: e.policy?.paperEligibilityRequiresVerifiedProvenance === true,
-            coverageProvenanceRequired: c.policy?.paperEligibilityRequiresVerifiedProvenance === true,
-            paperGreenSymbols: Array.isArray(c.greenSymbols) ? c.greenSymbols : [],
-            paperCautionSymbols: Array.isArray(c.cautionSymbols) ? c.cautionSymbols : [],
-            paperBlockedSymbols: Array.isArray(c.blockedSymbols) ? c.blockedSymbols : [],
-            liveTradingAllowed: e.policy?.liveTradingAllowed === true,
-          };
-          const gates = {
-            criticalSources: metrics.criticalGate === 'GREEN' && metrics.criticalTotal > 0 && metrics.criticalReady === metrics.criticalTotal,
-            confidence90: metrics.intelligenceConfidence >= 90,
-            concentration50: metrics.sourceConcentrationPercent <= 50,
-            marketSources3: metrics.marketSources >= 3,
-            assetClasses3: metrics.assetClasses >= 3,
-            crossChecks10: metrics.crossChecks >= 10,
-            zeroDivergence: metrics.divergent === 0,
-            hardenedExecutionSchema: metrics.executionEvidenceVersion >= 10 && metrics.executionCoverageVersion >= 6,
-            providerNeutralPaperPolicy: metrics.directaPaidRealtimeRequired === false
-              && metrics.directaEvidenceOptionalForPaperCertification === true
-              && metrics.validationOnlyEvidenceCannotSatisfyPaperQuorum === true
-              && metrics.provenanceRequired === true
-              && metrics.coverageProvenanceRequired === true
-              && metrics.approvedIndependentPaperSourceFamilies.length >= 2,
-            zeroCostSourceRoutesPresent: metrics.approvedIndependentPaperSourceFamilies.includes('twelve-data')
-              && metrics.approvedIndependentPaperSourceFamilies.includes('alpaca'),
-            executionEvidencePresent: metrics.executionObservations > 0,
-            provenanceClean: metrics.unverifiedPaperObservations === 0,
-            paidAlphaRealtimeDisabled: metrics.alphaVantageProbeLimit === 0,
-            paperSourceRedundancy: metrics.paperEligibleSourceFamilies.length >= 2,
-            paperExecutionCoverage: metrics.paperEligibleSymbols >= 3 && metrics.paperEligiblePercent >= 25,
-            liveTradingLocked: metrics.liveTradingAllowed === false,
-          };
-          const dataQualityGateNames = ['criticalSources', 'confidence90', 'concentration50', 'marketSources3', 'assetClasses3', 'crossChecks10', 'zeroDivergence'];
-          const report = {
-            metrics,
-            gates,
-            cloudDataQualityReady: dataQualityGateNames.every((key) => gates[key] === true),
-            hardenedExecutionPolicyReady: gates.hardenedExecutionSchema && gates.providerNeutralPaperPolicy && gates.zeroCostSourceRoutesPresent && gates.provenanceClean && gates.liveTradingLocked,
-            broadPaperExecutionCoverageReady: gates.executionEvidencePresent && gates.provenanceClean && gates.paperSourceRedundancy && gates.paperExecutionCoverage,
-            zeroCostIndependentSourcesConfigured: metrics.twelveDataConfigured && metrics.alpacaConfigured,
-            localDirectaEvidenceRequired: false,
-            directaEvidenceRole: 'optional-readonly-shadow',
-            cloudRunnerCanCertifyDirectaLocalFeed: false,
-            note: 'PAPER certification is provider-neutral and fail-closed. Twelve Data + Alpaca IEX are the preferred zero-cost US source pair when configured. Alpaca Basic IEX is realtime but single-venue/incomplete and is accepted only as one independent PAPER/test source inside a multi-source quorum, never as NBBO/live-trading authority. Directa local evidence is optional for PAPER and remains useful for future read-only/shadow broker validation.',
-          };
-          fs.writeFileSync('data/pr-live-evidence-audit.json', JSON.stringify(report, null, 2) + '\n');
-          console.log('FENICE_PR_LIVE_EVIDENCE=' + JSON.stringify(report));
-          if (!gates.liveTradingLocked) throw new Error('SAFETY_FAILURE: execution evidence claims live trading allowed');
-          if (!gates.hardenedExecutionSchema || !gates.providerNeutralPaperPolicy || !gates.zeroCostSourceRoutesPresent || !gates.provenanceClean || !gates.paidAlphaRealtimeDisabled) {
-            throw new Error('SAFETY_FAILURE: live audit is not using the hardened zero-cost provenance-safe PAPER policy');
-          }
-          NODE
+        run: node scripts/build-pr-live-evidence-audit.mjs
 
       - name: Paper baseline eligibility on fresh ephemeral evidence
         run: npm run paper:baseline:status
 
-      - name: Prove PAPER campaign bootstrap in ephemeral workspace
-        run: |
-          npm run paper:validation:start
-          node - <<'NODE'
-          const fs = require('fs');
-          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
-          const fingerprint = campaign?.baselineFingerprint;
-          const gates = campaign?.baselineEligibility?.gates || {};
-          const requiredGates = [
-            'criticalSources',
-            'dataQuality',
-            'executionMarketData',
-            'executionMarketProvenancePolicy',
-            'executionSymbolCoverage',
-            'zeroCostPaperPolicy',
-            'liveTradingLocked',
-            'validationFingerprint',
-          ];
-          if (!campaign?.startedAt || !/^[a-f0-9]{40}$/i.test(String(campaign?.baselineCommit || ''))) {
-            throw new Error('PAPER_BOOTSTRAP_FAILURE: missing immutable start timestamp or baseline commit');
-          }
-          if (Number(campaign?.version || 0) < 5) throw new Error('PAPER_BOOTSTRAP_FAILURE: campaign schema is too old');
-          if (campaign?.liveTradingAllowed !== false) throw new Error('PAPER_BOOTSTRAP_SAFETY: live trading must remain false');
-          if (fingerprint?.complete !== true || fingerprint?.algorithm !== 'sha256' || !/^[a-f0-9]{64}$/i.test(String(fingerprint?.digest || ''))) {
-            throw new Error('PAPER_BOOTSTRAP_FAILURE: immutable core fingerprint is incomplete');
-          }
-          for (const gate of requiredGates) {
-            if (gates[gate] !== true) throw new Error(`PAPER_BOOTSTRAP_FAILURE: baseline gate ${gate} is not true`);
-          }
-          if (campaign?.evidencePolicy?.directaPaidRealtimeRequired !== false
-            || campaign?.evidencePolicy?.directaEvidenceOptionalForPaperCertification !== true
-            || campaign?.evidencePolicy?.validationOnlyEvidenceCannotSatisfyPaperQuorum !== true) {
-            throw new Error('PAPER_BOOTSTRAP_FAILURE: zero-cost provider-neutral evidence policy not preserved');
-          }
-          console.log(`Fenice PAPER bootstrap dry-run: PASS; version=${campaign.version}; baseline=${campaign.baselineCommit.slice(0, 12)}; liveTradingAllowed=false.`);
-          NODE
-          npm run paper:validation:status
+      - name: Refresh authoritative PAPER market session immediately before bootstrap
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
 
-      - name: Certification status after ephemeral PAPER bootstrap
+      - name: Audit PAPER campaign bootstrap against authoritative market session
+        run: node scripts/audit-pr-paper-bootstrap.mjs
+
+      - name: Certification status after ephemeral PAPER audit
         run: npm run certification:status
 
       - name: Upload ephemeral evidence artifact
@@ -288,6 +127,8 @@ jobs:
           retention-days: 7
           path: |
             data/pr-live-evidence-audit.json
+            data/pr-paper-bootstrap-audit.json
+            data/paper-market-session.json
             data/intelligence-quality.json
             data/global-source-health.json
             data/execution-market-evidence.json
