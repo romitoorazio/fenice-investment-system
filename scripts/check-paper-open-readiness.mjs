@@ -36,7 +36,16 @@ const state = String(session?.evidence?.state || "UNKNOWN").toUpperCase();
 const sessionAuthoritative = session?.evidence?.authoritative === true;
 const sessionAllowed = session?.decision?.allowed === true;
 const sessionConfigured = session?.configured === true;
-const sessionReliable = sessionConfigured && sessionAuthoritative && ["OPEN", "CLOSED"].includes(state);
+const sessionAgeSeconds = Number(session?.decision?.ageSeconds ?? Number.POSITIVE_INFINITY);
+const sessionReasons = Array.isArray(session?.decision?.reasons) ? session.decision.reasons : [];
+const sessionFresh = Number.isFinite(sessionAgeSeconds)
+  && sessionAgeSeconds >= 0
+  && sessionAgeSeconds <= 120
+  && !sessionReasons.includes("market-session evidence is stale");
+const sessionReliable = sessionConfigured
+  && sessionAuthoritative
+  && sessionFresh
+  && ["OPEN", "CLOSED"].includes(state);
 const marketOpen = sessionReliable && state === "OPEN" && sessionAllowed;
 const marketClosed = sessionReliable && state === "CLOSED" && sessionAllowed === false;
 
@@ -53,16 +62,17 @@ const paperProviderErrors = executionErrors.filter((row) => paperProviderFamilie
 const validationProviderErrors = executionErrors.filter((row) => !paperProviderFamilies.has(String(row?.provider || "").trim().toLowerCase()));
 
 const report = {
-  version: 1,
+  version: 2,
   generatedAt: new Date().toISOString(),
   status,
   marketSession: {
     configured: sessionConfigured,
     state,
     authoritative: sessionAuthoritative,
+    fresh: sessionFresh,
     allowed: sessionAllowed,
-    ageSeconds: Number(session?.decision?.ageSeconds ?? 999999),
-    reasons: Array.isArray(session?.decision?.reasons) ? session.decision.reasons : [],
+    ageSeconds: Number.isFinite(sessionAgeSeconds) ? sessionAgeSeconds : 999999,
+    reasons: sessionReasons,
     nextOpen: session?.nextOpen || null,
     nextClose: session?.nextClose || null,
     error: session?.error || null,
@@ -77,7 +87,9 @@ const report = {
     stooqErrorsAreValidationNoise: validationProviderErrors.some((row) => String(row?.provider || "").toLowerCase() === "stooq"),
   },
   policy: {
+    marketSessionMaxAgeSeconds: 120,
     closedMarketIsNotProviderFailure: true,
+    staleClosedMarketFailsClosed: true,
     uncertainSessionFailsClosed: true,
     openMarketRequiresFullPaperBaseline: true,
     validationOnlyProviderErrorsDoNotSatisfyOrBlockPaperQuorumByThemselves: true,
@@ -86,7 +98,7 @@ const report = {
 };
 
 await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-console.log(`Fenice PAPER open readiness: ${status}; session=${state}; baseline=${baseline.eligible ? "ELIGIBLE" : "NOT_ELIGIBLE"}; coverage=${baseline.metrics.paperEligibleSymbols}/${baseline.metrics.requestedExecutionSymbols} (${baseline.metrics.paperEligiblePercent}%).`);
+console.log(`Fenice PAPER open readiness: ${status}; session=${state}; fresh=${sessionFresh}; baseline=${baseline.eligible ? "ELIGIBLE" : "NOT_ELIGIBLE"}; coverage=${baseline.metrics.paperEligibleSymbols}/${baseline.metrics.requestedExecutionSymbols} (${baseline.metrics.paperEligiblePercent}%).`);
 
 if (status === "SESSION_UNCERTAIN" && requireSession) {
   console.error("PAPER_OPEN_READINESS_SESSION_UNCERTAIN: provider-driven market-session evidence is unavailable, stale, or non-authoritative.");
