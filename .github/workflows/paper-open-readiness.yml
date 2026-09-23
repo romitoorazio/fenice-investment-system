@@ -39,12 +39,9 @@ on:
 permissions:
   contents: read
 
-# Readiness and the PR live-evidence audit share the same free provider budget.
-# Queue them instead of letting two simultaneous jobs consume the same Twelve
-# Data minute allowance and manufacture avoidable 429s.
 concurrency:
-  group: fenice-live-market-evidence-${{ github.ref }}
-  cancel-in-progress: false
+  group: fenice-paper-open-readiness-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   readiness:
@@ -52,10 +49,10 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
-      # Disable the legacy per-symbol Twelve Data loop. A single coherent batch
-      # snapshot is collected immediately afterwards using provider last_quote_at.
+      # Basic has 8 API credits/minute. Four symbols leave the independent PR
+      # audit another four credits while preserving the >=3-symbol PAPER gate.
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
-      FENICE_TWELVE_DATA_BATCH_PROBES: "6"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
