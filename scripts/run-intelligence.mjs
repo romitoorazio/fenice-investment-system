@@ -8,6 +8,7 @@ import {
   deriveCryptoVenueTargets,
   deriveStooqTargets,
   filterFreshValidationEvidence,
+  parseStooqTimestamp,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
 
@@ -113,7 +114,9 @@ function parseStooqQuote(text) {
   const row = Object.fromEntries(headers.map((header, index) => [header, values[index]]));
   const price = Number(row.Close);
   if (!Number.isFinite(price) || price <= 0) return null;
-  return { price, observedAt: row.Date || undefined };
+  const observedAt = parseStooqTimestamp(row.Date, row.Time);
+  if (!observedAt) return null;
+  return { price, observedAt };
 }
 
 async function fetchStooqEvidence(code, symbol, assetClass) {
