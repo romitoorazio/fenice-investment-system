@@ -30,11 +30,17 @@ const alpacaApiKeyId = String(process.env.APCA_API_KEY_ID || process.env.ALPACA_
 const alpacaApiSecretKey = String(process.env.APCA_API_SECRET_KEY || process.env.ALPACA_API_SECRET || "").trim();
 const alpacaConfigured = Boolean(alpacaApiKeyId && alpacaApiSecretKey);
 const twelveDataProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_TWELVE_DATA_EXECUTION_PROBES || 3) || 3));
+const twelveDataMinIntervalMs = Math.max(1_000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_MIN_INTERVAL_MS || 9_000) || 9_000));
+const twelveDataMaxRateLimitRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_429_RETRIES || 2) || 2));
 const alphaVantageProbeLimit = Math.max(0, Math.min(3, Number(process.env.FENICE_ALPHA_VANTAGE_EXECUTION_PROBES || 3) || 3));
 const alpacaProbeLimit = Math.max(0, Math.min(6, Number(process.env.FENICE_ALPACA_EXECUTION_PROBES || 3) || 3));
 const stooqExecutionValidationEnabled = ["1", "true", "yes", "on"].includes(
   String(process.env.FENICE_STOOQ_EXECUTION_VALIDATION || "").trim().toLowerCase(),
 );
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+let twelveDataNextRequestAt = 0;
+let twelveDataRateLimitEvents = 0;
+let twelveDataRateLimitRetries = 0;
 
 async function readJson(name, fallback) {
   return readJsonState(path.join(dataDir, name), fallback);
@@ -47,6 +53,15 @@ function masterIdentifier(instrument, type) {
   return String(match?.value || "").trim().toUpperCase() || undefined;
 }
 
+function retryAfterMs(response) {
+  const value = response?.headers?.get?.("retry-after");
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.min(60_000, Math.max(0, seconds * 1000));
+  const dateMs = Date.parse(value);
+  return Number.isFinite(dateMs) ? Math.min(60_000, Math.max(0, dateMs - Date.now())) : 0;
+}
+
 async function request(url, { format = "json", timeoutMs = 8000, headers = {} } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -55,14 +70,46 @@ async function request(url, { format = "json", timeoutMs = 8000, headers = {} } 
       signal: controller.signal,
       headers: {
         accept: format === "json" ? "application/json" : "text/csv,text/plain,*/*",
-        "user-agent": "FeniceInvestmentSystem/1.4 execution-market-validation",
+        "user-agent": "FeniceInvestmentSystem/1.5 execution-market-validation",
         ...headers,
       },
     });
-    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`HTTP_${response.status}`);
+      error.httpStatus = response.status;
+      error.retryAfterMs = retryAfterMs(response);
+      throw error;
+    }
     return format === "json" ? await response.json() : await response.text();
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function waitForTwelveDataBudget() {
+  const delayMs = Math.max(0, twelveDataNextRequestAt - Date.now());
+  if (delayMs > 0) await sleep(delayMs);
+  twelveDataNextRequestAt = Date.now() + twelveDataMinIntervalMs;
+}
+
+async function requestTwelveData(url) {
+  let attempt = 0;
+  while (true) {
+    await waitForTwelveDataBudget();
+    try {
+      return await request(url);
+    } catch (error) {
+      if (Number(error?.httpStatus) !== 429) throw error;
+      twelveDataRateLimitEvents += 1;
+      if (attempt >= twelveDataMaxRateLimitRetries) throw error;
+      const backoffMs = Math.max(
+        Number(error?.retryAfterMs) || 0,
+        twelveDataMinIntervalMs * (2 ** attempt),
+      );
+      twelveDataRateLimitRetries += 1;
+      attempt += 1;
+      await sleep(backoffMs);
+    }
   }
 }
 
@@ -136,7 +183,7 @@ async function fetchTwelveData(instrument) {
   if (!isTwelveDataPaperCandidate(instrument)) throw new Error("TWELVE_DATA_NOT_A_PAPER_CANDIDATE");
   const providerSymbol = normalizeExecutionSymbol(instrument.symbol);
   if (!providerSymbol) throw new Error("UNSUPPORTED_SYMBOL");
-  const data = await request(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(providerSymbol)}&interval=1min&apikey=${encodeURIComponent(twelveDataApiKey)}`);
+  const data = await requestTwelveData(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(providerSymbol)}&interval=1min&apikey=${encodeURIComponent(twelveDataApiKey)}`);
   if (String(data?.status || "").toLowerCase() === "error" || data?.code) throw new Error("TWELVE_DATA_API_ERROR");
   const returnedSymbol = normalizeExecutionSymbol(data?.symbol);
   if (returnedSymbol && returnedSymbol !== providerSymbol) throw new Error("TWELVE_DATA_SYMBOL_MISMATCH");
@@ -472,7 +519,7 @@ const directaObservations = deduplicated.filter((item) => item.sourceFamily === 
 const coinbaseEvidence = deduplicated.filter((item) => item.sourceFamily === "coinbase");
 const krakenEvidence = deduplicated.filter((item) => item.sourceFamily === "kraken");
 const report = {
-  version: 10,
+  version: 11,
   generatedAt: new Date().toISOString(),
   requestedSymbols: instruments.map((instrument) => instrument.symbol),
   observations: deduplicated,
@@ -499,7 +546,12 @@ const report = {
     twelveDataProbedSymbols: [...twelveDataProbeSymbols],
     twelveDataPaperFreshObservations: twelveDataEvidence.filter((item) => item.eligibility === "PAPER").length,
     twelveDataValidationOnlyObservations: twelveDataEvidence.filter((item) => item.eligibility === "VALIDATION_ONLY").length,
+    twelveDataMinIntervalMs,
+    twelveDataMaxRateLimitRetries,
+    twelveDataRateLimitEvents,
+    twelveDataRateLimitRetries,
     twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, verified provider-specific PAPER provenance and <=120-second freshness are required",
+    twelveDataRateLimitPolicy: "provider-aware pacing plus Retry-After/exponential backoff; freshness and provenance rules are never relaxed",
     alpacaConfigured,
     alpacaCandidateCount: instruments.filter(isAlpacaPaperCandidate).length,
     alpacaProbeLimit,
@@ -530,6 +582,8 @@ const report = {
     providerVenueMustBeVerifiedBeforePaperEligibility: true,
     delayedIntradayEvidenceNeverSatisfiesPaperQuorum: true,
     providerBudgetsMustNotWeakenFreshnessOrIndependence: true,
+    providerRateLimitsMustUsePacingAndBackoff: true,
+    rateLimitRetriesNeverChangeEvidenceEligibility: true,
     paperEligibilityRequiresExplicitRealtimeAndEntitlement: true,
     paperEligibilityRequiresVerifiedProvenance: true,
     localBrokerEvidenceMustProveReadOnlyBoundary: true,
@@ -540,4 +594,4 @@ const report = {
 };
 
 await writeJsonStateAtomic(outputPath, report);
-console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, stooqExecution=${stooqExecutionValidationEnabled ? "enabled" : "disabled"}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alpacaTradeFallback=${report.capabilities.alpacaLatestTradeFallbackObservations}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
+console.log(`Fenice execution market-data: symbols=${instruments.length}, observations=${deduplicated.length}, errors=${errors.length}, stooqExecution=${stooqExecutionValidationEnabled ? "enabled" : "disabled"}, directa=${directaSnapshot ? (directaEvidence.accepted ? "accepted" : "rejected") : "not-present"}, directaFresh=${report.capabilities.directaPaperFreshObservations}/${directaObservations.length}, twelveData=${twelveDataApiKey ? "configured" : "optional-unconfigured"}, twelveDataFresh=${report.capabilities.twelveDataPaperFreshObservations}/${twelveDataEvidence.length}, twelveData429=${twelveDataRateLimitEvents}/${twelveDataRateLimitRetries}, alpaca=${alpacaConfigured ? "configured" : "optional-unconfigured"}, alpacaFresh=${report.capabilities.alpacaPaperFreshObservations}/${alpacaEvidence.length}, alpacaTradeFallback=${report.capabilities.alpacaLatestTradeFallbackObservations}, alphaVantage=${alphaVantageApiKey ? "configured" : "optional-unconfigured"}, alphaFresh=${report.capabilities.alphaVantagePaperFreshObservations}/${alphaVantageEvidence.length}, coinbasePaper=${report.capabilities.coinbasePaperObservations}/${coinbaseEvidence.length}, krakenPaper=${report.capabilities.krakenPaperObservations}/${krakenEvidence.length}.`);
