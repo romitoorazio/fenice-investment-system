@@ -21,7 +21,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: fenice-data-writer
+  # Keep the campaign-critical probe out of the broad fenice-data-writer group.
+  # GitHub keeps only one pending run per concurrency group; unrelated scheduled
+  # writers can otherwise evict a waiting PAPER probe. This workflow's atomic
+  # publish still refuses to overwrite main if another writer changed it.
+  group: fenice-paper-validation-probe
   cancel-in-progress: false
 
 jobs:
@@ -199,7 +203,7 @@ jobs:
           git fetch origin main
           current_remote="$(git rev-parse origin/main)"
           if [ "$current_remote" != "$FENICE_BASE_SHA" ]; then
-            echo "Main changed during the serialized probe cycle; refusing to overwrite newer evidence."
+            echo "Main changed during the PAPER probe cycle; refusing to overwrite newer evidence."
             exit 1
           fi
 
