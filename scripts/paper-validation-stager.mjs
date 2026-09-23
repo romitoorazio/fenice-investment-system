@@ -31,6 +31,11 @@ function isValidationProbe(item, prefix) {
   return item?.validationProbe === true || String(item?.clientOrderId || "").startsWith(prefix);
 }
 
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number(value);
+  return Math.max(min, Math.min(max, Number.isFinite(parsed) ? Math.floor(parsed) : fallback));
+}
+
 export function buildPaperValidationProbe({ campaign, approval, marketSession, coverage, state, queue, terminal, committee, now = new Date().toISOString() }) {
   const nowMs = parseTime(now);
   const blocked = (reason) => ({ staged: false, reason, queue });
@@ -52,7 +57,12 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
 
   const sessionObserved = parseTime(marketSession?.evidence?.observedAt);
   const sessionAgeSeconds = sessionObserved === null ? Number.POSITIVE_INFINITY : Math.max(0, (nowMs - sessionObserved) / 1000);
-  if (marketSession?.configured !== true || marketSession?.evidence?.authoritative !== true || marketSession?.evidence?.state !== "OPEN" || marketSession?.decision?.allowed !== true || sessionAgeSeconds > 120 || marketSession?.liveTradingAllowed !== false) {
+  if (marketSession?.configured !== true
+    || marketSession?.evidence?.authoritative !== true
+    || marketSession?.evidence?.state !== "OPEN"
+    || marketSession?.decision?.allowed !== true
+    || sessionAgeSeconds > 120
+    || marketSession?.liveTradingAllowed !== false) {
     return blocked("market-session-not-open");
   }
 
@@ -63,15 +73,19 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   if (ageHours(terminal?.generatedAt, nowMs) > 24 || !positive(terminal?.capitalEuro)) return blocked("terminal-stale-or-invalid");
   if (ageHours(committee?.generatedAt, nowMs) > 24 || committee?.sourceGate !== "GREEN" || Number(committee?.dataQuality || 0) < 90) return blocked("committee-data-not-ready");
 
-  const maxOrdersTotal = Math.max(1, Math.min(50, Number(approval?.maxOrdersTotal || 10)));
-  const maxOrdersPerDay = Math.max(1, Math.min(5, Number(approval?.maxOrdersPerDay || 1)));
-  const maxNotionalEuroPerOrder = Math.max(1, Math.min(500, Number(approval?.maxNotionalEuroPerOrder || 100)));
-  const date = new Date(nowMs).toISOString().slice(0, 10);
   const executions = Array.isArray(state?.executions) ? state.executions : [];
   const queued = queue.orders;
-  const historicalProbeCount = executions.filter((item) => isValidationProbe(item, prefix)).length;
+  const targetPaperFills = boundedInteger(approval?.targetPaperFills, boundedInteger(campaign?.minPaperFills, 10, 1, 50), 1, 50);
+  const maxProbeAttemptsTotal = boundedInteger(approval?.maxProbeAttemptsTotal, Math.max(20, targetPaperFills * 2), targetPaperFills, 100);
+  const maxOrdersPerDay = boundedInteger(approval?.maxOrdersPerDay, 1, 1, 5);
+  const maxNotionalEuroPerOrder = Math.max(1, Math.min(500, Number(approval?.maxNotionalEuroPerOrder || 100)));
+  const totalPaperFills = executions.filter((item) => item?.status === "PAPER_FILLED").length;
+  if (totalPaperFills >= targetPaperFills) return blocked("campaign-paper-fill-target-complete");
+
+  const date = new Date(nowMs).toISOString().slice(0, 10);
+  const historicalProbeAttempts = executions.filter((item) => isValidationProbe(item, prefix)).length;
   const pendingProbeOrders = queued.filter((item) => isValidationProbe(item, prefix));
-  if (historicalProbeCount + pendingProbeOrders.length >= maxOrdersTotal) return blocked("probe-budget-complete");
+  if (historicalProbeAttempts + pendingProbeOrders.length >= maxProbeAttemptsTotal) return blocked("probe-attempt-budget-exhausted");
   if (pendingProbeOrders.length > 0) return blocked("probe-already-pending");
   const todayProbeCount = executions.filter((item) => isValidationProbe(item, prefix) && sameUtcDate(item?.createdAt || item?.filledAt, date)).length
     + queued.filter((item) => isValidationProbe(item, prefix) && sameUtcDate(item?.requestedAt, date)).length;
@@ -114,7 +128,12 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   const candidate = candidates[0];
   if (!candidate) return blocked("no-eligible-validation-candidate");
 
-  const fxToEuro = 1; // Conservative for USD; EUR is naturally 1. This never understates risk notional for the approved currencies.
+  // This is deliberately a risk-sizing stress conversion, not a market FX quote.
+  // For USD probes the default factor 2.0 deliberately overstates EUR exposure.
+  const configuredFxStress = Number(approval?.riskFxToEuroByCurrency?.[candidate.currency]);
+  const fxToEuro = positive(configuredFxStress) ? configuredFxStress : candidate.currency === "EUR" ? 1 : 2;
+  if (fxToEuro > 5) return blocked("risk-fx-stress-invalid");
+
   const capitalCap = Number(terminal.capitalEuro) * 0.01;
   const notionalCap = Math.min(maxNotionalEuroPerOrder, capitalCap);
   const rawQuantity = notionalCap / (Number(candidate.row.medianPrice) * fxToEuro);
@@ -138,6 +157,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
     validationProbe: true,
     approvalId: String(approval?.approvalId || "paper-validation-operator-approval"),
     validationRationale: {
+      purpose: "operational-paper-validation-only",
       committeeDecision: String(candidate.decision?.decision || ""),
       committeeScore: candidate.committeeScore,
       dataConfidence: candidate.confidence,
@@ -145,6 +165,11 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       independentSourceFamilies: Number(candidate.row?.independentSourceFamilies || 0),
       medianPrice: Number(candidate.row?.medianPrice),
       maxNotionalEuro: Number(notionalCap.toFixed(2)),
+      riskFxToEuroStress: fxToEuro,
+      cumulativePaperFillsBeforeProbe: totalPaperFills,
+      targetPaperFills,
+      historicalProbeAttempts,
+      maxProbeAttemptsTotal,
     },
   };
 
