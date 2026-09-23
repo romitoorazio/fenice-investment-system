@@ -56,6 +56,17 @@ import { classifyPaperEvidence } from "../lib/trading/paper-evidence-policy.ts";
 
 {
   const result = classifyPaperEvidence({
+    sourceFamily: "directa",
+    realtime: true,
+    entitlement: "PAPER",
+    provenanceVerified: true,
+  });
+  assert.equal(result.eligibility, "VALIDATION_ONLY", "Directa must qualify only through its dedicated entitlement, identity and executable-book evidence path");
+  assert.match(result.reason, /not approved/i);
+}
+
+{
+  const result = classifyPaperEvidence({
     sourceFamily: "alpaca",
     realtime: true,
     entitlement: "PAPER",
