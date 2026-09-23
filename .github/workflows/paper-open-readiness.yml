@@ -1,0 +1,99 @@
+name: Fenice PAPER Market-Open Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/professional-core-consolidation
+    paths:
+      - ".github/workflows/paper-open-readiness.yml"
+      - "scripts/check-paper-market-session.mjs"
+      - "scripts/check-paper-open-readiness.mjs"
+      - "scripts/run-execution-market-data.mjs"
+      - "scripts/check-execution-market-coverage.mjs"
+      - "scripts/check-global-sources.mjs"
+      - "scripts/run-intelligence.mjs"
+      - "lib/trading/market-session.ts"
+      - "lib/trading/paper-baseline.mjs"
+      - "lib/trading/execution-market-data.ts"
+      - "lib/trading/execution-coverage.ts"
+      - "lib/intelligence/quality-engine.mjs"
+      - "data/global-source-registry.json"
+      - "data/instrument-master.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-paper-open-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+
+    steps:
+      - name: Checkout exact audited commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Validate instrument identities and venues
+        run: npm run instruments:validate
+
+      - name: Read authoritative PAPER market session
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+
+      - name: Refresh critical source health
+        run: npm run sources:check
+
+      - name: Build fresh intelligence quality
+        run: node scripts/run-intelligence.mjs
+
+      - name: Build fresh execution evidence
+        run: npm run marketdata:execution
+
+      - name: Measure per-symbol PAPER coverage
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Classify market-open PAPER readiness
+        run: node --experimental-strip-types scripts/check-paper-open-readiness.mjs --require-session --require-ready-if-open
+
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-paper-open-readiness
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            data/paper-market-session.json
+            data/paper-open-readiness.json
+            data/global-source-health.json
+            data/intelligence-quality.json
+            data/execution-market-evidence.json
+            data/execution-market-coverage.json
