@@ -51,12 +51,9 @@ on:
 permissions:
   contents: read
 
-# Share the same provider-budget lane with market-open readiness. This queues
-# free Twelve Data batch snapshots instead of letting independent workflows
-# spend the same minute allowance concurrently.
 concurrency:
-  group: fenice-live-market-evidence-${{ github.ref }}
-  cancel-in-progress: false
+  group: fenice-pr-live-evidence-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   live-evidence:
@@ -64,8 +61,10 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
+      # Twelve Data Basic exposes 8 API credits/minute. Keep this audit at four
+      # symbols so market-open readiness may independently use the other four.
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
-      FENICE_TWELVE_DATA_BATCH_PROBES: "6"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
