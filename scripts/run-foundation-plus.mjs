@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { recoverOptionalIntelligenceSources } from "../lib/intelligence/optional-source-recovery.mjs";
 import { collectPublicMarkets } from "./collect-public-markets.mjs";
 import { collectInstitutionalSignals } from "./collect-institutional-signals.mjs";
 
@@ -34,13 +35,24 @@ async function main() {
   // execution-grade market data by this stage.
   await collectPublicMarkets(snapshot, healthDocument.sources);
   await collectInstitutionalSignals(snapshot, healthDocument.sources);
+
+  // Optional-provider recovery never weakens critical gates. It only retries
+  // GDELT with bounded lighter queries and distinguishes missing FINRA Public
+  // OAuth credentials from an actual provider outage. Recovered sources remain
+  // intelligence/context sources and are never promoted to execution evidence.
+  const optionalRecovery = await recoverOptionalIntelligenceSources(snapshot, healthDocument.sources);
+
   snapshot.providers.sort((a, b) => a.name.localeCompare(b.name));
   snapshot.markets.sort((a, b) => (b.score || 0) - (a.score || 0));
   snapshot.foundation = {
     ...(snapshot.foundation || {}),
-    version: Math.max(3, Number(snapshot.foundation?.version || 0)),
+    version: Math.max(4, Number(snapshot.foundation?.version || 0)),
     resilientMarketFallbacks: true,
     institutionalSourceDiversity: true,
+    optionalSourceRecovery: {
+      gdelt: optionalRecovery.gdelt,
+      finra: optionalRecovery.finra,
+    },
     sourceHealth: {
       healthy: healthDocument.sources.filter((item) => item.status === "healthy").length,
       total: healthDocument.sources.length,
