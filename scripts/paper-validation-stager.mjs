@@ -97,8 +97,16 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   const minConfidence = Number.isFinite(Number(approval?.minConfidence)) ? Number(approval.minConfidence) : 90;
   const maxRiskScore = Number.isFinite(Number(approval?.maxRiskScore)) ? Number(approval.maxRiskScore) : 75;
 
+  // `paperEligible` is the authoritative output of the fingerprinted market-data
+  // quorum. GREEN means preferred redundancy (>=3 independent families), while
+  // CAUTION is still allowNewRisk=true when the required >=2-family quorum and
+  // spread/freshness checks pass. Accept both safe states and keep BLOCKED or
+  // unknown states fail-closed.
   const coverageBySymbol = new Map((Array.isArray(coverage?.rows) ? coverage.rows : [])
-    .filter((row) => row?.paperEligible === true && row?.state === "GREEN" && Number(row?.independentSourceFamilies || 0) >= 2 && positive(row?.medianPrice))
+    .filter((row) => row?.paperEligible === true
+      && ["GREEN", "CAUTION"].includes(String(row?.state || "").toUpperCase())
+      && Number(row?.independentSourceFamilies || 0) >= 2
+      && positive(row?.medianPrice))
     .map((row) => [String(row.symbol || "").toUpperCase(), row]));
   const terminalBySymbol = new Map((Array.isArray(terminal?.assets) ? terminal.assets : []).map((asset) => [String(asset?.symbol || "").toUpperCase(), asset]));
 
@@ -162,6 +170,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       committeeScore: candidate.committeeScore,
       dataConfidence: candidate.confidence,
       riskScore: candidate.riskScore,
+      coverageState: String(candidate.row?.state || ""),
       independentSourceFamilies: Number(candidate.row?.independentSourceFamilies || 0),
       medianPrice: Number(candidate.row?.medianPrice),
       maxNotionalEuro: Number(notionalCap.toFixed(2)),
