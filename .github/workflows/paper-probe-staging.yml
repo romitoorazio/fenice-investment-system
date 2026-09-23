@@ -1,0 +1,84 @@
+name: Fenice Paper Probe Staging
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run after the 16:35 UTC PAPER validation cycle. The next validation run
+    # consumes at most one staged probe; current gates are re-evaluated before
+    # any PAPER fill can occur.
+    - cron: "55 16 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-data-writer
+  cancel-in-progress: false
+
+jobs:
+  stage-paper-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Regression-test PAPER stager
+        run: node scripts/test-paper-validation-stager.mjs
+
+      - name: Refresh authoritative PAPER market session
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+
+      - name: Stage at most one approved PAPER validation probe
+        run: node scripts/stage-paper-validation-order.mjs
+
+      - name: Publish staged PAPER queue only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- data/paper-order-queue.json; then
+            echo "No eligible PAPER validation probe staged."
+            exit 0
+          fi
+
+          generated_queue="$(mktemp)"
+          cp data/paper-order-queue.json "$generated_queue"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_queue" data/paper-order-queue.json
+            git add data/paper-order-queue.json
+
+            if git diff --cached --quiet; then
+              echo "Queue already published by another serialized writer."
+              exit 0
+            fi
+
+            git commit -m "data: stage Fenice PAPER validation probe"
+            if git push origin HEAD:main; then
+              echo "PAPER validation probe staged for the next gated validation cycle."
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish PAPER validation probe after 3 attempts"
+          exit 1
