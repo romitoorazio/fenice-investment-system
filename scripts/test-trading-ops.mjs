@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { appendAuditEvent, verifyAuditChain } from "../lib/trading/audit-chain.ts";
 import { evaluateKillSwitch } from "../lib/trading/kill-switch.ts";
+import { evaluateMarketSession } from "../lib/trading/market-session.ts";
 import { applyOrderLifecycleEvent, createOrderLifecycle } from "../lib/trading/order-lifecycle.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
@@ -58,6 +59,60 @@ assert.ok(shortRisk.reasons.some((reason) => reason.startsWith("no-short-selling
 const staleRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: new Date(now - 300_000).toISOString() }, undefined, now);
 assert.equal(staleRisk.allowed, false);
 assert.ok(staleRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
+const freshOpenSession = evaluateMarketSession({
+  venue: "US_EQUITIES",
+  state: "OPEN",
+  source: "authoritative-test-clock",
+  observedAt: new Date(now - 15_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(freshOpenSession.allowed, true);
+assert.equal(freshOpenSession.state, "OPEN");
+
+const closedSession = evaluateMarketSession({
+  venue: "US_EQUITIES",
+  state: "CLOSED",
+  source: "authoritative-test-clock",
+  observedAt: new Date(now - 15_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(closedSession.allowed, false);
+assert.ok(closedSession.reasons.includes("market is closed"));
+
+const haltedSession = evaluateMarketSession({
+  venue: "US_EQUITIES",
+  state: "HALTED",
+  source: "authoritative-test-clock",
+  observedAt: new Date(now - 15_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(haltedSession.allowed, false);
+assert.ok(haltedSession.reasons.includes("market or instrument is halted"));
+
+const staleSession = evaluateMarketSession({
+  venue: "US_EQUITIES",
+  state: "OPEN",
+  source: "authoritative-test-clock",
+  observedAt: new Date(now - 120_000).toISOString(),
+  authoritative: true,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(staleSession.allowed, false);
+assert.ok(staleSession.reasons.includes("market-session evidence is stale"));
+
+const untrustedSession = evaluateMarketSession({
+  venue: "US_EQUITIES",
+  state: "OPEN",
+  source: "guessed-calendar",
+  observedAt: new Date(now - 15_000).toISOString(),
+  authoritative: false,
+}, { maxAgeSeconds: 60 }, now);
+assert.equal(untrustedSession.allowed, false);
+assert.ok(untrustedSession.reasons.includes("market-session source is not authoritative"));
+
+const missingSession = evaluateMarketSession(null, { maxAgeSeconds: 60 }, now);
+assert.equal(missingSession.allowed, false);
+assert.equal(missingSession.state, "UNKNOWN");
 
 const oms = new PaperOms({ slippageBps: 5, feeBps: 8, minimumFeeEuro: 1.5 });
 const first = oms.submit(baseOrder, safeContext, now);
