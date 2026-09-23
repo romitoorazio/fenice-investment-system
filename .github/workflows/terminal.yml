@@ -67,20 +67,54 @@ jobs:
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/investment-committee.json'));if(!Array.isArray(c.topDecisions)||!Array.isArray(c.allDecisions)||!Number.isFinite(c.dataQuality)||!c.executionGate||!c.goal)process.exit(1);for(const d of c.allDecisions){if(!Number.isFinite(d.committeeScore)||!Number.isFinite(d.confidence)||!Number.isFinite(d.riskScore)||!d.scorecard||!d.entryPlan||!Array.isArray(d.bearCase)||!Array.isArray(d.invalidation))process.exit(1)};if(c.executionGate==='BLOCCATO'&&c.proposedFirstTrancheEuro>0)process.exit(1);console.log('Committee:',c.candidateCount,'BUY',c.buyCandidateCount,'gate',c.executionGate,'quality',c.dataQuality,'tranche',c.proposedFirstTrancheEuro)"
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/calibration-analysis.json'));if(!c.horizons?.['7d']||!c.horizons?.['30d']||!c.horizons?.['90d'])process.exit(1);if(c.policy?.confidenceCanOnlyBeReducedByCalibration!==true||c.policy?.liveTradingAllowed!==false)process.exit(1);for(const h of Object.values(c.horizons)){if(!['INSUFFICIENT','CALIBRATED','WATCH','POOR'].includes(h.state))process.exit(1);if(!Number.isFinite(h.sampleSize)||!Number.isFinite(h.confidenceMultiplier)||h.confidenceMultiplier>1)process.exit(1)};console.log('Calibration 7d:',c.horizons['7d'].state,c.horizons['7d'].sampleSize,'30d:',c.horizons['30d'].state,c.horizons['30d'].sampleSize)"
 
-      - name: Commit terminal intelligence
+      - name: Commit terminal intelligence without touching PAPER state
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "fenice-terminal-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           generated_dir="$(mktemp -d)"
-          cp -a data "$generated_dir/data"
+          mapfile -t changed_data < <(
+            {
+              git diff --name-only -- data
+              git ls-files --others --exclude-standard -- data
+            } | sort -u
+          )
+
+          generated_files=()
+          for file in "${changed_data[@]}"; do
+            [ -n "$file" ] || continue
+            case "$file" in
+              data/paper-*|data/execution-market-*)
+                echo "Protected PAPER dataset not published by World Terminal: $file"
+                continue
+                ;;
+            esac
+            if [ -f "$file" ]; then
+              generated_files+=("$file")
+              mkdir -p "$generated_dir/$(dirname "$file")"
+              cp "$file" "$generated_dir/$file"
+            fi
+          done
+
+          if [ "${#generated_files[@]}" -eq 0 ]; then
+            echo "No terminal changes to publish"
+            exit 0
+          fi
+
+          printf 'World Terminal will publish only:\n'
+          printf ' - %s\n' "${generated_files[@]}"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p data
-            cp -a "$generated_dir/data/." data/
-            git add data
+
+            for file in "${generated_files[@]}"; do
+              mkdir -p "$(dirname "$file")"
+              cp "$generated_dir/$file" "$file"
+            done
+            git add -- "${generated_files[@]}"
 
             if git diff --cached --quiet; then
               echo "No terminal changes to commit"
