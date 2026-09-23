@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import {
   classifyExecutionPaperEligibility,
-  classifyPaperEligibilityByFreshness,
   deduplicateExecutionEvidence,
   inferExecutionSourceFamily,
   isAlpacaPaperCandidate,
   isAlphaVantageIntradayCandidate,
+  isExecutionObservationFresh,
   isTwelveDataPaperCandidate,
   isTwelveDataUsRealtimeVenue,
   normalizeExecutionEvidence,
@@ -62,10 +62,10 @@ assert.equal(parseProviderLocalTimestamp("2026-01-21 16:00:00", "US/Eastern"), "
 assert.equal(parseProviderLocalTimestamp("bad", "US/Eastern"), null);
 assert.equal(parseProviderLocalTimestamp("2026-09-21 16:00:00", "Not/AZone"), null);
 const paperNow = Date.parse("2026-09-21T20:00:30Z");
-assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:00:00Z", paperNow), "PAPER");
-assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:45:00Z", paperNow), "VALIDATION_ONLY");
-assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T20:01:00Z", paperNow), "VALIDATION_ONLY", "future timestamps must fail closed");
-assert.equal(classifyPaperEligibilityByFreshness("2026-09-21T19:57:59Z", paperNow, 120), "VALIDATION_ONLY", "quotes older than 120 seconds cannot satisfy PAPER execution quorum");
+assert.equal(isExecutionObservationFresh("2026-09-21T20:00:00Z", paperNow), true);
+assert.equal(isExecutionObservationFresh("2026-09-21T19:45:00Z", paperNow), false);
+assert.equal(isExecutionObservationFresh("2026-09-21T20:01:00Z", paperNow), false, "future timestamps must fail closed");
+assert.equal(isExecutionObservationFresh("2026-09-21T19:57:59Z", paperNow, 120), false, "quotes older than 120 seconds cannot satisfy timely execution evidence");
 
 assert.equal(
   classifyExecutionPaperEligibility({ sourceFamily: "yahoo", observedAt: "2026-09-21T20:00:00Z", realtime: true }, paperNow),
