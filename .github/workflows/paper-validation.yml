@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     # 16:35 UTC keeps the recurring validation inside the regular US equity session
-    # in both daylight-saving and standard-time periods. Weekend runs remain useful
-    # as no-risk safety evidence and must naturally fail closed on stale quotes.
+    # in both daylight-saving and standard-time periods. Alpaca's authoritative
+    # clock remains the final arbiter; holidays/weekends become no-risk evidence.
     - cron: "35 16 * * *"
 
 permissions:
@@ -21,7 +21,11 @@ jobs:
     timeout-minutes: 25
     env:
       FENICE_JOB: intraday
-      FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
+      # Legacy per-symbol Twelve Data polling is intentionally disabled. The
+      # coherent batch refresh below spends four Basic credits and requires the
+      # provider last_quote_at timestamp before evidence can become PAPER-grade.
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -33,6 +37,8 @@ jobs:
       COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
 
     steps:
       - name: Checkout repository
@@ -60,8 +66,32 @@ jobs:
       - name: Refresh independent execution market evidence
         run: npm run marketdata:execution
 
+      - name: Refresh coherent Twelve Data batch evidence
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+
       - name: Refresh per-symbol PAPER execution coverage
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
+      - name: Read authoritative PAPER market session
+        id: market_session
+        shell: bash
+        run: |
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/paper-market-session.json', 'utf8'));
+          const observedAt = Date.parse(String(report?.evidence?.observedAt || ''));
+          const ageSeconds = Number.isFinite(observedAt) ? Math.max(0, (Date.now() - observedAt) / 1000) : Infinity;
+          const riskAllowed = report?.configured === true
+            && report?.evidence?.authoritative === true
+            && report?.evidence?.state === 'OPEN'
+            && report?.decision?.allowed === true
+            && ageSeconds <= 120
+            && report?.liveTradingAllowed === false;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `risk_allowed=${riskAllowed}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `state=${String(report?.evidence?.state || 'UNKNOWN')}\n`);
+          console.log(`Persistent PAPER session gate: ${riskAllowed ? 'OPEN' : 'NO_RISK'}; state=${report?.evidence?.state || 'UNKNOWN'}; authoritative=${report?.evidence?.authoritative === true}; age=${Number.isFinite(ageSeconds) ? ageSeconds.toFixed(3) : 'unknown'}s.`);
+          NODE
 
       - name: Check or safely start PAPER campaign
         id: campaign
@@ -139,14 +169,14 @@ jobs:
           NODE
 
       - name: Exercise PAPER-only OMS
-        if: steps.campaign.outputs.started == 'true' && steps.decision_data.outputs.ready == 'true'
+        if: steps.campaign.outputs.started == 'true' && steps.market_session.outputs.risk_allowed == 'true' && steps.decision_data.outputs.ready == 'true'
         run: |
           npm run paper:conditional
           npm run paper:run
 
       - name: Confirm fail-closed no-risk day
-        if: steps.campaign.outputs.started == 'true' && steps.decision_data.outputs.ready != 'true'
-        run: echo "Decision-data gate blocked new PAPER risk; OMS execution intentionally skipped."
+        if: steps.campaign.outputs.started == 'true' && (steps.market_session.outputs.risk_allowed != 'true' || steps.decision_data.outputs.ready != 'true')
+        run: echo "Authoritative session or decision-data gate blocked new PAPER risk; OMS execution intentionally skipped."
 
       - name: Record daily validation evidence
         if: steps.campaign.outputs.started == 'true'
