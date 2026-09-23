@@ -36,6 +36,11 @@ function boundedInteger(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? Math.floor(parsed) : fallback));
 }
 
+function boundedNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+}
+
 export function buildPaperValidationProbe({ campaign, approval, marketSession, coverage, state, queue, terminal, committee, now = new Date().toISOString() }) {
   const nowMs = parseTime(now);
   const blocked = (reason) => ({ staged: false, reason, queue });
@@ -74,11 +79,15 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   if (ageHours(committee?.generatedAt, nowMs) > 24 || committee?.sourceGate !== "GREEN" || Number(committee?.dataQuality || 0) < 90) return blocked("committee-data-not-ready");
 
   const executions = Array.isArray(state?.executions) ? state.executions : [];
+  const positions = Array.isArray(state?.positions) ? state.positions : [];
   const queued = queue.orders;
   const targetPaperFills = boundedInteger(approval?.targetPaperFills, boundedInteger(campaign?.minPaperFills, 10, 1, 50), 1, 50);
   const maxProbeAttemptsTotal = boundedInteger(approval?.maxProbeAttemptsTotal, Math.max(20, targetPaperFills * 2), targetPaperFills, 100);
   const maxOrdersPerDay = boundedInteger(approval?.maxOrdersPerDay, 1, 1, 5);
-  const maxNotionalEuroPerOrder = Math.max(1, Math.min(500, Number(approval?.maxNotionalEuroPerOrder || 100)));
+  const maxNotionalEuroPerOrder = boundedNumber(approval?.maxNotionalEuroPerOrder, 300, 1, 500);
+  const maxCapitalPercentPerProbe = boundedNumber(approval?.maxCapitalPercentPerProbe, 3, 0.1, 5);
+  const minTcaProbeNotionalEuro = boundedNumber(approval?.minTcaProbeNotionalEuro, 250, 1, maxNotionalEuroPerOrder);
+  const maxSingleAssetWeightPercentForProbe = boundedNumber(approval?.maxSingleAssetWeightPercentForProbe, 15, 1, 15);
   const totalPaperFills = executions.filter((item) => item?.status === "PAPER_FILLED").length;
   if (totalPaperFills >= targetPaperFills) return blocked("campaign-paper-fill-target-complete");
 
@@ -109,6 +118,10 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       && positive(row?.medianPrice))
     .map((row) => [String(row.symbol || "").toUpperCase(), row]));
   const terminalBySymbol = new Map((Array.isArray(terminal?.assets) ? terminal.assets : []).map((asset) => [String(asset?.symbol || "").toUpperCase(), asset]));
+  const positionsBySymbol = new Map(positions.map((position) => [String(position?.symbol || "").toUpperCase(), position]));
+  const capitalEuro = Number(terminal.capitalEuro);
+  const capitalProbeCapEuro = capitalEuro * maxCapitalPercentPerProbe / 100;
+  const singleAssetCapEuro = capitalEuro * maxSingleAssetWeightPercentForProbe / 100;
 
   const candidates = (Array.isArray(committee?.topDecisions) ? committee.topDecisions : [])
     .map((decision) => {
@@ -121,29 +134,58 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       const riskScore = Math.max(Number(decision?.riskScore ?? 100), Number(asset?.riskScore ?? 100));
       const decisionState = String(decision?.decision || "").toUpperCase();
       const terminalDecision = String(asset?.decision || "").toUpperCase();
+      const configuredFxStress = Number(approval?.riskFxToEuroByCurrency?.[currency]);
+      const fxToEuro = positive(configuredFxStress) ? configuredFxStress : currency === "EUR" ? 1 : 2;
+      const position = positionsBySymbol.get(symbol);
+      const positionQuantity = Math.abs(Number(position?.quantity || 0));
+      const positionFxToEuro = positive(position?.fxToEuro) ? Number(position.fxToEuro) : fxToEuro;
+      const existingPositionNotionalEuro = row && positive(positionQuantity)
+        ? positionQuantity * Number(row.medianPrice) * positionFxToEuro
+        : 0;
+      const singleAssetHeadroomEuro = Math.max(0, singleAssetCapEuro - existingPositionNotionalEuro);
+      const notionalCapacityEuro = Math.max(0, Math.min(maxNotionalEuroPerOrder, capitalProbeCapEuro, singleAssetHeadroomEuro));
       const eligible = row
+        && fxToEuro <= 5
         && allowedDecisionStates.includes(decisionState)
         && !["ATTENDI", "EVITA"].includes(terminalDecision)
         && committeeScore >= minCommitteeScore
         && confidence >= minConfidence
         && riskScore <= maxRiskScore
-        && allowedCurrencies.includes(currency);
-      return { symbol, row, asset, decision, currency, committeeScore, confidence, riskScore, eligible };
+        && allowedCurrencies.includes(currency)
+        && notionalCapacityEuro >= minTcaProbeNotionalEuro;
+      return {
+        symbol,
+        row,
+        asset,
+        decision,
+        currency,
+        committeeScore,
+        confidence,
+        riskScore,
+        fxToEuro,
+        existingPositionNotionalEuro,
+        singleAssetHeadroomEuro,
+        notionalCapacityEuro,
+        eligible,
+      };
     })
     .filter((item) => item.eligible)
-    .sort((left, right) => (right.committeeScore - left.committeeScore) || (left.riskScore - right.riskScore) || left.symbol.localeCompare(right.symbol));
+    // Rotate toward the least-used eligible symbol first. This preserves the
+    // single-asset risk budget while keeping execution-quality samples large
+    // enough to make fixed transaction costs economically meaningful.
+    .sort((left, right) => (left.existingPositionNotionalEuro - right.existingPositionNotionalEuro)
+      || (right.notionalCapacityEuro - left.notionalCapacityEuro)
+      || (right.committeeScore - left.committeeScore)
+      || (left.riskScore - right.riskScore)
+      || left.symbol.localeCompare(right.symbol));
 
   const candidate = candidates[0];
   if (!candidate) return blocked("no-eligible-validation-candidate");
 
-  // This is deliberately a risk-sizing stress conversion, not a market FX quote.
-  // For USD probes the default factor 2.0 deliberately overstates EUR exposure.
-  const configuredFxStress = Number(approval?.riskFxToEuroByCurrency?.[candidate.currency]);
-  const fxToEuro = positive(configuredFxStress) ? configuredFxStress : candidate.currency === "EUR" ? 1 : 2;
-  if (fxToEuro > 5) return blocked("risk-fx-stress-invalid");
-
-  const capitalCap = Number(terminal.capitalEuro) * 0.01;
-  const notionalCap = Math.min(maxNotionalEuroPerOrder, capitalCap);
+  const fxToEuro = candidate.fxToEuro;
+  if (!positive(fxToEuro) || fxToEuro > 5) return blocked("risk-fx-stress-invalid");
+  const notionalCap = candidate.notionalCapacityEuro;
+  if (notionalCap < minTcaProbeNotionalEuro) return blocked("probe-notional-below-tca-floor");
   const rawQuantity = notionalCap / (Number(candidate.row.medianPrice) * fxToEuro);
   const quantity = Math.floor(rawQuantity * 1_000_000) / 1_000_000;
   if (!positive(quantity)) return blocked("probe-size-too-small");
@@ -174,6 +216,11 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       independentSourceFamilies: Number(candidate.row?.independentSourceFamilies || 0),
       medianPrice: Number(candidate.row?.medianPrice),
       maxNotionalEuro: Number(notionalCap.toFixed(2)),
+      maxCapitalPercentPerProbe,
+      minTcaProbeNotionalEuro,
+      maxSingleAssetWeightPercentForProbe,
+      existingPositionNotionalEuro: Number(candidate.existingPositionNotionalEuro.toFixed(2)),
+      singleAssetHeadroomEuro: Number(candidate.singleAssetHeadroomEuro.toFixed(2)),
       riskFxToEuroStress: fxToEuro,
       cumulativePaperFillsBeforeProbe: totalPaperFills,
       targetPaperFills,
