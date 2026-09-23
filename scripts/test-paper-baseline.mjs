@@ -34,7 +34,7 @@ const healthy = {
     },
   },
   executionCoverage: {
-    version: 6,
+    version: 7,
     generatedAt: "2026-09-21T19:51:00Z",
     evidenceGeneratedAt: executionGeneratedAt,
     requestedSymbols: 12,
@@ -50,9 +50,12 @@ const healthy = {
       preferredIndependentSourceFamilies: 3,
       directaPaidRealtimeRequired: false,
       directaEvidenceOptionalForPaperCertification: true,
-      approvedIndependentPaperSourceFamilies: ["alpha-vantage", "alpaca", "massive", "twelve-data"],
+      directaDedicatedProvenanceMethod: "directa-readonly-entitlement-isin-topbook",
+      approvedIndependentPaperSourceFamilies: ["alpaca", "twelve-data"],
       validationOnlyEvidenceCannotSatisfyPaperQuorum: true,
       paperEligibilityRequiresVerifiedProvenance: true,
+      unregisteredPaperEvidenceFailsClosed: true,
+      alphaVantageEligibleForZeroCostPaper: false,
       liveTradingAllowed: false,
     },
   },
@@ -68,11 +71,15 @@ const pass = evaluatePaperBaselineEligibility(healthy);
 assert.equal(pass.eligible, true, pass.reasons.join(" | "));
 assert.equal(pass.metrics.paperEligibleSourceFamilies, 2);
 assert.equal(pass.metrics.unverifiedPaperObservations, 0);
+assert.equal(pass.metrics.unapprovedPaperObservations, 0);
 assert.equal(pass.metrics.paperEligibleSymbols, 5);
 assert.equal(pass.metrics.directaPaidRealtimeRequired, false);
 assert.equal(pass.metrics.directaEvidenceOptionalForPaperCertification, true);
 assert.equal(pass.metrics.directaOptionalEvidenceSymbols, 1);
 assert.ok(pass.metrics.approvedIndependentPaperSourceFamilies.includes("twelve-data"));
+assert.ok(pass.metrics.approvedIndependentPaperSourceFamilies.includes("alpaca"));
+assert.ok(!pass.metrics.approvedIndependentPaperSourceFamilies.includes("alpha-vantage"));
+assert.equal(pass.metrics.unregisteredPaperEvidenceFailsClosed, true);
 assert.equal(pass.gates.executionMarketProvenancePolicy, true);
 assert.equal(pass.gates.executionSymbolCoverage, true);
 assert.equal(pass.gates.zeroCostPaperPolicy, true);
@@ -106,8 +113,8 @@ const fakeRedundancy = evaluatePaperBaselineEligibility({
   executionMarket: {
     ...healthy.executionMarket,
     observations: [
-      { sourceFamily: "same-provider", eligibility: "PAPER", provenanceVerified: true },
-      { sourceFamily: "same-provider", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: true },
       { sourceFamily: "validator", eligibility: "VALIDATION_ONLY", provenanceVerified: false },
     ],
   },
@@ -129,6 +136,21 @@ assert.equal(unverifiedPaper.eligible, false, "PAPER-labelled evidence without p
 assert.equal(unverifiedPaper.metrics.paperEligibleSourceFamilies, 1);
 assert.equal(unverifiedPaper.metrics.unverifiedPaperObservations, 1);
 assert.equal(unverifiedPaper.gates.executionMarketData, false);
+
+const unregisteredPaper = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionMarket: {
+    ...healthy.executionMarket,
+    observations: [
+      { sourceFamily: "twelve-data", eligibility: "PAPER", provenanceVerified: true },
+      { sourceFamily: "mystery-free-feed", eligibility: "PAPER", provenanceVerified: true },
+    ],
+  },
+});
+assert.equal(unregisteredPaper.eligible, false, "unregistered PAPER evidence must fail closed even when provenanceVerified is asserted");
+assert.equal(unregisteredPaper.metrics.paperEligibleSourceFamilies, 1);
+assert.equal(unregisteredPaper.metrics.unapprovedPaperObservations, 1);
+assert.equal(unregisteredPaper.gates.executionMarketData, false);
 
 const legacyEvidenceSchema = evaluatePaperBaselineEligibility({
   ...healthy,
@@ -219,6 +241,30 @@ const provenancePolicyDisabled = evaluatePaperBaselineEligibility({
 });
 assert.equal(provenancePolicyDisabled.eligible, false, "coverage policy must explicitly require persisted PAPER provenance");
 assert.equal(provenancePolicyDisabled.gates.zeroCostPaperPolicy, false);
+
+const unregisteredPolicyDisabled = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: { ...healthy.executionCoverage.policy, unregisteredPaperEvidenceFailsClosed: false },
+  },
+});
+assert.equal(unregisteredPolicyDisabled.eligible, false, "coverage policy must explicitly reject unregistered PAPER evidence");
+assert.equal(unregisteredPolicyDisabled.gates.zeroCostPaperPolicy, false);
+
+const alphaVantageAllowed = evaluatePaperBaselineEligibility({
+  ...healthy,
+  executionCoverage: {
+    ...healthy.executionCoverage,
+    policy: {
+      ...healthy.executionCoverage.policy,
+      approvedIndependentPaperSourceFamilies: ["alpaca", "twelve-data", "alpha-vantage"],
+      alphaVantageEligibleForZeroCostPaper: true,
+    },
+  },
+});
+assert.equal(alphaVantageAllowed.eligible, false, "Alpha Vantage must not be admitted to the zero-cost PAPER quorum");
+assert.equal(alphaVantageAllowed.gates.zeroCostPaperPolicy, false);
 
 const mismatchedCoverage = evaluatePaperBaselineEligibility({
   ...healthy,
