@@ -16,6 +16,8 @@ on:
       - "scripts/check-paper-market-session.mjs"
       - "scripts/check-paper-open-readiness.mjs"
       - "scripts/run-execution-market-data.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence.mjs"
+      - "scripts/test-twelve-data-batch.mjs"
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
       - "scripts/reconcile-global-source-health.mjs"
@@ -26,6 +28,7 @@ on:
       - "lib/trading/market-session.ts"
       - "lib/trading/paper-baseline.mjs"
       - "lib/trading/execution-market-data.ts"
+      - "lib/trading/twelve-data-batch.mjs"
       - "lib/trading/execution-coverage.ts"
       - "lib/intelligence/quality-engine.mjs"
       - "lib/intelligence/optional-source-recovery.mjs"
@@ -36,9 +39,12 @@ on:
 permissions:
   contents: read
 
+# Readiness and the PR live-evidence audit share the same free provider budget.
+# Queue them instead of letting two simultaneous jobs consume the same Twelve
+# Data minute allowance and manufacture avoidable 429s.
 concurrency:
-  group: fenice-paper-open-readiness-${{ github.ref }}
-  cancel-in-progress: true
+  group: fenice-live-market-evidence-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   readiness:
@@ -46,7 +52,10 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
-      FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
+      # Disable the legacy per-symbol Twelve Data loop. A single coherent batch
+      # snapshot is collected immediately afterwards using provider last_quote_at.
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "6"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -88,8 +97,11 @@ jobs:
       - name: Build fresh intelligence quality
         run: node scripts/run-intelligence.mjs
 
-      - name: Build fresh execution evidence
+      - name: Build fresh base execution evidence
         run: npm run marketdata:execution
+
+      - name: Refresh coherent Twelve Data batch evidence
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
       - name: Measure per-symbol PAPER coverage
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
