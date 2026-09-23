@@ -1,11 +1,11 @@
-name: Fenice Paper Probe Staging
+name: Fenice PAPER Validation Probe Cycle
 
 on:
   workflow_dispatch:
   schedule:
-    # Run after the 16:35 UTC PAPER validation cycle. The next validation run
-    # consumes at most one staged probe; current gates are re-evaluated before
-    # any PAPER fill can occur.
+    # Runs after the regular 16:35 UTC PAPER validation cycle. This job performs
+    # a complete same-run evidence -> stage -> PAPER OMS -> evidence-record cycle,
+    # so a queued probe never narrows the next day's broad market-data coverage.
     - cron: "55 16 * * 1-5"
 
 permissions:
@@ -16,12 +16,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  stage-paper-probe:
+  paper-validation-probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     env:
+      FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
       APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
       APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
 
     steps:
       - name: Checkout main
@@ -30,55 +44,169 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Capture serialized base commit
+        shell: bash
+        run: echo "FENICE_BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
 
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
       - name: Regression-test PAPER stager
         run: node scripts/test-paper-validation-stager.mjs
 
+      - name: Decide whether a probe cycle is still needed
+        id: preflight
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const approval = JSON.parse(fs.readFileSync('data/paper-validation-approval.json', 'utf8'));
+          const state = JSON.parse(fs.readFileSync('data/paper-oms-state.json', 'utf8'));
+          const queue = JSON.parse(fs.readFileSync('data/paper-order-queue.json', 'utf8'));
+          const prefix = String(approval?.idPrefix || 'fenice-paper-validation-');
+          const executions = Array.isArray(state?.executions) ? state.executions : [];
+          const fills = executions.filter((row) => row?.status === 'PAPER_FILLED').length;
+          const attempts = executions.filter((row) => row?.validationProbe === true || String(row?.clientOrderId || '').startsWith(prefix)).length;
+          const target = Math.max(1, Number(approval?.targetPaperFills || campaign?.minPaperFills || 10));
+          const maxAttempts = Math.max(target, Number(approval?.maxProbeAttemptsTotal || target * 2));
+          const queueEmpty = Array.isArray(queue?.orders) && queue.orders.length === 0;
+          const active = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.baselineFingerprint?.complete === true
+            && campaign?.liveTradingAllowed === false
+            && approval?.approved === true
+            && approval?.humanConfirmation === true
+            && approval?.mode === 'PAPER'
+            && approval?.liveTradingAllowed === false
+            && approval?.brokerConnectivityAllowed === false
+            && state?.mode === 'PAPER'
+            && state?.liveTradingAllowed !== true
+            && state?.brokerConnectivityAllowed !== true
+          );
+          const runProbe = active && queueEmpty && fills < target && attempts < maxAttempts;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `run_probe=${runProbe}\n`);
+          console.log(`PAPER probe preflight: active=${active}; queueEmpty=${queueEmpty}; fills=${fills}/${target}; attempts=${attempts}/${maxAttempts}; run=${runProbe}.`);
+          NODE
+
+      - name: Refresh critical source health
+        if: steps.preflight.outputs.run_probe == 'true'
+        run: npm run sources:check
+
+      - name: Build fresh institutional intelligence quality
+        if: steps.preflight.outputs.run_probe == 'true'
+        run: node scripts/run-intelligence.mjs
+
+      - name: Build broad execution market evidence with empty queue
+        if: steps.preflight.outputs.run_probe == 'true'
+        run: npm run marketdata:execution
+
+      - name: Refresh coherent Twelve Data batch evidence
+        if: steps.preflight.outputs.run_probe == 'true'
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+
+      - name: Rebuild broad PAPER execution coverage
+        if: steps.preflight.outputs.run_probe == 'true'
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+
       - name: Refresh authoritative PAPER market session
+        if: steps.preflight.outputs.run_probe == 'true'
         run: node --experimental-strip-types scripts/check-paper-market-session.mjs
 
       - name: Stage at most one approved PAPER validation probe
+        if: steps.preflight.outputs.run_probe == 'true'
         run: node scripts/stage-paper-validation-order.mjs
 
-      - name: Publish staged PAPER queue only
+      - name: Detect staged probe
+        if: steps.preflight.outputs.run_probe == 'true'
+        id: staged
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const queue = JSON.parse(fs.readFileSync('data/paper-order-queue.json', 'utf8'));
+          const staged = Array.isArray(queue?.orders) && queue.orders.some((row) => row?.validationProbe === true);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `value=${staged}\n`);
+          console.log(`PAPER validation probe staged=${staged}.`);
+          NODE
+
+      - name: Execute through existing PAPER-only OMS
+        if: steps.staged.outputs.value == 'true'
+        run: npm run paper:run
+
+      - name: Record same-run validation evidence
+        if: steps.staged.outputs.value == 'true'
+        run: npm run paper:validation:record
+
+      - name: Inspect campaign after probe
+        if: steps.staged.outputs.value == 'true'
+        run: npm run paper:validation:status
+
+      - name: Assert post-cycle safety and evidence integrity
+        if: steps.staged.outputs.value == 'true'
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('data/paper-oms-state.json', 'utf8'));
+          const queue = JSON.parse(fs.readFileSync('data/paper-order-queue.json', 'utf8'));
+          const campaign = JSON.parse(fs.readFileSync('data/paper-validation-campaign.json', 'utf8'));
+          const approval = JSON.parse(fs.readFileSync('data/paper-validation-approval.json', 'utf8'));
+          const prefix = String(approval?.idPrefix || 'fenice-paper-validation-');
+          const executions = (Array.isArray(state?.executions) ? state.executions : []).filter((row) => String(row?.clientOrderId || '').startsWith(prefix));
+          const latest = executions.at(-1);
+          if (state?.mode !== 'PAPER' || state?.liveTradingAllowed === true || state?.brokerConnectivityAllowed === true) throw new Error('POST_CYCLE_LIVE_LOCK_FAILURE');
+          if (state?.reconciliation?.balanced !== true || (state?.reconciliation?.breaks || []).length !== 0) throw new Error('POST_CYCLE_RECONCILIATION_FAILURE');
+          if ((queue?.orders || []).some((row) => row?.validationProbe === true || String(row?.clientOrderId || '').startsWith(prefix))) throw new Error('POST_CYCLE_PROBE_NOT_ACKNOWLEDGED');
+          if (!latest || !['PAPER_FILLED', 'RISK_REJECTED'].includes(latest.status)) throw new Error('POST_CYCLE_EXECUTION_MISSING');
+          const today = new Date().toISOString().slice(0, 10);
+          const evidence = (campaign?.dailyEvidence || []).find((row) => String(row?.date || '').slice(0, 10) === today);
+          if (!evidence || evidence?.auditChainValid !== true || evidence?.reconciliationBalanced !== true || evidence?.liveTradingAllowed !== false) throw new Error('POST_CYCLE_EVIDENCE_INVALID');
+          if (latest.status === 'PAPER_FILLED' && evidence?.fillEvidenceProof?.complete !== true) throw new Error('POST_CYCLE_FILL_PROOF_INCOMPLETE');
+          console.log(`PAPER probe result: ${latest.status}; cumulativePaperFilled=${evidence.cumulativePaperFilled}; fillProof=${evidence?.fillEvidenceProof?.complete === true}; liveTradingAllowed=false.`);
+          NODE
+
+      - name: Publish atomic PAPER validation result
+        if: steps.staged.outputs.value == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "fenice-paper-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- data/paper-order-queue.json; then
-            echo "No eligible PAPER validation probe staged."
+          generated_dir="$(mktemp -d)"
+          cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
+          cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
+          cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
+          cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
+          cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
+
+          git fetch origin main
+          current_remote="$(git rev-parse origin/main)"
+          if [ "$current_remote" != "$FENICE_BASE_SHA" ]; then
+            echo "Main changed during the serialized probe cycle; refusing to overwrite newer evidence."
+            exit 1
+          fi
+
+          git reset --hard origin/main
+          cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
+          cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
+          cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
+          cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
+          cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
+          git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/execution-market-evidence.json data/execution-market-coverage.json
+
+          if git diff --cached --quiet; then
+            echo "No atomic PAPER probe changes to publish."
             exit 0
           fi
 
-          generated_queue="$(mktemp)"
-          cp data/paper-order-queue.json "$generated_queue"
-
-          for attempt in 1 2 3; do
-            git fetch origin main
-            git reset --hard origin/main
-            cp "$generated_queue" data/paper-order-queue.json
-            git add data/paper-order-queue.json
-
-            if git diff --cached --quiet; then
-              echo "Queue already published by another serialized writer."
-              exit 0
-            fi
-
-            git commit -m "data: stage Fenice PAPER validation probe"
-            if git push origin HEAD:main; then
-              echo "PAPER validation probe staged for the next gated validation cycle."
-              exit 0
-            fi
-
-            echo "Push race detected, retrying ($attempt/3)"
-            sleep $((attempt * 2))
-          done
-
-          echo "Unable to publish PAPER validation probe after 3 attempts"
-          exit 1
+          git commit -m "data: record Fenice PAPER validation probe"
+          git push origin HEAD:main
+          echo "Atomic PAPER validation probe result published; queue returned to empty."
