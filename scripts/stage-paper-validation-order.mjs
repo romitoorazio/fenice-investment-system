@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPaperValidationProbe } from "./paper-validation-stager.mjs";
+import { reservePaperValidationFillCap } from "./paper-validation-fill-cap.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
@@ -26,7 +27,7 @@ const [campaign, approval, marketSession, coverage, state, queue, terminal, comm
   readJson("investment-committee.json", {}),
 ]);
 
-const result = buildPaperValidationProbe({
+const stagedResult = buildPaperValidationProbe({
   campaign,
   approval,
   marketSession,
@@ -36,6 +37,7 @@ const result = buildPaperValidationProbe({
   terminal,
   committee,
 });
+const result = reservePaperValidationFillCap(stagedResult, approval);
 
 if (!result.staged) {
   console.log(`Fenice PAPER validation stager: NO_ORDER reason=${result.reason}; liveTradingAllowed=false.`);
@@ -43,4 +45,4 @@ if (!result.staged) {
 }
 
 await writeFile(path.join(dataDir, "paper-order-queue.json"), `${JSON.stringify(result.queue, null, 2)}\n`, "utf8");
-console.log(`Fenice PAPER validation stager: STAGED id=${result.order.clientOrderId} symbol=${result.order.symbol} quantity=${result.order.quantity} maxNotionalEuro=${result.order.validationRationale.maxNotionalEuro}; liveTradingAllowed=false.`);
+console.log(`Fenice PAPER validation stager: STAGED id=${result.order.clientOrderId} symbol=${result.order.symbol} quantity=${result.order.quantity} maxNotionalEuro=${result.order.validationRationale.maxNotionalEuro} maxSimulatedFillNotionalEuro=${result.order.validationRationale.maxSimulatedFillNotionalEuro}; liveTradingAllowed=false.`);
