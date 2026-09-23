@@ -6,6 +6,7 @@ export type ExecutionInstrument = {
   assetClass?: string;
   exchangeMic?: string;
   isin?: string;
+  country?: string;
 };
 
 export type ExecutionDataEligibility = "VALIDATION_ONLY" | "PAPER" | "LIVE";
@@ -40,6 +41,12 @@ const US_REALTIME_EXCHANGE_LABELS = new Set([
   "NASDAQ", "NASDAQ GLOBAL SELECT MARKET", "NASDAQ GLOBAL MARKET", "NASDAQ CAPITAL MARKET",
   "NYSE", "NEW YORK STOCK EXCHANGE", "NYSE ARCA", "NYSE AMERICAN", "AMEX", "CBOE", "BATS", "IEX",
 ]);
+const ZERO_COST_PAPER_PROBE_PRIORITY = [
+  "SPY", "QQQ", "AAPL", "MSFT", "NVDA", "IWM", "META", "GOOGL", "AMZN",
+] as const;
+const ZERO_COST_PAPER_PROBE_PRIORITY_INDEX = new Map(
+  ZERO_COST_PAPER_PROBE_PRIORITY.map((symbol, index) => [symbol, index]),
+);
 
 const ELIGIBILITY_RANK: Readonly<Record<ExecutionDataEligibility, number>> = { VALIDATION_ONLY: 0, PAPER: 1, LIVE: 2 };
 
@@ -49,6 +56,32 @@ function isListedSecurity(assetClass: unknown): boolean {
 
 export function normalizeExecutionSymbol(value: unknown): string {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
+}
+
+/**
+ * Reorders only a fallback discovery universe, never a real queued PAPER order.
+ * The priority symbols are deliberately liquid US securities that are broadly
+ * supported by both zero-cost PAPER evidence routes. Unknown symbols retain
+ * stable input order after the preferred group.
+ */
+export function prioritizeZeroCostPaperProbeCandidates<T extends ExecutionInstrument>(instruments: readonly T[]): T[] {
+  return instruments
+    .map((instrument, index) => ({ instrument, index }))
+    .sort((left, right) => {
+      const leftSymbol = normalizeExecutionSymbol(left.instrument.symbol);
+      const rightSymbol = normalizeExecutionSymbol(right.instrument.symbol);
+      const leftPriority = ZERO_COST_PAPER_PROBE_PRIORITY_INDEX.get(leftSymbol);
+      const rightPriority = ZERO_COST_PAPER_PROBE_PRIORITY_INDEX.get(rightSymbol);
+      const leftRank = leftPriority ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = rightPriority ?? Number.MAX_SAFE_INTEGER;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+
+      const leftUs = String(left.instrument.country || "").trim().toUpperCase() === "US" ? 0 : 1;
+      const rightUs = String(right.instrument.country || "").trim().toUpperCase() === "US" ? 0 : 1;
+      if (leftUs !== rightUs) return leftUs - rightUs;
+      return left.index - right.index;
+    })
+    .map(({ instrument }) => instrument);
 }
 
 export function inferExecutionSourceFamily(source: unknown): string {
