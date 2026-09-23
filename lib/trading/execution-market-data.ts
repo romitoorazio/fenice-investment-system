@@ -44,7 +44,7 @@ const US_REALTIME_EXCHANGE_LABELS = new Set([
 const ZERO_COST_PAPER_PROBE_PRIORITY = [
   "SPY", "QQQ", "AAPL", "MSFT", "NVDA", "IWM", "META", "GOOGL", "AMZN",
 ] as const;
-const ZERO_COST_PAPER_PROBE_PRIORITY_INDEX = new Map(
+const ZERO_COST_PAPER_PROBE_PRIORITY_INDEX = new Map<string, number>(
   ZERO_COST_PAPER_PROBE_PRIORITY.map((symbol, index) => [symbol, index]),
 );
 
