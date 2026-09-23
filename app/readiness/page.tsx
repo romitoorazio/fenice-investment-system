@@ -10,6 +10,33 @@ import type { InstitutionalEvidence } from "@/lib/trading/institutional-readines
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type PaperEvidenceView = {
+  date?: string;
+  cumulativePaperFilled?: number;
+  liveTradingAllowed?: boolean;
+  brokerConnectivityAllowed?: boolean;
+  auditChainValid?: boolean;
+  reconciliationBalanced?: boolean;
+  executionQuality?: {
+    state?: string;
+    fills?: number;
+  };
+};
+
+type PaperCampaignView = {
+  startedAt?: string | null;
+  baselineCommit?: string | null;
+  requiredDays?: number;
+  minEvidenceDays?: number;
+  minPaperFills?: number;
+  liveTradingAllowed?: boolean;
+  dailyEvidence?: PaperEvidenceView[];
+  evidencePolicy?: {
+    preferredIndependentPaperSourceFamilies?: number;
+    minimumIndependentPaperSourceFamilies?: number;
+  };
+};
+
 const statusStyle: Record<InstitutionalEvidence, string> = {
   PASS: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
   TESTING: "border-sky-400/25 bg-sky-400/10 text-sky-200",
@@ -50,21 +77,21 @@ export default function ReadinessPage() {
   });
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
+  const paperCampaignView = paperCampaign as unknown as PaperCampaignView;
 
-  const paperEvidence = Array.isArray(paperCampaign.dailyEvidence) ? paperCampaign.dailyEvidence : [];
+  const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
   const evidenceDays = new Set(paperEvidence.map((item) => item.date).filter(Boolean)).size;
-  const requiredDays = Number(paperCampaign.requiredDays || 30);
-  const minEvidenceDays = Number(paperCampaign.minEvidenceDays || 25);
-  const minPaperFills = Number(paperCampaign.minPaperFills || 10);
+  const requiredDays = Number(paperCampaignView.requiredDays || 30);
+  const minEvidenceDays = Number(paperCampaignView.minEvidenceDays || 25);
+  const minPaperFills = Number(paperCampaignView.minPaperFills || 10);
   const paperFills = Number(latestPaperEvidence?.cumulativePaperFilled || 0);
-  const preferredSourceFamilies = Number(paperCampaign.evidencePolicy?.preferredIndependentPaperSourceFamilies || 3);
-  const minimumSourceFamilies = Number(paperCampaign.evidencePolicy?.minimumIndependentPaperSourceFamilies || 2);
-  const executionQualityState = String(latestPaperEvidence?.executionQuality?.state || "NON AVVIATA");
+  const preferredSourceFamilies = Number(paperCampaignView.evidencePolicy?.preferredIndependentPaperSourceFamilies || 3);
+  const minimumSourceFamilies = Number(paperCampaignView.evidencePolicy?.minimumIndependentPaperSourceFamilies || 2);
+  const executionQualityState = String(latestPaperEvidence?.executionQuality?.state || (paperCampaignView.startedAt ? "IN ATTESA" : "NON AVVIATA"));
   const executionQualityFills = Number(latestPaperEvidence?.executionQuality?.fills || 0);
-  const campaignSafe = paperCampaign.liveTradingAllowed === false
-    && latestPaperEvidence?.liveTradingAllowed === false
-    && latestPaperEvidence?.brokerConnectivityAllowed === false;
+  const campaignSafe = paperCampaignView.liveTradingAllowed === false
+    && (!latestPaperEvidence || (latestPaperEvidence.liveTradingAllowed === false && latestPaperEvidence.brokerConnectivityAllowed === false));
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-6 text-white sm:px-8">
@@ -102,9 +129,9 @@ export default function ReadinessPage() {
                   {campaignSafe ? "LIVE LOCK OK" : "SAFETY CHECK"}
                 </span>
               </div>
-              <h2 className="mt-2 text-xl font-black">Evidenza operativa in maturazione</h2>
+              <h2 className="mt-2 text-xl font-black">{paperCampaignView.startedAt ? "Evidenza operativa in maturazione" : "Nuova baseline PAPER da avviare"}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">La campagna non viene retrodatata: deve accumulare giorni reali, fill PAPER e qualità di esecuzione mantenendo fingerprint, audit, riconciliazione e blocco LIVE invariati.</p>
-              <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaign.baselineCommit || "n/d").slice(0, 10)}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
+              <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaignView.baselineCommit || "n/d").slice(0, 10)}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Giorni evidenza</p><p className="mt-1 text-lg font-black">{evidenceDays}/{minEvidenceDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, minEvidenceDays)}%` }} /></div></div>
