@@ -5,6 +5,7 @@ import {
   deriveCryptoVenueTargets,
   deriveStooqTargets,
   filterFreshValidationEvidence,
+  parseStooqTimestamp,
   settleWithConcurrency,
 } from "../lib/intelligence/quality-engine.mjs";
 
@@ -22,6 +23,20 @@ const stooqTargets = deriveStooqTargets(observations, [["spy.us", "SPY", "ETF"]]
 assert(stooqTargets.some(([, symbol]) => symbol === "SPY"));
 assert(stooqTargets.some(([, symbol]) => symbol === "QQQ"));
 assert(!stooqTargets.some(([, symbol]) => symbol === "BTC"));
+
+assert.equal(
+  parseStooqTimestamp("2026-09-23", "16:00:00", "Europe/Warsaw"),
+  "2026-09-23T14:00:00.000Z",
+  "Stooq summer timestamps must respect Warsaw daylight saving time",
+);
+assert.equal(
+  parseStooqTimestamp("2026-01-21", "16:00:00", "Europe/Warsaw"),
+  "2026-01-21T15:00:00.000Z",
+  "Stooq winter timestamps must respect Warsaw standard time",
+);
+assert.equal(parseStooqTimestamp("2026-09-23", "bad", "Europe/Warsaw"), null);
+assert.equal(parseStooqTimestamp("bad", "16:00:00", "Europe/Warsaw"), null);
+assert.equal(parseStooqTimestamp("2026-09-23", "16:00:00", "Not/AZone"), null);
 
 assert.equal(computeSourceConcentration([
   { source: "A" }, { source: "A" }, { source: "B" }, { source: "C" },
