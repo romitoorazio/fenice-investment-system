@@ -3,8 +3,17 @@ import { evaluateExecutionCoverageReport } from "../lib/trading/execution-covera
 
 const now = Date.parse("2026-09-21T20:00:00Z");
 const fresh = "2026-09-21T19:59:30Z";
+const directaDedicatedMethod = "directa-readonly-entitlement-isin-topbook";
 
-function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetClass = "equity", provenanceVerified = eligibility === "PAPER" || eligibility === "LIVE") {
+function observation(
+  symbol,
+  sourceFamily,
+  price,
+  eligibility = "PAPER",
+  assetClass = "equity",
+  provenanceVerified = eligibility === "PAPER" || eligibility === "LIVE",
+  provenanceMethod = provenanceVerified ? "test-verified-provider-route" : undefined,
+) {
   return {
     symbol,
     assetClass,
@@ -14,7 +23,7 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     price,
     observedAt: fresh,
     provenanceVerified,
-    provenanceMethod: provenanceVerified ? "test-verified-provider-route" : undefined,
+    provenanceMethod,
   };
 }
 
@@ -28,9 +37,24 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1, "two independent verified PAPER families may satisfy the generic PAPER quorum");
+  assert.equal(report.paperEligibleSymbols, 1, "two independent approved zero-cost PAPER families may satisfy the quorum");
   assert.equal(report.rows[0].directaPaperEvidence, false, "Directa evidence is optional for PAPER certification");
   assert.equal(report.rows[0].paperEligible, true);
+}
+
+{
+  const report = evaluateExecutionCoverageReport({
+    generatedAt: fresh,
+    requestedSymbols: ["MSFT"],
+    observations: [
+      observation("MSFT", "directa", 500, "PAPER", "equity", true, directaDedicatedMethod),
+      observation("MSFT", "twelve-data", 500.04),
+    ],
+    errors: [],
+  }, now);
+  assert.equal(report.paperEligibleSymbols, 1, "dedicated verified Directa evidence may contribute without becoming mandatory");
+  assert.equal(report.rows[0].directaPaperEvidence, true);
+  assert.equal(report.rows[0].directaOptionalEvidence, true);
 }
 
 {
@@ -43,9 +67,9 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1, "generic quorum remains provider-neutral across verified evidence");
-  assert.equal(report.rows[0].directaPaperEvidence, true);
-  assert.equal(report.rows[0].directaOptionalEvidence, true);
+  assert.equal(report.paperEligibleSymbols, 0, "a generic Directa provenance flag must not bypass the dedicated evidence path");
+  assert.equal(report.rows[0].directaPaperEvidence, false);
+  assert.deepEqual(report.rows[0].unapprovedPaperEvidence, ["directa"]);
 }
 
 {
@@ -68,12 +92,13 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     generatedAt: fresh,
     requestedSymbols: ["MSFT"],
     observations: [
-      observation("MSFT", "directa", 500),
-      observation("MSFT", "twelve-data", 500.04, "VALIDATION_ONLY"),
+      observation("MSFT", "alpha-vantage", 500),
+      observation("MSFT", "alpaca", 500.04),
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 0, "VALIDATION_ONLY evidence cannot satisfy PAPER quorum");
+  assert.equal(report.paperEligibleSymbols, 0, "Alpha Vantage realtime US data cannot satisfy the zero-cost PAPER quorum");
+  assert.deepEqual(report.rows[0].unapprovedPaperEvidence, ["alpha-vantage"]);
 }
 
 {
@@ -86,18 +111,21 @@ function observation(symbol, sourceFamily, price, eligibility = "PAPER", assetCl
     ],
     errors: [],
   }, now);
-  assert.equal(report.paperEligibleSymbols, 1, "provider-neutral verified PAPER quorum also applies outside equities");
+  assert.equal(report.paperEligibleSymbols, 0, "unknown provider families cannot self-register through provenance flags");
   assert.equal(report.rows[0].equityOrEtf, false);
+  assert.deepEqual(report.rows[0].unapprovedPaperEvidence.sort(), ["provider-a", "provider-b"]);
 }
 
 const policy = evaluateExecutionCoverageReport({ generatedAt: fresh, requestedSymbols: [], observations: [], errors: [] }, now).policy;
 assert.equal(policy.directaPaidRealtimeRequired, false);
 assert.equal(policy.directaEvidenceOptionalForPaperCertification, true);
+assert.equal(policy.directaDedicatedProvenanceMethod, directaDedicatedMethod);
 assert.equal(policy.minIndependentSourceFamilies, 2);
 assert.equal(policy.paperEligibilityRequiresVerifiedProvenance, true);
+assert.equal(policy.unregisteredPaperEvidenceFailsClosed, true);
+assert.equal(policy.alphaVantageEligibleForZeroCostPaper, false);
 assert.equal(policy.liveTradingAllowed, false);
-assert.ok(policy.approvedIndependentPaperSourceFamilies.includes("twelve-data"));
-assert.ok(policy.approvedIndependentPaperSourceFamilies.includes("alpaca"));
+assert.deepEqual(policy.approvedIndependentPaperSourceFamilies, ["alpaca", "twelve-data"]);
 assert.deepEqual(policy.preferredZeroCostPaperSourceFamilies, ["alpaca", "twelve-data"]);
 
 console.log("Fenice zero-cost PAPER execution coverage tests: PASS");
