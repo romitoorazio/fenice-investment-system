@@ -1,6 +1,6 @@
 {
-  "version": 5,
-  "updatedAt": "2026-09-23T07:42:00.000Z",
+  "version": 6,
+  "updatedAt": "2026-09-23T10:10:00.000Z",
   "sources": [
     {"id":"world-bank","name":"World Bank Indicators","category":"macro","authority":"institutional","critical":true,"endpoint":"https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=1","auth":"none","regions":["global"]},
     {"id":"ecb","name":"ECB Data Portal","category":"macro","authority":"central-bank","critical":true,"endpoint":"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&lastNObservations=1","auth":"none","regions":["euro-area","global-fx"]},
@@ -11,7 +11,7 @@
     {"id":"bls","name":"U.S. Bureau of Labor Statistics","category":"macro","authority":"institutional","endpoint":"https://api.bls.gov/publicAPI/v1/timeseries/data/CUSR0000SA0","fallbackEndpoints":["https://api.bls.gov/publicAPI/v1/timeseries/data/LNS14000000"],"auth":"none","regions":["usa","inflation","labor"]},
     {"id":"us-treasury-fiscal","name":"U.S. Treasury Fiscal Data","category":"fiscal","authority":"institutional","endpoint":"https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page%5Bsize%5D=1","auth":"none","regions":["usa","sovereign-debt"]},
     {"id":"cftc-tff","name":"CFTC Traders in Financial Futures","category":"positioning","authority":"regulator","endpoint":"https://publicreporting.cftc.gov/resource/gpe5-46if.json?$limit=1&$order=report_date_as_yyyy_mm_dd%20DESC","auth":"none","regions":["usa","global-futures"]},
-    {"id":"finra-fixed-income","name":"FINRA Fixed Income API","category":"fixed-income","authority":"regulator","endpoint":"https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates?limit=1","fallbackEndpoints":["https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregatesMock?limit=1"],"auth":"none","regions":["usa","treasuries"]},
+    {"id":"finra-fixed-income","name":"FINRA Fixed Income API","category":"fixed-income","authority":"regulator","endpoint":"https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates?limit=1","fallbackEndpoints":["https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregatesMock?limit=1"],"auth":"oauth2-public","clientIdSecret":"FINRA_CLIENT_ID","clientSecretSecret":"FINRA_CLIENT_SECRET","regions":["usa","treasuries"]},
     {"id":"sec","name":"SEC EDGAR","category":"companies","authority":"regulator","critical":true,"endpoint":"https://www.sec.gov/files/company_tickers.json","fallbackEndpoints":["https://data.sec.gov/submissions/CIK0000320193.json"],"auth":"user-agent","regions":["usa","global-issuers"]},
     {"id":"clinical-trials","name":"ClinicalTrials.gov","category":"biotech","authority":"institutional","critical":true,"endpoint":"https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json","auth":"none","regions":["global"]},
     {"id":"openfda","name":"openFDA","category":"biotech","authority":"regulator","critical":true,"endpoint":"https://api.fda.gov/drug/event.json?limit=1","auth":"optional-key","regions":["usa","global-pharma"]},
