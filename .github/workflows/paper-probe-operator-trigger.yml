@@ -1,0 +1,47 @@
+name: Fenice PAPER Probe Operator Trigger
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-probe-operator-trigger.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: fenice-paper-probe-operator-trigger
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify active fail-closed campaign
+        id: campaign
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
+          active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+          if [ "$active" != "true" ]; then
+            echo "PAPER campaign is not safely active; canonical probe will not be dispatched."
+          fi
+
+      - name: Dispatch canonical PAPER probe cycle
+        if: steps.campaign.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
+
+      - name: Confirm fail-closed skip
+        if: steps.campaign.outputs.active != 'true'
+        run: echo "No PAPER probe dispatched."
