@@ -17,8 +17,8 @@ const base = {
     liveTradingAllowed: false,
     brokerConnectivityAllowed: false,
     expiresAt: "2026-10-24T23:59:59Z",
-    approvalId: "approval-v3",
-    idPrefix: "fenice-paper-validation-v2-",
+    approvalId: "approval-v4",
+    idPrefix: "fenice-paper-validation-v4-",
     targetPaperFills: 10,
     maxProbeAttemptsTotal: 20,
     maxOrdersPerDay: 1,
@@ -28,7 +28,7 @@ const base = {
     maxSingleAssetWeightPercentForProbe: 15,
     riskFxToEuroByCurrency: { EUR: 1, USD: 2 },
     minCommitteeScore: 70,
-    minConfidence: 90,
+    minValidationDataConfidence: 90,
     maxRiskScore: 75,
     permittedDecisionStates: ["OSSERVA", "MANTIENI", "ACCUMULA"],
     permittedCurrencies: ["USD", "EUR"],
@@ -59,24 +59,37 @@ const base = {
   terminal: {
     generatedAt: "2026-09-23T06:07:57.492Z",
     capitalEuro: 10000,
-    assets: [{ symbol: "SPY", currency: "USD", confidence: 95, riskScore: 30, decision: "ACCUMULA" }],
+    assets: [{ symbol: "SPY", currency: "USD", confidence: 98, riskScore: 30, decision: "ACCUMULA" }],
   },
   committee: {
     generatedAt: "2026-09-23T06:08:00.107Z",
     sourceGate: "GREEN",
     dataQuality: 98,
-    topDecisions: [{ symbol: "SPY", currency: "USD", decision: "OSSERVA", committeeScore: 71, confidence: 95, riskScore: 30 }],
+    topDecisions: [{
+      symbol: "SPY",
+      currency: "USD",
+      decision: "OSSERVA",
+      committeeScore: 70,
+      confidence: 88,
+      rawConfidenceBeforeCalibration: 98,
+      riskScore: 30,
+    }],
   },
   now,
 };
 
 const staged = buildPaperValidationProbe(base);
-assert.equal(staged.staged, true, "CAUTION with paperEligible=true and two independent families must satisfy the minimum PAPER quorum");
+assert.equal(staged.staged, true, "immature calibration must not circularly block an operational PAPER sample when raw data confidence is high");
 assert.equal(staged.order.symbol, "SPY");
 assert.equal(staged.order.humanConfirmed, true);
 assert.equal(staged.order.validationProbe, true);
 assert.equal(staged.order.fxToEuro, 2);
 assert.equal(staged.order.validationRationale.coverageState, "CAUTION");
+assert.equal(staged.order.validationRationale.calibratedInvestmentConfidence, 88);
+assert.equal(staged.order.validationRationale.rawCommitteeDataConfidence, 98);
+assert.equal(staged.order.validationRationale.terminalDataConfidence, 98);
+assert.equal(staged.order.validationRationale.validationDataConfidence, 98);
+assert.equal(staged.order.validationRationale.minValidationDataConfidence, 90);
 const stagedReferenceNotional = staged.order.quantity * 773.5 * staged.order.fxToEuro;
 assert(stagedReferenceNotional <= 300.001);
 assert(stagedReferenceNotional >= 299.9, `expected economically meaningful ~EUR300 probe, got ${stagedReferenceNotional}`);
@@ -85,6 +98,16 @@ assert.equal(staged.order.validationRationale.minTcaProbeNotionalEuro, 250);
 assert.equal(staged.order.validationRationale.maxSingleAssetWeightPercentForProbe, 15);
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
+
+const lowRawConfidence = buildPaperValidationProbe({
+  ...base,
+  committee: {
+    ...base.committee,
+    topDecisions: [{ ...base.committee.topDecisions[0], confidence: 80, rawConfidenceBeforeCalibration: 89 }],
+  },
+});
+assert.equal(lowRawConfidence.staged, false, "raw validation data confidence below the approved 90 floor must remain blocked");
+assert.equal(lowRawConfidence.reason, "no-eligible-validation-candidate");
 
 const rotationCoverage = {
   ...base.coverage,
@@ -97,14 +120,14 @@ const rotationTerminal = {
   ...base.terminal,
   assets: [
     ...base.terminal.assets,
-    { symbol: "QQQ", currency: "USD", confidence: 95, riskScore: 32, decision: "ACCUMULA" },
+    { symbol: "QQQ", currency: "USD", confidence: 98, riskScore: 32, decision: "ACCUMULA" },
   ],
 };
 const rotationCommittee = {
   ...base.committee,
   topDecisions: [
-    { symbol: "SPY", currency: "USD", decision: "ACCUMULA", committeeScore: 90, confidence: 95, riskScore: 30 },
-    { symbol: "QQQ", currency: "USD", decision: "OSSERVA", committeeScore: 71, confidence: 95, riskScore: 32 },
+    { symbol: "SPY", currency: "USD", decision: "ACCUMULA", committeeScore: 90, confidence: 88, rawConfidenceBeforeCalibration: 98, riskScore: 30 },
+    { symbol: "QQQ", currency: "USD", decision: "OSSERVA", committeeScore: 71, confidence: 88, rawConfidenceBeforeCalibration: 98, riskScore: 32 },
   ],
 };
 const rotationState = {
@@ -187,7 +210,7 @@ assert.equal(liveLeak.staged, false);
 assert.equal(liveLeak.reason, "oms-not-paper-only");
 
 const priorRejects = Array.from({ length: 10 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-v2-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
+  clientOrderId: `fenice-paper-validation-v4-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
   status: "RISK_REJECTED",
   createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
@@ -208,7 +231,7 @@ assert.equal(targetComplete.staged, false);
 assert.equal(targetComplete.reason, "campaign-paper-fill-target-complete");
 
 const attemptCeiling = Array.from({ length: 20 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-v2-attempt-${index}`,
+  clientOrderId: `fenice-paper-validation-v4-attempt-${index}`,
   status: "RISK_REJECTED",
   createdAt: `2026-08-${String((index % 20) + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
