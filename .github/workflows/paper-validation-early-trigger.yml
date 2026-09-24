@@ -2,10 +2,12 @@ name: Fenice PAPER Early Validation Trigger
 
 on:
   schedule:
-    # 14:35 UTC is safely after the regular US equity open in both
-    # daylight-saving (13:30 UTC) and standard-time (14:30 UTC) periods.
-    # The canonical paper-validation workflow still verifies Alpaca's
-    # authoritative market clock and fails closed on holidays/weekends.
+    # First attempt five minutes after the regular US equity open while US
+    # daylight-saving time is active. During US standard time this attempt is
+    # intentionally harmless because the canonical Alpaca market clock fails closed.
+    - cron: "35 13 * * 1-5"
+    # Year-round fallback five minutes after the standard-time US open. It is
+    # skipped automatically when today's PAPER evidence already exists.
     - cron: "35 14 * * 1-5"
   workflow_dispatch:
 
@@ -22,10 +24,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check whether today already has PAPER evidence
+        id: today
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          today="$(date -u +%F)"
+          campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
+          already_recorded="$(jq -r --arg today "$today" 'any(.dailyEvidence[]?; ((.date // "") | tostring | startswith($today)))' <<<"$campaign")"
+          echo "already_recorded=$already_recorded" >> "$GITHUB_OUTPUT"
+          echo "UTC date=$today; PAPER evidence already recorded=$already_recorded"
+
       - name: Dispatch canonical PAPER validation
+        if: steps.today.outputs.already_recorded != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           gh workflow run paper-validation.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo "Canonical PAPER validation dispatched. LIVE and broker connectivity remain unchanged."
+
+      - name: Confirm duplicate-day suppression
+        if: steps.today.outputs.already_recorded == 'true'
+        run: echo "Today's PAPER evidence already exists; duplicate scheduled validation was not dispatched."
