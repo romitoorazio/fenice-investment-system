@@ -15,6 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
 const evidencePath = path.join(dataDir, "execution-market-evidence.json");
 const masterPath = path.join(dataDir, "instrument-master.json");
+const fxEvidencePath = path.join(dataDir, "paper-fx-evidence.json");
 const apiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const probeLimit = Math.max(0, Math.min(8, Number(process.env.FENICE_TWELVE_DATA_BATCH_PROBES || 4) || 4));
 const maxRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_BATCH_429_RETRIES || 2) || 2));
@@ -212,4 +213,32 @@ const report = {
 };
 
 await writeJsonStateAtomic(evidencePath, report);
-console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}.`);
+
+if (!apiKey) throw new Error("PAPER_FX_TWELVE_DATA_KEY_MISSING");
+const fxUrl = `https://api.twelvedata.com/exchange_rate?symbol=USD%2FEUR&timezone=UTC&apikey=${encodeURIComponent(apiKey)}`;
+const fxPayload = await requestBatch(fxUrl);
+const fxRate = Number(fxPayload?.rate);
+const fxTimestamp = Number(fxPayload?.timestamp);
+if (!Number.isFinite(fxRate) || fxRate <= 0 || !Number.isFinite(fxTimestamp) || fxTimestamp <= 0) {
+  throw new Error("PAPER_FX_INVALID_TWELVE_DATA_RESPONSE");
+}
+const fxObservedAt = new Date(fxTimestamp * 1000).toISOString();
+const fxAgeSeconds = Math.max(0, (Date.now() - fxTimestamp * 1000) / 1000);
+if (fxAgeSeconds > 120) throw new Error(`PAPER_FX_STALE_${fxAgeSeconds.toFixed(1)}S`);
+const fxGeneratedAt = new Date().toISOString();
+await writeJsonStateAtomic(fxEvidencePath, {
+  version: 1,
+  generatedAt: fxGeneratedAt,
+  baseCurrency: "EUR",
+  provider: "twelve-data",
+  provenanceVerified: true,
+  ratesToEuro: {
+    EUR: { rate: 1, observedAt: fxGeneratedAt, source: "identity" },
+    USD: { rate: fxRate, observedAt: fxObservedAt, source: "Twelve Data /exchange_rate USD/EUR" },
+  },
+  maxAgeSeconds: 120,
+  liveTradingAllowed: false,
+  brokerConnectivityAllowed: false,
+});
+
+console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fxRate}, fxAge=${fxAgeSeconds.toFixed(1)}s.`);
