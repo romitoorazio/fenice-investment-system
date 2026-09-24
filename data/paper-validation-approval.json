@@ -1,14 +1,14 @@
 {
-  "version": 5,
-  "approvalId": "fenice-paper-validation-v5-2026-09-24",
+  "version": 6,
+  "approvalId": "fenice-paper-validation-v6-2026-09-24",
   "approved": true,
-  "approvedAt": "2026-09-24T18:10:00.000Z",
+  "approvedAt": "2026-09-24T20:10:00.000Z",
   "expiresAt": "2026-10-24T21:59:59.000Z",
   "mode": "PAPER",
-  "purpose": "Operational PAPER validation only. Probe eligibility uses high pre-calibration candidate confidence and now also requires the same fresh institutional decision-data gate consumed by pre-trade risk before a probe can enter the queue. This cannot authorize broker connectivity, live order transmission or movement of real capital.",
+  "purpose": "Operational PAPER validation only. V6 requires fresh institutional decision data and fresh market FX conversion evidence for non-EUR probes. It cannot authorize broker connectivity, live order transmission or movement of real capital.",
   "humanConfirmation": true,
-  "approvalReference": "Operator instruction on 2026-09-24 to continue Fenice. V5 corrects a staging/execution gate mismatch discovered in v4: Committee/Terminal evidence could stage a probe while the freshly rebuilt institutional intelligence had already fallen below the execution threshold, causing a safe but wasteful RISK_REJECTED attempt.",
-  "idPrefix": "fenice-paper-validation-v5-",
+  "approvalReference": "Operator instruction to continue Fenice. V6 corrects the v5 discovery that a synthetic USD FX stress value was being reused as the economic USD-to-EUR conversion for sizing/notional/TCA.",
+  "idPrefix": "fenice-paper-validation-v6-",
   "targetPaperFills": 10,
   "maxProbeAttemptsTotal": 20,
   "maxOrdersPerDay": 1,
@@ -16,23 +16,20 @@
   "maxCapitalPercentPerProbe": 3,
   "minTcaProbeNotionalEuro": 250,
   "maxSingleAssetWeightPercentForProbe": 15,
-  "riskFxToEuroByCurrency": {
-    "EUR": 1,
-    "USD": 2
+  "fxPolicy": {
+    "baseCurrency": "EUR",
+    "provider": "twelve-data",
+    "requiredForNonEuro": true,
+    "maxAgeSeconds": 120,
+    "allowedCurrencies": ["EUR", "USD"],
+    "usdPair": "USD/EUR"
   },
   "minCommitteeScore": 70,
   "minValidationDataConfidence": 90,
   "maxRiskScore": 75,
-  "permittedDecisionStates": [
-    "ACCUMULA",
-    "MANTIENI",
-    "OSSERVA"
-  ],
-  "permittedCurrencies": [
-    "USD",
-    "EUR"
-  ],
+  "permittedDecisionStates": ["ACCUMULA", "MANTIENI", "OSSERVA"],
+  "permittedCurrencies": ["USD", "EUR"],
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "notes": "V5 keeps every v4 economic and safety limit unchanged. Before writing a validation order to the PAPER queue, the staging wrapper must pass the canonical fresh decision-data gate: critical sources fresh GREEN, institutional confidence >=90, at least 10 cross-source checks, zero divergence, concentration <=50%, at least three market sources and three asset classes, and the configured timestamp freshness policy. Candidate selection still uses pre-calibration data confidence >=90 so immature calibration cannot deadlock sample creation. Every staged probe must still pass committee score >=70, risk <=75, permitted decision/currency, market-data quorum, portfolio risk, pre-trade risk, kill switch, audit and reconciliation. Probe size remains EUR 250-300 equivalent, at most 3% of EUR capital and 15% single-asset ceiling, maximum one probe per UTC day and twenty total attempts for ten target fills. LIVE and broker connectivity remain forbidden."
+  "notes": "V6 keeps the prior safety limits: EUR 250-300 equivalent probe, at most 3% of EUR capital, 15% single-asset ceiling, one probe per UTC day, twenty attempts for ten target fills, confidence >=90, committee score >=70, risk <=75, two independent PAPER source families, fresh institutional decision-data gate, reconciliation and audit validity. Economic fxToEuro must now be a fresh market conversion (EUR=1 or verified USD/EUR), never a stress placeholder. LIVE and broker connectivity remain forbidden."
 }
