@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Keeping this push-trigger path intentional lets a reviewed fail-closed
+      # PAPER fix retrigger the canonical validation while the market is open.
       - name: Check whether today already has PAPER evidence
         id: today
         env:
