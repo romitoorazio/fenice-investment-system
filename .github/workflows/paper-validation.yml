@@ -196,7 +196,7 @@ jobs:
           generated_dir="$(mktemp -d)"
           cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
           cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
-          cp data/paper-conditional-book.json "$generated_dir/paper-conditional-book.json"
+          cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
           cp data/paper-market-session.json "$generated_dir/paper-market-session.json"
           cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
           cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
@@ -208,13 +208,13 @@ jobs:
             git reset --hard origin/main
             cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
             cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
-            cp "$generated_dir/paper-conditional-book.json" data/paper-conditional-book.json
+            cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
             cp "$generated_dir/paper-market-session.json" data/paper-market-session.json
             cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
             cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
             cp "$generated_dir/global-source-health.json" data/global-source-health.json
             cp "$generated_dir/intelligence-quality.json" data/intelligence-quality.json
-            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-conditional-book.json data/paper-market-session.json data/execution-market-evidence.json data/execution-market-coverage.json data/global-source-health.json data/intelligence-quality.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-conditional-state.json data/paper-market-session.json data/execution-market-evidence.json data/execution-market-coverage.json data/global-source-health.json data/intelligence-quality.json
 
             if git diff --cached --quiet; then
               echo "No PAPER evidence changes to commit"
