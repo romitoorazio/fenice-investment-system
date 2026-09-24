@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "status": "ABORTED_BEFORE_CERTIFICATION",
+  "abortedAt": "2026-09-24T18:10:00Z",
+  "reasonCode": "STAGER_RISK_DECISION_DATA_GATE_MISMATCH",
+  "sourceCommit": "3dbca6f70d1842d67607fcb97436fdc2b97d2d93",
+  "campaign": {
+    "version": 5,
+    "startedAt": "2026-09-24T17:38:29.406Z",
+    "baselineCommit": "51e9d67050a706cd4db726911e6c1c99b3883da6",
+    "baselineFingerprintDigest": "d29bccdd120d6381d65a64d9755e2e6cb58ce9f1d048d73cfff8a4f87c94459c",
+    "requiredDays": 30,
+    "minEvidenceDays": 25,
+    "minPaperFills": 10,
+    "evidenceDaysRecorded": 1,
+    "paperExecutionsRecorded": 1,
+    "paperFillsRecorded": 0,
+    "riskRejectedRecorded": 1
+  },
+  "diagnosis": {
+    "probe": "fenice-paper-validation-v4-2026-09-24-SPY",
+    "referenceNotionalEuro": 299.85,
+    "stagerCommitteeDataQuality": 98,
+    "freshInstitutionalIntelligenceConfidenceAtRiskCheck": 64,
+    "freshInstitutionalSourceConcentrationPercent": 83,
+    "freshInstitutionalCrossChecks": 4,
+    "preTradeResult": "RISK_REJECTED",
+    "killSwitchEngaged": true,
+    "reconciliationBalanced": true,
+    "auditChainValid": true,
+    "conclusion": "The probe stager could rely on Committee/Terminal readiness while the pre-trade risk engine consumed the freshly rebuilt institutional decision-data boundary. A transient degradation therefore allowed a probe to be queued even though the same cycle could not pass the execution confidence gate. The risk engine correctly rejected the order, but the rejected probe consumed campaign attempt budget without producing useful execution evidence."
+  },
+  "correction": {
+    "principle": "Stage PAPER validation probes only after the same fresh institutional decision-data gate used by the execution path is ready.",
+    "implementation": "scripts/stage-paper-validation-order.mjs now evaluates lib/trading/decision-data-gate.mjs against fresh global-source-health.json and intelligence-quality.json before writing any probe to the queue.",
+    "failureBehavior": "When decision data is not ready, leave the queue empty and do not manufacture a RISK_REJECTED validation attempt.",
+    "minimumConfidenceUnchanged": 90,
+    "minimumCrossChecksUnchanged": 10,
+    "maximumSourceConcentrationPercentUnchanged": 50,
+    "committeeScoreMinimumUnchanged": 70,
+    "maxRiskScoreUnchanged": 75,
+    "maxNotionalEuroPerOrderUnchanged": 300,
+    "maxCapitalPercentPerProbeUnchanged": 3,
+    "maxOrdersPerDayUnchanged": 1,
+    "targetPaperFillsUnchanged": 10
+  },
+  "safetyAtAbort": {
+    "paperFills": 0,
+    "paperPositions": 0,
+    "liveOrders": 0,
+    "realCapitalMoved": false,
+    "liveTradingAllowed": false,
+    "brokerConnectivityAllowed": false,
+    "reconciliationBalanced": true
+  },
+  "disposition": {
+    "evidenceCarriedForward": false,
+    "paperPositionsCarriedForward": false,
+    "paperExecutionsCarriedForward": false,
+    "liveCapitalAffected": false,
+    "nextAction": "Start a fresh PAPER v5 campaign from a new immutable fingerprint after the unified decision-data staging gate is present on main."
+  }
+}
