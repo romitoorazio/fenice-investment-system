@@ -1,0 +1,31 @@
+name: Fenice PAPER Early Validation Trigger
+
+on:
+  schedule:
+    # 14:35 UTC is safely after the regular US equity open in both
+    # daylight-saving (13:30 UTC) and standard-time (14:30 UTC) periods.
+    # The canonical paper-validation workflow still verifies Alpaca's
+    # authoritative market clock and fails closed on holidays/weekends.
+    - cron: "35 14 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: fenice-paper-early-validation-trigger
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch canonical PAPER validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run paper-validation.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Canonical PAPER validation dispatched. LIVE and broker connectivity remain unchanged."

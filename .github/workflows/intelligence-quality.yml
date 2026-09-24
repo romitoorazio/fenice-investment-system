@@ -12,11 +12,8 @@ on:
       - "scripts/run-execution-market-data.mjs"
       - "scripts/check-execution-market-coverage.mjs"
       - "scripts/check-global-sources.mjs"
-      - "scripts/reconcile-global-source-health.mjs"
-      - "scripts/test-global-source-health-reconcile.mjs"
       - "data/global-source-registry.json"
       - "lib/intelligence/optional-source-recovery.mjs"
-      - "lib/intelligence/global-source-health-reconcile.mjs"
       - "lib/trading/execution-market-data.ts"
       - "lib/trading/paper-evidence-policy.ts"
       - "lib/trading/execution-coverage.ts"
@@ -55,7 +52,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
@@ -93,13 +90,35 @@ jobs:
           if (q.policy?.unknownTimestampEvidenceExcluded !== true) throw new Error('Unknown timestamp evidence must be excluded');
 
           const sourceHealth = JSON.parse(fs.readFileSync('data/global-source-health.json', 'utf8'));
+          const sourceRegistry = JSON.parse(fs.readFileSync('data/global-source-registry.json', 'utf8'));
           const sourceAge = Date.now() - Date.parse(sourceHealth.generatedAt || '');
           if (!Number.isFinite(sourceAge) || sourceAge < 0 || sourceAge > 60 * 60 * 1000) throw new Error('Global source health is not fresh');
           if (!sourceHealth.critical || !Number.isFinite(Number(sourceHealth.critical.total))) throw new Error('Critical source health missing');
+
+          const authorityWeight = (source) => {
+            if (source?.critical) return 3;
+            if (source?.authority === 'central-bank' || source?.authority === 'regulator') return 2.5;
+            if (source?.authority === 'institutional') return 2;
+            if (source?.authority === 'market-data') return 1.5;
+            return 1;
+          };
+          const stateScore = { healthy: 1, degraded: 0.65, failed: 0, unconfigured: 0 };
+          let weightedEarned = 0;
+          let weightedPossible = 0;
+          for (const source of sourceHealth.sources || []) {
+            const registrySource = (sourceRegistry.sources || []).find((row) => row.id === source.id) || source;
+            const weight = authorityWeight(registrySource);
+            weightedPossible += weight;
+            weightedEarned += weight * (stateScore[source.status] ?? 0);
+          }
+          const recomputedReliability = weightedPossible ? Math.round((weightedEarned / weightedPossible) * 100) : 0;
+          if (Number(sourceHealth.reliabilityScore) !== recomputedReliability) {
+            throw new Error(`Source-health score mismatch: persisted=${sourceHealth.reliabilityScore}, recomputed=${recomputedReliability}`);
+          }
           const finra = Array.isArray(sourceHealth.sources) ? sourceHealth.sources.find((row) => row.id === 'finra-fixed-income') : null;
-          if (finra && !['healthy', 'failed', 'unconfigured'].includes(finra.status)) throw new Error('FINRA reconciled source status invalid');
-          if (finra?.status === 'unconfigured' && sourceHealth.reconciliation?.finraPublicOAuth?.scoreEffect !== 'none-vs-failed') {
-            throw new Error('FINRA missing OAuth must not improve source-health score');
+          if (finra && !['healthy', 'degraded', 'failed', 'unconfigured'].includes(finra.status)) throw new Error('FINRA source status invalid');
+          if (finra?.status === 'unconfigured' && stateScore.unconfigured !== stateScore.failed) {
+            throw new Error('FINRA missing OAuth must score exactly like a failed optional source');
           }
 
           const execution = JSON.parse(fs.readFileSync('data/execution-market-evidence.json', 'utf8'));
@@ -146,6 +165,7 @@ jobs:
             q.intelligenceConfidence,
             q.coverage.sourceConcentrationPercent,
             'source gate:', sourceHealth.gate,
+            'source score:', `${sourceHealth.reliabilityScore}/${recomputedReliability}`,
             'FINRA:', finra?.status || 'missing',
             'execution observations:', execution.observations.length,
             'paper eligible symbols:', executionCoverage.paperEligibleSymbols, '/', executionCoverage.requestedSymbols,
