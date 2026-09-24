@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "campaignVersion": 5,
+  "abortedAt": "2026-09-24T20:10:00.000Z",
+  "reasonCode": "FX_STRESS_USED_AS_ECONOMIC_CONVERSION",
+  "reason": "PAPER v5 used approval.riskFxToEuroByCurrency.USD=2 as both a stress assumption and the economic USD-to-EUR conversion inside order sizing, pre-trade notional, fee/slippage/TCA and stored positions. The first SPY PAPER fill therefore proved workflow/risk plumbing but is not accepted as execution-quality certification evidence because its EUR notional was derived from a synthetic stress FX value rather than a market FX rate.",
+  "preservedEvidence": {
+    "baselineCommit": "ba16c602194dc2fe5801443c96f8218701e2bb83",
+    "baselineFingerprint": "526442752013d274d81df6e0f4cd8a0c067aec25dd9c70ce39db8ddd02b1af6c",
+    "evidenceDays": 1,
+    "paperExecutions": 1,
+    "paperFills": 1,
+    "symbol": "SPY",
+    "clientOrderId": "fenice-paper-validation-v5-2026-09-24-SPY",
+    "syntheticFxToEuro": 2,
+    "reportedNotionalEuro": 300,
+    "reportedFeeEuro": 1.5,
+    "reportedSlippageEuro": 0.15,
+    "decisionDataReady": true,
+    "reconciliationBalanced": true,
+    "auditChainValid": true,
+    "liveTradingAllowed": false,
+    "brokerConnectivityAllowed": false
+  },
+  "correctionPrinciple": "PAPER v6 must use a fresh market USD/EUR conversion for economic quantity, notional, position valuation and TCA. Any FX stress assumption must be separate from the economic conversion and must never masquerade as fxToEuro.",
+  "carryForward": {
+    "evidenceDays": 0,
+    "executions": 0,
+    "fills": 0,
+    "positions": 0
+  },
+  "safety": {
+    "realCapitalMoved": false,
+    "liveOrders": 0,
+    "liveTradingAllowed": false,
+    "brokerConnectivityAllowed": false
+  }
+}
