@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify active fail-closed campaign, cooldown and intelligence quality
+      - name: Verify active fail-closed campaign, evidence age and intelligence quality
         id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,15 +37,10 @@ jobs:
           today="$(date -u +%F)"
           attempted_today="$(jq -r --arg prefix "$prefix" --arg today "$today" 'any(.executions[]?; (((.clientOrderId // "") | startswith($prefix)) or (.validationProbe == true)) and (((.createdAt // .filledAt // "") | tostring) | startswith($today)))' <<<"$oms")"
 
-          cooldown_ready="$(node -e '
+          intelligence_metrics="$(node -e '
             const q = JSON.parse(process.argv[1]);
             const t = Date.parse(String(q.generatedAt || ""));
-            const age = Number.isFinite(t) ? (Date.now() - t) / 60000 : -1;
-            process.stdout.write(String(Number.isFinite(age) && age >= 15));
-          ' "$intelligence")"
-
-          quality_ready="$(node -e '
-            const q = JSON.parse(process.argv[1]);
+            const ageMinutes = Number.isFinite(t) ? (Date.now() - t) / 60000 : Number.POSITIVE_INFINITY;
             const confidence = Number(q?.intelligenceConfidence ?? -1);
             const checks = Number(q?.crossSourceValidation?.checked ?? -1);
             const divergent = Number(q?.crossSourceValidation?.divergent ?? -1);
@@ -53,7 +48,10 @@ jobs:
             const marketSources = Number(q?.coverage?.marketSources ?? 0);
             const assetClasses = Array.isArray(q?.coverage?.assetClasses) ? q.coverage.assetClasses.length : 0;
             const timestampPolicy = q?.policy?.unknownTimestampEvidenceExcluded === true;
-            const ready = Number.isFinite(confidence)
+            const ageValid = Number.isFinite(ageMinutes) && ageMinutes >= 0 && ageMinutes <= 24 * 60;
+            const cooldownReady = ageValid && ageMinutes >= 15;
+            const qualityReady = ageValid
+              && Number.isFinite(confidence)
               && Number.isFinite(checks)
               && Number.isFinite(divergent)
               && Number.isFinite(concentration)
@@ -64,28 +62,70 @@ jobs:
               && marketSources >= 3
               && assetClasses >= 3
               && timestampPolicy;
-            process.stdout.write(String(ready));
+            process.stdout.write(JSON.stringify({
+              ageMinutes: Number.isFinite(ageMinutes) ? Number(ageMinutes.toFixed(1)) : null,
+              ageValid,
+              cooldownReady,
+              qualityReady,
+              confidence,
+              checks,
+              divergent,
+              concentration,
+              marketSources,
+              assetClasses,
+              timestampPolicy,
+            }));
           ' "$intelligence")"
 
-          sources_ready="$(node -e '
+          source_metrics="$(node -e '
             const s = JSON.parse(process.argv[1]);
+            const t = Date.parse(String(s.generatedAt || ""));
+            const ageMinutes = Number.isFinite(t) ? (Date.now() - t) / 60000 : Number.POSITIVE_INFINITY;
             const total = Number(s?.critical?.total ?? 0);
             const ready = Number(s?.critical?.ready ?? -1);
-            process.stdout.write(String(s?.critical?.gate === "GREEN" && total > 0 && ready === total));
+            const ageValid = Number.isFinite(ageMinutes) && ageMinutes >= 0 && ageMinutes <= 24 * 60;
+            const sourcesReady = ageValid && s?.critical?.gate === "GREEN" && total > 0 && ready === total;
+            process.stdout.write(JSON.stringify({
+              ageMinutes: Number.isFinite(ageMinutes) ? Number(ageMinutes.toFixed(1)) : null,
+              ageValid,
+              sourcesReady,
+              gate: String(s?.critical?.gate || "UNKNOWN"),
+              ready,
+              total,
+            }));
           ' "$source_health")"
 
+          intelligence_age_valid="$(jq -r '.ageValid' <<<"$intelligence_metrics")"
+          intelligence_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$intelligence_metrics")"
+          cooldown_ready="$(jq -r '.cooldownReady' <<<"$intelligence_metrics")"
+          quality_ready="$(jq -r '.qualityReady' <<<"$intelligence_metrics")"
+          source_age_valid="$(jq -r '.ageValid' <<<"$source_metrics")"
+          source_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$source_metrics")"
+          sources_ready="$(jq -r '.sourcesReady' <<<"$source_metrics")"
+
           run_probe=false
-          if [ "$active" = "true" ] && [ "$attempted_today" != "true" ] && [ "$cooldown_ready" = "true" ] && [ "$quality_ready" = "true" ] && [ "$sources_ready" = "true" ]; then
+          if [ "$active" = "true" ] \
+            && [ "$attempted_today" != "true" ] \
+            && [ "$intelligence_age_valid" = "true" ] \
+            && [ "$source_age_valid" = "true" ] \
+            && [ "$cooldown_ready" = "true" ] \
+            && [ "$quality_ready" = "true" ] \
+            && [ "$sources_ready" = "true" ]; then
             run_probe=true
           fi
 
           echo "active=$active" >> "$GITHUB_OUTPUT"
           echo "attempted_today=$attempted_today" >> "$GITHUB_OUTPUT"
+          echo "intelligence_age_valid=$intelligence_age_valid" >> "$GITHUB_OUTPUT"
+          echo "source_age_valid=$source_age_valid" >> "$GITHUB_OUTPUT"
           echo "cooldown_ready=$cooldown_ready" >> "$GITHUB_OUTPUT"
           echo "quality_ready=$quality_ready" >> "$GITHUB_OUTPUT"
           echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
-          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; intelligence_cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+
+          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+          echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
+          echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
 
       - name: Dispatch canonical PAPER probe cycle
         if: steps.preflight.outputs.run_probe == 'true'
@@ -100,4 +140,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
