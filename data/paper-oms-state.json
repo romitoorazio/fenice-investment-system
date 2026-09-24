@@ -1,16 +1,234 @@
 {
   "version": 1,
   "mode": "PAPER",
-  "generatedAt": null,
-  "killSwitch": {"engaged": false, "reasons": [], "manualEngaged": false},
+  "generatedAt": "2026-09-24T19:58:17.397Z",
+  "killSwitch": {
+    "engaged": false,
+    "reasons": [],
+    "manualEngaged": false
+  },
   "openOrders": [],
-  "executions": [],
-  "positions": [],
-  "reconciliation": {"balanced": true, "breaks": []},
-  "auditChain": [],
+  "executions": [
+    {
+      "clientOrderId": "fenice-paper-validation-v5-2026-09-24-SPY",
+      "symbol": "SPY",
+      "side": "BUY",
+      "status": "PAPER_FILLED",
+      "requestedQuantity": 0.195315,
+      "filledQuantity": 0.195315,
+      "referencePrice": 767.6025,
+      "fillPrice": 767.986301,
+      "notionalEuro": 300,
+      "estimatedFeeEuro": 1.5,
+      "estimatedSlippageEuro": 0.15,
+      "createdAt": "2026-09-24T19:58:17.397Z",
+      "filledAt": "2026-09-24T19:58:17.397Z",
+      "risk": {
+        "allowed": true,
+        "orderNotionalEuro": 299.85,
+        "resultingPositionWeightPercent": 3,
+        "resultingGrossExposurePercent": 3,
+        "resultingDailyTurnoverPercent": 3,
+        "checks": [
+          {
+            "code": "mode-paper-only",
+            "passed": true,
+            "message": "Only PAPER execution is permitted.",
+            "observed": "PAPER",
+            "limit": "PAPER"
+          },
+          {
+            "code": "human-confirmation",
+            "passed": true,
+            "message": "Human confirmation is mandatory.",
+            "observed": true,
+            "limit": true
+          },
+          {
+            "code": "live-release-closed",
+            "passed": true,
+            "message": "Live release lock must remain closed in paper operations.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "broker-network-disabled",
+            "passed": true,
+            "message": "Broker network connectivity must remain disabled.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "kill-switch",
+            "passed": true,
+            "message": "Kill switch must not be engaged.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "valid-capital",
+            "passed": true,
+            "message": "Capital must be positive.",
+            "observed": 10000
+          },
+          {
+            "code": "valid-order-size",
+            "passed": true,
+            "message": "Order quantity and reference price must be positive."
+          },
+          {
+            "code": "no-short-selling",
+            "passed": true,
+            "message": "Sell order exceeds the existing long position; short selling is disabled.",
+            "observed": 299.85,
+            "limit": 0
+          },
+          {
+            "code": "max-order-notional",
+            "passed": true,
+            "message": "Order notional exceeds configured limit.",
+            "observed": 3,
+            "limit": 5
+          },
+          {
+            "code": "max-single-asset",
+            "passed": true,
+            "message": "Resulting single-asset weight exceeds configured limit.",
+            "observed": 3,
+            "limit": 15
+          },
+          {
+            "code": "max-gross-exposure",
+            "passed": true,
+            "message": "Resulting gross exposure exceeds configured limit.",
+            "observed": 3,
+            "limit": 80
+          },
+          {
+            "code": "max-daily-turnover",
+            "passed": true,
+            "message": "Daily turnover exceeds configured limit.",
+            "observed": 3,
+            "limit": 20
+          },
+          {
+            "code": "max-open-orders",
+            "passed": true,
+            "message": "Too many open orders.",
+            "observed": 0,
+            "limit": 20
+          },
+          {
+            "code": "data-confidence",
+            "passed": true,
+            "message": "Data confidence is below the execution threshold.",
+            "observed": 90,
+            "limit": 90
+          },
+          {
+            "code": "independent-sources",
+            "passed": true,
+            "message": "Insufficient independent sources.",
+            "observed": 2,
+            "limit": 2
+          },
+          {
+            "code": "risk-score",
+            "passed": true,
+            "message": "Instrument risk score exceeds the paper execution limit.",
+            "observed": 30,
+            "limit": 75
+          },
+          {
+            "code": "quote-freshness",
+            "passed": true,
+            "message": "Market quote is stale.",
+            "observed": 1.8,
+            "limit": 120
+          },
+          {
+            "code": "no-divergence",
+            "passed": true,
+            "message": "Cross-source data divergence blocks execution.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "source-freshness",
+            "passed": true,
+            "message": "Stale source data blocks execution.",
+            "observed": false,
+            "limit": false
+          }
+        ],
+        "reasons": []
+      }
+    }
+  ],
+  "positions": [
+    {
+      "symbol": "SPY",
+      "quantity": 0.195315,
+      "averagePrice": 767.986301,
+      "currency": "UNKNOWN",
+      "fxToEuro": 2
+    }
+  ],
+  "reconciliation": {
+    "balanced": true,
+    "breaks": []
+  },
+  "auditChain": [
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-24T19:58:17.397Z",
+      "eventType": "PAPER_FILLED",
+      "entityId": "fenice-paper-validation-v5-2026-09-24-SPY",
+      "payload": {
+        "symbol": "SPY",
+        "side": "BUY",
+        "filledQuantity": 0.195315,
+        "fillPrice": 767.986301,
+        "riskAllowed": true,
+        "reasons": [],
+        "operationalGate": {
+          "state": "CAUTION",
+          "riskMultiplier": 1,
+          "marketDataState": "CAUTION",
+          "marketDataSources": 2,
+          "marketDataSourceFamilies": [
+            "alpaca",
+            "twelve-data"
+          ],
+          "marketDataRequiredEligibility": "PAPER",
+          "marketDataIneligibleEvidence": 1,
+          "marketDataSpreadPercent": 0.0085,
+          "eventRiskState": "NORMAL",
+          "reasons": [
+            "market-data: 1 evidence item(s) excluded because they are not paper-eligible",
+            "market-data: minimum quorum met, but preferred redundancy is 3 independent eligible source families"
+          ]
+        },
+        "portfolioRisk": {
+          "state": "NORMAL",
+          "riskMultiplier": 1,
+          "grossExposurePercent": 3,
+          "largestPositionPercent": 3,
+          "largestSectorPercent": 3,
+          "largestAssetClassPercent": 3,
+          "capitalHhi": 0.0009,
+          "weightedAbsCorrelation": null,
+          "maxCorrelatedClusterPercent": null,
+          "reasons": []
+        }
+      },
+      "previousHash": "GENESIS",
+      "hash": "c985b98c73dc40ea618f1ccf14330d6d7c322ea1908f692b94ede3efe09bdf1d"
+    }
+  ],
   "operational": true,
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "executionDataGeneratedAt": null,
+  "executionDataGeneratedAt": "2026-09-24T19:58:16.701Z",
   "marketRiskEventsGeneratedAt": null
 }
