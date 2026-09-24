@@ -1,14 +1,14 @@
 {
-  "version": 4,
-  "approvalId": "fenice-paper-validation-v4-2026-09-24",
+  "version": 5,
+  "approvalId": "fenice-paper-validation-v5-2026-09-24",
   "approved": true,
-  "approvedAt": "2026-09-24T17:18:26.000Z",
+  "approvedAt": "2026-09-24T18:10:00.000Z",
   "expiresAt": "2026-10-24T21:59:59.000Z",
   "mode": "PAPER",
-  "purpose": "Operational PAPER validation only. Probe eligibility uses high pre-calibration data confidence so execution samples can be created without weakening calibrated investment decisions. This cannot authorize broker connectivity, live order transmission or movement of real capital.",
+  "purpose": "Operational PAPER validation only. Probe eligibility uses high pre-calibration candidate confidence and now also requires the same fresh institutional decision-data gate consumed by pre-trade risk before a probe can enter the queue. This cannot authorize broker connectivity, live order transmission or movement of real capital.",
   "humanConfirmation": true,
-  "approvalReference": "Operator instruction on 2026-09-24 to continue Fenice. V4 corrects a circular validation dependency found after the first clean v3 evidence day: immature calibration conservatively reduced committee confidence below the probe threshold, while probe fills were themselves required to mature execution/calibration evidence.",
-  "idPrefix": "fenice-paper-validation-v4-",
+  "approvalReference": "Operator instruction on 2026-09-24 to continue Fenice. V5 corrects a staging/execution gate mismatch discovered in v4: Committee/Terminal evidence could stage a probe while the freshly rebuilt institutional intelligence had already fallen below the execution threshold, causing a safe but wasteful RISK_REJECTED attempt.",
+  "idPrefix": "fenice-paper-validation-v5-",
   "targetPaperFills": 10,
   "maxProbeAttemptsTotal": 20,
   "maxOrdersPerDay": 1,
@@ -34,5 +34,5 @@
   ],
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "notes": "V4 does not lower the approved 90 confidence floor. It applies that floor to the pre-calibration data-confidence evidence used only for operational PAPER probe eligibility. The Investment Committee decision remains based on post-calibration confidence and therefore keeps the conservative penalty while evidence is immature. Every probe must still pass committee score >=70, risk <=75, permitted decision/currency, market-data quorum, decision-data gate, portfolio risk, pre-trade risk, kill switch, audit and reconciliation. Probe size remains EUR 250-300 equivalent with at most 3% of EUR capital and 15% single-asset ceiling; maximum one probe per UTC day and twenty total attempts for ten target fills. LIVE and broker connectivity remain forbidden."
+  "notes": "V5 keeps every v4 economic and safety limit unchanged. Before writing a validation order to the PAPER queue, the staging wrapper must pass the canonical fresh decision-data gate: critical sources fresh GREEN, institutional confidence >=90, at least 10 cross-source checks, zero divergence, concentration <=50%, at least three market sources and three asset classes, and the configured timestamp freshness policy. Candidate selection still uses pre-calibration data confidence >=90 so immature calibration cannot deadlock sample creation. Every staged probe must still pass committee score >=70, risk <=75, permitted decision/currency, market-data quorum, portfolio risk, pre-trade risk, kill switch, audit and reconciliation. Probe size remains EUR 250-300 equivalent, at most 3% of EUR capital and 15% single-asset ceiling, maximum one probe per UTC day and twenty total attempts for ten target fills. LIVE and broker connectivity remain forbidden."
 }
