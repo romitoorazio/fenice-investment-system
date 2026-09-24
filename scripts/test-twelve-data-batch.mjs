@@ -34,10 +34,18 @@ assert.equal(verified.paperTimestampVerified, true);
 assert.equal(verified.source, "last_quote_at");
 assert.equal(verified.observedAt, new Date(1790170080 * 1000).toISOString());
 
-const candleOnly = parseTwelveDataQuoteTime({ timestamp: 1790169900 });
-assert.equal(candleOnly.paperTimestampVerified, false);
-assert.equal(candleOnly.source, "candle_timestamp_validation_only");
-assert.equal(candleOnly.observedAt, new Date(1790169900 * 1000).toISOString());
+// parseTwelveDataQuoteTime is deliberately scoped to the provider /quote
+// endpoint. The provider timestamp is therefore valid freshness evidence even
+// when last_quote_at is absent; downstream venue/realtime/freshness gates still
+// decide whether the observation can become PAPER eligible.
+const quoteTimestampOnly = parseTwelveDataQuoteTime({ timestamp: 1790169900 });
+assert.equal(quoteTimestampOnly.paperTimestampVerified, true);
+assert.equal(quoteTimestampOnly.source, "quote_timestamp_1min");
+assert.equal(quoteTimestampOnly.observedAt, new Date(1790169900 * 1000).toISOString());
+
+const invalidTimestamp = parseTwelveDataQuoteTime({ timestamp: "not-a-timestamp" });
+assert.equal(invalidTimestamp.paperTimestampVerified, false);
+assert.equal(invalidTimestamp.observedAt, null);
 
 const missing = parseTwelveDataQuoteTime({});
 assert.equal(missing.paperTimestampVerified, false);

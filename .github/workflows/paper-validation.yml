@@ -22,8 +22,9 @@ jobs:
     env:
       FENICE_JOB: intraday
       # Legacy per-symbol Twelve Data polling is intentionally disabled. The
-      # coherent batch refresh below spends four Basic credits and requires the
-      # provider last_quote_at timestamp before evidence can become PAPER-grade.
+      # coherent batch refresh below spends four Basic credits and accepts only
+      # provider-originated /quote timestamps that also pass the independent
+      # US-realtime venue, verified-provenance and <=120-second freshness gates.
       FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
       FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
@@ -182,11 +183,11 @@ jobs:
         if: steps.campaign.outputs.started == 'true'
         run: npm run paper:validation:record
 
-      - name: Inspect campaign status
+      - name: Update campaign status
         if: steps.campaign.outputs.started == 'true'
         run: npm run paper:validation:status
 
-      - name: Publish paper validation evidence
+      - name: Persist PAPER validation evidence
         if: steps.campaign.outputs.started == 'true'
         run: |
           git config user.name "fenice-paper-bot"
@@ -195,32 +196,33 @@ jobs:
           generated_dir="$(mktemp -d)"
           cp data/paper-validation-campaign.json "$generated_dir/paper-validation-campaign.json"
           cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
-          cp data/paper-order-queue.json "$generated_dir/paper-order-queue.json"
-          cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
-          cp data/paper-conditional-queue.json "$generated_dir/paper-conditional-queue.json"
+          cp data/paper-conditional-book.json "$generated_dir/paper-conditional-book.json"
+          cp data/paper-market-session.json "$generated_dir/paper-market-session.json"
           cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
           cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
+          cp data/global-source-health.json "$generated_dir/global-source-health.json"
+          cp data/intelligence-quality.json "$generated_dir/intelligence-quality.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --hard origin/main
             cp "$generated_dir/paper-validation-campaign.json" data/paper-validation-campaign.json
             cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
-            cp "$generated_dir/paper-order-queue.json" data/paper-order-queue.json
-            cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
-            cp "$generated_dir/paper-conditional-queue.json" data/paper-conditional-queue.json
+            cp "$generated_dir/paper-conditional-book.json" data/paper-conditional-book.json
+            cp "$generated_dir/paper-market-session.json" data/paper-market-session.json
             cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
             cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
-            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-order-queue.json data/paper-conditional-state.json data/paper-conditional-queue.json data/execution-market-evidence.json data/execution-market-coverage.json
+            cp "$generated_dir/global-source-health.json" data/global-source-health.json
+            cp "$generated_dir/intelligence-quality.json" data/intelligence-quality.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-conditional-book.json data/paper-market-session.json data/execution-market-evidence.json data/execution-market-coverage.json data/global-source-health.json data/intelligence-quality.json
 
             if git diff --cached --quiet; then
-              echo "No paper validation changes to commit"
+              echo "No PAPER evidence changes to commit"
               exit 0
             fi
 
-            git commit -m "data: record Fenice paper validation evidence"
+            git commit -m "data: record paper validation evidence"
             if git push origin HEAD:main; then
-              echo "Paper validation evidence published"
               exit 0
             fi
 
@@ -228,5 +230,17 @@ jobs:
             sleep $((attempt * 2))
           done
 
-          echo "Unable to publish paper validation evidence after 3 attempts"
+          echo "Unable to persist PAPER validation evidence after 3 attempts"
           exit 1
+
+      - name: Verify campaign artifact safety
+        if: steps.campaign.outputs.started == 'true'
+        run: |
+          npm run paper:validation:test
+          npm run certification:status
+
+      - name: Confirm inactive campaign is fail-closed
+        if: steps.campaign.outputs.started != 'true'
+        run: |
+          echo "Fresh PAPER v2 campaign has not started because baseline evidence is not yet eligible."
+          echo "LIVE remains locked; no PAPER evidence day is being recorded."
