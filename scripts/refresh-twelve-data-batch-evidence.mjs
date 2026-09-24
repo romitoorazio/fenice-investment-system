@@ -151,16 +151,16 @@ if (apiKey && candidates.length > 0) {
         currency: row?.currency || instrument.currency || "USD",
         assetClass: instrument.assetClass,
         source: eligibility === "PAPER"
-          ? "Twelve Data batch US realtime quote with provider last_quote_at"
-          : "Twelve Data batch quote retained as validation-only because provider last_quote_at is absent or stale",
+          ? `Twelve Data batch US realtime /quote with provider ${quoteTime.source}`
+          : "Twelve Data batch /quote retained as validation-only because provider timestamp evidence is absent or stale",
         sourceFamily: "twelve-data",
         eligibility,
         price,
         observedAt: quoteTime.observedAt,
         provenanceVerified: true,
         provenanceMethod: quoteTime.paperTimestampVerified
-          ? "provider-batch-quote-last_quote_at-us-realtime-venue"
-          : "provider-batch-candle-timestamp-validation-only",
+          ? `provider-batch-quote-${quoteTime.source}-us-realtime-venue`
+          : "provider-batch-quote-timestamp-missing-validation-only",
       });
       if (normalized) refreshed.push(normalized);
     }
@@ -191,9 +191,9 @@ const capabilities = {
   twelveDataBatchRequests: apiKey && candidates.length ? 1 + rateLimitRetries : 0,
   twelveDataRateLimitEvents: rateLimitEvents,
   twelveDataRateLimitRetries: rateLimitRetries,
-  twelveDataTimestampPolicy: "PAPER requires provider last_quote_at; /quote timestamp is candle-open validation-only evidence",
+  twelveDataTimestampPolicy: "PAPER accepts provider last_quote_at when present or the documented /quote timestamp at interval=1min; venue, realtime entitlement, verified provenance and <=120-second freshness remain mandatory",
   twelveDataRateLimitPolicy: "one coherent multi-symbol batch request; 429 uses Retry-After/exponential backoff; freshness and provenance are never relaxed",
-  twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, provider last_quote_at, verified provenance and <=120-second freshness are required",
+  twelveDataFreeRealtimeScope: "US-listed equities/ETFs only; recognized realtime venue, provider /quote timestamp, verified provenance and <=120-second freshness are required",
 };
 
 const report = {
@@ -205,6 +205,7 @@ const report = {
   policy: {
     ...(evidence.policy || {}),
     providerBatchSnapshotsMustUseProviderTimestamps: true,
+    quoteEndpointTimestampMayConferPaperFreshness: true,
     candleOpenTimestampNeverConfersPaperFreshness: true,
     liveTradingAllowed: false,
   },
