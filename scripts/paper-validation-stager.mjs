@@ -103,7 +103,9 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   const allowedDecisionStates = unique(Array.isArray(approval?.permittedDecisionStates) ? approval.permittedDecisionStates : ["ACCUMULA", "MANTIENI", "OSSERVA"]);
   const allowedCurrencies = unique(Array.isArray(approval?.permittedCurrencies) ? approval.permittedCurrencies : ["USD", "EUR"]);
   const minCommitteeScore = Number.isFinite(Number(approval?.minCommitteeScore)) ? Number(approval.minCommitteeScore) : 70;
-  const minConfidence = Number.isFinite(Number(approval?.minConfidence)) ? Number(approval.minConfidence) : 90;
+  const minValidationDataConfidence = Number.isFinite(Number(approval?.minValidationDataConfidence))
+    ? Number(approval.minValidationDataConfidence)
+    : Number.isFinite(Number(approval?.minConfidence)) ? Number(approval.minConfidence) : 90;
   const maxRiskScore = Number.isFinite(Number(approval?.maxRiskScore)) ? Number(approval.maxRiskScore) : 75;
 
   // `paperEligible` is the authoritative output of the fingerprinted market-data
@@ -130,7 +132,16 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       const asset = terminalBySymbol.get(symbol);
       const currency = String(decision?.currency || asset?.currency || "").toUpperCase();
       const committeeScore = Number(decision?.committeeScore || 0);
-      const confidence = Math.min(Number(decision?.confidence || 0), Number(asset?.confidence || 0));
+      const calibratedConfidence = Number(decision?.confidence || 0);
+      const rawCommitteeConfidence = Number(decision?.rawConfidenceBeforeCalibration ?? decision?.confidence ?? 0);
+      const terminalConfidence = Number(asset?.confidence || 0);
+      // Operational PAPER probes exist to create execution samples that later
+      // mature the calibration model. Using the post-calibration confidence as
+      // the probe gate creates a circular dependency when immature calibration
+      // intentionally caps confidence. Require high pre-calibration data quality
+      // instead, while the committee decision itself remains calibrated and
+      // therefore conservative.
+      const validationDataConfidence = Math.min(rawCommitteeConfidence, terminalConfidence);
       const riskScore = Math.max(Number(decision?.riskScore ?? 100), Number(asset?.riskScore ?? 100));
       const decisionState = String(decision?.decision || "").toUpperCase();
       const terminalDecision = String(asset?.decision || "").toUpperCase();
@@ -149,7 +160,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
         && allowedDecisionStates.includes(decisionState)
         && !["ATTENDI", "EVITA"].includes(terminalDecision)
         && committeeScore >= minCommitteeScore
-        && confidence >= minConfidence
+        && validationDataConfidence >= minValidationDataConfidence
         && riskScore <= maxRiskScore
         && allowedCurrencies.includes(currency)
         && notionalCapacityEuro >= minTcaProbeNotionalEuro;
@@ -160,7 +171,10 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
         decision,
         currency,
         committeeScore,
-        confidence,
+        calibratedConfidence,
+        rawCommitteeConfidence,
+        terminalConfidence,
+        validationDataConfidence,
         riskScore,
         fxToEuro,
         existingPositionNotionalEuro,
@@ -210,7 +224,11 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       purpose: "operational-paper-validation-only",
       committeeDecision: String(candidate.decision?.decision || ""),
       committeeScore: candidate.committeeScore,
-      dataConfidence: candidate.confidence,
+      calibratedInvestmentConfidence: candidate.calibratedConfidence,
+      rawCommitteeDataConfidence: candidate.rawCommitteeConfidence,
+      terminalDataConfidence: candidate.terminalConfidence,
+      validationDataConfidence: candidate.validationDataConfidence,
+      minValidationDataConfidence,
       riskScore: candidate.riskScore,
       coverageState: String(candidate.row?.state || ""),
       independentSourceFamilies: Number(candidate.row?.independentSourceFamilies || 0),
