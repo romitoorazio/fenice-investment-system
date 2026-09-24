@@ -30,6 +30,7 @@ jobs:
           approval="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-approval.json?ref=main")"
           oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
           intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
+          source_health="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/global-source-health.json?ref=main")"
 
           active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
           prefix="$(jq -r '.idPrefix // "fenice-paper-validation-"' <<<"$approval")"
@@ -45,32 +46,36 @@ jobs:
 
           quality_ready="$(node -e '
             const q = JSON.parse(process.argv[1]);
-            const c = JSON.parse(process.argv[2]);
-            const p = c?.evidencePolicy || {};
             const confidence = Number(q?.intelligenceConfidence ?? -1);
             const checks = Number(q?.crossSourceValidation?.checked ?? -1);
             const divergent = Number(q?.crossSourceValidation?.divergent ?? -1);
             const concentration = Number(q?.coverage?.sourceConcentrationPercent ?? 101);
             const marketSources = Number(q?.coverage?.marketSources ?? 0);
             const assetClasses = Array.isArray(q?.coverage?.assetClasses) ? q.coverage.assetClasses.length : 0;
-            const minConfidence = Number(p.minimumIntelligenceConfidence ?? 90);
-            const minChecks = Number(p.minimumCrossSourceChecks ?? 10);
-            const maxConcentration = Number(p.maximumSourceConcentrationPercent ?? 50);
+            const timestampPolicy = q?.policy?.unknownTimestampEvidenceExcluded === true;
             const ready = Number.isFinite(confidence)
               && Number.isFinite(checks)
               && Number.isFinite(divergent)
               && Number.isFinite(concentration)
-              && confidence >= minConfidence
-              && checks >= minChecks
+              && confidence >= 90
+              && checks >= 10
               && divergent === 0
-              && concentration <= maxConcentration
-              && marketSources >= 2
-              && assetClasses >= 2;
+              && concentration <= 50
+              && marketSources >= 3
+              && assetClasses >= 3
+              && timestampPolicy;
             process.stdout.write(String(ready));
-          ' "$intelligence" "$campaign")"
+          ' "$intelligence")"
+
+          sources_ready="$(node -e '
+            const s = JSON.parse(process.argv[1]);
+            const total = Number(s?.critical?.total ?? 0);
+            const ready = Number(s?.critical?.ready ?? -1);
+            process.stdout.write(String(s?.critical?.gate === "GREEN" && total > 0 && ready === total));
+          ' "$source_health")"
 
           run_probe=false
-          if [ "$active" = "true" ] && [ "$attempted_today" != "true" ] && [ "$cooldown_ready" = "true" ] && [ "$quality_ready" = "true" ]; then
+          if [ "$active" = "true" ] && [ "$attempted_today" != "true" ] && [ "$cooldown_ready" = "true" ] && [ "$quality_ready" = "true" ] && [ "$sources_ready" = "true" ]; then
             run_probe=true
           fi
 
@@ -78,8 +83,9 @@ jobs:
           echo "attempted_today=$attempted_today" >> "$GITHUB_OUTPUT"
           echo "cooldown_ready=$cooldown_ready" >> "$GITHUB_OUTPUT"
           echo "quality_ready=$quality_ready" >> "$GITHUB_OUTPUT"
+          echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
-          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; intelligence_cooldown_ready=$cooldown_ready; intelligence_quality_ready=$quality_ready; dispatch=$run_probe."
+          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; intelligence_cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
 
       - name: Dispatch canonical PAPER probe cycle
         if: steps.preflight.outputs.run_probe == 'true'
@@ -94,4 +100,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, less than 15 minutes since the latest persisted intelligence refresh, or persisted intelligence quality below the campaign policy thresholds."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
