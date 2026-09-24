@@ -1,14 +1,14 @@
 {
-  "version": 3,
-  "approvalId": "fenice-paper-validation-v2-2026-09-23",
+  "version": 4,
+  "approvalId": "fenice-paper-validation-v4-2026-09-24",
   "approved": true,
-  "approvedAt": "2026-09-23T16:47:12.000Z",
+  "approvedAt": "2026-09-24T17:18:26.000Z",
   "expiresAt": "2026-10-24T21:59:59.000Z",
   "mode": "PAPER",
-  "purpose": "Operational PAPER validation only. This technical sizing calibration cannot authorize broker connectivity, live order transmission or movement of real capital.",
+  "purpose": "Operational PAPER validation only. Probe eligibility uses high pre-calibration data confidence so execution samples can be created without weakening calibrated investment decisions. This cannot authorize broker connectivity, live order transmission or movement of real capital.",
   "humanConfirmation": true,
-  "approvalReference": "Operator instruction on 2026-09-23 to continue Fenice and complete PAPER validation; v3 is a technical PAPER-only calibration revision after detecting that the v2 EUR 100 probe size made the fixed simulated fee dominate TCA.",
-  "idPrefix": "fenice-paper-validation-v2-",
+  "approvalReference": "Operator instruction on 2026-09-24 to continue Fenice. V4 corrects a circular validation dependency found after the first clean v3 evidence day: immature calibration conservatively reduced committee confidence below the probe threshold, while probe fills were themselves required to mature execution/calibration evidence.",
+  "idPrefix": "fenice-paper-validation-v4-",
   "targetPaperFills": 10,
   "maxProbeAttemptsTotal": 20,
   "maxOrdersPerDay": 1,
@@ -21,7 +21,7 @@
     "USD": 2
   },
   "minCommitteeScore": 70,
-  "minConfidence": 90,
+  "minValidationDataConfidence": 90,
   "maxRiskScore": 75,
   "permittedDecisionStates": [
     "ACCUMULA",
@@ -34,5 +34,5 @@
   ],
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "notes": "The first v2 probe used EUR 100 reference notional. With the fingerprinted PAPER OMS minimum simulated fee of EUR 1.50 plus 5 bps adverse slippage, this mechanically implied about 155 bps implementation shortfall, above the 75 bps hard execution-quality limit regardless of market quality. V3 therefore targets at most EUR 300 and 3% of EUR capital per probe, with a EUR 250 TCA floor and 15% single-asset ceiling. At EUR 300 the deterministic fee+slippage baseline is about 55 bps; at EUR 250 it is about 65 bps, both inside the existing 75 bps hard limit while still leaving WATCH/quality gates active. The stager rotates toward the least-used eligible symbol, and every probe must still pass market-data quorum, decision data, portfolio risk, pre-trade risk, kill-switch, audit and reconciliation. LIVE and broker connectivity remain forbidden."
+  "notes": "V4 does not lower the approved 90 confidence floor. It applies that floor to the pre-calibration data-confidence evidence used only for operational PAPER probe eligibility. The Investment Committee decision remains based on post-calibration confidence and therefore keeps the conservative penalty while evidence is immature. Every probe must still pass committee score >=70, risk <=75, permitted decision/currency, market-data quorum, decision-data gate, portfolio risk, pre-trade risk, kill switch, audit and reconciliation. Probe size remains EUR 250-300 equivalent with at most 3% of EUR capital and 15% single-asset ceiling; maximum one probe per UTC day and twenty total attempts for ten target fills. LIVE and broker connectivity remain forbidden."
 }

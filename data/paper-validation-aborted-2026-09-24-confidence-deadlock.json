@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "status": "ABORTED_BEFORE_CERTIFICATION",
+  "abortedAt": "2026-09-24T17:18:26Z",
+  "reasonCode": "CALIBRATION_PROBE_CONFIDENCE_DEADLOCK",
+  "sourceCommit": "0b2b2d6409b4fc3eaf248c970197434a38eb9b6f",
+  "campaign": {
+    "startedAt": "2026-09-24T17:03:53.077Z",
+    "baselineCommit": "583c726f399c002d158606fadaf4a48ffd58a3b1",
+    "baselineFingerprintDigest": "22523cb628d68ac84b63c504a1690a42c52d9c8ca2e03d0a1c203ac02f205e68",
+    "requiredDays": 30,
+    "minEvidenceDays": 25,
+    "minPaperFills": 10,
+    "evidenceDaysRecorded": 1,
+    "paperCyclesRecorded": 2,
+    "paperFillsRecorded": 0
+  },
+  "diagnosis": {
+    "probePreflightActive": true,
+    "marketSessionOpen": true,
+    "criticalSourcesReady": "9/9",
+    "twelveDataBatchPaperFresh": "4/4",
+    "paperEligibleSymbols": 4,
+    "paperEligiblePercent": 33.3,
+    "eligibleMarketSymbols": [
+      "SPY",
+      "MSFT",
+      "QQQ",
+      "AAPL"
+    ],
+    "approvalMinimumConfidence": 90,
+    "committeeCalibrationState": "INSUFFICIENT",
+    "committeeCalibrationMultiplier": 0.9,
+    "committeeCalibrationSampleSize": 0,
+    "representativeCandidate": {
+      "symbol": "SPY",
+      "decision": "OSSERVA",
+      "committeeScore": 70,
+      "riskScore": 30,
+      "rawConfidenceBeforeCalibration": 98,
+      "calibratedConfidence": 88,
+      "terminalDataConfidence": 98
+    },
+    "stagerResult": "NO_ORDER",
+    "stagerReason": "no-eligible-validation-candidate",
+    "conclusion": "The operational PAPER probe gate required post-calibration confidence >=90 while immature calibration intentionally multiplied confidence by at most 0.9. The execution fills needed to mature validation/calibration evidence were therefore blocked by the immature-calibration penalty itself. This was a circular validation dependency, not a market-data, risk, execution, source-quality or LIVE-safety failure."
+  },
+  "correction": {
+    "principle": "Keep calibrated investment decisions conservative, but gate operational PAPER probe data quality on pre-calibration confidence.",
+    "minimumValidationDataConfidence": 90,
+    "committeeDecisionStillCalibrated": true,
+    "committeeScoreMinimumUnchanged": 70,
+    "maxRiskScoreUnchanged": 75,
+    "maxNotionalEuroPerOrderUnchanged": 300,
+    "maxCapitalPercentPerProbeUnchanged": 3,
+    "maxOrdersPerDayUnchanged": 1,
+    "targetPaperFillsUnchanged": 10
+  },
+  "safetyAtAbort": {
+    "paperExecutions": 0,
+    "paperPositions": 0,
+    "liveOrders": 0,
+    "liveTradingAllowed": false,
+    "brokerConnectivityAllowed": false,
+    "killSwitchEngaged": false,
+    "auditChainValid": true,
+    "reconciliationBalanced": true
+  },
+  "disposition": {
+    "evidenceCarriedForward": false,
+    "paperPositionsCarriedForward": false,
+    "paperExecutionsCarriedForward": false,
+    "liveCapitalAffected": false,
+    "nextAction": "Start a fresh PAPER v4 campaign from a new immutable fingerprint after the validation-data confidence semantics and regression tests are merged."
+  },
+  "notes": "The exact v3 campaign remains recoverable from sourceCommit in Git history. No fill was produced. This archive preserves the one evidence day and the discovered circular gate instead of silently modifying an active certification baseline."
+}
