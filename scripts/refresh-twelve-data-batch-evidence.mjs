@@ -20,6 +20,9 @@ const apiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const probeLimit = Math.max(0, Math.min(8, Number(process.env.FENICE_TWELVE_DATA_BATCH_PROBES || 4) || 4));
 const maxRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_BATCH_429_RETRIES || 2) || 2));
 const retryBaseMs = Math.max(1000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_BATCH_RETRY_MS || 10_000) || 10_000));
+const fxFreshnessSeconds = 120;
+const fxFreshnessRetries = Math.max(0, Math.min(4, Number(process.env.FENICE_TWELVE_DATA_FX_FRESHNESS_RETRIES || 3) || 3));
+const fxFreshnessRetryMs = Math.max(5000, Math.min(30_000, Number(process.env.FENICE_TWELVE_DATA_FX_FRESHNESS_RETRY_MS || 15_000) || 15_000));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 
 function masterIdentifier(instrument, type) {
@@ -40,7 +43,7 @@ function retryAfterMs(response) {
 
 let rateLimitEvents = 0;
 let rateLimitRetries = 0;
-async function requestBatch(url) {
+async function requestJson(url) {
   for (let attempt = 0; ; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);
@@ -49,7 +52,7 @@ async function requestBatch(url) {
         signal: controller.signal,
         headers: {
           accept: "application/json",
-          "user-agent": "FeniceInvestmentSystem/1.9 twelve-data-batch-paper-evidence",
+          "user-agent": "FeniceInvestmentSystem/1.9 twelve-data-paper-evidence",
         },
       });
       if (response.status === 429) {
@@ -66,6 +69,35 @@ async function requestBatch(url) {
       clearTimeout(timer);
     }
   }
+}
+
+async function fetchFreshUsdEur() {
+  if (!apiKey) throw new Error("PAPER_FX_TWELVE_DATA_KEY_MISSING");
+  const url = `https://api.twelvedata.com/exchange_rate?symbol=USD%2FEUR&timezone=UTC&apikey=${encodeURIComponent(apiKey)}`;
+  let lastAge = Number.POSITIVE_INFINITY;
+
+  for (let attempt = 0; attempt <= fxFreshnessRetries; attempt += 1) {
+    const payload = await requestJson(url);
+    const rate = Number(payload?.rate);
+    const timestamp = Number(payload?.timestamp);
+    if (!Number.isFinite(rate) || rate <= 0 || !Number.isFinite(timestamp) || timestamp <= 0) {
+      throw new Error("PAPER_FX_INVALID_TWELVE_DATA_RESPONSE");
+    }
+
+    const observedAt = new Date(timestamp * 1000).toISOString();
+    const ageSeconds = Math.max(0, (Date.now() - timestamp * 1000) / 1000);
+    lastAge = ageSeconds;
+    if (ageSeconds <= fxFreshnessSeconds) {
+      return { rate, timestamp, observedAt, ageSeconds, freshnessAttempt: attempt + 1 };
+    }
+
+    if (attempt < fxFreshnessRetries) {
+      console.log(`Fenice PAPER FX: stale ${ageSeconds.toFixed(1)}s > ${fxFreshnessSeconds}s; retrying fresh USD/EUR (${attempt + 1}/${fxFreshnessRetries + 1}).`);
+      await sleep(fxFreshnessRetryMs);
+    }
+  }
+
+  throw new Error(`PAPER_FX_STALE_${Number.isFinite(lastAge) ? lastAge.toFixed(1) : "INF"}S`);
 }
 
 const [evidence, master] = await Promise.all([
@@ -110,7 +142,7 @@ if (apiKey && candidates.length > 0) {
   const symbols = candidates.map((instrument) => instrument.symbol);
   const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbols.join(","))}&interval=1min&apikey=${encodeURIComponent(apiKey)}`;
   try {
-    const payload = await requestBatch(url);
+    const payload = await requestJson(url);
     if (String(payload?.status || "").toLowerCase() === "error" || payload?.code) {
       throw new Error("TWELVE_DATA_BATCH_API_ERROR");
     }
@@ -211,20 +243,9 @@ const report = {
     liveTradingAllowed: false,
   },
 };
-
 await writeJsonStateAtomic(evidencePath, report);
 
-if (!apiKey) throw new Error("PAPER_FX_TWELVE_DATA_KEY_MISSING");
-const fxUrl = `https://api.twelvedata.com/exchange_rate?symbol=USD%2FEUR&timezone=UTC&apikey=${encodeURIComponent(apiKey)}`;
-const fxPayload = await requestBatch(fxUrl);
-const fxRate = Number(fxPayload?.rate);
-const fxTimestamp = Number(fxPayload?.timestamp);
-if (!Number.isFinite(fxRate) || fxRate <= 0 || !Number.isFinite(fxTimestamp) || fxTimestamp <= 0) {
-  throw new Error("PAPER_FX_INVALID_TWELVE_DATA_RESPONSE");
-}
-const fxObservedAt = new Date(fxTimestamp * 1000).toISOString();
-const fxAgeSeconds = Math.max(0, (Date.now() - fxTimestamp * 1000) / 1000);
-if (fxAgeSeconds > 120) throw new Error(`PAPER_FX_STALE_${fxAgeSeconds.toFixed(1)}S`);
+const fx = await fetchFreshUsdEur();
 const fxGeneratedAt = new Date().toISOString();
 await writeJsonStateAtomic(fxEvidencePath, {
   version: 1,
@@ -234,11 +255,12 @@ await writeJsonStateAtomic(fxEvidencePath, {
   provenanceVerified: true,
   ratesToEuro: {
     EUR: { rate: 1, observedAt: fxGeneratedAt, source: "identity" },
-    USD: { rate: fxRate, observedAt: fxObservedAt, source: "Twelve Data /exchange_rate USD/EUR" },
+    USD: { rate: fx.rate, observedAt: fx.observedAt, source: "Twelve Data /exchange_rate USD/EUR" },
   },
-  maxAgeSeconds: 120,
+  maxAgeSeconds: fxFreshnessSeconds,
+  freshnessAttempt: fx.freshnessAttempt,
   liveTradingAllowed: false,
   brokerConnectivityAllowed: false,
 });
 
-console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fxRate}, fxAge=${fxAgeSeconds.toFixed(1)}s.`);
+console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fx.rate}, fxAge=${fx.ageSeconds.toFixed(1)}s, fxAttempt=${fx.freshnessAttempt}.`);
