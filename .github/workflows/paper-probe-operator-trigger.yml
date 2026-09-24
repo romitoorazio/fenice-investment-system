@@ -20,21 +20,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify active fail-closed campaign
-        id: campaign
+      - name: Verify active fail-closed campaign and operator cooldown
+        id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
+          approval="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-approval.json?ref=main")"
+          oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
+          intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
+
           active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
-          echo "active=$active" >> "$GITHUB_OUTPUT"
-          if [ "$active" != "true" ]; then
-            echo "PAPER campaign is not safely active; canonical probe will not be dispatched."
+          prefix="$(jq -r '.idPrefix // "fenice-paper-validation-"' <<<"$approval")"
+          today="$(date -u +%F)"
+          attempted_today="$(jq -r --arg prefix "$prefix" --arg today "$today" 'any(.executions[]?; (((.clientOrderId // "") | startswith($prefix)) or (.validationProbe == true)) and (((.createdAt // .filledAt // "") | tostring) | startswith($today)))' <<<"$oms")"
+
+          cooldown_ready="$(node -e '
+            const q = JSON.parse(process.argv[1]);
+            const t = Date.parse(String(q.generatedAt || ""));
+            const age = Number.isFinite(t) ? (Date.now() - t) / 60000 : -1;
+            process.stdout.write(String(Number.isFinite(age) && age >= 15));
+          ' "$intelligence")"
+
+          run_probe=false
+          if [ "$active" = "true" ] && [ "$attempted_today" != "true" ] && [ "$cooldown_ready" = "true" ]; then
+            run_probe=true
           fi
 
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+          echo "attempted_today=$attempted_today" >> "$GITHUB_OUTPUT"
+          echo "cooldown_ready=$cooldown_ready" >> "$GITHUB_OUTPUT"
+          echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
+          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; intelligence_cooldown_ready=$cooldown_ready; dispatch=$run_probe."
+
       - name: Dispatch canonical PAPER probe cycle
-        if: steps.campaign.outputs.active == 'true'
+        if: steps.preflight.outputs.run_probe == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -43,5 +64,7 @@ jobs:
           echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
 
       - name: Confirm fail-closed skip
-        if: steps.campaign.outputs.active != 'true'
-        run: echo "No PAPER probe dispatched."
+        if: steps.preflight.outputs.run_probe != 'true'
+        run: |
+          echo "No PAPER probe dispatched."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, or less than 15 minutes since the latest persisted intelligence refresh."
