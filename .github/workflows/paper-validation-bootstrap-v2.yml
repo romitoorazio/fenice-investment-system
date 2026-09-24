@@ -27,33 +27,60 @@ jobs:
           set -euo pipefail
 
           workflow="paper-validation.yml"
-          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
-
-          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
-
           validation_run=""
-          for attempt in $(seq 1 60); do
-            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
-            candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
-            count="$(jq 'length' <<<"$candidates")"
+          success=false
 
-            if [ "$count" -eq 1 ]; then
-              validation_run="$(jq -r '.[0].databaseId' <<<"$candidates")"
+          for dispatch_attempt in 1 2 3; do
+            before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+
+            validation_run=""
+            for discovery_attempt in $(seq 1 60); do
+              runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
+              candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
+              count="$(jq 'length' <<<"$candidates")"
+
+              if [ "$count" -eq 1 ]; then
+                validation_run="$(jq -r '.[0].databaseId' <<<"$candidates")"
+                break
+              fi
+
+              if [ "$count" -gt 1 ]; then
+                echo "Ambiguous PAPER validation dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
+                jq . <<<"$candidates"
+                exit 1
+              fi
+
+              sleep 2
+            done
+
+            test -n "$validation_run"
+            echo "Watching canonical PAPER validation run $validation_run (dispatch attempt $dispatch_attempt/3)"
+
+            if gh run watch "$validation_run" --repo "$GITHUB_REPOSITORY" --exit-status; then
+              success=true
               break
             fi
 
-            if [ "$count" -gt 1 ]; then
-              echo "Ambiguous PAPER validation dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
-              jq . <<<"$candidates"
+            conclusion="$(gh run view "$validation_run" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion // "unknown"')"
+            echo "Canonical PAPER validation run $validation_run ended with conclusion=$conclusion."
+
+            if [ "$conclusion" != "cancelled" ]; then
+              echo "Non-cancellation failure is authoritative; refusing automatic retry."
               exit 1
             fi
 
-            sleep 2
+            if [ "$dispatch_attempt" -lt 3 ]; then
+              echo "Run was cancelled by scheduling/concurrency pressure before useful execution; retrying without weakening any gate."
+              sleep 8
+            fi
           done
 
-          test -n "$validation_run"
-          echo "Watching canonical PAPER validation run $validation_run"
-          gh run watch "$validation_run" --repo "$GITHUB_REPOSITORY" --exit-status
+          if [ "$success" != "true" ]; then
+            echo "PAPER validation could not obtain an execution slot after 3 cancellation-safe attempts."
+            exit 1
+          fi
+
           echo "run_id=$validation_run" >> "$GITHUB_OUTPUT"
 
       - name: Verify fresh immutable PAPER baseline exists on main
