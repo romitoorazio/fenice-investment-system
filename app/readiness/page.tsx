@@ -12,11 +12,35 @@ export const revalidate = 0;
 
 type PaperEvidenceView = {
   date?: string;
+  paperCycles?: number;
   cumulativePaperFilled?: number;
+  newPaperFills?: number;
+  cumulativeRiskRejected?: number;
+  openPositions?: number;
+  killSwitchEngaged?: boolean;
   liveTradingAllowed?: boolean;
   brokerConnectivityAllowed?: boolean;
   auditChainValid?: boolean;
   reconciliationBalanced?: boolean;
+  validationFingerprint?: {
+    digest?: string;
+    complete?: boolean;
+  };
+  decisionDataGate?: {
+    ready?: boolean;
+    confidence?: number;
+    crossChecks?: number;
+    marketSources?: number;
+    sourceConcentrationPercent?: number;
+    reasons?: string[];
+  };
+  executionMarketCoverage?: {
+    ready?: boolean;
+    paperEligibleSymbols?: number;
+    requestedSymbols?: number;
+    paperEligiblePercent?: number;
+    paperEligibleSourceFamilies?: number;
+  };
   executionQuality?: {
     state?: string;
     fills?: number;
@@ -26,11 +50,25 @@ type PaperEvidenceView = {
 type PaperCampaignView = {
   startedAt?: string | null;
   baselineCommit?: string | null;
+  baselineFingerprint?: {
+    digest?: string;
+    complete?: boolean;
+  } | null;
   requiredDays?: number;
   minEvidenceDays?: number;
   minPaperFills?: number;
   liveTradingAllowed?: boolean;
   dailyEvidence?: PaperEvidenceView[];
+  baselineEligibility?: {
+    metrics?: {
+      intelligenceConfidence?: number;
+      crossChecks?: number;
+      paperEligibleSymbols?: number;
+      requestedExecutionSymbols?: number;
+      paperEligiblePercent?: number;
+      paperEligibleSourceFamilies?: number;
+    };
+  };
   evidencePolicy?: {
     preferredIndependentPaperSourceFamilies?: number;
     minimumIndependentPaperSourceFamilies?: number;
@@ -86,12 +124,32 @@ export default function ReadinessPage() {
   const minEvidenceDays = Number(paperCampaignView.minEvidenceDays || 25);
   const minPaperFills = Number(paperCampaignView.minPaperFills || 10);
   const paperFills = Number(latestPaperEvidence?.cumulativePaperFilled || 0);
+  const riskRejected = Number(latestPaperEvidence?.cumulativeRiskRejected || 0);
   const preferredSourceFamilies = Number(paperCampaignView.evidencePolicy?.preferredIndependentPaperSourceFamilies || 3);
   const minimumSourceFamilies = Number(paperCampaignView.evidencePolicy?.minimumIndependentPaperSourceFamilies || 2);
   const executionQualityState = String(latestPaperEvidence?.executionQuality?.state || (paperCampaignView.startedAt ? "IN ATTESA" : "NON AVVIATA"));
   const executionQualityFills = Number(latestPaperEvidence?.executionQuality?.fills || 0);
+  const baselineDigest = String(paperCampaignView.baselineFingerprint?.digest || "");
+  const latestEvidenceDigest = String(latestPaperEvidence?.validationFingerprint?.digest || "");
+  const fingerprintMatches = Boolean(
+    baselineDigest
+    && latestEvidenceDigest
+    && paperCampaignView.baselineFingerprint?.complete === true
+    && latestPaperEvidence?.validationFingerprint?.complete === true
+    && baselineDigest === latestEvidenceDigest,
+  );
   const campaignSafe = paperCampaignView.liveTradingAllowed === false
     && (!latestPaperEvidence || (latestPaperEvidence.liveTradingAllowed === false && latestPaperEvidence.brokerConnectivityAllowed === false));
+  const protectedNoTrade = Boolean(
+    latestPaperEvidence
+    && Number(latestPaperEvidence.newPaperFills || 0) === 0
+    && riskRejected > 0
+    && latestPaperEvidence.auditChainValid === true
+    && latestPaperEvidence.reconciliationBalanced === true
+    && latestPaperEvidence.liveTradingAllowed === false
+    && latestPaperEvidence.brokerConnectivityAllowed === false,
+  );
+  const baselineMetrics = paperCampaignView.baselineEligibility?.metrics;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-6 text-white sm:px-8">
@@ -128,24 +186,56 @@ export default function ReadinessPage() {
                 <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${campaignSafe ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>
                   {campaignSafe ? "LIVE LOCK OK" : "SAFETY CHECK"}
                 </span>
+                {paperCampaignView.startedAt && (
+                  <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${fingerprintMatches ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>
+                    {fingerprintMatches ? "FINGERPRINT V4 OK" : "FINGERPRINT CHECK"}
+                  </span>
+                )}
               </div>
               <h2 className="mt-2 text-xl font-black">{paperCampaignView.startedAt ? "Evidenza operativa in maturazione" : "Nuova baseline PAPER da avviare"}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">La campagna non viene retrodatata: deve accumulare giorni reali, fill PAPER e qualità di esecuzione mantenendo fingerprint, audit, riconciliazione e blocco LIVE invariati.</p>
-              <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaignView.baselineCommit || "n/d").slice(0, 10)}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
+              <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaignView.baselineCommit || "n/d").slice(0, 10)}</span> · SHA-256: <span className="font-mono text-slate-400">{baselineDigest ? `${baselineDigest.slice(0, 10)}…` : "n/d"}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
+              {baselineMetrics && (
+                <p className="mt-2 text-xs leading-5 text-slate-500">Baseline fissata con intelligence <strong className="text-slate-300">{Number(baselineMetrics.intelligenceConfidence || 0)}/100</strong>, {Number(baselineMetrics.crossChecks || 0)} cross-check e copertura PAPER <strong className="text-slate-300">{Number(baselineMetrics.paperEligibleSymbols || 0)}/{Number(baselineMetrics.requestedExecutionSymbols || 0)} ({Number(baselineMetrics.paperEligiblePercent || 0)}%)</strong> su {Number(baselineMetrics.paperEligibleSourceFamilies || 0)} famiglie indipendenti.</p>
+              )}
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Giorni evidenza</p><p className="mt-1 text-lg font-black">{evidenceDays}/{minEvidenceDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, minEvidenceDays)}%` }} /></div></div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Durata campagna</p><p className="mt-1 text-lg font-black">{evidenceDays}/{requiredDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, requiredDays)}%` }} /></div></div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Fill PAPER</p><p className="mt-1 text-lg font-black">{paperFills}/{minPaperFills}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(paperFills, minPaperFills)}%` }} /></div></div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Ultimo audit</p><p className="mt-1 text-lg font-black">{latestPaperEvidence?.auditChainValid ? "VALIDO" : "N/D"}</p><p className="mt-1 text-[10px] text-slate-500">recon {latestPaperEvidence?.reconciliationBalanced ? "bilanciata" : "da verificare"}</p></div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Risk rejected</p><p className="mt-1 text-lg font-black">{riskRejected}</p><p className="mt-1 text-[10px] text-slate-500">tentativi bloccati in sicurezza</p></div>
             </div>
           </div>
+
+          {latestPaperEvidence && (
+            <div className={`mt-4 rounded-2xl border p-4 ${protectedNoTrade ? "border-amber-300/20 bg-amber-300/[0.05]" : "border-white/10 bg-black/20"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Ultima evidenza · {latestPaperEvidence.date || "n/d"}</p>
+                  <p className="mt-1 text-sm font-black text-slate-200">{protectedNoTrade ? "NO-TRADE PROTETTO: nessun fill forzato" : "Ciclo PAPER registrato"}</p>
+                  <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-400">
+                    {protectedNoTrade
+                      ? "Il risk engine ha rifiutato il tentativo perché la qualità dati locale era sotto soglia. Audit e riconciliazione restano validi: un blocco prudenziale senza fill non viene trasformato in una falsa esecuzione."
+                      : "Lo stato del giorno deriva esclusivamente dall'evidenza PAPER persistita; nessun dato LIVE viene usato per maturare la campagna."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[9px] font-black">
+                  <span className={`rounded-full border px-2 py-1 ${latestPaperEvidence.auditChainValid ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>AUDIT {latestPaperEvidence.auditChainValid ? "OK" : "CHECK"}</span>
+                  <span className={`rounded-full border px-2 py-1 ${latestPaperEvidence.reconciliationBalanced ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>RECON {latestPaperEvidence.reconciliationBalanced ? "OK" : "CHECK"}</span>
+                  <span className="rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-1 text-sky-200">POSIZIONI {Number(latestPaperEvidence.openPositions || 0)}</span>
+                </div>
+              </div>
+              {latestPaperEvidence.decisionDataGate && (
+                <p className="mt-3 text-[11px] leading-5 text-slate-500">Gate dati del ciclo: confidence <strong className="text-slate-300">{Number(latestPaperEvidence.decisionDataGate.confidence || 0)}/100</strong> · cross-check {Number(latestPaperEvidence.decisionDataGate.crossChecks || 0)} · fonti mercato {Number(latestPaperEvidence.decisionDataGate.marketSources || 0)} · concentrazione {Number(latestPaperEvidence.decisionDataGate.sourceConcentrationPercent || 0)}%{latestPaperEvidence.decisionDataGate.reasons?.[0] ? ` · ${latestPaperEvidence.decisionDataGate.reasons[0]}` : ""}</p>
+              )}
+            </div>
+          )}
         </section>
 
         <section className={`rounded-3xl border p-5 ${executionStateStyle[executionReadiness.state]}`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">PAPER execution data</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">PAPER execution data · stato corrente</p>
               <h2 className="mt-2 text-xl font-black">{executionStateLabel[executionReadiness.state]}</h2>
               <p className="mt-2 text-sm leading-6 opacity-90">
                 {executionReadiness.ownerAction
@@ -153,6 +243,9 @@ export default function ReadinessPage() {
                   ?? "Due o più famiglie indipendenti con provenienza verificata stanno soddisfacendo il quorum PAPER."}
               </p>
               <p className="mt-2 text-xs opacity-70">Quorum minimo: <strong>{minimumSourceFamilies}</strong> famiglie. Ridondanza professionale preferita: <strong>{preferredSourceFamilies}</strong>. Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
+              {paperCampaignView.startedAt && executionReadiness.state === "STALE" && (
+                <p className="mt-3 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-[11px] leading-5 opacity-80">Le quote execution hanno una finestra stretta di freschezza e diventano intenzionalmente STALE dopo il limite operativo. Questo blocca nuovi fill finché il ciclo successivo non rigenera evidenza fresca, ma non modifica da solo la baseline v4 già fissata né il suo fingerprint.</p>
+              )}
             </div>
             <div className="grid min-w-[220px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Simboli PAPER</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSymbols}/{executionMetrics.requestedSymbols}</p></div>
