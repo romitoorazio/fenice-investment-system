@@ -17,31 +17,101 @@ concurrency:
 jobs:
   dispatch-canonical-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 70
     steps:
       - name: Dispatch and verify fresh PAPER baseline workflow
+        id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh workflow run paper-validation.yml --repo "$GITHUB_REPOSITORY" --ref main
-          sleep 8
-          validation_run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
+
+          workflow="paper-validation.yml"
+          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
+
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+
+          validation_run=""
+          for attempt in $(seq 1 60); do
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
+            candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
+            count="$(jq 'length' <<<"$candidates")"
+
+            if [ "$count" -eq 1 ]; then
+              validation_run="$(jq -r '.[0].databaseId' <<<"$candidates")"
+              break
+            fi
+
+            if [ "$count" -gt 1 ]; then
+              echo "Ambiguous PAPER validation dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
+              jq . <<<"$candidates"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
           test -n "$validation_run"
           echo "Watching canonical PAPER validation run $validation_run"
           gh run watch "$validation_run" --repo "$GITHUB_REPOSITORY" --exit-status
+          echo "run_id=$validation_run" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch and verify corrected PAPER probe cycle
+      - name: Verify fresh immutable PAPER baseline exists on main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main
-          sleep 8
-          probe_run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
+
+          campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
+          jq -e '
+            .startedAt != null and
+            .baselineCommit != null and
+            .baselineFingerprint != null and
+            .baselineFingerprint.complete == true and
+            .baselineFingerprint.algorithm == "sha256" and
+            .liveTradingAllowed == false
+          ' <<<"$campaign" >/dev/null
+
+          echo "Fresh PAPER baseline confirmed on main; LIVE remains locked."
+
+      - name: Dispatch and verify corrected PAPER probe cycle
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          workflow="paper-probe-staging.yml"
+          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
+
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+
+          probe_run=""
+          for attempt in $(seq 1 60); do
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
+            candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
+            count="$(jq 'length' <<<"$candidates")"
+
+            if [ "$count" -eq 1 ]; then
+              probe_run="$(jq -r '.[0].databaseId' <<<"$candidates")"
+              break
+            fi
+
+            if [ "$count" -gt 1 ]; then
+              echo "Ambiguous PAPER probe dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
+              jq . <<<"$candidates"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
           test -n "$probe_run"
           echo "Watching canonical PAPER probe run $probe_run"
           gh run watch "$probe_run" --repo "$GITHUB_REPOSITORY" --exit-status
+          echo "run_id=$probe_run" >> "$GITHUB_OUTPUT"
 
       - name: Confirm bootstrap completed without LIVE permissions
-        run: echo "Fenice PAPER v2 baseline and probe bootstrap completed; LIVE and broker connectivity remain governed by the canonical fail-closed workflows."
+        run: |
+          echo "Fenice PAPER v2 baseline run ${{ steps.baseline.outputs.run_id }} and probe run ${{ steps.probe.outputs.run_id }} completed."
+          echo "LIVE and broker connectivity remain governed by the canonical fail-closed workflows."
