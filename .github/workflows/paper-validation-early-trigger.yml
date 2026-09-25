@@ -13,13 +13,6 @@ on:
     # a successful OPEN or final market-closed evidence day.
     - cron: "35 16 * * 1-5"
   workflow_dispatch:
-  # One-shot recovery for a missed scheduled delivery on 2026-09-25. The path
-  # restriction prevents unrelated pushes from consuming provider calls, and
-  # the dispatcher still suppresses active/final duplicate runs.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/paper-validation-early-trigger.yml"
 
 permissions:
   actions: write
