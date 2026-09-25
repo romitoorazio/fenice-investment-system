@@ -15,9 +15,20 @@ const readJson = async (file, fallback = null) => {
 };
 const normalize = (value) => String(value || "").trim();
 const upper = (value) => normalize(value).toUpperCase();
+const canonicalName = (value) => normalize(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const round = (value, digits = 1) => {
   const factor = 10 ** digits;
   return Math.round(Number(value || 0) * factor) / factor;
+};
+
+const extraCountryAliases = {
+  GB: ["UK", "Great Britain", "United Kingdom"],
+  CZ: ["Czechia", "Czech Republic"],
+  TR: ["Turkey", "Türkiye", "Turkiye"],
+  BA: ["Bosnia and Herzegovina", "Bosnia & Herzegovina"],
+  MK: ["North Macedonia", "Macedonia"],
+  MD: ["Moldova", "Republic of Moldova"],
+  RU: ["Russia", "Russian Federation"],
 };
 
 async function requestJson(url, timeoutMs = 45_000) {
@@ -49,17 +60,28 @@ function rows(payload) {
 
 function buildRegistryMaps(registry) {
   const micToMarket = new Map();
-  const countryToMarkets = new Map();
+  const countryAliasToMarkets = new Map();
+  const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+  const addCountryAlias = (alias, market) => {
+    const key = canonicalName(alias);
+    if (!key) return;
+    if (!countryAliasToMarkets.has(key)) countryAliasToMarkets.set(key, []);
+    const items = countryAliasToMarkets.get(key);
+    if (!items.some((item) => item.id === market.id)) items.push(market);
+  };
+
   for (const market of registry.markets || []) {
     for (const mic of [market.mic, ...(market.segments || [])]) {
       const key = upper(mic);
       if (key) micToMarket.set(key, market);
     }
-    const country = upper(market.country);
-    if (!countryToMarkets.has(country)) countryToMarkets.set(country, []);
-    countryToMarkets.get(country).push(market);
+    addCountryAlias(market.country, market);
+    addCountryAlias(market.name, market);
+    addCountryAlias(displayNames.of(market.country), market);
+    for (const alias of extraCountryAliases[market.country] || []) addCountryAlias(alias, market);
   }
-  return { micToMarket, countryToMarkets };
+  return { micToMarket, countryAliasToMarkets };
 }
 
 function providerExchangeMic(row) {
@@ -70,8 +92,7 @@ function normalizeProviderExchange(row) {
   return {
     mic: providerExchangeMic(row),
     name: normalize(row?.name || row?.exchange || row?.exchange_name),
-    country: upper(row?.country_code || row?.country),
-    rawCountry: normalize(row?.country),
+    country: normalize(row?.country_code || row?.country),
     timezone: normalize(row?.timezone),
   };
 }
@@ -81,9 +102,12 @@ function buildProviderExchangeMap(exchangeRows) {
   const byName = new Map();
   for (const raw of exchangeRows) {
     const row = normalizeProviderExchange(raw);
-    const code = upper(raw?.code || raw?.exchange || raw?.mic_code || raw?.mic);
-    if (code) byCode.set(code, row);
-    if (row.name) byName.set(row.name.toLowerCase(), row);
+    for (const candidate of [raw?.code, raw?.exchange, raw?.mic_code, raw?.mic]) {
+      const code = upper(candidate);
+      if (code) byCode.set(code, row);
+    }
+    const nameKey = canonicalName(row.name);
+    if (nameKey) byName.set(nameKey, row);
   }
   return { byCode, byName };
 }
@@ -91,23 +115,32 @@ function buildProviderExchangeMap(exchangeRows) {
 function stockMic(row, providerMaps) {
   const direct = upper(row?.mic_code || row?.mic);
   if (direct) return direct;
-  const exchange = upper(row?.exchange);
+  const exchange = upper(row?.exchange || row?.exchange_code);
   if (exchange && providerMaps.byCode.has(exchange)) return providerMaps.byCode.get(exchange).mic;
-  const exchangeName = normalize(row?.exchange).toLowerCase();
+  const exchangeName = canonicalName(row?.exchange_name || row?.exchange);
   if (exchangeName && providerMaps.byName.has(exchangeName)) return providerMaps.byName.get(exchangeName).mic;
   return "";
 }
 
 function resolveMarket(row, providerMaps, registryMaps) {
   const mic = stockMic(row, providerMaps);
-  if (mic && registryMaps.micToMarket.has(mic)) return { market: registryMaps.micToMarket.get(mic), providerMic: mic, matchedBy: "mic" };
+  if (mic && registryMaps.micToMarket.has(mic)) {
+    return { market: registryMaps.micToMarket.get(mic), providerMic: mic, matchedBy: "mic" };
+  }
 
-  // Twelve Data occasionally exposes a national exchange code without MIC on
-  // reference rows. Country fallback is accepted only when the registry has a
-  // single active venue for that country; ambiguous countries fail closed.
-  const country = upper(row?.country_code || row?.country);
-  const candidates = registryMaps.countryToMarkets.get(country) || [];
-  if (candidates.length === 1) return { market: candidates[0], providerMic: mic || null, matchedBy: "country-single-venue" };
+  // If the provider supplied an exchange but it does not resolve to a registered
+  // primary/segment MIC, fail closed. This prevents e.g. Stuttgart/Berlin rows
+  // from being silently relabelled as Xetra just because the country is Germany.
+  const providerExchange = normalize(row?.exchange || row?.exchange_code || row?.exchange_name);
+  if (providerExchange) return null;
+
+  // Country fallback is allowed only when the provider omitted exchange identity
+  // entirely and Fenice has exactly one active venue for the country.
+  const countryKey = canonicalName(row?.country_code || row?.country);
+  const candidates = registryMaps.countryAliasToMarkets.get(countryKey) || [];
+  if (candidates.length === 1) {
+    return { market: candidates[0], providerMic: mic || null, matchedBy: "country-single-venue-no-exchange" };
+  }
   return null;
 }
 
@@ -139,7 +172,7 @@ function buildUniverse({ registry, exchangeRows, stockRows, generatedAt }) {
       marketId: resolved.market.id,
       marketMic: resolved.market.mic,
       providerMic,
-      providerExchange: normalize(row?.exchange),
+      providerExchange: normalize(row?.exchange || row?.exchange_name),
       matchedBy: resolved.matchedBy,
       sourceFamily: "twelve-data",
       researchOnly: true,
@@ -200,29 +233,32 @@ function buildUniverse({ registry, exchangeRows, stockRows, generatedAt }) {
 function runSelfTest() {
   const registry = {
     markets: [
-      { id: "it", country: "IT", mic: "XMIL", segments: ["MTAA"], currency: "EUR", venue: "Milan", tier: 1 },
-      { id: "de", country: "DE", mic: "XETR", segments: ["XFRA"], currency: "EUR", venue: "Xetra", tier: 1 },
-      { id: "ba-a", country: "BA", mic: "XSSE", segments: [], currency: "BAM", venue: "Sarajevo", tier: 3 },
-      { id: "ba-b", country: "BA", mic: "XBLB", segments: [], currency: "BAM", venue: "Banja Luka", tier: 3 },
+      { id: "it", name: "Italy", country: "IT", mic: "XMIL", segments: ["MTAA"], currency: "EUR", venue: "Milan", tier: 1 },
+      { id: "de", name: "Germany", country: "DE", mic: "XETR", segments: ["XFRA"], currency: "EUR", venue: "Xetra", tier: 1 },
+      { id: "ba-a", name: "Bosnia and Herzegovina", country: "BA", mic: "XSSE", segments: [], currency: "BAM", venue: "Sarajevo", tier: 3 },
+      { id: "ba-b", name: "Bosnia and Herzegovina", country: "BA", mic: "XBLB", segments: [], currency: "BAM", venue: "Banja Luka", tier: 3 },
     ],
   };
   const result = buildUniverse({
     registry,
     exchangeRows: [
-      { code: "MTAA", mic_code: "MTAA", name: "Borsa Italiana", country: "IT" },
-      { code: "XETR", mic_code: "XETR", name: "Xetra", country: "DE" },
+      { code: "MTAA", mic_code: "MTAA", name: "Borsa Italiana", country: "Italy" },
+      { code: "XETR", mic_code: "XETR", name: "Xetra", country: "Germany" },
+      { code: "XSTU", mic_code: "XSTU", name: "Boerse Stuttgart", country: "Germany" },
     ],
     stockRows: [
-      { symbol: "ENEL", name: "Enel", currency: "EUR", exchange: "MTAA", mic_code: "MTAA", country: "IT", type: "Common Stock" },
-      { symbol: "SIE", name: "Siemens", currency: "EUR", exchange: "XETR", mic_code: "XETR", country: "DE", type: "Common Stock" },
-      { symbol: "AMBIG", name: "Ambiguous Bosnia", currency: "BAM", country: "BA", type: "Common Stock" },
+      { symbol: "ENEL", name: "Enel", currency: "EUR", exchange: "MTAA", country: "Italy", type: "Common Stock" },
+      { symbol: "SIE", name: "Siemens", currency: "EUR", exchange: "XETR", country: "Germany", type: "Common Stock" },
+      { symbol: "STU", name: "Stuttgart-only", currency: "EUR", exchange: "XSTU", country: "Germany", type: "Common Stock" },
+      { symbol: "AMBIG", name: "Ambiguous Bosnia", currency: "BAM", country: "Bosnia and Herzegovina", type: "Common Stock" },
     ],
     generatedAt: "2026-09-25T00:00:00.000Z",
   });
   if (result.instruments.length !== 2) throw new Error(`SELF_TEST_EXPECTED_2_GOT_${result.instruments.length}`);
+  if (result.instruments.some((row) => row.symbol === "STU")) throw new Error("SELF_TEST_UNREGISTERED_EXCHANGE_MUST_FAIL_CLOSED");
   if (result.instruments.some((row) => row.symbol === "AMBIG")) throw new Error("SELF_TEST_AMBIGUOUS_COUNTRY_MUST_FAIL_CLOSED");
   if (result.safety.paperExecutionAllowed !== false || result.safety.liveTradingAllowed !== false) throw new Error("SELF_TEST_SAFETY_LOCK_FAILURE");
-  console.log("Fenice Europe instrument universe self-test: PASS (MIC mapping, segment mapping, ambiguous-country fail-closed, LIVE/PAPER lock). ");
+  console.log("Fenice Europe instrument universe self-test: PASS (MIC/segment mapping, country names, unregistered-exchange + ambiguous-country fail-closed, LIVE/PAPER lock). ");
 }
 
 if (selfTest) {
