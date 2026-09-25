@@ -63,6 +63,35 @@ const healthy = {
     guardrails: { blockAutonomousTrading: true, requireHumanConfirmation: true },
     prohibitedActions: ["inviare ordini", "collegarsi a broker"],
   },
+  approval: {
+    approved: true,
+    mode: "PAPER",
+    liveTradingAllowed: false,
+    brokerConnectivityAllowed: false,
+    permittedCurrencies: ["USD", "EUR"],
+    fxPolicy: {
+      baseCurrency: "EUR",
+      provider: "twelve-data",
+      requiredForNonEuro: true,
+      maxAgeSeconds: 120,
+      allowedCurrencies: ["EUR", "USD"],
+      usdPair: "USD/EUR",
+    },
+  },
+  fxEvidence: {
+    version: 1,
+    generatedAt: "2026-09-21T19:59:30Z",
+    baseCurrency: "EUR",
+    provider: "twelve-data",
+    provenanceVerified: true,
+    ratesToEuro: {
+      EUR: { rate: 1, observedAt: "2026-09-21T19:59:30Z", source: "identity" },
+      USD: { rate: 0.85, observedAt: "2026-09-21T19:59:20Z", source: "Twelve Data /exchange_rate USD/EUR" },
+    },
+    maxAgeSeconds: 120,
+    liveTradingAllowed: false,
+    brokerConnectivityAllowed: false,
+  },
   fingerprint: { complete: true, algorithm: "sha256", digest: "a".repeat(64) },
   now,
 };
@@ -82,7 +111,34 @@ assert.ok(!pass.metrics.approvedIndependentPaperSourceFamilies.includes("alpha-v
 assert.equal(pass.metrics.unregisteredPaperEvidenceFailsClosed, true);
 assert.equal(pass.gates.executionMarketProvenancePolicy, true);
 assert.equal(pass.gates.executionSymbolCoverage, true);
+assert.equal(pass.gates.marketFx, true);
 assert.equal(pass.gates.zeroCostPaperPolicy, true);
+assert.equal(pass.metrics.fx.usdRate, 0.85);
+
+const staleFx = evaluatePaperBaselineEligibility({
+  ...healthy,
+  fxEvidence: {
+    ...healthy.fxEvidence,
+    generatedAt: "2026-09-21T19:55:00Z",
+    ratesToEuro: {
+      ...healthy.fxEvidence.ratesToEuro,
+      USD: { ...healthy.fxEvidence.ratesToEuro.USD, observedAt: "2026-09-21T19:55:00Z" },
+    },
+  },
+});
+assert.equal(staleFx.eligible, false, "stale USD/EUR evidence must block a new PAPER baseline");
+assert.equal(staleFx.gates.marketFx, false);
+
+const missingFxApproval = evaluatePaperBaselineEligibility({ ...healthy, approval: undefined });
+assert.equal(missingFxApproval.eligible, false, "missing PAPER FX approval must fail closed");
+assert.equal(missingFxApproval.gates.marketFx, false);
+
+const unsafeFxEvidence = evaluatePaperBaselineEligibility({
+  ...healthy,
+  fxEvidence: { ...healthy.fxEvidence, liveTradingAllowed: true },
+});
+assert.equal(unsafeFxEvidence.eligible, false, "FX evidence carrying a LIVE-open flag must never certify the PAPER baseline");
+assert.equal(unsafeFxEvidence.gates.marketFx, false);
 
 const noDirectaEvidence = evaluatePaperBaselineEligibility({
   ...healthy,
