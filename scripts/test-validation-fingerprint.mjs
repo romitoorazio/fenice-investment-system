@@ -48,6 +48,7 @@ assert.match(projectFingerprint.digest, /^[a-f0-9]{64}$/);
 assert(projectFingerprint.files.length >= 60, "validation fingerprint must cover the expanded safety-critical surface");
 for (const required of [
   ".github/workflows/ci.yml",
+  ".github/workflows/paper-probe-staging.yml",
   ".github/workflows/paper-validation.yml",
   "data/instrument-master.json",
   "package.json",
@@ -66,9 +67,12 @@ for (const required of [
   "scripts/check-execution-market-coverage.mjs",
   "scripts/check-paper-baseline-eligibility.mjs",
   "scripts/check-certification-readiness.mjs",
+  "scripts/paper-validation-stager.mjs",
+  "scripts/refresh-twelve-data-batch-evidence.mjs",
   "scripts/run-directa-paper-preflight.mjs",
   "scripts/run-execution-market-data.mjs",
   "scripts/run-local-paper-validation-cycle.mjs",
+  "scripts/stage-paper-validation-order.mjs",
   "scripts/validate-instrument-master.mjs",
 ]) {
   assert(projectFingerprint.files.includes(required), `validation fingerprint must include ${required}`);
