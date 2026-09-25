@@ -28,6 +28,8 @@ export class PaperOms {
 
     const risk = evaluatePreTradeRisk(order, context, this.riskLimits, now);
     const createdAt = new Date(now).toISOString();
+    const fxProvider = order.fxProvider ? String(order.fxProvider) : null;
+    const fxObservedAt = order.fxObservedAt ? String(order.fxObservedAt) : null;
 
     if (!risk.allowed) {
       const rejected: PaperExecution = {
@@ -42,6 +44,10 @@ export class PaperOms {
         notionalEuro: 0,
         estimatedFeeEuro: 0,
         estimatedSlippageEuro: 0,
+        currency: order.currency,
+        fxToEuro: context.fxToEuro,
+        fxProvider,
+        fxObservedAt,
         createdAt,
         filledAt: null,
         risk,
@@ -68,6 +74,10 @@ export class PaperOms {
           notionalEuro: 0,
           estimatedFeeEuro: 0,
           estimatedSlippageEuro: 0,
+          currency: order.currency,
+          fxToEuro: context.fxToEuro,
+          fxProvider,
+          fxObservedAt,
           createdAt,
           filledAt: null,
           risk: {
@@ -105,6 +115,10 @@ export class PaperOms {
       notionalEuro: Number(grossEuro.toFixed(2)),
       estimatedFeeEuro: Number(estimatedFeeEuro.toFixed(2)),
       estimatedSlippageEuro: Number(estimatedSlippageEuro.toFixed(2)),
+      currency: order.currency,
+      fxToEuro: context.fxToEuro,
+      fxProvider,
+      fxObservedAt,
       createdAt,
       filledAt: createdAt,
       risk,
