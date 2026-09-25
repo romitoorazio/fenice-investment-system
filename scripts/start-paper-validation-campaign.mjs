@@ -9,7 +9,6 @@ import { computePaperValidationFingerprint } from "../lib/trading/validation-fin
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const campaignPath = path.join(root, "data", "paper-validation-campaign.json");
-const statePath = path.join(root, "data", "paper-oms-state.json");
 
 async function readJson(relativePath) {
   return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
