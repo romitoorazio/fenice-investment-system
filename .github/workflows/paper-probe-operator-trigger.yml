@@ -133,7 +133,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main
+          dispatch_token="operator-probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
           echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
 
       - name: Confirm fail-closed skip
