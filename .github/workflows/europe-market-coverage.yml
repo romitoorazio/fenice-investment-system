@@ -1,0 +1,49 @@
+name: Fenice Europe Market Coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/europe-market-registry.json"
+      - "data/europe-market-coverage.json"
+      - "data/global-market-universe.json"
+      - "scripts/check-europe-market-coverage.mjs"
+      - "app/europe/**"
+      - ".github/workflows/europe-market-coverage.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/europe-market-registry.json"
+      - "data/europe-market-coverage.json"
+      - "data/global-market-universe.json"
+      - "scripts/check-europe-market-coverage.mjs"
+      - "app/europe/**"
+      - ".github/workflows/europe-market-coverage.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  europe-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate European market registry
+        run: node scripts/check-europe-market-coverage.mjs --validate-only
+
+      - name: Rebuild deterministic coverage report
+        run: node scripts/check-europe-market-coverage.mjs
+
+      - name: Verify committed coverage report is current
+        run: git diff --exit-code -- data/europe-market-coverage.json
