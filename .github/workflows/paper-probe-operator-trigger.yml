@@ -10,6 +10,11 @@ on:
     # Secondary recovery checkpoint if GitHub skips/delays the first recovery
     # registration. The same fail-closed preflight and duplicate suppression apply.
     - cron: "25 17 * * 1-5"
+  workflow_run:
+    workflows:
+      - Fenice Global Sources
+    types:
+      - completed
   push:
     branches: [main]
     paths:
@@ -32,6 +37,9 @@ jobs:
         id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
           campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
@@ -39,13 +47,37 @@ jobs:
           oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
           intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
           source_health="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/global-source-health.json?ref=main")"
-          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 20 --json databaseId,status,conclusion,createdAt,event,headBranch)"
+          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,event,headBranch)"
 
           active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
           prefix="$(jq -r '.idPrefix // "fenice-paper-validation-"' <<<"$approval")"
           today="$(date -u +%F)"
           attempted_today="$(jq -r --arg prefix "$prefix" --arg today "$today" 'any(.executions[]?; (((.clientOrderId // "") | startswith($prefix)) or (.validationProbe == true)) and (((.createdAt // .filledAt // "") | tostring) | startswith($today)))' <<<"$oms")"
           active_probe_run="$(jq -r 'any(.[]?; (.status == "queued") or (.status == "in_progress") or (.status == "waiting") or (.status == "pending") or (.status == "requested"))' <<<"$probe_runs")"
+          probe_cycles_today="$(jq -r --arg today "$today" '[.[]? | select((((.createdAt // "") | tostring) | startswith($today)))] | length' <<<"$probe_runs")"
+          probe_cycle_budget_ready=false
+          if [ "$probe_cycles_today" -lt 2 ]; then
+            probe_cycle_budget_ready=true
+          fi
+
+          recovery_event_ready=true
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            utc_weekday="$(date -u +%u)"
+            utc_hour="$(date -u +%H)"
+            utc_minute="$(date -u +%M)"
+            utc_minutes=$((10#$utc_hour * 60 + 10#$utc_minute))
+            recovery_event_ready=false
+            # 14:35-19:30 UTC is safely inside the regular US equity session in
+            # both US daylight and standard time. Holidays/early closes still
+            # fail closed inside the canonical authoritative market-clock gate.
+            if [ "$UPSTREAM_CONCLUSION" = "success" ] \
+              && [ "$UPSTREAM_EVENT" = "schedule" ] \
+              && [ "$utc_weekday" -le 5 ] \
+              && [ "$utc_minutes" -ge 875 ] \
+              && [ "$utc_minutes" -le 1170 ]; then
+              recovery_event_ready=true
+            fi
+          fi
 
           intelligence_metrics="$(node -e '
             const q = JSON.parse(process.argv[1]);
@@ -117,6 +149,8 @@ jobs:
           if [ "$active" = "true" ] \
             && [ "$attempted_today" != "true" ] \
             && [ "$active_probe_run" != "true" ] \
+            && [ "$probe_cycle_budget_ready" = "true" ] \
+            && [ "$recovery_event_ready" = "true" ] \
             && [ "$intelligence_age_valid" = "true" ] \
             && [ "$source_age_valid" = "true" ] \
             && [ "$cooldown_ready" = "true" ] \
@@ -128,6 +162,9 @@ jobs:
           echo "active=$active" >> "$GITHUB_OUTPUT"
           echo "attempted_today=$attempted_today" >> "$GITHUB_OUTPUT"
           echo "active_probe_run=$active_probe_run" >> "$GITHUB_OUTPUT"
+          echo "probe_cycles_today=$probe_cycles_today" >> "$GITHUB_OUTPUT"
+          echo "probe_cycle_budget_ready=$probe_cycle_budget_ready" >> "$GITHUB_OUTPUT"
+          echo "recovery_event_ready=$recovery_event_ready" >> "$GITHUB_OUTPUT"
           echo "intelligence_age_valid=$intelligence_age_valid" >> "$GITHUB_OUTPUT"
           echo "source_age_valid=$source_age_valid" >> "$GITHUB_OUTPUT"
           echo "cooldown_ready=$cooldown_ready" >> "$GITHUB_OUTPUT"
@@ -135,7 +172,7 @@ jobs:
           echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
 
-          echo "PAPER operator preflight: active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
           echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
           echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
 
@@ -153,4 +190,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, two canonical probe cycles already launched today, an event-driven recovery outside its approved market window, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
