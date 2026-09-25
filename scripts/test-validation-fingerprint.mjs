@@ -62,6 +62,7 @@ for (const required of [
   "lib/trading/execution-coverage.ts",
   "lib/trading/instrument-identity.ts",
   "lib/trading/paper-baseline.mjs",
+  "lib/trading/paper-fx-evidence.mjs",
   "lib/trading/signal-conditional-orders.ts",
   "lib/trading/smart-order-router.ts",
   "scripts/check-execution-market-coverage.mjs",
