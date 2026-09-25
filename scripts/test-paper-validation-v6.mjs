@@ -88,6 +88,8 @@ const matured = evaluatePaperValidationCampaign(campaign(), now);
 assert.equal(matured.matured, true, matured.reasons.join(" | "));
 assert.equal(matured.fxEvidenceProofFailureDays, 0);
 assert.equal(matured.fillEvidenceProofFailureDays, 0);
+assert.equal(matured.futureEvidenceDays, 0);
+assert.equal(matured.duplicateEvidenceDays, 0);
 
 const missingPolicy = evaluatePaperValidationCampaign(campaign({ evidencePolicy: {} }), now);
 assert.equal(missingPolicy.state, "INVALID");
@@ -144,4 +146,40 @@ const v5LegacyProof = evaluatePaperValidationCampaign({
 }, now);
 assert.equal(v5LegacyProof.matured, true, "v5 archive evidence remains readable, but only v6+ requires FX proof");
 
-console.log("Fenice v6 PAPER campaign FX-proof invariants: PASS");
+const futureDate = "2026-10-27";
+const futureDatedEvidence = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: [
+    ...dailyEvidence,
+    {
+      ...dailyEvidence.at(-1),
+      date: futureDate,
+      observedAt: `${futureDate}T00:01:00Z`,
+    },
+  ],
+}), now);
+assert.equal(futureDatedEvidence.state, "INVALID");
+assert.equal(futureDatedEvidence.matured, false);
+assert.equal(futureDatedEvidence.futureEvidenceDays, 1);
+assert.equal(futureDatedEvidence.evidenceDays, 26);
+assert(futureDatedEvidence.reasons.some((reason) => reason.includes("future-dated evidence")));
+
+const duplicateDate = dailyEvidence[0].date;
+const duplicateEvidence = evaluatePaperValidationCampaign(campaign({
+  dailyEvidence: [
+    ...dailyEvidence,
+    {
+      ...dailyEvidence[0],
+      cumulativePaperFilled: 999,
+      newPaperFills: 999,
+      executionQuality: { state: "HEALTHY", allowPilot: true, fills: 999 },
+    },
+  ],
+}), now);
+assert.equal(duplicateEvidence.state, "INVALID");
+assert.equal(duplicateEvidence.matured, false);
+assert.equal(duplicateEvidence.duplicateEvidenceDays, 1);
+assert.equal(duplicateEvidence.evidenceDays, 26);
+assert.equal(duplicateEvidence.cumulativePaperFills, 10, `duplicate ${duplicateDate} must not alter cumulative fills`);
+assert(duplicateEvidence.reasons.some((reason) => reason.includes("duplicate evidence date")));
+
+console.log("Fenice v6 PAPER campaign FX/date-integrity invariants: PASS");
