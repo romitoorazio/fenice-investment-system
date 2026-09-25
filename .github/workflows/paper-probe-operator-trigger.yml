@@ -7,6 +7,9 @@ on:
     # execute PAPER logic itself: it can only dispatch the fingerprinted
     # canonical probe after duplicate/quality/cooldown/active-run suppression.
     - cron: "15 17 * * 1-5"
+    # Secondary recovery checkpoint if GitHub skips/delays the first recovery
+    # registration. The same fail-closed preflight and duplicate suppression apply.
+    - cron: "25 17 * * 1-5"
   push:
     branches: [main]
     paths:
