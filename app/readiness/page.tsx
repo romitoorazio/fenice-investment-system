@@ -48,6 +48,7 @@ type PaperEvidenceView = {
 };
 
 type PaperCampaignView = {
+  version?: number;
   startedAt?: string | null;
   baselineCommit?: string | null;
   baselineFingerprint?: {
@@ -116,6 +117,7 @@ export default function ReadinessPage() {
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
   const paperCampaignView = paperCampaign as unknown as PaperCampaignView;
+  const campaignVersion = Math.max(1, Number(paperCampaignView.version || 1));
 
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
@@ -188,7 +190,7 @@ export default function ReadinessPage() {
                 </span>
                 {paperCampaignView.startedAt && (
                   <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${fingerprintMatches ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>
-                    {fingerprintMatches ? "FINGERPRINT V4 OK" : "FINGERPRINT CHECK"}
+                    {fingerprintMatches ? `FINGERPRINT V${campaignVersion} OK` : "FINGERPRINT CHECK"}
                   </span>
                 )}
               </div>
@@ -244,7 +246,7 @@ export default function ReadinessPage() {
               </p>
               <p className="mt-2 text-xs opacity-70">Quorum minimo: <strong>{minimumSourceFamilies}</strong> famiglie. Ridondanza professionale preferita: <strong>{preferredSourceFamilies}</strong>. Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
               {paperCampaignView.startedAt && executionReadiness.state === "STALE" && (
-                <p className="mt-3 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-[11px] leading-5 opacity-80">Le quote execution hanno una finestra stretta di freschezza e diventano intenzionalmente STALE dopo il limite operativo. Questo blocca nuovi fill finché il ciclo successivo non rigenera evidenza fresca, ma non modifica da solo la baseline v4 già fissata né il suo fingerprint.</p>
+                <p className="mt-3 rounded-xl border border-current/15 bg-black/15 px-3 py-2 text-[11px] leading-5 opacity-80">Le quote execution hanno una finestra stretta di freschezza e diventano intenzionalmente STALE dopo il limite operativo. Questo blocca nuovi fill finché il ciclo successivo non rigenera evidenza fresca, ma non modifica da solo la baseline v{campaignVersion} già fissata né il suo fingerprint.</p>
               )}
             </div>
             <div className="grid min-w-[220px] grid-cols-2 gap-2 text-center">
