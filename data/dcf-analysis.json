@@ -1,110 +1,44 @@
 {
-  "version": 225,
-  "generatedAt": "2026-09-25T20:49:50.285Z",
+  "version": 226,
+  "generatedAt": "2026-09-25T20:56:28.339Z",
   "mode": "live",
   "source": {
     "name": "Fenice DCF Scenario Engine",
     "state": "operativo",
-    "detail": "6/12 società con DCF per azione confrontabile; le altre sono bloccate per valuta, fase aziendale o dati insufficienti."
+    "detail": "4/12 società con DCF confrontabile; gli altri casi sono bloccati per qualità FCF, valuta, fase o dati insufficienti."
   },
   "companyCount": 12,
-  "availableCount": 6,
-  "coveragePercent": 50,
+  "availableCount": 4,
+  "coveragePercent": 33,
   "methodology": [
-    "Free cash flow annuale normalizzato da SEC EDGAR e collegato al prezzo del World Terminal.",
-    "Tre scenari a cinque anni con crescita iniziale che converge progressivamente verso un livello terminale.",
-    "Scenario prudente: tasso di sconto 11,5% e crescita terminale 2%.",
-    "Scenario base: tasso di sconto 9,5% e crescita terminale 2,5%.",
-    "Scenario espansivo: tasso di sconto 8,5% e crescita terminale 3%.",
-    "Cassa e debito sono inclusi nel ponte da enterprise value a equity value.",
-    "Azioni diluite inferite da utile netto diviso EPS; il dato viene segnalato come stima.",
-    "Nessun confronto per azione quando valuta del bilancio e valuta del prezzo non coincidono.",
+    "Free cash flow annuale SEC collegato al prezzo del World Terminal.",
+    "Controllo qualità obbligatorio su operating cash flow, capex, margine FCF e coerenza dei valori.",
+    "Tre scenari a cinque anni con crescita progressivamente decrescente.",
+    "Prudente: sconto 11,5%, crescita terminale 2%.",
+    "Base: sconto 9,5%, crescita terminale 2,5%.",
+    "Espansivo: sconto 8,5%, crescita terminale 3%.",
+    "Matrice di sensibilità 3×3 separata: crescita base invariata, tasso di sconto 8,5/9,5/10,5% e crescita terminale 1,5/2,5/3,5%.",
+    "La fragilità della valutazione misura la dispersione dei fair value nella matrice e non modifica il DCF score.",
+    "Cassa e debito inclusi nel ponte enterprise-equity.",
+    "Azioni diluite inferite da utile netto/EPS.",
+    "Blocco automatico quando valuta del bilancio e del prezzo non coincidono.",
     "Nessun DCF tradizionale per società pre-commerciali."
   ],
   "companies": [
-    {
-      "symbol": "AMZN",
-      "name": "AMAZON COM INC",
-      "sector": "Cloud, commercio elettronico e logistica",
-      "businessStage": "crescita",
-      "status": "disponibile",
-      "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
-      "source": "SEC EDGAR + Fenice World Terminal",
-      "currentPrice": 249.73,
-      "freeCashFlow": 132777000000,
-      "cash": 86810000000,
-      "debt": 68396000000,
-      "dilutedShares": 10832635983,
-      "confidence": 92,
-      "score": 44,
-      "fairValueLow": 140.71,
-      "fairValueBase": 205.03,
-      "fairValueHigh": 276.88,
-      "upsideBasePercent": -17.9,
-      "scenarios": [
-        {
-          "id": "prudente",
-          "label": "Prudente",
-          "revenueGrowthStartPercent": 3.6,
-          "terminalGrowthPercent": 2,
-          "discountRatePercent": 11.5,
-          "forecastYears": 5,
-          "enterpriseValue": 1505792676716,
-          "equityValue": 1524206676716,
-          "fairValuePerShare": 140.71,
-          "upsidePercent": -43.7
-        },
-        {
-          "id": "base",
-          "label": "Base",
-          "revenueGrowthStartPercent": 7.6,
-          "terminalGrowthPercent": 2.5,
-          "discountRatePercent": 9.5,
-          "forecastYears": 5,
-          "enterpriseValue": 2202612976966,
-          "equityValue": 2221026976966,
-          "fairValuePerShare": 205.03,
-          "upsidePercent": -17.9
-        },
-        {
-          "id": "espansivo",
-          "label": "Espansivo",
-          "revenueGrowthStartPercent": 10.6,
-          "terminalGrowthPercent": 3,
-          "discountRatePercent": 8.5,
-          "forecastYears": 5,
-          "enterpriseValue": 2980875057245,
-          "equityValue": 2999289057245,
-          "fairValuePerShare": 276.88,
-          "upsidePercent": 10.9
-        }
-      ],
-      "rationale": [
-        "Free cash flow di partenza 132777000000 USD.",
-        "Crescita iniziale scenario base 7.6%, in progressiva convergenza verso il tasso terminale.",
-        "Azioni diluite stimate da utile netto/EPS: 10832635983.",
-        "Scostamento scenario base rispetto al prezzo: -17.9%."
-      ],
-      "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
-      ]
-    },
     {
       "symbol": "META",
       "name": "Meta Platforms, Inc.",
       "sector": "Piattaforme digitali e intelligenza artificiale",
       "businessStage": "crescita",
-      "status": "disponibile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 752.65,
       "freeCashFlow": 46109000000,
       "cash": 35873000000,
       "debt": 58744000000,
       "dilutedShares": 2573776075,
+      "status": "disponibile",
       "confidence": 94,
       "score": 21,
       "fairValueLow": 219.4,
@@ -149,84 +83,85 @@
           "upsidePercent": -41.2
         }
       ],
+      "robustness": {
+        "state": "MEDIA FRAGILITÀ",
+        "sensitivityCells": [
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 336.21,
+            "upsidePercent": -55.3
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 381.25,
+            "upsidePercent": -49.3
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 453.78,
+            "upsidePercent": -39.7
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 292.23,
+            "upsidePercent": -61.2
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 324.79,
+            "upsidePercent": -56.8
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 375.89,
+            "upsidePercent": -50.1
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 258.04,
+            "upsidePercent": -65.7
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 282.46,
+            "upsidePercent": -62.5
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 320.27,
+            "upsidePercent": -57.4
+          }
+        ],
+        "supportingCells": 0,
+        "totalCells": 9,
+        "supportPercent": 0,
+        "fairValueMin": 258.04,
+        "fairValueMedian": 324.79,
+        "fairValueMax": 453.78,
+        "valuationSpreadPercent": 60.3,
+        "prudentMarginPercent": -65.7,
+        "note": "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni."
+      },
       "rationale": [
         "Free cash flow di partenza 46109000000 USD.",
-        "Crescita iniziale scenario base 12.9%, in progressiva convergenza verso il tasso terminale.",
+        "Capex/ricavi verificato al 34.68%.",
+        "Crescita iniziale scenario base 12.9%, poi progressivamente ridotta.",
         "Azioni diluite stimate da utile netto/EPS: 2573776075.",
-        "Scostamento scenario base rispetto al prezzo: -56.8%."
+        "Scostamento scenario base rispetto al prezzo: -56.8%.",
+        "Robustezza: 0/9 celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità media fragilità."
       ],
       "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
-      ]
-    },
-    {
-      "symbol": "NVDA",
-      "name": "NVIDIA CORP",
-      "sector": "Semiconduttori e intelligenza artificiale",
-      "businessStage": "crescita",
-      "status": "disponibile",
-      "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
-      "source": "SEC EDGAR + Fenice World Terminal",
-      "currentPrice": 224.22,
-      "freeCashFlow": 102579265000,
-      "cash": 10605000000,
-      "debt": 8468000000,
-      "dilutedShares": 24503469388,
-      "confidence": 73,
-      "score": 15,
-      "fairValueLow": 57.03,
-      "fairValueBase": 86.82,
-      "fairValueHigh": 117.26,
-      "upsideBasePercent": -61.3,
-      "scenarios": [
-        {
-          "id": "prudente",
-          "label": "Prudente",
-          "revenueGrowthStartPercent": 12,
-          "terminalGrowthPercent": 2,
-          "discountRatePercent": 11.5,
-          "forecastYears": 5,
-          "enterpriseValue": 1395300251067,
-          "equityValue": 1397437251067,
-          "fairValuePerShare": 57.03,
-          "upsidePercent": -74.6
-        },
-        {
-          "id": "base",
-          "label": "Base",
-          "revenueGrowthStartPercent": 18,
-          "terminalGrowthPercent": 2.5,
-          "discountRatePercent": 9.5,
-          "forecastYears": 5,
-          "enterpriseValue": 2125330535301,
-          "equityValue": 2127467535301,
-          "fairValuePerShare": 86.82,
-          "upsidePercent": -61.3
-        },
-        {
-          "id": "espansivo",
-          "label": "Espansivo",
-          "revenueGrowthStartPercent": 21,
-          "terminalGrowthPercent": 3,
-          "discountRatePercent": 8.5,
-          "forecastYears": 5,
-          "enterpriseValue": 2871195284976,
-          "equityValue": 2873332284976,
-          "fairValuePerShare": 117.26,
-          "upsidePercent": -47.7
-        }
-      ],
-      "rationale": [
-        "Free cash flow di partenza 102579265000 USD.",
-        "Crescita iniziale scenario base 18%, in progressiva convergenza verso il tasso terminale.",
-        "Azioni diluite stimate da utile netto/EPS: 24503469388.",
-        "Scostamento scenario base rispetto al prezzo: -61.3%."
-      ],
-      "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
+        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
+        "L’intervallo di scenari è più importante del valore centrale."
       ]
     },
     {
@@ -234,15 +169,15 @@
       "name": "MICROSOFT CORPORATION",
       "sector": "Cloud e intelligenza artificiale",
       "businessStage": "crescita",
-      "status": "disponibile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 518.04,
       "freeCashFlow": 66987000000,
       "cash": 20935000000,
       "debt": 40294000000,
       "dilutedShares": 7451197772,
+      "status": "disponibile",
       "confidence": 95,
       "score": 13,
       "fairValueLow": 105.99,
@@ -287,15 +222,85 @@
           "upsidePercent": -59
         }
       ],
+      "robustness": {
+        "state": "MEDIA FRAGILITÀ",
+        "sensitivityCells": [
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 161.6,
+            "upsidePercent": -68.8
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 182.96,
+            "upsidePercent": -64.7
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 217.39,
+            "upsidePercent": -58
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 140.73,
+            "upsidePercent": -72.8
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 156.18,
+            "upsidePercent": -69.9
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 180.43,
+            "upsidePercent": -65.2
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 124.51,
+            "upsidePercent": -76
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 136.09,
+            "upsidePercent": -73.7
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 154.04,
+            "upsidePercent": -70.3
+          }
+        ],
+        "supportingCells": 0,
+        "totalCells": 9,
+        "supportPercent": 0,
+        "fairValueMin": 124.51,
+        "fairValueMedian": 156.18,
+        "fairValueMax": 217.39,
+        "valuationSpreadPercent": 59.5,
+        "prudentMarginPercent": -76,
+        "note": "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni."
+      },
       "rationale": [
         "Free cash flow di partenza 66987000000 USD.",
-        "Crescita iniziale scenario base 10.5%, in progressiva convergenza verso il tasso terminale.",
+        "Capex/ricavi verificato al 34.94%.",
+        "Crescita iniziale scenario base 10.5%, poi progressivamente ridotta.",
         "Azioni diluite stimate da utile netto/EPS: 7451197772.",
-        "Scostamento scenario base rispetto al prezzo: -69.9%."
+        "Scostamento scenario base rispetto al prezzo: -69.9%.",
+        "Robustezza: 0/9 celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità media fragilità."
       ],
       "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
+        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
+        "L’intervallo di scenari è più importante del valore centrale."
       ]
     },
     {
@@ -303,15 +308,15 @@
       "name": "Alphabet Inc.",
       "sector": "Internet, cloud e intelligenza artificiale",
       "businessStage": "crescita",
-      "status": "disponibile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 344.32,
       "freeCashFlow": 73266000000,
       "cash": 30708000000,
       "debt": 48543000000,
       "dilutedShares": 12226641998,
+      "status": "disponibile",
       "confidence": 95,
       "score": 13,
       "fairValueLow": 66.6,
@@ -356,15 +361,85 @@
           "upsidePercent": -61.3
         }
       ],
+      "robustness": {
+        "state": "MEDIA FRAGILITÀ",
+        "sensitivityCells": [
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 101.48,
+            "upsidePercent": -70.5
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 114.83,
+            "upsidePercent": -66.7
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 136.35,
+            "upsidePercent": -60.4
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 88.44,
+            "upsidePercent": -74.3
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 98.09,
+            "upsidePercent": -71.5
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 113.26,
+            "upsidePercent": -67.1
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 78.31,
+            "upsidePercent": -77.3
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 85.54,
+            "upsidePercent": -75.2
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 96.77,
+            "upsidePercent": -71.9
+          }
+        ],
+        "supportingCells": 0,
+        "totalCells": 9,
+        "supportPercent": 0,
+        "fairValueMin": 78.31,
+        "fairValueMedian": 98.09,
+        "fairValueMax": 136.35,
+        "valuationSpreadPercent": 59.2,
+        "prudentMarginPercent": -77.3,
+        "note": "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni."
+      },
       "rationale": [
         "Free cash flow di partenza 73266000000 USD.",
-        "Crescita iniziale scenario base 7.7%, in progressiva convergenza verso il tasso terminale.",
+        "Capex/ricavi verificato al 22.7%.",
+        "Crescita iniziale scenario base 7.7%, poi progressivamente ridotta.",
         "Azioni diluite stimate da utile netto/EPS: 12226641998.",
-        "Scostamento scenario base rispetto al prezzo: -71.5%."
+        "Scostamento scenario base rispetto al prezzo: -71.5%.",
+        "Robustezza: 0/9 celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità media fragilità."
       ],
       "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
+        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
+        "L’intervallo di scenari è più importante del valore centrale."
       ]
     },
     {
@@ -372,15 +447,15 @@
       "name": "Apple Inc.",
       "sector": "Tecnologia e dispositivi",
       "businessStage": "maturo",
-      "status": "disponibile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 340.3,
       "freeCashFlow": 98767000000,
       "cash": 35934000000,
       "debt": 90678000000,
       "dilutedShares": 15014745308,
+      "status": "disponibile",
       "confidence": 94,
       "score": 13,
       "fairValueLow": 65.14,
@@ -425,15 +500,85 @@
           "upsidePercent": -61.9
         }
       ],
+      "robustness": {
+        "state": "MEDIA FRAGILITÀ",
+        "sensitivityCells": [
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 98.1,
+            "upsidePercent": -71.2
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 111.2,
+            "upsidePercent": -67.3
+          },
+          {
+            "discountRatePercent": 8.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 132.37,
+            "upsidePercent": -61.1
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 85.29,
+            "upsidePercent": -74.9
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 94.76,
+            "upsidePercent": -72.2
+          },
+          {
+            "discountRatePercent": 9.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 109.68,
+            "upsidePercent": -67.8
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 1.5,
+            "fairValuePerShare": 75.33,
+            "upsidePercent": -77.9
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 2.5,
+            "fairValuePerShare": 82.43,
+            "upsidePercent": -75.8
+          },
+          {
+            "discountRatePercent": 10.5,
+            "terminalGrowthPercent": 3.5,
+            "fairValuePerShare": 93.48,
+            "upsidePercent": -72.5
+          }
+        ],
+        "supportingCells": 0,
+        "totalCells": 9,
+        "supportPercent": 0,
+        "fairValueMin": 75.33,
+        "fairValueMedian": 94.76,
+        "fairValueMax": 132.37,
+        "valuationSpreadPercent": 60.2,
+        "prudentMarginPercent": -77.9,
+        "note": "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni."
+      },
       "rationale": [
         "Free cash flow di partenza 98767000000 USD.",
-        "Crescita iniziale scenario base 3%, in progressiva convergenza verso il tasso terminale.",
+        "Capex/ricavi verificato al 3.06%.",
+        "Crescita iniziale scenario base 3%, poi progressivamente ridotta.",
         "Azioni diluite stimate da utile netto/EPS: 15014745308.",
-        "Scostamento scenario base rispetto al prezzo: -72.2%."
+        "Scostamento scenario base rispetto al prezzo: -72.2%.",
+        "Robustezza: 0/9 celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità media fragilità."
       ],
       "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing annuale.",
-        "Il DCF è molto sensibile a crescita, tasso di sconto e terminal value; l’intervallo è più importante del valore centrale."
+        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
+        "L’intervallo di scenari è più importante del valore centrale."
       ]
     },
     {
@@ -441,15 +586,15 @@
       "name": "ASML HOLDING NV",
       "sector": "Macchinari per semiconduttori",
       "businessStage": "crescita",
-      "status": "non confrontabile",
       "currency": "EUR",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 1741.95,
       "freeCashFlow": 11084900000,
       "cash": 12916000000,
       "debt": 4390900000,
-      "dilutedShares": 388887090.2468636,
+      "dilutedShares": 388887090,
+      "status": "non confrontabile",
       "confidence": 82,
       "score": 50,
       "scenarios": [],
@@ -457,7 +602,32 @@
         "Bilancio espresso in EUR e prezzo espresso in USD."
       ],
       "warnings": [
-        "ADR, rapporto di conversione o cambio valutario devono essere verificati prima di stimare il valore per azione."
+        "ADR, rapporto di conversione o cambio devono essere verificati prima di stimare il valore per azione."
+      ]
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA CORP",
+      "sector": "Semiconduttori e intelligenza artificiale",
+      "businessStage": "crescita",
+      "currency": "USD",
+      "observedAt": "2026-09-25T20:56:28.339Z",
+      "source": "SEC EDGAR + Fenice World Terminal",
+      "currentPrice": 224.22,
+      "freeCashFlow": 102579265000,
+      "cash": 10605000000,
+      "debt": 8468000000,
+      "dilutedShares": 24503469388,
+      "status": "dati insufficienti",
+      "confidence": 55,
+      "score": 35,
+      "scenarios": [],
+      "rationale": [
+        "Il free cash flow non supera il controllo di qualità su operating cash flow e investimenti."
+      ],
+      "warnings": [
+        "Capex/ricavi indicativo: 0.06%; margine FCF: 47.5%.",
+        "Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing."
       ]
     },
     {
@@ -465,22 +635,48 @@
       "name": "Taiwan Semiconductor Manufacturing Company Limited",
       "sector": "Produzione di semiconduttori",
       "businessStage": "crescita",
-      "status": "dati insufficienti",
       "currency": "TWD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 451.58,
       "cash": 2127627000000,
       "debt": 0,
-      "dilutedShares": 25912780389.52317,
-      "confidence": 80,
+      "dilutedShares": 25912780390,
+      "status": "dati insufficienti",
+      "confidence": 55,
       "score": 35,
       "scenarios": [],
       "rationale": [
-        "Free cash flow positivo e azioni diluite comparabili non sono entrambi disponibili."
+        "Il free cash flow non supera il controllo di qualità su operating cash flow e investimenti."
       ],
       "warnings": [
-        "Nessun fair value viene prodotto con dati incompleti."
+        "Capex/ricavi indicativo: n/d%; margine FCF: n/d%.",
+        "Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing."
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "name": "AMAZON COM INC",
+      "sector": "Cloud, commercio elettronico e logistica",
+      "businessStage": "crescita",
+      "currency": "USD",
+      "observedAt": "2026-09-25T20:56:28.339Z",
+      "source": "SEC EDGAR + Fenice World Terminal",
+      "currentPrice": 249.73,
+      "freeCashFlow": 132777000000,
+      "cash": 86810000000,
+      "debt": 68396000000,
+      "dilutedShares": 10832635983,
+      "status": "dati insufficienti",
+      "confidence": 55,
+      "score": 35,
+      "scenarios": [],
+      "rationale": [
+        "Il free cash flow non supera il controllo di qualità su operating cash flow e investimenti."
+      ],
+      "warnings": [
+        "Capex/ricavi indicativo: 0.94%; margine FCF: 18.5%.",
+        "Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing."
       ]
     },
     {
@@ -488,22 +684,23 @@
       "name": "BIOCERES CROP SOLUTIONS CORP.",
       "sector": "Agritech e biotecnologie agricole",
       "businessStage": "maturo",
-      "status": "dati insufficienti",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 0.3688,
       "cash": 32695079,
       "debt": 10400000,
-      "dilutedShares": 67144286.8553172,
-      "confidence": 77,
+      "dilutedShares": 67144287,
+      "status": "dati insufficienti",
+      "confidence": 55,
       "score": 35,
       "scenarios": [],
       "rationale": [
-        "Free cash flow positivo e azioni diluite comparabili non sono entrambi disponibili."
+        "Il free cash flow non supera il controllo di qualità su operating cash flow e investimenti."
       ],
       "warnings": [
-        "Nessun fair value viene prodotto con dati incompleti."
+        "Capex/ricavi indicativo: n/d%; margine FCF: n/d%.",
+        "Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing."
       ]
     },
     {
@@ -511,15 +708,15 @@
       "name": "RECURSION PHARMACEUTICALS, INC.",
       "sector": "AI applicata alla scoperta di farmaci",
       "businessStage": "pre-commerciale",
-      "status": "non applicabile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 3.8,
       "freeCashFlow": -378277000,
       "cash": 743294000,
       "debt": 723000,
-      "dilutedShares": 447749305.5555556,
+      "dilutedShares": 447749306,
+      "status": "non applicabile",
       "confidence": 95,
       "score": 25,
       "scenarios": [],
@@ -535,15 +732,15 @@
       "name": "CRISPR THERAPEUTICS AG",
       "sector": "Biotecnologia e gene editing",
       "businessStage": "pre-commerciale",
-      "status": "non applicabile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 54.56,
       "freeCashFlow": -345928000,
       "cash": 347559000,
       "debt": 0,
-      "dilutedShares": 89891653.7867079,
+      "dilutedShares": 89891654,
+      "status": "non applicabile",
       "confidence": 81,
       "score": 25,
       "scenarios": [],
@@ -559,15 +756,15 @@
       "name": "INTELLIA THERAPEUTICS, INC.",
       "sector": "Biotecnologia e gene editing",
       "businessStage": "pre-commerciale",
-      "status": "non applicabile",
       "currency": "USD",
-      "observedAt": "2026-09-25T20:49:50.285Z",
+      "observedAt": "2026-09-25T20:56:28.339Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 11.81,
       "freeCashFlow": -395865000,
       "cash": 155464000,
       "debt": 0,
-      "dilutedShares": 108318635.17060368,
+      "dilutedShares": 108318635,
+      "status": "non applicabile",
       "confidence": 79,
       "score": 25,
       "scenarios": [],
@@ -580,7 +777,9 @@
     }
   ],
   "warnings": [
-    "Il DCF non incorpora ancora compensi azionari, acquisizioni future, ciclicità dettagliata o costo del capitale specifico per società.",
-    "Fair value e upside sono scenari quantitativi, non obiettivi di prezzo garantiti."
+    "Il DCF usa ancora un free cash flow annuale: il dataset corrente non contiene una serie pluriennale FCF sufficiente per una normalizzazione storica difendibile.",
+    "Non sono ancora inclusi compensi azionari, acquisizioni future e costo del capitale specifico per società.",
+    "La matrice di sensibilità misura quanto il fair value dipende dalle ipotesi, ma non sostituisce una normalizzazione pluriennale del free cash flow.",
+    "Fair value, upside e supporto della matrice sono scenari di ricerca, non obiettivi garantiti né segnali di acquisto."
   ]
 }
