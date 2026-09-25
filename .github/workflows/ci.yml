@@ -131,6 +131,9 @@ jobs:
       - name: Immutable paper validation core fingerprint invariants
         run: npm run paper:fingerprint:test
 
+      - name: PAPER dispatch correlation and duplicate suppression invariants
+        run: npm run paper:dispatch:test
+
       - name: Build PAPER execution coverage from repository evidence
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
