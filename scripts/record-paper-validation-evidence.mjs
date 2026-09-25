@@ -10,6 +10,7 @@ import {
   evaluatePaperFxEvidence,
   executionMatchesPaperFxEvidence,
 } from "../lib/trading/paper-fx-evidence.mjs";
+import { classifyPaperMarketSession } from "../lib/trading/paper-dispatch-policy.mjs";
 import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 import {
   computePaperValidationFingerprint,
@@ -26,7 +27,8 @@ const sourceHealthPath = path.join(root, "data", "global-source-health.json");
 const intelligencePath = path.join(root, "data", "intelligence-quality.json");
 const fxEvidencePath = path.join(root, "data", "paper-fx-evidence.json");
 const approvalPath = path.join(root, "data", "paper-validation-approval.json");
-const [campaign, state, executionCoverage, executionEvidence, sourceHealth, intelligence, fxEvidence, approval] = await Promise.all([
+const marketSessionPath = path.join(root, "data", "paper-market-session.json");
+const [campaign, state, executionCoverage, executionEvidence, sourceHealth, intelligence, fxEvidence, approval, marketSession] = await Promise.all([
   readFile(campaignPath, "utf8").then(JSON.parse),
   readFile(statePath, "utf8").then(JSON.parse),
   readFile(coveragePath, "utf8").then(JSON.parse),
@@ -35,6 +37,7 @@ const [campaign, state, executionCoverage, executionEvidence, sourceHealth, inte
   readFile(intelligencePath, "utf8").then(JSON.parse),
   readFile(fxEvidencePath, "utf8").then(JSON.parse),
   readFile(approvalPath, "utf8").then(JSON.parse),
+  readFile(marketSessionPath, "utf8").then(JSON.parse),
 ]);
 
 async function resolveCommit() {
@@ -289,6 +292,7 @@ if (dailyNewPaperFills > 0 && !fillEvidenceComplete) {
 }
 
 const softwareCommit = await resolveCommit();
+const marketSessionPhase = classifyPaperMarketSession(marketSession, date);
 const row = {
   date,
   observedAt: now.toISOString(),
@@ -326,6 +330,29 @@ const row = {
     reasons: currentFx.reasons,
     ...currentFx.metrics,
     requiredForAdditionalFills: additionalFillExecutions.some((execution) => String(execution?.currency || "").toUpperCase() !== "EUR"),
+  },
+  marketSession: {
+    phase: marketSessionPhase,
+    configured: marketSession?.configured === true,
+    generatedAt: marketSession?.generatedAt || null,
+    evidence: {
+      venue: marketSession?.evidence?.venue || null,
+      state: marketSession?.evidence?.state || "UNKNOWN",
+      source: marketSession?.evidence?.source || null,
+      observedAt: marketSession?.evidence?.observedAt || null,
+      authoritative: marketSession?.evidence?.authoritative === true,
+    },
+    decision: {
+      allowed: marketSession?.decision?.allowed === true,
+      state: marketSession?.decision?.state || "UNKNOWN",
+      ageSeconds: Number.isFinite(Number(marketSession?.decision?.ageSeconds))
+        ? Number(marketSession.decision.ageSeconds)
+        : null,
+      reasons: Array.isArray(marketSession?.decision?.reasons) ? marketSession.decision.reasons : [],
+    },
+    nextOpen: marketSession?.nextOpen || null,
+    nextClose: marketSession?.nextClose || null,
+    liveTradingAllowed: false,
   },
   fillEvidenceProof: {
     version: 2,
