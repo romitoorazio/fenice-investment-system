@@ -145,17 +145,20 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       const riskScore = Math.max(Number(decision?.riskScore ?? 100), Number(asset?.riskScore ?? 100));
       const decisionState = String(decision?.decision || "").toUpperCase();
       const terminalDecision = String(asset?.decision || "").toUpperCase();
-      const configuredFxStress = Number(approval?.riskFxToEuroByCurrency?.[currency]);
-      const fxToEuro = positive(configuredFxStress) ? configuredFxStress : currency === "EUR" ? 1 : 2;
+      const configuredFxToEuro = Number(approval?.riskFxToEuroByCurrency?.[currency]);
+      // Non-EUR conversion must be injected by the canonical market-FX wrapper.
+      // There is deliberately no synthetic fallback: missing FX fails closed.
+      const fxToEuro = positive(configuredFxToEuro) ? configuredFxToEuro : currency === "EUR" ? 1 : Number.NaN;
       const position = positionsBySymbol.get(symbol);
       const positionQuantity = Math.abs(Number(position?.quantity || 0));
       const positionFxToEuro = positive(position?.fxToEuro) ? Number(position.fxToEuro) : fxToEuro;
-      const existingPositionNotionalEuro = row && positive(positionQuantity)
+      const existingPositionNotionalEuro = row && positive(positionQuantity) && positive(positionFxToEuro)
         ? positionQuantity * Number(row.medianPrice) * positionFxToEuro
         : 0;
       const singleAssetHeadroomEuro = Math.max(0, singleAssetCapEuro - existingPositionNotionalEuro);
       const notionalCapacityEuro = Math.max(0, Math.min(maxNotionalEuroPerOrder, capitalProbeCapEuro, singleAssetHeadroomEuro));
       const eligible = row
+        && positive(fxToEuro)
         && fxToEuro <= 5
         && allowedDecisionStates.includes(decisionState)
         && !["ATTENDI", "EVITA"].includes(terminalDecision)
@@ -184,9 +187,6 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       };
     })
     .filter((item) => item.eligible)
-    // Rotate toward the least-used eligible symbol first. This preserves the
-    // single-asset risk budget while keeping execution-quality samples large
-    // enough to make fixed transaction costs economically meaningful.
     .sort((left, right) => (left.existingPositionNotionalEuro - right.existingPositionNotionalEuro)
       || (right.notionalCapacityEuro - left.notionalCapacityEuro)
       || (right.committeeScore - left.committeeScore)
@@ -197,7 +197,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
   if (!candidate) return blocked("no-eligible-validation-candidate");
 
   const fxToEuro = candidate.fxToEuro;
-  if (!positive(fxToEuro) || fxToEuro > 5) return blocked("risk-fx-stress-invalid");
+  if (!positive(fxToEuro) || fxToEuro > 5) return blocked("fx-conversion-invalid");
   const notionalCap = candidate.notionalCapacityEuro;
   if (notionalCap < minTcaProbeNotionalEuro) return blocked("probe-notional-below-tca-floor");
   const rawQuantity = notionalCap / (Number(candidate.row.medianPrice) * fxToEuro);
@@ -239,7 +239,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       maxSingleAssetWeightPercentForProbe,
       existingPositionNotionalEuro: Number(candidate.existingPositionNotionalEuro.toFixed(2)),
       singleAssetHeadroomEuro: Number(candidate.singleAssetHeadroomEuro.toFixed(2)),
-      riskFxToEuroStress: fxToEuro,
+      economicFxToEuro: fxToEuro,
       cumulativePaperFillsBeforeProbe: totalPaperFills,
       targetPaperFills,
       historicalProbeAttempts,
