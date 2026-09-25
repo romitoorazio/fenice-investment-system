@@ -13,13 +13,15 @@ async function readJson(relativePath) {
   return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
 }
 
-const [session, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint] = await Promise.all([
+const [session, sources, intelligence, executionMarket, executionCoverage, governance, fxEvidence, approval, fingerprint] = await Promise.all([
   readJson("data/paper-market-session.json"),
   readJson("data/global-source-health.json"),
   readJson("data/intelligence-quality.json"),
   readJson("data/execution-market-evidence.json"),
   readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
+  readJson("data/paper-market-fx.json"),
+  readJson("data/paper-validation-approval.json"),
   computePaperValidationFingerprint(root),
 ]);
 
@@ -29,6 +31,8 @@ const baseline = evaluatePaperBaselineEligibility({
   executionMarket,
   executionCoverage,
   governance,
+  fxEvidence,
+  approval,
   fingerprint,
 });
 
