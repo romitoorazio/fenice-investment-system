@@ -61,6 +61,12 @@ function evidenceRow(index) {
   };
 }
 
+function withoutMarketFx(window) {
+  const copy = { ...window };
+  delete copy.marketFx;
+  return copy;
+}
+
 const dailyEvidence = Array.from({ length: 26 }, (_, index) => evidenceRow(index));
 function campaign(overrides = {}) {
   return {
@@ -94,7 +100,7 @@ const missingFxWindow = evaluatePaperValidationCampaign(campaign({
         ...row,
         fillEvidenceProof: {
           ...row.fillEvidenceProof,
-          windows: row.fillEvidenceProof.windows.map(({ marketFx: _marketFx, ...window }) => window),
+          windows: row.fillEvidenceProof.windows.map(withoutMarketFx),
         },
       }
     : row),
@@ -132,7 +138,7 @@ const v5LegacyProof = evaluatePaperValidationCampaign({
     fillEvidenceProof: {
       ...row.fillEvidenceProof,
       version: 1,
-      windows: row.fillEvidenceProof.windows.map(({ marketFx: _marketFx, ...window }) => window),
+      windows: row.fillEvidenceProof.windows.map(withoutMarketFx),
     },
   })),
 }, now);
