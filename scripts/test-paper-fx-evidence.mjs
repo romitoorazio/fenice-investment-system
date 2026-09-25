@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   evaluatePaperFxEvidence,
   executionMatchesPaperFxEvidence,
@@ -80,5 +83,15 @@ assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxObservedAt: nu
 assert.equal(executionMatchesPaperFxEvidence({ currency: "EUR", fxToEuro: 1 }, valid), true);
 assert.equal(executionMatchesPaperFxEvidence({ currency: "EUR", fxToEuro: 0.99 }, valid), false);
 assert.equal(executionMatchesPaperFxEvidence({ currency: "GBP", fxToEuro: 1.1 }, valid), false);
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const validationWorkflow = await readFile(path.join(root, ".github", "workflows", "paper-validation.yml"), "utf8");
+const refreshFxCommand = "node scripts/refresh-paper-fx-evidence.mjs";
+const baselineGateCommand = "npm run paper:baseline:require";
+const refreshFxIndex = validationWorkflow.indexOf(refreshFxCommand);
+const baselineGateIndex = validationWorkflow.indexOf(baselineGateCommand);
+assert(refreshFxIndex >= 0, "canonical PAPER workflow must refresh market USD/EUR evidence");
+assert(baselineGateIndex >= 0, "canonical PAPER workflow must retain the fail-closed baseline gate");
+assert(refreshFxIndex < baselineGateIndex, "PAPER FX evidence must be refreshed before baseline eligibility is evaluated");
 
 console.log("PAPER FX evidence invariants: PASS");

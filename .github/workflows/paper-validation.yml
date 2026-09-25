@@ -76,6 +76,9 @@ jobs:
       - name: Refresh coherent Twelve Data batch evidence
         run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
+      - name: Refresh fresh PAPER USD/EUR evidence
+        run: node scripts/refresh-paper-fx-evidence.mjs
+
       - name: Refresh per-symbol PAPER execution coverage
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
