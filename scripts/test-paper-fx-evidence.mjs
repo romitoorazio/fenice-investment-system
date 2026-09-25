@@ -74,7 +74,9 @@ const usdExecution = {
 assert.equal(executionMatchesPaperFxEvidence(usdExecution, valid), true);
 assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxToEuro: 2 }, valid), false, "synthetic v5 FX must never match market evidence");
 assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxProvider: "other" }, valid), false);
+assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxProvider: null }, valid), false, "USD fill without persisted FX provider must fail certification");
 assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxObservedAt: "2026-09-25T13:34:00Z" }, valid), false);
+assert.equal(executionMatchesPaperFxEvidence({ ...usdExecution, fxObservedAt: null }, valid), false, "USD fill without persisted FX observation timestamp must fail certification");
 assert.equal(executionMatchesPaperFxEvidence({ currency: "EUR", fxToEuro: 1 }, valid), true);
 assert.equal(executionMatchesPaperFxEvidence({ currency: "EUR", fxToEuro: 0.99 }, valid), false);
 assert.equal(executionMatchesPaperFxEvidence({ currency: "GBP", fxToEuro: 1.1 }, valid), false);
