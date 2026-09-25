@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateDecisionDataGate } from "../lib/trading/decision-data-gate.mjs";
+import { evaluatePaperFxEvidence } from "../lib/trading/paper-fx-evidence.mjs";
 import { buildPaperValidationProbe } from "./paper-validation-stager.mjs";
 import { reservePaperValidationFillCap } from "./paper-validation-fill-cap.mjs";
 
@@ -44,32 +45,20 @@ if (!decisionData.ready) {
   process.exit(0);
 }
 
-const fxPolicy = approval?.fxPolicy || {};
-const maxFxAgeSeconds = Math.max(1, Number(fxPolicy.maxAgeSeconds || 120));
-const usd = fxEvidence?.ratesToEuro?.USD;
-const usdObservedMs = Date.parse(String(usd?.observedAt || ""));
-const usdAgeSeconds = Number.isFinite(usdObservedMs) ? Math.max(0, (Date.now() - usdObservedMs) / 1000) : Number.POSITIVE_INFINITY;
-const fxReady = fxEvidence?.provider === "twelve-data"
-  && fxEvidence?.provenanceVerified === true
-  && fxEvidence?.liveTradingAllowed === false
-  && fxEvidence?.brokerConnectivityAllowed === false
-  && Number.isFinite(Number(usd?.rate))
-  && Number(usd.rate) > 0
-  && usdAgeSeconds <= maxFxAgeSeconds;
-
-if (fxPolicy?.requiredForNonEuro === true && !fxReady) {
-  console.log(`Fenice PAPER validation stager: NO_ORDER reason=market-fx-not-ready; usdAgeSeconds=${Number.isFinite(usdAgeSeconds) ? usdAgeSeconds.toFixed(1) : "inf"}; liveTradingAllowed=false.`);
+const fx = evaluatePaperFxEvidence({ fxEvidence, approval });
+if (!fx.ready) {
+  console.log(`Fenice PAPER validation stager: NO_ORDER reason=market-fx-not-ready; reasons=${fx.reasons.join(" | ")}; usdAgeSeconds=${fx.metrics.usdAgeSeconds ?? "inf"}; liveTradingAllowed=false.`);
   process.exit(0);
 }
 
-// The pure stager historically consumes riskFxToEuroByCurrency. In v6 the
-// wrapper injects verified market conversion rates at runtime so fxToEuro is an
-// economic conversion, never a synthetic stress factor.
+// The pure stager consumes riskFxToEuroByCurrency. The wrapper injects the
+// canonical, provenance-verified market conversion evaluated by the same FX
+// gate used by baseline start and evidence recording.
 const runtimeApproval = {
   ...approval,
   riskFxToEuroByCurrency: {
     EUR: 1,
-    ...(fxReady ? { USD: Number(usd.rate) } : {}),
+    ...(Number.isFinite(Number(fx.metrics.usdRate)) ? { USD: Number(fx.metrics.usdRate) } : {}),
   },
 };
 
@@ -90,9 +79,9 @@ if (!result.staged) {
   process.exit(0);
 }
 
-result.order.validationRationale.fxProvider = fxReady ? "twelve-data" : "identity";
-result.order.validationRationale.fxObservedAt = result.order.currency === "EUR" ? new Date().toISOString() : usd.observedAt;
-result.order.validationRationale.fxAgeSeconds = result.order.currency === "EUR" ? 0 : Number(usdAgeSeconds.toFixed(1));
+result.order.validationRationale.fxProvider = fx.metrics.provider;
+result.order.validationRationale.fxObservedAt = result.order.currency === "EUR" ? new Date().toISOString() : fx.metrics.usdObservedAt;
+result.order.validationRationale.fxAgeSeconds = result.order.currency === "EUR" ? 0 : fx.metrics.usdAgeSeconds;
 result.order.validationRationale.marketFxToEuro = result.order.fxToEuro;
 
 await writeFile(path.join(dataDir, "paper-order-queue.json"), `${JSON.stringify(result.queue, null, 2)}\n`, "utf8");
