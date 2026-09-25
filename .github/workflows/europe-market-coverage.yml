@@ -4,6 +4,15 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 5 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/europe-market-registry.json"
+      - "data/europe-market-coverage.json"
+      - "data/global-market-universe.json"
+      - "scripts/check-europe-market-coverage.mjs"
+      - "app/europe/**"
+      - ".github/workflows/europe-market-coverage.yml"
   push:
     branches: [main]
     paths:
