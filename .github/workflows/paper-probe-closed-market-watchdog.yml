@@ -1,0 +1,72 @@
+name: Fenice PAPER Closed-Market Probe Watchdog
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/paper-probe-closed-market-watchdog.yml"
+      - "scripts/paper-probe-request-window.mjs"
+      - "scripts/test-paper-probe-request-window.mjs"
+  workflow_run:
+    workflows:
+      - Fenice PAPER Validation Probe Cycle
+    types:
+      - requested
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: fenice-paper-closed-market-watchdog-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout watchdog policy
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.repository.default_branch || github.sha }}
+
+      - name: Regression-test New York request window
+        run: node scripts/test-paper-probe-request-window.mjs
+
+      - name: Classify scheduled probe request
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule'
+        id: request_window
+        env:
+          REQUESTED_AT: ${{ github.event.workflow_run.created_at }}
+        run: node scripts/paper-probe-request-window.mjs --requested-at "$REQUESTED_AT" --github-output "$GITHUB_OUTPUT"
+
+      - name: Cancel delayed closed-market scheduled probe
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule' && steps.request_window.outputs.allowed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_RUN_ID" --jq '.status')"
+          case "$status" in
+            queued|in_progress|waiting|pending|requested)
+              if gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_RUN_ID/cancel"; then
+                echo "Cancelled delayed scheduled PAPER probe outside regular New York hours."
+              else
+                final_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_RUN_ID" --jq '.status')"
+                if [ "$final_status" != "completed" ]; then
+                  echo "Unable to cancel active delayed PAPER probe; status=$final_status." >&2
+                  exit 1
+                fi
+                echo "Scheduled PAPER probe completed before cancellation could be applied."
+              fi
+              ;;
+            *)
+              echo "No cancellation needed; upstream status=$status."
+              ;;
+          esac
+
+      - name: Confirm allowed or non-scheduled request
+        if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'schedule' || steps.request_window.outputs.allowed == 'true'
+        run: echo "No scheduled PAPER probe cancellation required."
