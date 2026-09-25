@@ -16,6 +16,8 @@ export type ProposedOrder = {
   mode: ExecutionMode;
   requestedAt: string;
   humanConfirmed: boolean;
+  fxProvider?: string;
+  fxObservedAt?: string;
 };
 
 export type RiskLimits = {
@@ -78,6 +80,10 @@ export type PaperExecution = {
   notionalEuro: number;
   estimatedFeeEuro: number;
   estimatedSlippageEuro: number;
+  currency: string;
+  fxToEuro: number;
+  fxProvider: string | null;
+  fxObservedAt: string | null;
   createdAt: string;
   filledAt: string | null;
   risk: PreTradeDecision;
