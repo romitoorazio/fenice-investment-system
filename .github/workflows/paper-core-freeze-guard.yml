@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -13,31 +16,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout proposed head
+      - name: Checkout inspected revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Check active PAPER fingerprint against changed files
+      - name: Check active PAPER fingerprint against inspected revision
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "$BASE_REF"
+          git fetch --no-tags origin main
 
           node - <<'NODE'
           const { execFileSync } = require('node:child_process');
 
-          const baseRef = String(process.env.BASE_REF || '').trim();
-          if (!baseRef) throw new Error('PAPER_CORE_FREEZE_GUARD: missing base ref');
-
+          const eventName = String(process.env.EVENT_NAME || '').trim();
+          const beforeSha = String(process.env.BEFORE_SHA || '').trim();
           const readGitText = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-          const campaignText = readGitText(['show', `origin/${baseRef}:data/paper-validation-campaign.json`]);
-          const campaign = JSON.parse(campaignText);
-
-          const activeBaseline = Boolean(
+          const tryGitText = (args) => {
+            try {
+              return readGitText(args);
+            } catch {
+              return '';
+            }
+          };
+          const readCampaignAt = (ref) => {
+            const text = tryGitText(['show', `${ref}:data/paper-validation-campaign.json`]);
+            if (!text) return null;
+            try {
+              return JSON.parse(text);
+            } catch {
+              throw new Error(`PAPER_CORE_FREEZE_GUARD: invalid campaign JSON at ${ref}`);
+            }
+          };
+          const isActive = (campaign) => Boolean(
             campaign?.startedAt
             && campaign?.baselineCommit
             && campaign?.baselineFingerprint?.complete === true
@@ -46,24 +63,55 @@ jobs:
             && campaign?.liveTradingAllowed === false
           );
 
-          if (!activeBaseline) {
+          let campaign;
+          let campaignSource;
+          if (eventName === 'pull_request') {
+            campaign = readCampaignAt('origin/main');
+            campaignSource = 'origin/main';
+          } else {
+            campaign = readCampaignAt('HEAD');
+            campaignSource = 'HEAD';
+            if (!isActive(campaign) && /^[0-9a-f]{40}$/i.test(beforeSha)) {
+              const previous = readCampaignAt(beforeSha);
+              if (isActive(previous)) {
+                campaign = previous;
+                campaignSource = beforeSha;
+              }
+            }
+          }
+
+          if (!isActive(campaign)) {
             console.log('PAPER core freeze guard: no active certifying baseline; PASS.');
             process.exit(0);
           }
 
-          const changedText = readGitText(['diff', '--name-only', `origin/${baseRef}...HEAD`]);
-          const changedFiles = changedText ? changedText.split(/\r?\n/).filter(Boolean) : [];
-          const frozenCore = new Set(campaign.baselineFingerprint.files.map((file) => String(file).trim()).filter(Boolean));
-          const touchedCore = changedFiles.filter((file) => frozenCore.has(file));
+          const baselineCommit = String(campaign.baselineCommit).trim();
+          const frozenCore = [...new Set(campaign.baselineFingerprint.files.map((file) => String(file).trim()).filter(Boolean))];
+          const baselineExists = tryGitText(['cat-file', '-t', baselineCommit]) === 'commit';
+          if (!baselineExists) {
+            throw new Error(`PAPER_CORE_FREEZE_GUARD: baseline commit ${baselineCommit} is not available`);
+          }
 
-          console.log(`PAPER core freeze guard: V${campaign.version || '?'} baseline active since ${campaign.startedAt}; fingerprinted files=${frozenCore.size}; changed files=${changedFiles.length}.`);
+          const drift = [];
+          for (const file of frozenCore) {
+            const baselineBlob = tryGitText(['rev-parse', `${baselineCommit}:${file}`]);
+            const inspectedBlob = tryGitText(['rev-parse', `HEAD:${file}`]);
+            if (!baselineBlob || !inspectedBlob || baselineBlob !== inspectedBlob) {
+              drift.push({ file, baselineBlob: baselineBlob || 'MISSING', inspectedBlob: inspectedBlob || 'MISSING' });
+            }
+          }
 
-          if (touchedCore.length > 0) {
-            console.error('PAPER_CORE_FREEZE_GUARD: proposed PR modifies the active certifying core:');
-            for (const file of touchedCore) console.error(` - ${file}`);
-            console.error('Retire/restart the PAPER baseline deliberately before merging a core change. Do not silently mutate the active certification surface.');
+          console.log(
+            `PAPER core freeze guard: V${campaign.version || '?'} baseline active since ${campaign.startedAt}; `
+            + `campaignSource=${campaignSource}; fingerprinted files=${frozenCore.length}; drift=${drift.length}.`,
+          );
+
+          if (drift.length > 0) {
+            console.error('PAPER_CORE_DRIFT: inspected revision differs from the active certifying baseline:');
+            for (const row of drift) console.error(` - ${row.file}: baseline=${row.baselineBlob} inspected=${row.inspectedBlob}`);
+            console.error('Retire/restart the PAPER baseline deliberately before accepting a core change. Do not silently mutate the active certification surface.');
             process.exit(1);
           }
 
-          console.log('PAPER core freeze guard: active fingerprint untouched; PASS.');
+          console.log(`PAPER core freeze guard: active fingerprint matches baseline ${baselineCommit.slice(0, 12)}; PASS.`);
           NODE
