@@ -21,6 +21,46 @@ function money(value?: number, currency = "USD") {
   }
 }
 
+function ageMinutes(raw?: string | null) {
+  if (!raw) return null;
+  const time = new Date(raw).getTime();
+  if (!Number.isFinite(time)) return null;
+  return Math.max(0, (Date.now() - time) / 60_000);
+}
+
+function formatAge(minutes: number | null) {
+  if (!Number.isFinite(minutes)) return "non disponibile";
+  if ((minutes as number) < 1) return "< 1 min";
+  if ((minutes as number) < 60) return `${Math.round(minutes as number)} min`;
+  if ((minutes as number) < 1_440) return `${((minutes as number) / 60).toFixed(1)} h`;
+  return `${((minutes as number) / 1_440).toFixed(1)} g`;
+}
+
+function concentration(items: string[]) {
+  const rows = topCounts(items);
+  const [name = "—", count = 0] = rows[0] ?? [];
+  return {
+    name,
+    count,
+    percent: items.length ? Math.round((count / items.length) * 100) : 0,
+  };
+}
+
+const driverLabels: Record<string, string> = {
+  opportunity: "Opportunità",
+  riskAdjusted: "Rischio adj.",
+  momentum: "Momentum",
+  freshness: "Freschezza",
+  diversification: "Diversificazione",
+  regimeFit: "Regime fit",
+};
+
+function dominantDriver(breakdown: Record<string, number>) {
+  const best = Object.entries(breakdown).sort((a, b) => b[1] - a[1])[0];
+  if (!best) return { label: "—", value: 0 };
+  return { label: driverLabels[best[0]] ?? best[0], value: best[1] };
+}
+
 export default function RadarPage() {
   const data = snapshot as AutonomySnapshot;
   const mission = buildMissionControl(data);
@@ -31,28 +71,48 @@ export default function RadarPage() {
   const top = mission.rankedAssets.slice(0, 20);
   const ready = top.filter((item) => item.action === "ACCUMULA" && item.entryReadiness >= 70).length;
 
+  const generatedAge = ageMinutes(data.generatedAt ?? data.freshness?.generatedAt ?? null);
+  const operationalProviders = data.providers.filter((provider) => provider.state === "operativo").length;
+  const degradedProviders = data.providers.filter((provider) => provider.state === "parziale" || provider.state === "errore").length;
+  const unconfiguredProviders = data.providers.filter((provider) => provider.state === "non configurato").length;
+  const sourceRows = topCounts(markets.map((item) => item.source || "Non classificata"));
+  const sourceConcentration = concentration(markets.map((item) => item.source || "Non classificata"));
+  const topRegionConcentration = concentration(top.map((item) => item.region ?? "Non classificata"));
+  const topSectorConcentration = concentration(top.map((item) => item.sector ?? item.assetClass));
+  const actionRows = topCounts(top.map((item) => item.action));
+  const confidenceRows = topCounts(top.map((item) => item.confidenceBand));
+  const riskRows = topCounts(top.map((item) => item.riskBand));
+  const freshReadings = data.freshness?.freshReadings;
+  const totalReadings = data.freshness?.totalReadings;
+  const freshnessCoverage = Number.isFinite(freshReadings) && Number.isFinite(totalReadings) && Number(totalReadings) > 0
+    ? Math.round((Number(freshReadings) / Number(totalReadings)) * 100)
+    : null;
+  const diagnosticWarnings = [...new Set([...(data.warnings ?? []), ...(mission.warnings ?? [])].filter(Boolean))].slice(0, 8);
+
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-28 pt-6 text-slate-100">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="rounded-3xl border border-cyan-400/20 bg-slate-900/80 p-6 shadow-2xl">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300">Fenice Global Radar · Score 2.0</p>
-              <h1 className="mt-2 text-3xl font-black">Il mercato intero, con timing e rischio separati dalla narrativa</h1>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300">Fenice Global Radar · Institutional Diagnostics</p>
+              <h1 className="mt-2 text-3xl font-black">Il mercato intero, con timing, rischio e qualità dati separati dalla narrativa</h1>
               <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
                 Fenice confronta mercati, settori e asset diversi. La convinzione misura la qualità complessiva del candidato;
-                la readiness misura invece quanto il momento attuale è favorevole a un ingresso. Nessun ranking equivale a un ordine automatico.
+                la readiness misura quanto il momento attuale è favorevole a un ingresso. La diagnostica istituzionale mostra anche
+                freschezza, provider e concentrazioni informative. Nessun ranking equivale a un ordine automatico.
               </p>
             </div>
             <Link href="/" className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-white/5">← Mission Control</Link>
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-5">
+        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           {[
             ["Strumenti osservati", markets.length],
             ["Regioni", regions.length],
             ["Settori", sectors.length],
+            ["Fonti mercato", sourceRows.length],
             ["Qualità dati", `${mission.dataQuality}/100`],
             ["Pronti all'ingresso", ready],
           ].map(([label, value]) => (
@@ -63,10 +123,71 @@ export default function RadarPage() {
           ))}
         </section>
 
+        <section className="rounded-3xl border border-emerald-400/20 bg-slate-900/80 p-5">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Institutional health</p>
+              <h2 className="mt-1 text-2xl font-black">Qualità operativa del Radar</h2>
+            </div>
+            <div className="rounded-xl bg-slate-950 px-3 py-2 text-xs text-slate-400">
+              Dataset: <strong className="text-white">{formatAge(generatedAge)}</strong> · Stato: <strong className="text-white">{mission.freshnessStatus}</strong>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <DiagnosticCard
+              label="Provider operativi"
+              value={`${operationalProviders}/${data.providers.length}`}
+              detail={`${degradedProviders} degradati · ${unconfiguredProviders} non configurati`}
+            />
+            <DiagnosticCard
+              label="Copertura letture fresche"
+              value={freshnessCoverage === null ? "—" : `${freshnessCoverage}%`}
+              detail={Number.isFinite(freshReadings) && Number.isFinite(totalReadings) ? `${freshReadings}/${totalReadings} letture` : "metrica non pubblicata"}
+            />
+            <DiagnosticCard
+              label="Concentrazione fonte"
+              value={`${sourceConcentration.percent}%`}
+              detail={`${sourceConcentration.name} · ${sourceConcentration.count}/${markets.length} strumenti`}
+            />
+            <DiagnosticCard
+              label="Diversità fonti"
+              value={sourceRows.length}
+              detail="fonti distinte nel dataset osservato"
+            />
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-500">
+            Queste metriche sono diagnostiche read-only: non modificano soglie, ranking, OMS, rischio o regole di certificazione PAPER V6.
+          </p>
+        </section>
+
         <section className="grid gap-4 lg:grid-cols-3">
           <Breakdown title="Regioni" rows={regions.slice(0, 8)} />
           <Breakdown title="Settori" rows={sectors.slice(0, 8)} />
           <Breakdown title="Temi" rows={themes.slice(0, 8)} />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-3">
+          <Distribution title="Segnali top list" rows={actionRows} total={top.length} />
+          <Distribution title="Confidenza top list" rows={confidenceRows} total={top.length} />
+          <Distribution title="Rischio top list" rows={riskRows} total={top.length} />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <ConcentrationCard
+            title="Concentrazione geografica top list"
+            name={topRegionConcentration.name}
+            percent={topRegionConcentration.percent}
+            count={topRegionConcentration.count}
+            total={top.length}
+          />
+          <ConcentrationCard
+            title="Concentrazione settoriale top list"
+            name={topSectorConcentration.name}
+            percent={topSectorConcentration.percent}
+            count={topSectorConcentration.count}
+            total={top.length}
+          />
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
@@ -82,54 +203,81 @@ export default function RadarPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[1380px] text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-slate-500">
                 <tr className="border-b border-white/10">
                   <th className="px-3 py-3">Strumento</th>
                   <th className="px-3 py-3">Regione</th>
                   <th className="px-3 py-3">Settore</th>
+                  <th className="px-3 py-3">Fonte</th>
                   <th className="px-3 py-3">Prezzo</th>
                   <th className="px-3 py-3">Fenice</th>
                   <th className="px-3 py-3">Readiness</th>
+                  <th className="px-3 py-3">Driver</th>
                   <th className="px-3 py-3">Conf.</th>
                   <th className="px-3 py-3">Rischio</th>
                   <th className="px-3 py-3">Segnale</th>
                 </tr>
               </thead>
               <tbody>
-                {top.map((asset) => (
-                  <tr key={`${asset.symbol}-${asset.source}`} className="border-b border-white/5 align-top">
-                    <td className="px-3 py-4">
-                      <div className="font-black text-white">{asset.symbol}</div>
-                      <div className="max-w-xs truncate text-xs text-slate-400">{asset.name}</div>
-                      <div className="mt-1 max-w-sm text-[11px] leading-4 text-slate-500">{asset.reason}</div>
-                    </td>
-                    <td className="px-3 py-4 text-slate-300">{asset.region ?? "—"}</td>
-                    <td className="px-3 py-4 text-slate-300">{asset.sector ?? asset.assetClass}</td>
-                    <td className="px-3 py-4 text-slate-300">{money(asset.price, asset.currency)}</td>
-                    <td className="px-3 py-4 font-black text-cyan-300">{asset.conviction}/100</td>
-                    <td className="px-3 py-4">
-                      <div className="font-black text-white">{asset.entryReadiness}/100</div>
-                      <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
-                        <div className="h-full rounded-full bg-cyan-400" style={{ width: `${asset.entryReadiness}%` }} />
-                      </div>
-                    </td>
-                    <td className="px-3 py-4"><Band value={asset.confidenceBand} /></td>
-                    <td className="px-3 py-4"><RiskBand value={asset.riskBand} raw={asset.risk} /></td>
-                    <td className="px-3 py-4"><Signal action={asset.action} /></td>
-                  </tr>
-                ))}
+                {top.map((asset) => {
+                  const driver = dominantDriver(asset.scoreBreakdown);
+                  return (
+                    <tr key={`${asset.symbol}-${asset.source}`} className="border-b border-white/5 align-top">
+                      <td className="px-3 py-4">
+                        <div className="font-black text-white">{asset.symbol}</div>
+                        <div className="max-w-xs truncate text-xs text-slate-400">{asset.name}</div>
+                        <div className="mt-1 max-w-sm text-[11px] leading-4 text-slate-500">{asset.reason}</div>
+                      </td>
+                      <td className="px-3 py-4 text-slate-300">{asset.region ?? "—"}</td>
+                      <td className="px-3 py-4 text-slate-300">{asset.sector ?? asset.assetClass}</td>
+                      <td className="px-3 py-4">
+                        <div className="max-w-[150px] truncate text-xs font-bold text-slate-300" title={asset.source}>{asset.source}</div>
+                      </td>
+                      <td className="px-3 py-4 text-slate-300">{money(asset.price, asset.currency)}</td>
+                      <td className="px-3 py-4 font-black text-cyan-300">{asset.conviction}/100</td>
+                      <td className="px-3 py-4">
+                        <div className="font-black text-white">{asset.entryReadiness}/100</div>
+                        <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${asset.entryReadiness}%` }} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="text-xs font-black text-violet-300">{driver.label}</div>
+                        <div className="mt-1 text-[11px] text-slate-500">{driver.value}/100</div>
+                      </td>
+                      <td className="px-3 py-4"><Band value={asset.confidenceBand} /></td>
+                      <td className="px-3 py-4"><RiskBand value={asset.riskBand} raw={asset.risk} /></td>
+                      <td className="px-3 py-4"><Signal action={asset.action} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </section>
 
+        {diagnosticWarnings.length > 0 && (
+          <section className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Warning board</p>
+            <h2 className="mt-1 text-xl font-black text-white">Anomalie e cautele pubblicate dal motore</h2>
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              {diagnosticWarnings.map((warning) => (
+                <div key={warning} className="rounded-xl border border-amber-300/10 bg-slate-950/40 px-4 py-3 text-sm leading-5 text-amber-100">
+                  {warning}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/5 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Come leggere Score 2.0</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Come leggere il Radar</p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
               <p><strong className="text-white">Fenice:</strong> qualità complessiva del candidato nel regime corrente.</p>
               <p><strong className="text-white">Readiness:</strong> qualità del timing d&apos;ingresso; penalizza anche rialzi troppo verticali.</p>
+              <p><strong className="text-white">Driver:</strong> componente più forte del punteggio, mostrata per rendere il ranking più spiegabile.</p>
               <p><strong className="text-white">Confidenza:</strong> qualità e freschezza dei dati disponibili.</p>
               <p><strong className="text-white">Rischio:</strong> resta un freno autonomo: una grande opportunità non cancella un rischio estremo.</p>
             </div>
@@ -144,6 +292,16 @@ export default function RadarPage() {
   );
 }
 
+function DiagnosticCard({ label, value, detail }: { label: string; value: string | number; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-2 text-2xl font-black text-white">{value}</div>
+      <div className="mt-1 text-xs leading-5 text-slate-500">{detail}</div>
+    </div>
+  );
+}
+
 function Breakdown({ title, rows }: { title: string; rows: [string, number][] }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
@@ -155,6 +313,48 @@ function Breakdown({ title, rows }: { title: string; rows: [string, number][] })
             <span className="rounded-lg bg-slate-950 px-2 py-1 text-xs font-black text-white">{count}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function Distribution({ title, rows, total }: { title: string; rows: [string, number][]; total: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
+      <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">{title}</h3>
+      <div className="mt-4 space-y-3">
+        {rows.map(([name, count]) => {
+          const percent = total ? Math.round((count / total) * 100) : 0;
+          return (
+            <div key={name}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                <span className="font-bold text-slate-300">{name}</span>
+                <span className="text-slate-500">{count} · {percent}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-full rounded-full bg-slate-500" style={{ width: `${percent}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ConcentrationCard({ title, name, percent, count, total }: { title: string; name: string; percent: number; count: number; total: number }) {
+  return (
+    <div className="rounded-2xl border border-violet-400/15 bg-violet-400/5 p-5">
+      <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">{title}</div>
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <div>
+          <div className="text-2xl font-black text-white">{name}</div>
+          <div className="mt-1 text-xs text-slate-400">{count}/{total} strumenti della top list</div>
+        </div>
+        <div className="text-3xl font-black text-violet-200">{percent}%</div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div className="h-full rounded-full bg-violet-400" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
