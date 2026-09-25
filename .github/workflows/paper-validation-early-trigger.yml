@@ -12,6 +12,10 @@ on:
     # Late fallback handles transient provider/API failures without duplicating
     # a successful OPEN or final market-closed evidence day.
     - cron: "35 16 * * 1-5"
+    # Registration/recovery fallback. This intentionally performs only the
+    # lightweight dispatch-policy read when final evidence already exists; it
+    # does not call market-data providers or dispatch the canonical workflow.
+    - cron: "5 17 * * 1-5"
   workflow_dispatch:
 
 permissions:
