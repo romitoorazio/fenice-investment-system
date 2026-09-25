@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 const checker = await readFile(new URL("./check-global-sources.mjs", import.meta.url), "utf8");
+const registry = JSON.parse(await readFile(new URL("../data/global-source-registry.json", import.meta.url), "utf8"));
 
 if (!checker.includes("function redactString") || !checker.includes("function sanitizeForStorage")) {
   throw new Error("Global source checker must define recursive credential redaction before persisting source-health data.");
@@ -37,6 +38,17 @@ if (!/status:\s*"unconfigured"/.test(checker) || !/nessun outage dichiarato/.tes
 }
 if (!/authorization:\s*`Basic \$\{basic\}`/.test(checker) || !/authorization:\s*`Bearer \$\{token\}`/.test(checker)) {
   throw new Error("FINRA health probe must implement OAuth client_credentials and Bearer data access.");
+}
+
+const bis = registry.sources?.find((source) => source?.id === "bis");
+if (!bis || typeof bis.endpoint !== "string") {
+  throw new Error("BIS institutional source must be present in the source registry.");
+}
+if (!/\/WS_CBPOL\/D\.US\/all\?/.test(bis.endpoint) || !/[?&]lastNObservations=1(?:&|$)/.test(bis.endpoint)) {
+  throw new Error("BIS source-health probe must remain bounded to one time series and the latest observation; bulk dataset downloads are forbidden for health checks.");
+}
+if (/\/WS_CBPOL\?/.test(bis.endpoint)) {
+  throw new Error("BIS source-health probe must never regress to the unbounded WS_CBPOL bulk endpoint.");
 }
 
 console.log("Source checker security invariants PASS.");
