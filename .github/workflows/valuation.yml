@@ -9,6 +9,7 @@ on:
     paths:
       - "scripts/run-dcf-engine.mjs"
       - "lib/dcf.ts"
+      - "lib/dcf-runtime.ts"
       - "components/DcfEngine.tsx"
       - "app/api/dcf/**"
       - "app/valuation/**"
@@ -49,7 +50,20 @@ jobs:
 
       - name: Validate DCF report
         run: |
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('data/dcf-analysis.json'));if(!Array.isArray(d.companies)||!Number.isFinite(d.coveragePercent)||!d.source)process.exit(1);if(d.companyCount<8||d.availableCount<4)process.exit(1);for(const c of d.companies.filter(x=>x.status==='disponibile')){if(!Array.isArray(c.scenarios)||c.scenarios.length!==3||!Number.isFinite(c.fairValueBase)||!Number.isFinite(c.confidence))process.exit(1)};console.log('DCF companies:',d.companyCount,'available',d.availableCount,'coverage',d.coveragePercent)"
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/dcf-analysis.json', 'utf8'));
+          if (!Array.isArray(d.companies) || !Number.isFinite(d.coveragePercent) || !d.source) process.exit(1);
+          if (d.companyCount < 8 || d.availableCount < 4) process.exit(1);
+          for (const c of d.companies.filter((x) => x.status === 'disponibile')) {
+            if (!Array.isArray(c.scenarios) || c.scenarios.length !== 3 || !Number.isFinite(c.fairValueBase) || !Number.isFinite(c.confidence)) process.exit(1);
+            if (!c.robustness || !Array.isArray(c.robustness.sensitivityCells) || c.robustness.sensitivityCells.length !== 9) process.exit(1);
+            if (!Number.isFinite(c.robustness.supportingCells) || !Number.isFinite(c.robustness.totalCells) || c.robustness.totalCells !== 9) process.exit(1);
+            if (!Number.isFinite(c.robustness.supportPercent) || !Number.isFinite(c.robustness.fairValueMin) || !Number.isFinite(c.robustness.fairValueMedian) || !Number.isFinite(c.robustness.fairValueMax)) process.exit(1);
+            if (!['BASSA FRAGILITÀ', 'MEDIA FRAGILITÀ', 'ALTA FRAGILITÀ'].includes(c.robustness.state)) process.exit(1);
+          }
+          console.log('DCF companies:', d.companyCount, 'available', d.availableCount, 'coverage', d.coveragePercent, 'robustness=validated');
+          NODE
 
       - name: Commit DCF analysis
         run: |
