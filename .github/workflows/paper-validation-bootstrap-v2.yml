@@ -1,17 +1,14 @@
 name: Fenice PAPER Validation Bootstrap V2
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/paper-validation-bootstrap-v2.yml"
+  workflow_dispatch:
 
 permissions:
   actions: write
   contents: read
 
 concurrency:
-  group: fenice-paper-validation-bootstrap-v2
+  group: fenice-paper-validation-dispatcher
   cancel-in-progress: false
 
 jobs:
@@ -31,13 +28,14 @@ jobs:
           success=false
 
           for dispatch_attempt in 1 2 3; do
-            before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
-            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+            dispatch_token="baseline-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${dispatch_attempt}"
+            expected_title="Fenice Paper Validation [$dispatch_token]"
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
 
             validation_run=""
             for discovery_attempt in $(seq 1 60); do
-              runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
-              candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
+              runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,displayTitle,createdAt)"
+              candidates="$(jq -c --arg expected "$expected_title" '[.[] | select(.displayTitle == $expected)]' <<<"$runs")"
               count="$(jq 'length' <<<"$candidates")"
 
               if [ "$count" -eq 1 ]; then
@@ -46,7 +44,7 @@ jobs:
               fi
 
               if [ "$count" -gt 1 ]; then
-                echo "Ambiguous PAPER validation dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
+                echo "Duplicate PAPER validation correlation token detected; refusing to guess."
                 jq . <<<"$candidates"
                 exit 1
               fi
@@ -109,14 +107,14 @@ jobs:
           set -euo pipefail
 
           workflow="paper-probe-staging.yml"
-          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId --jq 'map(.databaseId)')"
-
-          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+          dispatch_token="probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          expected_title="Fenice PAPER Validation Probe Cycle [$dispatch_token]"
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
 
           probe_run=""
           for attempt in $(seq 1 60); do
-            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,createdAt)"
-            candidates="$(jq -c --argjson before "$before" '[.[] | select(.databaseId as $id | ($before | index($id)) == null)] | sort_by(.createdAt)' <<<"$runs")"
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --event workflow_dispatch --limit 100 --json databaseId,displayTitle,createdAt)"
+            candidates="$(jq -c --arg expected "$expected_title" '[.[] | select(.displayTitle == $expected)]' <<<"$runs")"
             count="$(jq 'length' <<<"$candidates")"
 
             if [ "$count" -eq 1 ]; then
@@ -125,7 +123,7 @@ jobs:
             fi
 
             if [ "$count" -gt 1 ]; then
-              echo "Ambiguous PAPER probe dispatch: multiple unseen workflow_dispatch runs appeared; refusing to guess."
+              echo "Duplicate PAPER probe correlation token detected; refusing to guess."
               jq . <<<"$candidates"
               exit 1
             fi
@@ -142,5 +140,3 @@ jobs:
         run: |
           echo "Fenice PAPER v6 baseline run ${{ steps.baseline.outputs.run_id }} and probe run ${{ steps.probe.outputs.run_id }} completed."
           echo "The v6 bootstrap requires the unified fresh decision-data gate plus fresh market USD/EUR conversion evidence; LIVE and broker connectivity remain governed by the canonical fail-closed workflows."
-
-# v6 canonical reset retrigger 2026-09-24T21:12Z
