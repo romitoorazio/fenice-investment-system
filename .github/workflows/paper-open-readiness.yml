@@ -15,6 +15,7 @@ on:
       - "package.json"
       - "scripts/check-paper-market-session.mjs"
       - "scripts/check-paper-open-readiness.mjs"
+      - "scripts/test-paper-open-readiness-orchestration.mjs"
       - "scripts/run-execution-market-data.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
       - "scripts/test-twelve-data-batch.mjs"
@@ -88,19 +89,43 @@ jobs:
       - name: Read authoritative PAPER market session
         run: node --experimental-strip-types scripts/check-paper-market-session.mjs
 
+      - name: Gate provider refresh to authoritative open session
+        id: session_gate
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const session = JSON.parse(fs.readFileSync('data/paper-market-session.json', 'utf8'));
+          const open = session?.configured === true
+            && session?.evidence?.authoritative === true
+            && String(session?.evidence?.state || '').toUpperCase() === 'OPEN'
+            && session?.decision?.allowed === true
+            && Number(session?.decision?.ageSeconds) >= 0
+            && Number(session?.decision?.ageSeconds) <= 120;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `market_open=${open}\n`);
+          console.log(`PAPER readiness provider refresh: market_open=${open}.`);
+          NODE
+
+      - name: Regression-test readiness orchestration
+        run: node scripts/test-paper-open-readiness-orchestration.mjs
+
       - name: Refresh critical source health
+        if: steps.session_gate.outputs.market_open == 'true'
         run: npm run sources:check
 
       - name: Build fresh intelligence quality
+        if: steps.session_gate.outputs.market_open == 'true'
         run: node scripts/run-intelligence.mjs
 
       - name: Build fresh base execution evidence
+        if: steps.session_gate.outputs.market_open == 'true'
         run: npm run marketdata:execution
 
       - name: Refresh coherent Twelve Data batch evidence
+        if: steps.session_gate.outputs.market_open == 'true'
         run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
       - name: Measure per-symbol PAPER coverage
+        if: steps.session_gate.outputs.market_open == 'true'
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
       - name: Classify market-open PAPER readiness
@@ -115,6 +140,7 @@ jobs:
           retention-days: 7
           path: |
             data/paper-market-session.json
+            data/paper-market-fx.json
             data/paper-open-readiness.json
             data/global-source-health.json
             data/intelligence-quality.json
