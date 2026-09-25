@@ -91,6 +91,20 @@ assert.equal(matured.fillEvidenceProofFailureDays, 0);
 assert.equal(matured.futureEvidenceDays, 0);
 assert.equal(matured.duplicateEvidenceDays, 0);
 
+const unstartedV6 = evaluatePaperValidationCampaign({
+  version: 6,
+  startedAt: null,
+  baselineCommit: null,
+  baselineFingerprint: null,
+  requiredDays: 30,
+  minEvidenceDays: 25,
+  minPaperFills: 10,
+  liveTradingAllowed: false,
+  dailyEvidence: [],
+}, now);
+assert.equal(unstartedV6.state, "NOT_STARTED");
+assert.equal(unstartedV6.matured, false);
+
 const missingPolicy = evaluatePaperValidationCampaign(campaign({ evidencePolicy: {} }), now);
 assert.equal(missingPolicy.state, "INVALID");
 assert.equal(missingPolicy.matured, false);
