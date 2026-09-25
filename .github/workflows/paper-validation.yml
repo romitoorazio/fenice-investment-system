@@ -1,12 +1,18 @@
 name: Fenice Paper Validation
+run-name: Fenice Paper Validation [${{ inputs.dispatch_token || github.run_id }}]
 
 on:
   workflow_dispatch:
+    inputs:
+      dispatch_token:
+        description: Internal correlation token for an orchestrated PAPER run
+        required: false
+        type: string
   schedule:
-    # 16:35 UTC keeps the recurring validation inside the regular US equity session
-    # in both daylight-saving and standard-time periods. Alpaca's authoritative
-    # clock remains the final arbiter; holidays/weekends become no-risk evidence.
-    - cron: "35 16 * * *"
+    # Weekday attempts are dispatched by paper-validation-early-trigger.yml,
+    # which understands DST/pre-open evidence and suppresses duplicates. This
+    # direct schedule preserves weekend no-risk evidence for the 30-day audit.
+    - cron: "35 16 * * 0,6"
 
 permissions:
   contents: write
