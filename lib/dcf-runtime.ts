@@ -1,6 +1,6 @@
 import type { FundamentalResearchReport } from "@/lib/research";
 import type { TerminalReport } from "@/lib/terminal";
-import type { DcfCompany, DcfReport, DcfScenario } from "@/lib/dcf";
+import type { DcfCompany, DcfReport, DcfRobustness, DcfScenario, DcfSensitivityCell } from "@/lib/dcf";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, Number(value) || 0));
 const round = (value: number | undefined, digits = 2) => {
@@ -64,6 +64,90 @@ function calculateScenario(args: {
     equityValue: round(equityValue, 0),
     fairValuePerShare: round(fairValue, 2),
     upsidePercent: Number.isFinite(fairValue) ? round((Number(fairValue) / args.currentPrice - 1) * 100, 1) : undefined,
+  };
+}
+
+function buildRobustness(args: {
+  fcf: number;
+  cash: number;
+  debt: number;
+  shares: number;
+  startGrowth: number;
+  currentPrice: number;
+}): DcfRobustness {
+  const discountRates = [8.5, 9.5, 10.5];
+  const terminalGrowthRates = [1.5, 2.5, 3.5];
+  const sensitivityCells: DcfSensitivityCell[] = [];
+
+  for (const discountRate of discountRates) {
+    for (const terminalGrowth of terminalGrowthRates) {
+      const scenario = calculateScenario({
+        id: "base",
+        label: "Sensitivity",
+        fcf: args.fcf,
+        cash: args.cash,
+        debt: args.debt,
+        shares: args.shares,
+        startGrowth: args.startGrowth,
+        terminalGrowth,
+        discountRate,
+        currentPrice: args.currentPrice,
+      });
+      sensitivityCells.push({
+        discountRatePercent: discountRate,
+        terminalGrowthPercent: terminalGrowth,
+        fairValuePerShare: scenario.fairValuePerShare,
+        upsidePercent: scenario.upsidePercent,
+      });
+    }
+  }
+
+  const fairValues = sensitivityCells
+    .map((cell) => cell.fairValuePerShare)
+    .filter((value): value is number => Number.isFinite(value) && Number(value) > 0)
+    .sort((a, b) => a - b);
+
+  if (fairValues.length !== sensitivityCells.length || fairValues.length === 0) {
+    return {
+      state: "NON DISPONIBILE",
+      sensitivityCells,
+      supportingCells: 0,
+      totalCells: sensitivityCells.length,
+      supportPercent: 0,
+      note: "La matrice non è completa: Fenice non classifica la robustezza della valutazione.",
+    };
+  }
+
+  const fairValueMin = fairValues[0];
+  const fairValueMax = fairValues[fairValues.length - 1];
+  const middle = Math.floor(fairValues.length / 2);
+  const fairValueMedian = fairValues.length % 2
+    ? fairValues[middle]
+    : (fairValues[middle - 1] + fairValues[middle]) / 2;
+  const supportingCells = sensitivityCells.filter((cell) => Number(cell.fairValuePerShare) >= args.currentPrice).length;
+  const supportPercent = sensitivityCells.length ? (supportingCells / sensitivityCells.length) * 100 : 0;
+  const valuationSpreadPercent = fairValueMedian > 0 ? ((fairValueMax - fairValueMin) / fairValueMedian) * 100 : undefined;
+  const prudentMarginPercent = args.currentPrice > 0 ? (fairValueMin / args.currentPrice - 1) * 100 : undefined;
+  const state: DcfRobustness["state"] = !Number.isFinite(valuationSpreadPercent)
+    ? "NON DISPONIBILE"
+    : Number(valuationSpreadPercent) <= 35
+      ? "BASSA FRAGILITÀ"
+      : Number(valuationSpreadPercent) <= 70
+        ? "MEDIA FRAGILITÀ"
+        : "ALTA FRAGILITÀ";
+
+  return {
+    state,
+    sensitivityCells,
+    supportingCells,
+    totalCells: sensitivityCells.length,
+    supportPercent: round(supportPercent, 1) ?? 0,
+    fairValueMin: round(fairValueMin, 2),
+    fairValueMedian: round(fairValueMedian, 2),
+    fairValueMax: round(fairValueMax, 2),
+    valuationSpreadPercent: round(valuationSpreadPercent, 1),
+    prudentMarginPercent: round(prudentMarginPercent, 1),
+    note: "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni.",
   };
 }
 
@@ -163,11 +247,13 @@ function buildCompany(
   const upside = Number.isFinite(base) ? (Number(base) / currentPrice - 1) * 100 : undefined;
   const extremeValuation = Number.isFinite(base) && (Number(base) > currentPrice * 4 || Number(base) < currentPrice * 0.1);
   const confidence = Math.round(clamp(completeness * 0.5 + quality * 0.35 + 15 - Math.abs(baseGrowth - growth) * 0.3 - (extremeValuation ? 25 : 0), 0, 95));
+  const robustness = buildRobustness({ fcf, cash, debt, shares: Number(shares), startGrowth: baseGrowth, currentPrice });
   const warnings = [
     "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
     "L’intervallo di scenari è più importante del valore centrale.",
     ...(Number(fcfMarginPercent) > 35 ? [`Margine FCF elevato (${round(fcfMarginPercent, 1)}%): usare una media pluriennale prima di investire.`] : []),
     ...(extremeValuation ? ["Il valore centrale è estremo rispetto al prezzo: score e confidenza sono ridotti e il risultato richiede riconciliazione manuale."] : []),
+    ...(robustness.state === "ALTA FRAGILITÀ" ? ["La valutazione è molto sensibile a tasso di sconto e crescita terminale: evitare di trattare il fair value base come stima puntuale affidabile."] : []),
   ];
   return {
     ...common,
@@ -179,12 +265,14 @@ function buildCompany(
     fairValueHigh: high,
     upsideBasePercent: round(upside, 1),
     scenarios,
+    robustness,
     rationale: [
       `Free cash flow di partenza ${round(fcf, 0)} ${currency}.`,
       `Capex/ricavi verificato al ${round(capexRevenuePercent, 2)}%.`,
       `Crescita iniziale scenario base ${round(baseGrowth, 1)}%, poi progressivamente ridotta.`,
       `Azioni diluite stimate da utile netto/EPS: ${round(shares, 0)}.`,
       `Scostamento scenario base rispetto al prezzo: ${round(upside, 1)}%.`,
+      `Robustezza: ${robustness.supportingCells}/${robustness.totalCells} celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità ${robustness.state.toLowerCase()}.`,
     ],
     warnings,
   };
@@ -200,7 +288,7 @@ export function buildRuntimeDcf(fundamental: FundamentalResearchReport, terminal
   });
   const availableCount = companies.filter((company) => company.status === "disponibile").length;
   return {
-    version: 2,
+    version: 3,
     generatedAt,
     mode: availableCount >= 4 ? "live" : companies.length ? "partial" : "bootstrap",
     source: {
@@ -218,6 +306,8 @@ export function buildRuntimeDcf(fundamental: FundamentalResearchReport, terminal
       "Prudente: sconto 11,5%, crescita terminale 2%.",
       "Base: sconto 9,5%, crescita terminale 2,5%.",
       "Espansivo: sconto 8,5%, crescita terminale 3%.",
+      "Matrice di sensibilità 3×3 separata: crescita base invariata, tasso di sconto 8,5/9,5/10,5% e crescita terminale 1,5/2,5/3,5%.",
+      "La fragilità della valutazione misura la dispersione dei fair value nella matrice e non modifica il DCF score.",
       "Cassa e debito inclusi nel ponte enterprise-equity.",
       "Azioni diluite inferite da utile netto/EPS.",
       "Blocco automatico quando valuta del bilancio e del prezzo non coincidono.",
@@ -225,9 +315,10 @@ export function buildRuntimeDcf(fundamental: FundamentalResearchReport, terminal
     ],
     companies,
     warnings: [
-      "Il DCF usa ancora un free cash flow annuale: prima di un impiego reale servirà una normalizzazione pluriennale.",
+      "Il DCF usa ancora un free cash flow annuale: il dataset corrente non contiene una serie pluriennale FCF sufficiente per una normalizzazione storica difendibile.",
       "Non sono ancora inclusi compensi azionari, acquisizioni future e costo del capitale specifico per società.",
-      "Fair value e upside sono scenari, non obiettivi garantiti.",
+      "La matrice di sensibilità misura quanto il fair value dipende dalle ipotesi, ma non sostituisce una normalizzazione pluriennale del free cash flow.",
+      "Fair value, upside e supporto della matrice sono scenari di ricerca, non obiettivi garantiti né segnali di acquisto.",
     ],
   };
 }

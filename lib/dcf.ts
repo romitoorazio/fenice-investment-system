@@ -13,6 +13,27 @@ export type DcfScenario = {
   upsidePercent?: number;
 };
 
+export type DcfSensitivityCell = {
+  discountRatePercent: number;
+  terminalGrowthPercent: number;
+  fairValuePerShare?: number;
+  upsidePercent?: number;
+};
+
+export type DcfRobustness = {
+  state: "BASSA FRAGILITÀ" | "MEDIA FRAGILITÀ" | "ALTA FRAGILITÀ" | "NON DISPONIBILE";
+  sensitivityCells: DcfSensitivityCell[];
+  supportingCells: number;
+  totalCells: number;
+  supportPercent: number;
+  fairValueMin?: number;
+  fairValueMedian?: number;
+  fairValueMax?: number;
+  valuationSpreadPercent?: number;
+  prudentMarginPercent?: number;
+  note: string;
+};
+
 export type DcfCompany = {
   symbol: string;
   name: string;
@@ -34,6 +55,7 @@ export type DcfCompany = {
   fairValueHigh?: number;
   upsideBasePercent?: number;
   scenarios: DcfScenario[];
+  robustness?: DcfRobustness;
   rationale: string[];
   warnings: string[];
 };
