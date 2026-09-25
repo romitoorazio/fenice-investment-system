@@ -1,4 +1,4 @@
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const finite = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -8,10 +8,11 @@ const utcDay = (value) => {
   return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : null;
 };
 
-const [campaign, oms, approval] = await Promise.all([
+const [campaign, oms, approval, ledger] = await Promise.all([
   readJson("data/paper-validation-campaign.json"),
   readJson("data/paper-oms-state.json"),
   readJson("data/paper-validation-approval.json"),
+  readJson("data/decision-ledger.json"),
 ]);
 
 const now = Date.now();
@@ -56,6 +57,29 @@ const elapsedDays = campaign.startedAt
   ? Math.max(0, Math.floor((now - Date.parse(campaign.startedAt)) / 86_400_000) + 1)
   : 0;
 
+// Keep these thresholds exactly aligned with check-certification-readiness.mjs.
+const historicalThresholds = {
+  records: 100,
+  markedRecords: 75,
+  checkpoint7d: 30,
+  checkpoint30d: 10,
+  decisionClasses: 3,
+};
+const records = Array.isArray(ledger?.records) ? ledger.records : [];
+const markedRecords = records.filter((record) => Number.isFinite(record?.entryReferencePrice)
+  && Number.isFinite(record?.lastPrice)
+  && record?.lastMarkedAt);
+const checkpoint7d = markedRecords.filter((record) => record?.checkpoints?.["7d"]?.measuredAt).length;
+const checkpoint30d = markedRecords.filter((record) => record?.checkpoints?.["30d"]?.measuredAt).length;
+const decisionClasses = new Set(markedRecords.map((record) => record?.decision).filter(Boolean));
+const unsafeExecutionEvidence = records.some((record) => /live|broker|ordine inviato|executed/i.test(String(record?.executionGate || "")));
+const historicalPaperEvidence = records.length >= historicalThresholds.records
+  && markedRecords.length >= historicalThresholds.markedRecords
+  && checkpoint7d >= historicalThresholds.checkpoint7d
+  && checkpoint30d >= historicalThresholds.checkpoint30d
+  && decisionClasses.size >= historicalThresholds.decisionClasses
+  && !unsafeExecutionEvidence;
+
 const safetyIssues = [];
 const active = Boolean(
   campaign?.version === 6
@@ -84,11 +108,19 @@ if (finite(latest?.newPaperFills, 0) > 0 && latest?.fillEvidenceProof?.complete 
   safetyIssues.push("latest fill evidence proof is incomplete");
 }
 
-const maturityBlockers = [];
-if (elapsedDays < requiredDays) maturityBlockers.push(`calendar duration ${elapsedDays}/${requiredDays}`);
-if (evidenceDays < minEvidenceDays) maturityBlockers.push(`evidence days ${evidenceDays}/${minEvidenceDays}`);
-if (cumulativePaperFills < minPaperFills) maturityBlockers.push(`PAPER fills ${cumulativePaperFills}/${minPaperFills}`);
-if (latest?.executionQuality?.state === "INSUFFICIENT") maturityBlockers.push("execution-quality sample still insufficient");
+const campaignBlockers = [];
+if (elapsedDays < requiredDays) campaignBlockers.push(`calendar duration ${elapsedDays}/${requiredDays}`);
+if (evidenceDays < minEvidenceDays) campaignBlockers.push(`evidence days ${evidenceDays}/${minEvidenceDays}`);
+if (cumulativePaperFills < minPaperFills) campaignBlockers.push(`PAPER fills ${cumulativePaperFills}/${minPaperFills}`);
+if (latest?.executionQuality?.state === "INSUFFICIENT") campaignBlockers.push("execution-quality sample still insufficient");
+
+const historicalBlockers = [];
+if (records.length < historicalThresholds.records) historicalBlockers.push(`historical records ${records.length}/${historicalThresholds.records}`);
+if (markedRecords.length < historicalThresholds.markedRecords) historicalBlockers.push(`marked records ${markedRecords.length}/${historicalThresholds.markedRecords}`);
+if (checkpoint7d < historicalThresholds.checkpoint7d) historicalBlockers.push(`7d checkpoints ${checkpoint7d}/${historicalThresholds.checkpoint7d}`);
+if (checkpoint30d < historicalThresholds.checkpoint30d) historicalBlockers.push(`30d checkpoints ${checkpoint30d}/${historicalThresholds.checkpoint30d}`);
+if (decisionClasses.size < historicalThresholds.decisionClasses) historicalBlockers.push(`decision classes ${decisionClasses.size}/${historicalThresholds.decisionClasses}`);
+if (unsafeExecutionEvidence) historicalBlockers.push("historical ledger contains execution-gate text excluded by the certification checker");
 
 const report = {
   generatedAt: new Date(now).toISOString(),
@@ -106,6 +138,25 @@ const report = {
     paperFills: cumulativePaperFills,
     minPaperFills,
     fillProgressPercent: pct(cumulativePaperFills, minPaperFills),
+  },
+  historicalCertification: {
+    ready: historicalPaperEvidence,
+    thresholds: historicalThresholds,
+    records: records.length,
+    markedRecords: markedRecords.length,
+    checkpoint7d,
+    checkpoint30d,
+    decisionClasses: [...decisionClasses].sort(),
+    decisionClassCount: decisionClasses.size,
+    unsafeExecutionEvidence,
+    progress: {
+      recordsPercent: pct(records.length, historicalThresholds.records),
+      markedRecordsPercent: pct(markedRecords.length, historicalThresholds.markedRecords),
+      checkpoint7dPercent: pct(checkpoint7d, historicalThresholds.checkpoint7d),
+      checkpoint30dPercent: pct(checkpoint30d, historicalThresholds.checkpoint30d),
+      decisionClassesPercent: pct(decisionClasses.size, historicalThresholds.decisionClasses),
+    },
+    blockers: historicalBlockers,
   },
   latestEvidence: latest ? {
     date: latest.date || null,
@@ -133,10 +184,18 @@ const report = {
     duplicateProbeDays,
     issues: safetyIssues,
   },
-  maturityBlockers,
+  maturityBlockers: {
+    campaign: campaignBlockers,
+    historicalCertification: historicalBlockers,
+  },
 };
 
-console.log(JSON.stringify(report, null, 2));
+const reportJson = `${JSON.stringify(report, null, 2)}\n`;
+console.log(reportJson.trimEnd());
+
+if (process.env.FENICE_OBSERVER_REPORT_PATH) {
+  await writeFile(process.env.FENICE_OBSERVER_REPORT_PATH, reportJson, "utf8");
+}
 
 if (process.env.GITHUB_STEP_SUMMARY) {
   const latestQuality = latest?.executionQuality?.state || "N/A";
@@ -147,6 +206,8 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `**Started:** ${campaign.startedAt || "not started"}`,
     `**Baseline:** ${String(campaign.baselineCommit || "N/A").slice(0, 12)} · fingerprint ${baselineDigest ? baselineDigest.slice(0, 16) : "N/A"}`,
     "",
+    "## V6 campaign",
+    "",
     "| Metric | Progress |",
     "| --- | ---: |",
     `| Calendar | ${elapsedDays}/${requiredDays} days |`,
@@ -156,10 +217,22 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| LIVE allowed | ${String(campaign?.liveTradingAllowed)} |`,
     `| Broker connectivity | ${String(oms?.brokerConnectivityAllowed)} |`,
     "",
-    `**Maturity blockers:** ${maturityBlockers.length ? maturityBlockers.join("; ") : "none"}`,
+    "## Historical certification evidence",
+    "",
+    "| Metric | Progress |",
+    "| --- | ---: |",
+    `| Ledger records | ${records.length}/${historicalThresholds.records} |`,
+    `| Marked records | ${markedRecords.length}/${historicalThresholds.markedRecords} |`,
+    `| 7d checkpoints | ${checkpoint7d}/${historicalThresholds.checkpoint7d} |`,
+    `| 30d checkpoints | ${checkpoint30d}/${historicalThresholds.checkpoint30d} |`,
+    `| Decision classes | ${decisionClasses.size}/${historicalThresholds.decisionClasses} |`,
+    `| Historical gate | ${historicalPaperEvidence ? "PASS" : "NOT_VALIDATED"} |`,
+    "",
+    `**Campaign blockers:** ${campaignBlockers.length ? campaignBlockers.join("; ") : "none"}`,
+    `**Historical blockers:** ${historicalBlockers.length ? historicalBlockers.join("; ") : "none"}`,
     `**Safety issues:** ${safetyIssues.length ? safetyIssues.join("; ") : "none"}`,
     "",
-    "This observer is read-only. It does not stage orders, call brokers, mutate evidence, or alter certification thresholds.",
+    "This observer is read-only with respect to the repository. It does not stage orders, call brokers, mutate evidence, or alter certification thresholds.",
   ];
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `${rows.join("\n")}\n`);
 }
