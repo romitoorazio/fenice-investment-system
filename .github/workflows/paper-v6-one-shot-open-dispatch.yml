@@ -1,0 +1,59 @@
+name: Fenice PAPER V6 One-Shot Open Dispatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-v6-one-shot-open-dispatch.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: fenice-paper-validation-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout guarded dispatch policy
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Check final evidence and active canonical runs
+        id: today
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          campaign_file="$RUNNER_TEMP/paper-campaign.json"
+          session_file="$RUNNER_TEMP/paper-market-session.json"
+          runs_file="$RUNNER_TEMP/paper-validation-runs.json"
+
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main" > "$campaign_file"
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-market-session.json?ref=main" > "$session_file"
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --limit 100 --json databaseId,status,conclusion,event,headBranch,createdAt,displayTitle > "$runs_file"
+
+          node scripts/check-paper-validation-dispatch.mjs \
+            --campaign "$campaign_file" \
+            --market-session "$session_file" \
+            --workflow-runs "$runs_file" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Dispatch canonical PAPER validation once
+        if: steps.today.outputs.should_dispatch == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dispatch_token="one-shot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh workflow run paper-validation.yml --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
+          echo "Guarded canonical PAPER validation dispatched. LIVE and broker connectivity remain disabled."
+
+      - name: Confirm duplicate suppression
+        if: steps.today.outputs.should_dispatch != 'true'
+        run: echo "No dispatch; finalEvidence=${{ steps.today.outputs.already_recorded }}, activeRun=${{ steps.today.outputs.active_run }}, sessionPhase=${{ steps.today.outputs.session_phase }}."
