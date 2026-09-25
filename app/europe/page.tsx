@@ -1,8 +1,14 @@
 import Link from "next/link";
 import registry from "@/data/europe-market-registry.json";
 import coverage from "@/data/europe-market-coverage.json";
+import instrumentUniverse from "@/data/europe-instrument-universe.json";
 
 type Market = (typeof registry.markets)[number];
+type InstrumentMarketCoverage = {
+  marketId: string;
+  instrumentCount: number;
+  providerCovered: boolean;
+};
 
 const tierLabel = (tier: number) => {
   if (tier === 1) return "Core europeo";
@@ -16,6 +22,11 @@ export const revalidate = 0;
 export default function EuropeCoveragePage() {
   const markets = [...registry.markets] as Market[];
   const byTier = [1, 2, 3].map((tier) => ({ tier, markets: markets.filter((market) => market.tier === tier) }));
+  const instrumentRows = instrumentUniverse.marketCoverage as InstrumentMarketCoverage[];
+  const instrumentCountByMarket = new Map(instrumentRows.map((row) => [row.marketId, row]));
+  const instrumentCount = Number(instrumentUniverse.coverage.instrumentCount || 0);
+  const providerMatchedMarkets = Number(instrumentUniverse.coverage.providerMatchedMarkets || 0);
+  const providerMatchedMarketPercent = Number(instrumentUniverse.coverage.providerMatchedMarketPercent || 0);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6">
@@ -46,6 +57,24 @@ export default function EuropeCoveragePage() {
           ))}
         </section>
 
+        <section className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">Strumenti provider</div>
+            <div className="mt-2 text-2xl font-black">{instrumentCount.toLocaleString("it-IT")}</div>
+            <div className="mt-1 text-xs text-slate-500">catalogo Twelve Data V7, sola ricerca</div>
+          </div>
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">Mercati con strumenti</div>
+            <div className="mt-2 text-2xl font-black">{providerMatchedMarkets}/{coverage.activePrimaryMarkets}</div>
+            <div className="mt-1 text-xs text-slate-500">{providerMatchedMarketPercent}% del registro attivo</div>
+          </div>
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-300">Stato catalogo</div>
+            <div className="mt-2 text-lg font-black">{instrumentUniverse.status}</div>
+            <div className="mt-1 text-xs text-slate-500">aggiornamento: {instrumentUniverse.generatedAt || "in attesa del primo refresh"}</div>
+          </div>
+        </section>
+
         <section className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-5">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-emerald-300 px-3 py-1 text-xs font-black text-slate-950">{coverage.status}</span>
@@ -65,20 +94,28 @@ export default function EuropeCoveragePage() {
               <table className="min-w-full divide-y divide-white/10 text-sm">
                 <thead className="bg-slate-900">
                   <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-3">Paese</th><th className="px-4 py-3">Mercato</th><th className="px-4 py-3">MIC</th><th className="px-4 py-3">Valuta</th><th className="px-4 py-3">Benchmark</th><th className="px-4 py-3">Fonte</th>
+                    <th className="px-4 py-3">Paese</th><th className="px-4 py-3">Mercato</th><th className="px-4 py-3">MIC</th><th className="px-4 py-3">Valuta</th><th className="px-4 py-3">Strumenti</th><th className="px-4 py-3">Benchmark</th><th className="px-4 py-3">Fonte</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-slate-950/70">
-                  {tierMarkets.map((market) => (
-                    <tr key={market.id}>
-                      <td className="px-4 py-3 font-bold">{market.name}</td>
-                      <td className="px-4 py-3 text-slate-300">{market.venue}</td>
-                      <td className="px-4 py-3 font-mono text-cyan-300">{market.mic}</td>
-                      <td className="px-4 py-3">{market.currency}</td>
-                      <td className="px-4 py-3 text-slate-400">{market.benchmarks.join(", ") || "n/d"}</td>
-                      <td className="px-4 py-3 text-slate-400">{market.source}</td>
-                    </tr>
-                  ))}
+                  {tierMarkets.map((market) => {
+                    const providerCoverage = instrumentCountByMarket.get(market.id);
+                    return (
+                      <tr key={market.id}>
+                        <td className="px-4 py-3 font-bold">{market.name}</td>
+                        <td className="px-4 py-3 text-slate-300">{market.venue}</td>
+                        <td className="px-4 py-3 font-mono text-cyan-300">{market.mic}</td>
+                        <td className="px-4 py-3">{market.currency}</td>
+                        <td className="px-4 py-3">
+                          {providerCoverage?.providerCovered
+                            ? <span className="font-bold text-emerald-300">{providerCoverage.instrumentCount.toLocaleString("it-IT")}</span>
+                            : <span className="text-amber-300">fonte ufficiale / gap</span>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">{market.benchmarks.join(", ") || "n/d"}</td>
+                        <td className="px-4 py-3 text-slate-400">{market.source}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -105,7 +142,7 @@ export default function EuropeCoveragePage() {
         </section>
 
         <p className="pb-24 text-xs leading-5 text-slate-500">
-          Fenice separa copertura di ricerca ed esecuzione. Prezzi realtime e order routing vengono abilitati solo con feed autorizzati e certificazione specifica; questa espansione non può aggirare i lock PAPER/LIVE della V6.
+          Fenice separa copertura di ricerca ed esecuzione. Il catalogo provider misura soltanto gli strumenti realmente enumerati dalla fonte di riferimento. I mercati senza strumenti vengono esposti come gap invece di essere dichiarati coperti. Prezzi realtime e order routing vengono abilitati solo con feed autorizzati e certificazione specifica; questa espansione non può aggirare i lock PAPER/LIVE della V6.
         </p>
       </div>
     </main>

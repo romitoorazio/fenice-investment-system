@@ -1,0 +1,105 @@
+name: Fenice Europe Instrument Universe
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/europe-instrument-universe.json"
+      - "scripts/collect-europe-instrument-universe.mjs"
+      - ".github/workflows/europe-instrument-universe.yml"
+      - "app/europe/**"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/collect-europe-instrument-universe.mjs"
+      - ".github/workflows/europe-instrument-universe.yml"
+      - "data/europe-market-registry.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-europe-instrument-universe
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed revision
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate isolated Europe instrument collector
+        run: node scripts/collect-europe-instrument-universe.mjs --validate-only
+
+  refresh:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build European provider reference universe
+        run: node scripts/collect-europe-instrument-universe.mjs
+
+      - name: Assert research-only safety and useful coverage
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/europe-instrument-universe.json', 'utf8'));
+          if (d?.safety?.researchOnly !== true) throw new Error('EUROPE_UNIVERSE_RESEARCH_ONLY_REQUIRED');
+          if (d?.safety?.paperExecutionAllowed !== false || d?.safety?.liveTradingAllowed !== false || d?.safety?.brokerConnectivityAllowed !== false) throw new Error('EUROPE_UNIVERSE_EXECUTION_LOCK_FAILURE');
+          if (Number(d?.coverage?.instrumentCount || 0) < 100) throw new Error('EUROPE_UNIVERSE_TOO_SMALL');
+          if (Number(d?.coverage?.providerMatchedMarkets || 0) < 10) throw new Error('EUROPE_MARKET_MATCH_TOO_SMALL');
+          console.log(`Europe provider universe: ${d.coverage.instrumentCount} instruments; ${d.coverage.providerMatchedMarkets}/${d.coverage.activeMarkets} markets; PAPER/LIVE=false.`);
+          NODE
+
+      - name: Publish isolated European reference universe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/europe-instrument-universe.json; then
+            echo "No Europe instrument universe changes"
+            exit 0
+          fi
+          git config user.name "fenice-europe-universe-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tmp="$(mktemp)"
+          cp data/europe-instrument-universe.json "$tmp"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$tmp" data/europe-instrument-universe.json
+            git add data/europe-instrument-universe.json
+            if git diff --cached --quiet; then
+              echo "Europe instrument universe already current"
+              exit 0
+            fi
+            git commit -m "data: refresh European instrument universe"
+            if git push origin HEAD:main; then
+              echo "European instrument universe published"
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          echo "Unable to publish European instrument universe after 3 attempts"
+          exit 1
