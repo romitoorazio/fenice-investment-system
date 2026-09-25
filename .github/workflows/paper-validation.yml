@@ -198,6 +198,7 @@ jobs:
           cp data/paper-oms-state.json "$generated_dir/paper-oms-state.json"
           cp data/paper-conditional-state.json "$generated_dir/paper-conditional-state.json"
           cp data/paper-market-session.json "$generated_dir/paper-market-session.json"
+          cp data/paper-fx-evidence.json "$generated_dir/paper-fx-evidence.json"
           cp data/execution-market-evidence.json "$generated_dir/execution-market-evidence.json"
           cp data/execution-market-coverage.json "$generated_dir/execution-market-coverage.json"
           cp data/global-source-health.json "$generated_dir/global-source-health.json"
@@ -210,11 +211,12 @@ jobs:
             cp "$generated_dir/paper-oms-state.json" data/paper-oms-state.json
             cp "$generated_dir/paper-conditional-state.json" data/paper-conditional-state.json
             cp "$generated_dir/paper-market-session.json" data/paper-market-session.json
+            cp "$generated_dir/paper-fx-evidence.json" data/paper-fx-evidence.json
             cp "$generated_dir/execution-market-evidence.json" data/execution-market-evidence.json
             cp "$generated_dir/execution-market-coverage.json" data/execution-market-coverage.json
             cp "$generated_dir/global-source-health.json" data/global-source-health.json
             cp "$generated_dir/intelligence-quality.json" data/intelligence-quality.json
-            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-conditional-state.json data/paper-market-session.json data/execution-market-evidence.json data/execution-market-coverage.json data/global-source-health.json data/intelligence-quality.json
+            git add data/paper-validation-campaign.json data/paper-oms-state.json data/paper-conditional-state.json data/paper-market-session.json data/paper-fx-evidence.json data/execution-market-evidence.json data/execution-market-coverage.json data/global-source-health.json data/intelligence-quality.json
 
             if git diff --cached --quiet; then
               echo "No PAPER evidence changes to commit"
