@@ -1,0 +1,69 @@
+name: Fenice PAPER Core Freeze Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  protect-paper-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check active PAPER fingerprint against changed files
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF"
+
+          node - <<'NODE'
+          const { execFileSync } = require('node:child_process');
+
+          const baseRef = String(process.env.BASE_REF || '').trim();
+          if (!baseRef) throw new Error('PAPER_CORE_FREEZE_GUARD: missing base ref');
+
+          const readGitText = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+          const campaignText = readGitText(['show', `origin/${baseRef}:data/paper-validation-campaign.json`]);
+          const campaign = JSON.parse(campaignText);
+
+          const activeBaseline = Boolean(
+            campaign?.startedAt
+            && campaign?.baselineCommit
+            && campaign?.baselineFingerprint?.complete === true
+            && Array.isArray(campaign?.baselineFingerprint?.files)
+            && campaign.baselineFingerprint.files.length > 0
+            && campaign?.liveTradingAllowed === false
+          );
+
+          if (!activeBaseline) {
+            console.log('PAPER core freeze guard: no active certifying baseline; PASS.');
+            process.exit(0);
+          }
+
+          const changedText = readGitText(['diff', '--name-only', `origin/${baseRef}...HEAD`]);
+          const changedFiles = changedText ? changedText.split(/\r?\n/).filter(Boolean) : [];
+          const frozenCore = new Set(campaign.baselineFingerprint.files.map((file) => String(file).trim()).filter(Boolean));
+          const touchedCore = changedFiles.filter((file) => frozenCore.has(file));
+
+          console.log(`PAPER core freeze guard: V${campaign.version || '?'} baseline active since ${campaign.startedAt}; fingerprinted files=${frozenCore.size}; changed files=${changedFiles.length}.`);
+
+          if (touchedCore.length > 0) {
+            console.error('PAPER_CORE_FREEZE_GUARD: proposed PR modifies the active certifying core:');
+            for (const file of touchedCore) console.error(` - ${file}`);
+            console.error('Retire/restart the PAPER baseline deliberately before merging a core change. Do not silently mutate the active certification surface.');
+            process.exit(1);
+          }
+
+          console.log('PAPER core freeze guard: active fingerprint untouched; PASS.');
+          NODE
