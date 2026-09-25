@@ -33,6 +33,8 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      FENICE_OBSERVER_REPORT_PATH: ${{ runner.temp }}/fenice-paper-v6-observer.json
     steps:
       - name: Checkout inspected revision
         uses: actions/checkout@v5
@@ -44,10 +46,20 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Report PAPER V6 campaign progress and safety invariants
+      - name: Report PAPER V6 campaign and certification maturity
         run: node scripts/report-paper-v6-progress.mjs
 
+      - name: Publish machine-readable observer report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-paper-v6-observer-${{ github.run_id }}
+          path: ${{ env.FENICE_OBSERVER_REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 35
+
       - name: Confirm observer remains read-only
+        if: always()
         run: |
           test -z "$(git status --porcelain)"
           echo "Observer completed without mutating repository state."
