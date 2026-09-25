@@ -73,7 +73,12 @@ jobs:
       - name: Refresh independent execution market evidence
         run: npm run marketdata:execution
 
-      - name: Refresh coherent Twelve Data batch evidence
+      # This coherent batch is an optimization, not the authority that decides
+      # whether PAPER may start. If it cannot obtain a fresh FX tick, allow the
+      # independent strict FX refresh below to try; the baseline gate still
+      # fails closed unless all required evidence is fresh and policy-valid.
+      - name: Refresh coherent Twelve Data batch evidence (best effort)
+        continue-on-error: true
         run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
       - name: Refresh fresh PAPER USD/EUR evidence
