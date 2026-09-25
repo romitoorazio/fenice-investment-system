@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { verifyAuditChain } from "../lib/trading/audit-chain.ts";
 import { evaluateDecisionDataGate } from "../lib/trading/decision-data-gate.mjs";
 import { evaluateExecutionQuality } from "../lib/trading/execution-quality.ts";
+import {
+  evaluatePaperFxEvidence,
+  executionMatchesPaperFxEvidence,
+} from "../lib/trading/paper-fx-evidence.mjs";
 import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 import {
   computePaperValidationFingerprint,
@@ -20,13 +24,17 @@ const coveragePath = path.join(root, "data", "execution-market-coverage.json");
 const executionEvidencePath = path.join(root, "data", "execution-market-evidence.json");
 const sourceHealthPath = path.join(root, "data", "global-source-health.json");
 const intelligencePath = path.join(root, "data", "intelligence-quality.json");
-const [campaign, state, executionCoverage, executionEvidence, sourceHealth, intelligence] = await Promise.all([
+const fxEvidencePath = path.join(root, "data", "paper-fx-evidence.json");
+const approvalPath = path.join(root, "data", "paper-validation-approval.json");
+const [campaign, state, executionCoverage, executionEvidence, sourceHealth, intelligence, fxEvidence, approval] = await Promise.all([
   readFile(campaignPath, "utf8").then(JSON.parse),
   readFile(statePath, "utf8").then(JSON.parse),
   readFile(coveragePath, "utf8").then(JSON.parse),
   readFile(executionEvidencePath, "utf8").then(JSON.parse),
   readFile(sourceHealthPath, "utf8").then(JSON.parse),
   readFile(intelligencePath, "utf8").then(JSON.parse),
+  readFile(fxEvidencePath, "utf8").then(JSON.parse),
+  readFile(approvalPath, "utf8").then(JSON.parse),
 ]);
 
 async function resolveCommit() {
@@ -127,6 +135,11 @@ function validateFillEvidenceWindows(windows, fromCumulative, toCumulative) {
     if (!Number.isFinite(from) || !Number.isFinite(to) || !Number.isFinite(count)) return false;
     if (from !== cursor || to <= from || count !== to - from) return false;
     if (window?.decisionData?.ready !== true || window?.executionMarket?.ready !== true) return false;
+    const nonEuroFills = Math.max(0, Number(window?.marketFx?.nonEuroFills || 0));
+    if (nonEuroFills > 0) {
+      if (window?.marketFx?.requiredForAdditionalFills !== true || window?.marketFx?.ready !== true) return false;
+      if (Number(window?.marketFx?.matchedNonEuroFills || 0) !== nonEuroFills) return false;
+    }
     cursor = to;
   }
   return cursor === toCumulative;
@@ -157,7 +170,8 @@ const now = new Date();
 const nowMs = now.getTime();
 const date = now.toISOString().slice(0, 10);
 const executions = Array.isArray(state.executions) ? state.executions : [];
-const paperFilled = executions.filter((item) => item?.status === "PAPER_FILLED").length;
+const paperFillExecutions = executions.filter((item) => item?.status === "PAPER_FILLED");
+const paperFilled = paperFillExecutions.length;
 const riskRejected = executions.filter((item) => item?.status === "RISK_REJECTED").length;
 const positions = Array.isArray(state.positions) ? state.positions.length : 0;
 const reconciliationBreaks = Array.isArray(state?.reconciliation?.breaks) ? state.reconciliation.breaks.length : 0;
@@ -183,6 +197,9 @@ if (paperFilled < priorTodayCumulativePaperFilled) {
 
 const dailyNewPaperFills = paperFilled - priorDayCumulativePaperFilled;
 const additionalPaperFills = paperFilled - priorTodayCumulativePaperFilled;
+const additionalFillExecutions = additionalPaperFills > 0
+  ? paperFillExecutions.slice(priorTodayCumulativePaperFilled, paperFilled)
+  : [];
 const decisionDataEvaluation = evaluateDecisionDataGate({ sourceHealth, intelligence, now: nowMs });
 const decisionData = {
   ready: decisionDataEvaluation.ready,
@@ -192,6 +209,7 @@ const decisionData = {
   ...decisionDataEvaluation.metrics,
 };
 const executionMarket = summarizeExecutionCoverage(executionCoverage, executionEvidence, nowMs);
+const currentFx = evaluatePaperFxEvidence({ fxEvidence, approval, now: nowMs });
 const fillEvidenceWindows = Array.isArray(existingToday?.fillEvidenceProof?.windows)
   ? [...existingToday.fillEvidenceProof.windows]
   : [];
@@ -203,6 +221,47 @@ if (additionalPaperFills > 0) {
   if (!executionMarket.ready) {
     throw new Error(`PAPER_CAMPAIGN_MARKET_DATA_EVIDENCE_INVALID: ${additionalPaperFills} new paper fill(s) lack fresh provenance-verified provider-neutral PAPER execution coverage evidence.`);
   }
+
+  const unknownCurrencyFills = additionalFillExecutions.filter((execution) => !String(execution?.currency || "").trim() || String(execution?.currency).toUpperCase() === "UNKNOWN");
+  if (unknownCurrencyFills.length > 0) {
+    throw new Error(`PAPER_CAMPAIGN_FX_CURRENCY_UNKNOWN: ${unknownCurrencyFills.length} new fill(s) do not persist an auditable execution currency.`);
+  }
+
+  const nonEuroExecutions = additionalFillExecutions.filter((execution) => String(execution?.currency || "").toUpperCase() !== "EUR");
+  if (nonEuroExecutions.length > 0 && campaign?.evidencePolicy?.freshMarketFxRequiredForNonEuroPaperFill !== true) {
+    throw new Error("PAPER_CAMPAIGN_FX_POLICY_MISSING: non-EUR PAPER fills require an explicit fresh-market-FX evidence policy.");
+  }
+
+  const fxProofs = nonEuroExecutions.map((execution) => {
+    const fillTime = parseTime(execution?.filledAt);
+    const evaluation = evaluatePaperFxEvidence({
+      fxEvidence,
+      approval,
+      now: fillTime === null ? nowMs : fillTime,
+    });
+    const matches = executionMatchesPaperFxEvidence(execution, evaluation);
+    return {
+      clientOrderId: execution?.clientOrderId || null,
+      symbol: execution?.symbol || null,
+      currency: execution?.currency || null,
+      filledAt: execution?.filledAt || null,
+      executionFxToEuro: Number(execution?.fxToEuro),
+      executionFxProvider: execution?.fxProvider || null,
+      executionFxObservedAt: execution?.fxObservedAt || null,
+      evidenceProvider: evaluation.metrics.provider,
+      evidenceFxToEuro: evaluation.metrics.usdRate,
+      evidenceObservedAt: evaluation.metrics.usdObservedAt,
+      evidenceAgeAtFillSeconds: evaluation.metrics.usdAgeSeconds,
+      readyAtFill: evaluation.ready,
+      matches,
+    };
+  });
+  const matchedNonEuroFills = fxProofs.filter((proof) => proof.readyAtFill === true && proof.matches === true).length;
+  const marketFxReady = nonEuroExecutions.length === 0 || matchedNonEuroFills === nonEuroExecutions.length;
+  if (!marketFxReady) {
+    throw new Error(`PAPER_CAMPAIGN_FX_EVIDENCE_INVALID: ${nonEuroExecutions.length - matchedNonEuroFills}/${nonEuroExecutions.length} new non-EUR fill(s) lack matching fresh market FX proof.`);
+  }
+
   fillEvidenceWindows.push({
     observedAt: now.toISOString(),
     fromCumulativePaperFilled: priorTodayCumulativePaperFilled,
@@ -210,6 +269,13 @@ if (additionalPaperFills > 0) {
     newPaperFills: additionalPaperFills,
     decisionData,
     executionMarket,
+    marketFx: {
+      ready: marketFxReady,
+      requiredForAdditionalFills: nonEuroExecutions.length > 0,
+      nonEuroFills: nonEuroExecutions.length,
+      matchedNonEuroFills,
+      proofs: fxProofs,
+    },
   });
 }
 
@@ -219,7 +285,7 @@ const fillEvidenceComplete = validateFillEvidenceWindows(
   paperFilled,
 );
 if (dailyNewPaperFills > 0 && !fillEvidenceComplete) {
-  throw new Error(`PAPER_CAMPAIGN_FILL_EVIDENCE_GAP: ${dailyNewPaperFills} daily paper fill(s) are not fully covered by contiguous decision/market evidence windows.`);
+  throw new Error(`PAPER_CAMPAIGN_FILL_EVIDENCE_GAP: ${dailyNewPaperFills} daily paper fill(s) are not fully covered by contiguous decision/market/FX evidence windows.`);
 }
 
 const softwareCommit = await resolveCommit();
@@ -254,8 +320,15 @@ const row = {
     ...executionMarket,
     requiredForAdditionalFills: additionalPaperFills > 0,
   },
+  marketFxEvidence: {
+    readyNow: currentFx.ready,
+    requiredForNonEuro: currentFx.requiredForNonEuro,
+    reasons: currentFx.reasons,
+    ...currentFx.metrics,
+    requiredForAdditionalFills: additionalFillExecutions.some((execution) => String(execution?.currency || "").toUpperCase() !== "EUR"),
+  },
   fillEvidenceProof: {
-    version: 1,
+    version: 2,
     requiredFills: dailyNewPaperFills,
     coveredFills: fillEvidenceWindows.reduce((sum, window) => sum + Math.max(0, Number(window?.newPaperFills || 0)), 0),
     complete: fillEvidenceComplete,
@@ -283,4 +356,4 @@ const dailyEvidence = [...existing.filter((item) => item?.date !== date), row]
   .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
 await writeFile(campaignPath, `${JSON.stringify({ ...campaign, dailyEvidence }, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, dailyNewFills=${dailyNewPaperFills}, additionalThisRun=${additionalPaperFills}, decisionData=${decisionData.ready ? "PASS" : "BLOCK"}, executionCoverage=${executionMarket.ready ? "PASS" : "BLOCK"}, fillProof=${fillEvidenceComplete ? "PASS" : "FAIL"}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
+console.log(`Fenice paper validation evidence recorded for ${date}; days=${dailyEvidence.length}, fills=${paperFilled}, dailyNewFills=${dailyNewPaperFills}, additionalThisRun=${additionalPaperFills}, decisionData=${decisionData.ready ? "PASS" : "BLOCK"}, executionCoverage=${executionMarket.ready ? "PASS" : "BLOCK"}, marketFxNow=${currentFx.ready ? "PASS" : "BLOCK"}, fillProof=${fillEvidenceComplete ? "PASS" : "FAIL"}, executionQuality=${executionQuality.state}, reconciliation=${reconciliationBalanced ? "PASS" : "BREAK"}, audit=${audit.valid ? "PASS" : "FAIL"}, coreFingerprint=PASS, liveOrders=0.`);
