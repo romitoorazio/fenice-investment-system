@@ -1,0 +1,53 @@
+name: Fenice PAPER V6 Campaign Observer
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Fenice PAPER Validation Probe Cycle
+    types:
+      - completed
+  schedule:
+    # 21:15 UTC is after the US cash close in both DST and standard-time seasons.
+    - cron: "15 21 * * 1-5"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/report-paper-v6-progress.mjs"
+      - ".github/workflows/paper-v6-campaign-observer.yml"
+  push:
+    paths:
+      - "scripts/report-paper-v6-progress.mjs"
+      - ".github/workflows/paper-v6-campaign-observer.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-paper-v6-campaign-observer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observe:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout inspected revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Report PAPER V6 campaign progress and safety invariants
+        run: node scripts/report-paper-v6-progress.mjs
+
+      - name: Confirm observer remains read-only
+        run: |
+          test -z "$(git status --porcelain)"
+          echo "Observer completed without mutating repository state."
