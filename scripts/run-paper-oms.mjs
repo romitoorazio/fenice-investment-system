@@ -133,13 +133,23 @@ function projectedPortfolioRisk(queued, referencePrice, fxToEuro, capitalEuro) {
   return evaluatePortfolioRisk(capitalEuro, [...projected.values()]);
 }
 
-function updatePosition(execution, fxToEuro) {
+function updatePosition(execution, fxToEuro, currency) {
   if (execution.status !== "PAPER_FILLED" || execution.fillPrice === null) return;
   const symbol = String(execution.symbol).toUpperCase();
+  const normalizedCurrency = String(currency || execution.currency || "UNKNOWN").toUpperCase();
+  if (!normalizedCurrency || normalizedCurrency === "UNKNOWN") {
+    throw new Error(`PAPER_POSITION_CURRENCY_UNKNOWN: ${symbol}`);
+  }
   let position = existingPosition(symbol);
   if (!position) {
-    position = { symbol, quantity: 0, averagePrice: 0, currency: "UNKNOWN", fxToEuro };
+    position = { symbol, quantity: 0, averagePrice: 0, currency: normalizedCurrency, fxToEuro };
     state.positions.push(position);
+  } else {
+    const existingCurrency = String(position.currency || "UNKNOWN").toUpperCase();
+    if (existingCurrency !== "UNKNOWN" && existingCurrency !== normalizedCurrency) {
+      throw new Error(`PAPER_POSITION_CURRENCY_MISMATCH: ${symbol} ${existingCurrency} != ${normalizedCurrency}`);
+    }
+    position.currency = normalizedCurrency;
   }
   const oldQuantity = Number(position.quantity) || 0;
   const signed = execution.side === "BUY" ? execution.filledQuantity : -execution.filledQuantity;
@@ -198,6 +208,7 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     : 0;
   const baseCapitalEuro = Number(committee.capitalEuro || terminal.capitalEuro || 0);
   const portfolioRisk = projectedPortfolioRisk(queued, referencePrice, fxToEuro, baseCapitalEuro);
+  const rationale = queued?.validationRationale || {};
   const order = {
     clientOrderId: queued.clientOrderId,
     symbol,
@@ -211,6 +222,8 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
     mode: "PAPER",
     requestedAt: queued.requestedAt || now.toISOString(),
     humanConfirmed: queued.humanConfirmed === true,
+    ...(rationale.fxProvider ? { fxProvider: String(rationale.fxProvider) } : {}),
+    ...(rationale.fxObservedAt ? { fxObservedAt: String(rationale.fxObservedAt) } : {}),
   };
   const context = {
     capitalEuro: baseCapitalEuro * operationalGate.riskMultiplier,
@@ -233,7 +246,7 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
   const execution = oms.submit(order, context, now.getTime());
   state.executions.push(execution);
   existingIds.add(execution.clientOrderId);
-  updatePosition(execution, fxToEuro);
+  updatePosition(execution, fxToEuro, currency);
   state.auditChain = appendAuditEvent(state.auditChain, {
     timestamp: now.toISOString(),
     eventType: execution.status,
@@ -243,6 +256,10 @@ for (const queued of Array.isArray(queue.orders) ? queue.orders : []) {
       side: execution.side,
       filledQuantity: execution.filledQuantity,
       fillPrice: execution.fillPrice,
+      currency: execution.currency,
+      fxToEuro: execution.fxToEuro,
+      fxProvider: execution.fxProvider,
+      fxObservedAt: execution.fxObservedAt,
       riskAllowed: execution.risk.allowed,
       reasons: execution.risk.reasons,
       operationalGate: {
