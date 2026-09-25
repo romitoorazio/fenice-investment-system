@@ -7,8 +7,13 @@ import { computePaperValidationFingerprint } from "../lib/trading/validation-fin
 const requireEligible = process.argv.includes("--require-eligible");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function readJson(relativePath) {
-  return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
+async function readJson(relativePath, fallback) {
+  try {
+    return JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT" && fallback !== undefined) return fallback;
+    throw error;
+  }
 }
 
 const [sources, intelligence, executionMarket, executionCoverage, governance, fxEvidence, approval, fingerprint] = await Promise.all([
@@ -17,7 +22,10 @@ const [sources, intelligence, executionMarket, executionCoverage, governance, fx
   readJson("data/execution-market-evidence.json"),
   readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
-  readJson("data/paper-fx-evidence.json"),
+  // PAPER FX is dynamic same-run evidence and is intentionally not committed.
+  // Its absence in a read-only CI/status report must mean NOT_ELIGIBLE, not a
+  // process crash. The strict --require-eligible path still exits non-zero.
+  readJson("data/paper-fx-evidence.json", {}),
   readJson("data/paper-validation-approval.json"),
   computePaperValidationFingerprint(root),
 ]);
