@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { buildPaperValidationProbe } from "./paper-validation-stager.mjs";
 
 const now = "2026-09-23T16:55:00.000Z";
+const marketUsdEur = 0.87867;
 const base = {
   campaign: {
     startedAt: "2026-09-23T14:03:50.751Z",
@@ -17,8 +18,8 @@ const base = {
     liveTradingAllowed: false,
     brokerConnectivityAllowed: false,
     expiresAt: "2026-10-24T23:59:59Z",
-    approvalId: "approval-v4",
-    idPrefix: "fenice-paper-validation-v4-",
+    approvalId: "approval-v6",
+    idPrefix: "fenice-paper-validation-v6-",
     targetPaperFills: 10,
     maxProbeAttemptsTotal: 20,
     maxOrdersPerDay: 1,
@@ -26,7 +27,7 @@ const base = {
     maxCapitalPercentPerProbe: 3,
     minTcaProbeNotionalEuro: 250,
     maxSingleAssetWeightPercentForProbe: 15,
-    riskFxToEuroByCurrency: { EUR: 1, USD: 2 },
+    riskFxToEuroByCurrency: { EUR: 1, USD: marketUsdEur },
     minCommitteeScore: 70,
     minValidationDataConfidence: 90,
     maxRiskScore: 75,
@@ -83,7 +84,8 @@ assert.equal(staged.staged, true, "immature calibration must not circularly bloc
 assert.equal(staged.order.symbol, "SPY");
 assert.equal(staged.order.humanConfirmed, true);
 assert.equal(staged.order.validationProbe, true);
-assert.equal(staged.order.fxToEuro, 2);
+assert.equal(staged.order.fxToEuro, marketUsdEur);
+assert.equal(staged.order.validationRationale.economicFxToEuro, marketUsdEur);
 assert.equal(staged.order.validationRationale.coverageState, "CAUTION");
 assert.equal(staged.order.validationRationale.calibratedInvestmentConfidence, 88);
 assert.equal(staged.order.validationRationale.rawCommitteeDataConfidence, 98);
@@ -98,6 +100,16 @@ assert.equal(staged.order.validationRationale.minTcaProbeNotionalEuro, 250);
 assert.equal(staged.order.validationRationale.maxSingleAssetWeightPercentForProbe, 15);
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
+
+const missingUsdFx = buildPaperValidationProbe({
+  ...base,
+  approval: {
+    ...base.approval,
+    riskFxToEuroByCurrency: { EUR: 1 },
+  },
+});
+assert.equal(missingUsdFx.staged, false, "missing non-EUR market conversion must fail closed; no synthetic USD fallback is permitted");
+assert.equal(missingUsdFx.reason, "no-eligible-validation-candidate");
 
 const lowRawConfidence = buildPaperValidationProbe({
   ...base,
@@ -132,7 +144,7 @@ const rotationCommittee = {
 };
 const rotationState = {
   ...base.state,
-  positions: [{ symbol: "SPY", quantity: 0.387847, averagePrice: 770, currency: "USD", fxToEuro: 2 }],
+  positions: [{ symbol: "SPY", quantity: 0.387847, averagePrice: 770, currency: "USD", fxToEuro: marketUsdEur }],
 };
 const rotated = buildPaperValidationProbe({
   ...base,
@@ -149,7 +161,7 @@ const headroomBlocked = buildPaperValidationProbe({
   ...base,
   state: {
     ...base.state,
-    positions: [{ symbol: "SPY", quantity: 1300 / (773.5 * 2), averagePrice: 773.5, currency: "USD", fxToEuro: 2 }],
+    positions: [{ symbol: "SPY", quantity: 1300 / (773.5 * marketUsdEur), averagePrice: 773.5, currency: "USD", fxToEuro: marketUsdEur }],
   },
 });
 assert.equal(headroomBlocked.staged, false, "a symbol with less than the TCA floor remaining under the single-asset cap must not be used");
@@ -210,7 +222,7 @@ assert.equal(liveLeak.staged, false);
 assert.equal(liveLeak.reason, "oms-not-paper-only");
 
 const priorRejects = Array.from({ length: 10 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-v4-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
+  clientOrderId: `fenice-paper-validation-v6-2026-09-${String(index + 1).padStart(2, "0")}-SPY`,
   status: "RISK_REJECTED",
   createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
@@ -231,7 +243,7 @@ assert.equal(targetComplete.staged, false);
 assert.equal(targetComplete.reason, "campaign-paper-fill-target-complete");
 
 const attemptCeiling = Array.from({ length: 20 }, (_, index) => ({
-  clientOrderId: `fenice-paper-validation-v4-attempt-${index}`,
+  clientOrderId: `fenice-paper-validation-v6-attempt-${index}`,
   status: "RISK_REJECTED",
   createdAt: `2026-08-${String((index % 20) + 1).padStart(2, "0")}T16:55:00.000Z`,
   validationProbe: true,
