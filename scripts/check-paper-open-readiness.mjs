@@ -20,7 +20,7 @@ const [session, sources, intelligence, executionMarket, executionCoverage, gover
   readJson("data/execution-market-evidence.json"),
   readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
-  readJson("data/paper-market-fx.json"),
+  readJson("data/paper-fx-evidence.json"),
   readJson("data/paper-validation-approval.json"),
   computePaperValidationFingerprint(root),
 ]);
