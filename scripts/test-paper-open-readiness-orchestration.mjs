@@ -7,7 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checker = await readFile(path.join(root, "scripts/check-paper-open-readiness.mjs"), "utf8");
 const workflow = await readFile(path.join(root, ".github/workflows/paper-open-readiness.yml"), "utf8");
 
-assert.match(checker, /readJson\("data\/paper-market-fx\.json"\)/, "readiness must load current PAPER FX evidence");
+assert.match(checker, /readJson\("data\/paper-fx-evidence\.json"\)/, "readiness must load the canonical PAPER FX evidence produced by the refresh workflow");
+assert.doesNotMatch(checker, /paper-market-fx\.json/, "readiness must not reference the obsolete/non-produced paper-market-fx.json path");
 assert.match(checker, /readJson\("data\/paper-validation-approval\.json"\)/, "readiness must load PAPER approval policy");
 assert.match(checker, /evaluatePaperBaselineEligibility\(\{[\s\S]*?fxEvidence,[\s\S]*?approval,[\s\S]*?fingerprint,[\s\S]*?\}\)/, "readiness must pass FX evidence and approval into baseline evaluation");
 
@@ -28,6 +29,7 @@ for (const stepName of [
   );
 }
 
-assert.match(workflow, /data\/paper-market-fx\.json/, "readiness artifact must retain the FX evidence used by the gate");
+assert.match(workflow, /data\/paper-fx-evidence\.json/, "readiness artifact must retain the canonical FX evidence used by the gate");
+assert.doesNotMatch(workflow, /paper-market-fx\.json/, "workflow must not retain or reference the obsolete/non-produced FX path");
 
 console.log("Fenice PAPER open-readiness orchestration regression: PASS.");
