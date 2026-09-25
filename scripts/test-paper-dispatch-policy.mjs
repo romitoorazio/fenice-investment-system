@@ -129,6 +129,7 @@ assert.match(early, /group:\s*fenice-paper-validation-dispatcher/);
 assert.match(early, /check-paper-validation-dispatch\.mjs/);
 assert.match(early, /steps\.today\.outputs\.should_dispatch == 'true'/);
 assert.match(early, /-f dispatch_token=/);
+assert.match(early, /cron:\\s*["']5 17 \\* \\* 1-5["']/);
 assert.doesNotMatch(early, /push:\s*\n/);
 assert.match(operator, /-f dispatch_token=/);
 
