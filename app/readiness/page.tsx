@@ -109,6 +109,12 @@ function boundedPercent(value: number, target: number) {
   return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
 }
 
+function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.now()) {
+  const startedAtMs = Date.parse(String(startedAt || ""));
+  if (!Number.isFinite(startedAtMs)) return 0;
+  return Math.max(0, Math.floor((now - startedAtMs) / 86_400_000));
+}
+
 export default function ReadinessPage() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const { report, metrics } = buildInstitutionalReadiness(intelligence, {
@@ -122,6 +128,7 @@ export default function ReadinessPage() {
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
   const evidenceDays = new Set(paperEvidence.map((item) => item.date).filter(Boolean)).size;
+  const campaignAgeDays = elapsedCalendarDays(paperCampaignView.startedAt);
   const requiredDays = Number(paperCampaignView.requiredDays || 30);
   const minEvidenceDays = Number(paperCampaignView.minEvidenceDays || 25);
   const minPaperFills = Number(paperCampaignView.minPaperFills || 10);
@@ -203,7 +210,7 @@ export default function ReadinessPage() {
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Giorni evidenza</p><p className="mt-1 text-lg font-black">{evidenceDays}/{minEvidenceDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, minEvidenceDays)}%` }} /></div></div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Durata campagna</p><p className="mt-1 text-lg font-black">{evidenceDays}/{requiredDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, requiredDays)}%` }} /></div></div>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Durata campagna</p><p className="mt-1 text-lg font-black">{campaignAgeDays}/{requiredDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(campaignAgeDays, requiredDays)}%` }} /></div></div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Fill PAPER</p><p className="mt-1 text-lg font-black">{paperFills}/{minPaperFills}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(paperFills, minPaperFills)}%` }} /></div></div>
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Risk rejected</p><p className="mt-1 text-lg font-black">{riskRejected}</p><p className="mt-1 text-[10px] text-slate-500">tentativi bloccati in sicurezza</p></div>
             </div>
