@@ -44,10 +44,22 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Report PAPER V6 campaign progress and safety invariants
+      - name: Report PAPER V6 campaign and certification maturity
+        env:
+          FENICE_OBSERVER_REPORT_PATH: ${{ runner.temp }}/fenice-paper-v6-observer.json
         run: node scripts/report-paper-v6-progress.mjs
 
+      - name: Publish machine-readable observer report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-paper-v6-observer-${{ github.run_id }}
+          path: ${{ runner.temp }}/fenice-paper-v6-observer.json
+          if-no-files-found: error
+          retention-days: 35
+
       - name: Confirm observer remains read-only
+        if: always()
         run: |
           test -z "$(git status --porcelain)"
           echo "Observer completed without mutating repository state."
