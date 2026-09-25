@@ -24,7 +24,7 @@ async function resolveCommit() {
   return sha.toLowerCase();
 }
 
-const [campaign, state, sources, intelligence, executionMarket, executionCoverage, governance, fingerprint] = await Promise.all([
+const [campaign, state, sources, intelligence, executionMarket, executionCoverage, governance, fxEvidence, approval, fingerprint] = await Promise.all([
   readJson("data/paper-validation-campaign.json"),
   readJson("data/paper-oms-state.json"),
   readJson("data/global-source-health.json"),
@@ -32,6 +32,8 @@ const [campaign, state, sources, intelligence, executionMarket, executionCoverag
   readJson("data/execution-market-evidence.json"),
   readJson("data/execution-market-coverage.json"),
   readJson("data/decision-governance.json"),
+  readJson("data/paper-fx-evidence.json"),
+  readJson("data/paper-validation-approval.json"),
   computePaperValidationFingerprint(root),
 ]);
 
@@ -54,6 +56,8 @@ const eligibility = evaluatePaperBaselineEligibility({
   executionMarket,
   executionCoverage,
   governance,
+  fxEvidence,
+  approval,
   fingerprint,
 });
 if (!eligibility.eligible) {
@@ -64,7 +68,7 @@ const baselineCommit = await resolveCommit();
 const startedAt = new Date().toISOString();
 const next = {
   ...campaign,
-  version: Math.max(5, Number(campaign?.version || 1)),
+  version: Math.max(6, Number(campaign?.version || 1)),
   startedAt,
   baselineCommit,
   baselineFingerprint: fingerprint,
@@ -76,6 +80,7 @@ const next = {
   evidencePolicy: {
     decisionDataRequiredForEveryNewPaperFill: true,
     marketDataCoverageRequiredForEveryNewPaperFill: true,
+    freshMarketFxRequiredForNonEuroPaperFill: true,
     perFillEvidenceWindowsMustBeContiguous: true,
     minimumIntelligenceConfidence: 90,
     minimumCrossSourceChecks: 10,
@@ -94,4 +99,4 @@ const next = {
 };
 
 await writeFile(campaignPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; paperFamilies=${eligibility.metrics.paperEligibleSourceFamilies}; evidenceSchema=v${next.version}; liveTradingAllowed=false.`);
+console.log(`Fenice paper validation campaign started at ${startedAt}; baseline=${baselineCommit.slice(0, 12)}; coreFingerprint=${fingerprint.digest.slice(0, 12)}; eligibleSymbols=${eligibility.metrics.paperEligibleSymbols}/${eligibility.metrics.requestedExecutionSymbols}; paperFamilies=${eligibility.metrics.paperEligibleSourceFamilies}; fx=${eligibility.gates.marketFx ? "PASS" : "BLOCK"}; evidenceSchema=v${next.version}; liveTradingAllowed=false.`);
