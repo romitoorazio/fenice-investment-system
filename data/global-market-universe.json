@@ -1,42 +1,59 @@
 {
-  "version": 1,
-  "updatedAt": "2026-07-23T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-09-25T21:35:00.000Z",
   "policy": {
     "goal": "global-investable-universe",
     "realtimeRequiresLicensedFeeds": true,
     "autonomousTrading": false
   },
   "regions": [
-    {"id":"north-america","name":"North America","countries":["US","CA","MX"],"exchanges":["NYSE","NASDAQ","CBOE","TSX","TSXV","CME","ICE US","BMV"],"priority":1},
-    {"id":"europe","name":"Europe","countries":["GB","DE","FR","IT","ES","NL","BE","CH","SE","NO","DK","FI","AT","IE","PT","PL","GR","CZ","HU","RO"],"exchanges":["LSE","Euronext","Deutsche Boerse","SIX","Nasdaq Nordic","Borsa Italiana","BME","Wiener Boerse","Warsaw Stock Exchange"],"priority":1},
-    {"id":"asia-pacific","name":"Asia Pacific","countries":["JP","CN","HK","KR","TW","SG","IN","AU","NZ","ID","MY","TH","PH","VN"],"exchanges":["JPX","SSE","SZSE","HKEX","KRX","TWSE","SGX","NSE India","BSE India","ASX","NZX","IDX","Bursa Malaysia","SET","PSE"],"priority":1},
-    {"id":"latin-america","name":"Latin America","countries":["BR","AR","CL","CO","PE"],"exchanges":["B3","BYMA","Santiago Stock Exchange","Bolsa de Valores de Colombia","Bolsa de Valores de Lima"],"priority":2},
-    {"id":"middle-east-africa","name":"Middle East and Africa","countries":["ZA","SA","AE","QA","KW","IL","EG","NG","KE","MA"],"exchanges":["JSE","Saudi Exchange","ADX","DFM","Qatar Stock Exchange","Boursa Kuwait","Tel Aviv Stock Exchange","EGX","NGX","Nairobi Securities Exchange","Casablanca Stock Exchange"],"priority":2}
+    {
+      "id": "north-america",
+      "name": "North America",
+      "countries": ["US", "CA", "MX"],
+      "exchanges": ["NYSE", "NASDAQ", "CBOE", "TSX", "TSXV", "CME", "ICE US", "BMV"],
+      "priority": 1
+    },
+    {
+      "id": "europe",
+      "name": "Europe",
+      "countries": ["AL", "AM", "AT", "AZ", "BA", "BE", "BG", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GE", "GR", "HR", "HU", "IE", "IS", "IT", "LT", "LU", "LV", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK", "TR", "UA"],
+      "exchanges": ["London Stock Exchange", "Euronext Amsterdam", "Athens Exchange", "Euronext Brussels", "Euronext Dublin", "Euronext Lisbon", "Euronext Milan", "Euronext Oslo", "Euronext Paris", "Xetra / Frankfurt", "SIX Swiss Exchange", "BME / Bolsa de Madrid", "Vienna Stock Exchange", "Warsaw Stock Exchange", "Prague Stock Exchange", "Budapest Stock Exchange", "Bucharest Stock Exchange", "Bulgarian Stock Exchange", "Zagreb Stock Exchange", "Ljubljana Stock Exchange", "Bratislava Stock Exchange", "Nasdaq Stockholm", "Nasdaq Copenhagen", "Nasdaq Helsinki", "Nasdaq Iceland", "Nasdaq Tallinn", "Nasdaq Riga", "Nasdaq Vilnius", "Luxembourg Stock Exchange", "Malta Stock Exchange", "Cyprus Stock Exchange", "Belgrade Stock Exchange", "Sarajevo Stock Exchange", "Banja Luka Stock Exchange", "Montenegro Stock Exchange", "Macedonian Stock Exchange", "Moldova Stock Exchange", "Borsa Istanbul", "Ukrainian Stock Exchange / PFTS", "Georgian Stock Exchange", "Armenia Securities Exchange", "Baku Stock Exchange", "Albanian Securities Exchange"],
+      "priority": 1,
+      "registry": "data/europe-market-registry.json",
+      "executionPolicy": "research-only-until-separately-certified"
+    },
+    {
+      "id": "asia-pacific",
+      "name": "Asia Pacific",
+      "countries": ["JP", "CN", "HK", "KR", "TW", "SG", "IN", "AU", "NZ", "ID", "MY", "TH", "PH", "VN"],
+      "exchanges": ["JPX", "SSE", "SZSE", "HKEX", "KRX", "TWSE", "SGX", "NSE India", "BSE India", "ASX", "NZX", "IDX", "Bursa Malaysia", "SET", "PSE"],
+      "priority": 1
+    },
+    {
+      "id": "latin-america",
+      "name": "Latin America",
+      "countries": ["BR", "AR", "CL", "CO", "PE"],
+      "exchanges": ["B3", "BYMA", "Santiago Stock Exchange", "Bolsa de Valores de Colombia", "Bolsa de Valores de Lima"],
+      "priority": 2
+    },
+    {
+      "id": "middle-east-africa",
+      "name": "Middle East and Africa",
+      "countries": ["ZA", "SA", "AE", "QA", "KW", "IL", "EG", "NG", "KE", "MA"],
+      "exchanges": ["JSE", "Saudi Exchange", "ADX", "DFM", "Qatar Stock Exchange", "Boursa Kuwait", "Tel Aviv Stock Exchange", "EGX", "NGX", "Nairobi Securities Exchange", "Casablanca Stock Exchange"],
+      "priority": 2
+    }
   ],
   "assetClasses": [
-    {"id":"equities","name":"Equities","target":"all-primary-listed-common-stocks-and-adrs","status":"foundation"},
-    {"id":"etfs","name":"ETFs and ETPs","target":"global-listed-funds","status":"foundation"},
-    {"id":"fixed-income","name":"Government and corporate bonds","target":"sovereign-curves-and-liquid-corporates","status":"planned"},
-    {"id":"commodities","name":"Commodities and futures","target":"energy-metals-agriculture","status":"foundation"},
-    {"id":"fx","name":"Foreign exchange","target":"major-minor-emerging-market-pairs","status":"foundation"},
-    {"id":"crypto","name":"Digital assets","target":"liquid-global-assets-and-defi","status":"foundation"},
-    {"id":"funds","name":"Mutual funds","target":"major-global-domiciles","status":"planned"},
-    {"id":"private-markets","name":"Private markets","target":"funding-rounds-and-company-events-when-publicly-available","status":"planned"}
+    {"id": "equities", "name": "Equities", "target": "all-primary-listed-common-stocks-and-adrs", "status": "foundation"},
+    {"id": "etfs", "name": "ETFs and ETPs", "target": "global-listed-funds", "status": "foundation"},
+    {"id": "fixed-income", "name": "Government and corporate bonds", "target": "sovereign-curves-and-liquid-corporates", "status": "planned"},
+    {"id": "commodities", "name": "Commodities and futures", "target": "energy-metals-agriculture", "status": "foundation"},
+    {"id": "fx", "name": "Foreign exchange", "target": "major-minor-emerging-market-pairs", "status": "foundation"},
+    {"id": "crypto", "name": "Digital assets", "target": "liquid-global-assets-and-defi", "status": "foundation"},
+    {"id": "funds", "name": "Mutual funds", "target": "major-global-domiciles", "status": "planned"},
+    {"id": "private-markets", "name": "Private markets", "target": "funding-rounds-and-company-events-when-publicly-available", "status": "planned"}
   ],
-  "coverageDimensions": [
-    "prices",
-    "corporate-actions",
-    "fundamentals",
-    "regulatory-filings",
-    "earnings",
-    "estimates",
-    "ownership",
-    "insider-transactions",
-    "news",
-    "macro",
-    "geopolitics",
-    "clinical-trials",
-    "energy",
-    "supply-chain"
-  ]
+  "coverageDimensions": ["prices", "corporate-actions", "fundamentals", "regulatory-filings", "earnings", "estimates", "ownership", "insider-transactions", "news", "macro", "geopolitics", "clinical-trials", "energy", "supply-chain"]
 }
