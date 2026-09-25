@@ -69,6 +69,7 @@ for (const required of [
   "scripts/check-paper-baseline-eligibility.mjs",
   "scripts/check-certification-readiness.mjs",
   "scripts/paper-validation-stager.mjs",
+  "scripts/refresh-paper-fx-evidence.mjs",
   "scripts/refresh-twelve-data-batch-evidence.mjs",
   "scripts/run-directa-paper-preflight.mjs",
   "scripts/run-execution-market-data.mjs",
