@@ -86,7 +86,7 @@ const statusStyle: Record<InstitutionalEvidence, string> = {
 const statusLabel: Record<InstitutionalEvidence, string> = {
   PASS: "PASS",
   TESTING: "IN COLLAUDO",
-  MISSING: "DA COSTRUIRE",
+  MISSING: "EVIDENZA MANCANTE",
   BLOCKED: "BLOCCANTE",
 };
 
@@ -273,7 +273,7 @@ export default function ReadinessPage() {
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <div className="mb-4"><h2 className="text-xl font-black">Matrice dei controlli</h2><p className="mt-1 text-xs text-slate-500">PASS = evidenza automatizzata presente. IN COLLAUDO = implementato ma manca prova operativa. DA COSTRUIRE = controllo ancora incompleto. BLOCCANTE = metrica corrente sotto soglia.</p></div>
+          <div className="mb-4"><h2 className="text-xl font-black">Matrice dei controlli</h2><p className="mt-1 text-xs text-slate-500">PASS = evidenza automatizzata presente. IN COLLAUDO = implementato ma manca prova operativa. EVIDENZA MANCANTE = la prova certificante richiesta non è ancora disponibile; non significa necessariamente che il modulo software sia assente. BLOCCANTE = metrica corrente sotto soglia.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {report.controls.map((control) => (
               <article key={control.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
