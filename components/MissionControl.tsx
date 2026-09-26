@@ -70,6 +70,13 @@ function readinessTone(status: ReadinessStatus) {
   return "border-white/10 bg-white/[0.04] text-slate-300";
 }
 
+function readinessLabel(status: ReadinessStatus) {
+  if (status === "PASS") return "PASS";
+  if (status === "TESTING") return "IN COLLAUDO";
+  if (status === "MISSING") return "EVIDENZA MANCANTE";
+  return "BLOCCANTE";
+}
+
 function executionTone(state: ExecutionReadinessState) {
   if (state === "PASS") return "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-100";
   if (state === "UNCONFIGURED") return "border-sky-400/20 bg-sky-400/[0.06] text-sky-100";
@@ -226,7 +233,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
             {blockerPreview.length > 0 ? blockerPreview.map((control) => (
               <div key={control.id} className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${readinessTone(control.status)}`}>
                 <p className="text-sm font-bold">{control.label}</p>
-                <span className="rounded-full border border-current/20 px-2 py-1 text-[10px] font-black">{control.status}</span>
+                <span className="rounded-full border border-current/20 px-2 py-1 text-[10px] font-black">{readinessLabel(control.status)}</span>
               </div>
             )) : (
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
