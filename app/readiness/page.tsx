@@ -6,6 +6,7 @@ import paperCampaign from "@/data/paper-validation-campaign.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
+import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -248,7 +249,7 @@ export default function ReadinessPage() {
               <h2 className="mt-2 text-xl font-black">{executionStateLabel[executionReadiness.state]}</h2>
               <p className="mt-2 text-sm leading-6 opacity-90">
                 {executionReadiness.ownerAction
-                  ?? executionReadiness.reasons[0]
+                  ?? executionReadinessCopy(executionReadiness.reasons[0])
                   ?? "Due o più famiglie indipendenti con provenienza verificata stanno soddisfacendo il quorum PAPER."}
               </p>
               <p className="mt-2 text-xs opacity-70">Quorum minimo: <strong>{minimumSourceFamilies}</strong> famiglie. Ridondanza professionale preferita: <strong>{preferredSourceFamilies}</strong>. Directa realtime a pagamento richiesto: <strong>{executionMetrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>. Evidenza Directa opzionale per PAPER: <strong>{executionMetrics.directaEvidenceOptionalForPaperCertification ? "sì" : "no"}</strong>.</p>
