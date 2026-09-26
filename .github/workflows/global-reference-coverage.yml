@@ -1,0 +1,107 @@
+name: Fenice Global Reference Coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "53 4 * * 2"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/collect-global-reference-coverage.mjs"
+      - ".github/workflows/global-reference-coverage.yml"
+      - "data/global-market-universe.json"
+      - "data/global-reference-coverage.json"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/collect-global-reference-coverage.mjs"
+      - ".github/workflows/global-reference-coverage.yml"
+      - "data/global-market-universe.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-global-reference-coverage
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed revision
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate isolated global reference collector
+        run: node scripts/collect-global-reference-coverage.mjs --validate-only
+
+  refresh:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build global provider reference coverage
+        run: node scripts/collect-global-reference-coverage.mjs
+
+      - name: Assert research-only safety and useful coverage
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-reference-coverage.json', 'utf8'));
+          if (d?.safety?.researchOnly !== true) throw new Error('GLOBAL_REFERENCE_RESEARCH_ONLY_REQUIRED');
+          if (d?.safety?.paperExecutionAllowed !== false || d?.safety?.liveTradingAllowed !== false || d?.safety?.brokerConnectivityAllowed !== false) throw new Error('GLOBAL_REFERENCE_EXECUTION_LOCK_FAILURE');
+          if (d?.safety?.isolatedFromPaperV6InstrumentMaster !== true || d?.safety?.changesPaperV6Fingerprint !== false) throw new Error('GLOBAL_REFERENCE_PAPER_ISOLATION_FAILURE');
+          if (Number(d?.coverage?.targetCountries || 0) < 150) throw new Error('GLOBAL_REFERENCE_TARGET_SET_TOO_SMALL');
+          if (Number(d?.coverage?.providerMatchedCountries || 0) < 10) throw new Error('GLOBAL_REFERENCE_COUNTRY_COVERAGE_TOO_SMALL');
+          if (Number(d?.coverage?.matchedInstrumentReferences || 0) < 100) throw new Error('GLOBAL_REFERENCE_INSTRUMENT_SET_TOO_SMALL');
+          console.log(`Global reference coverage: ${d.coverage.matchedInstrumentReferences} references; ${d.coverage.providerMatchedCountries}/${d.coverage.targetCountries} countries; PAPER/LIVE=false.`);
+          NODE
+
+      - name: Publish isolated global reference coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain -- data/global-reference-coverage.json)" ]; then
+            echo "No global reference coverage changes"
+            exit 0
+          fi
+          git config user.name "fenice-global-reference-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tmp="$(mktemp)"
+          cp data/global-reference-coverage.json "$tmp"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$tmp" data/global-reference-coverage.json
+            git add data/global-reference-coverage.json
+            if git diff --cached --quiet; then
+              echo "Global reference coverage already current"
+              exit 0
+            fi
+            git commit -m "data: refresh global reference coverage"
+            if git push origin HEAD:main; then
+              echo "Global reference coverage published"
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          echo "Unable to publish global reference coverage after 3 attempts"
+          exit 1
