@@ -16,6 +16,12 @@ on:
     # lightweight dispatch-policy read when final evidence already exists; it
     # does not call market-data providers or dispatch the canonical workflow.
     - cron: "5 17 * * 1-5"
+    # GitHub occasionally omits the canonical weekend schedule entirely. These
+    # guarded recovery checkpoints only read the dispatch policy first: they
+    # dispatch at most one canonical run when today's final CLOSED evidence is
+    # absent, and suppress themselves when a canonical run is already active.
+    - cron: "5 17 * * 0,6"
+    - cron: "5 19 * * 0,6"
   workflow_dispatch:
 
 permissions:
