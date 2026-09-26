@@ -19,7 +19,7 @@ on:
       - "data/global-market-universe.json"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: fenice-global-reference-coverage
@@ -42,6 +42,8 @@ jobs:
 
   refresh:
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:

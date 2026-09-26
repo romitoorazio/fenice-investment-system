@@ -44,14 +44,21 @@ const extraCountryAliases = {
   SZ: ["Eswatini", "Swaziland"],
 };
 
-async function requestJson(url, timeoutMs = 60_000) {
+async function requestJson(url, timeoutMs = 60_000, fetchImpl = fetch) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { accept: "application/json", "user-agent": "FeniceInvestmentSystem/2.2 global-reference-coverage" },
-    });
+    let response;
+    try {
+      response = await fetchImpl(url, {
+        signal: controller.signal,
+        headers: { accept: "application/json", "user-agent": "FeniceInvestmentSystem/2.2 global-reference-coverage" },
+      });
+    } catch {
+      // The URL contains the provider credential. Never propagate fetch errors
+      // whose message or cause may echo the request URL into Actions logs.
+      throw new Error("TWELVE_DATA_REQUEST_FAILED");
+    }
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
     const payload = await response.json();
     if (String(payload?.status || "").toLowerCase() === "error" || payload?.code) {
@@ -280,7 +287,7 @@ function buildCoverage({ universe, exchangeRows, stockRows, generatedAt }) {
   };
 }
 
-function runSelfTest() {
+async function runSelfTest() {
   const universe = {
     version: 99,
     regions: [
@@ -312,11 +319,22 @@ function runSelfTest() {
   if (!result.coverage.uncoveredCountries.includes("RU")) throw new Error("SELF_TEST_SPECIAL_COUNTRY_EXPECTED_UNCOVERED");
   if (result.safety.paperExecutionAllowed !== false || result.safety.liveTradingAllowed !== false || result.safety.brokerConnectivityAllowed !== false) throw new Error("SELF_TEST_EXECUTION_LOCK_FAILURE");
   if (result.safety.isolatedFromPaperV6InstrumentMaster !== true || result.safety.changesPaperV6Fingerprint !== false) throw new Error("SELF_TEST_PAPER_ISOLATION_FAILURE");
+  const syntheticSecret = "self-test-provider-secret";
+  try {
+    await requestJson(`https://example.invalid/stocks?apikey=${syntheticSecret}`, 100, async () => {
+      throw new Error(`network failure for apikey=${syntheticSecret}`);
+    });
+    throw new Error("SELF_TEST_REDACTED_REQUEST_FAILURE_EXPECTED");
+  } catch (error) {
+    if (error?.message !== "TWELVE_DATA_REQUEST_FAILED" || error.message.includes(syntheticSecret)) {
+      throw new Error("SELF_TEST_REQUEST_SECRET_REDACTION_FAILURE");
+    }
+  }
   console.log("Fenice global reference coverage self-test: PASS (country aliases, exchange fallback, unmatched rejection, PAPER/LIVE isolation). ");
 }
 
 if (selfTest) {
-  runSelfTest();
+  await runSelfTest();
   process.exit(0);
 }
 
@@ -326,7 +344,7 @@ const target = buildTargetCountries(universe);
 if (target.countries.size < 150) throw new Error(`GLOBAL_TARGET_COUNTRY_SET_TOO_SMALL_${target.countries.size}`);
 
 if (validateOnly) {
-  runSelfTest();
+  await runSelfTest();
   console.log(`Fenice global reference collector validation: targetCountries=${target.countries.size}; no provider call.`);
   process.exit(0);
 }
