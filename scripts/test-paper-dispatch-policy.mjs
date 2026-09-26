@@ -132,6 +132,7 @@ assert.match(early, /-f dispatch_token=/);
 assert.match(early, /cron:\s*["']5 17 \* \* 1-5["']/);
 assert.match(early, /cron:\s*["']5 17 \* \* 0,6["']/);
 assert.match(early, /cron:\s*["']5 19 \* \* 0,6["']/);
+assert.match(early, /cron:\s*["']35 19 \* \* 0,6["']/);
 assert.doesNotMatch(early, /push:\s*\n/);
 assert.match(operator, /-f dispatch_token=/);
 
