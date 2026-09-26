@@ -1,17 +1,20 @@
 {
-  "version": 2,
-  "updatedAt": "2026-09-25T21:35:00.000Z",
+  "version": 3,
+  "updatedAt": "2026-09-26T10:10:00.000Z",
   "policy": {
     "goal": "global-investable-universe",
     "realtimeRequiresLicensedFeeds": true,
-    "autonomousTrading": false
+    "autonomousTrading": false,
+    "researchCoverageCanExceedExecutionCoverage": true,
+    "newMarketsDefaultTo": "research-only-until-separately-certified",
+    "paperV6ExecutionUniverseUnchanged": true
   },
   "regions": [
     {
       "id": "north-america",
       "name": "North America",
       "countries": ["US", "CA", "MX"],
-      "exchanges": ["NYSE", "NASDAQ", "CBOE", "TSX", "TSXV", "CME", "ICE US", "BMV"],
+      "exchanges": ["NYSE", "NASDAQ", "CBOE", "NYSE Arca", "TSX", "TSXV", "CME", "ICE US", "BMV"],
       "priority": 1
     },
     {
@@ -26,24 +29,35 @@
     {
       "id": "asia-pacific",
       "name": "Asia Pacific",
-      "countries": ["JP", "CN", "HK", "KR", "TW", "SG", "IN", "AU", "NZ", "ID", "MY", "TH", "PH", "VN"],
-      "exchanges": ["JPX", "SSE", "SZSE", "HKEX", "KRX", "TWSE", "SGX", "NSE India", "BSE India", "ASX", "NZX", "IDX", "Bursa Malaysia", "SET", "PSE"],
-      "priority": 1
+      "countries": ["JP", "CN", "HK", "KR", "TW", "SG", "IN", "AU", "NZ", "ID", "MY", "TH", "PH", "VN", "PK", "BD", "LK", "NP", "KZ", "MN", "KH", "LA", "MM", "PG", "FJ"],
+      "exchanges": ["JPX", "SSE", "SZSE", "Beijing Stock Exchange", "HKEX", "KRX", "TWSE", "TPEx", "SGX", "NSE India", "BSE India", "ASX", "NZX", "IDX", "Bursa Malaysia", "SET", "PSE", "HOSE", "HNX", "Pakistan Stock Exchange", "Dhaka Stock Exchange", "Chittagong Stock Exchange", "Colombo Stock Exchange", "Nepal Stock Exchange", "Astana International Exchange", "Kazakhstan Stock Exchange", "Mongolian Stock Exchange", "Cambodia Securities Exchange", "Lao Securities Exchange", "Yangon Stock Exchange", "PNGX Markets", "South Pacific Stock Exchange"],
+      "priority": 1,
+      "executionPolicy": "research-only-until-separately-certified"
     },
     {
-      "id": "latin-america",
-      "name": "Latin America",
-      "countries": ["BR", "AR", "CL", "CO", "PE"],
-      "exchanges": ["B3", "BYMA", "Santiago Stock Exchange", "Bolsa de Valores de Colombia", "Bolsa de Valores de Lima"],
-      "priority": 2
+      "id": "latin-america-caribbean",
+      "name": "Latin America and Caribbean",
+      "countries": ["BR", "AR", "CL", "CO", "PE", "CR", "PA", "EC", "UY", "PY", "VE", "JM", "TT", "BB", "BS"],
+      "exchanges": ["B3", "BYMA", "Santiago Stock Exchange", "Bolsa de Valores de Colombia", "Bolsa de Valores de Lima", "Bolsa Nacional de Valores Costa Rica", "Latinex Panama", "Bolsa de Valores de Quito", "Bolsa de Valores de Guayaquil", "Bolsa de Valores de Montevideo", "Bolsa de Valores de Asuncion", "Bolsa de Valores de Caracas", "Jamaica Stock Exchange", "Trinidad and Tobago Stock Exchange", "Barbados Stock Exchange", "Bahamas International Securities Exchange"],
+      "priority": 2,
+      "executionPolicy": "research-only-until-separately-certified"
     },
     {
       "id": "middle-east-africa",
       "name": "Middle East and Africa",
-      "countries": ["ZA", "SA", "AE", "QA", "KW", "IL", "EG", "NG", "KE", "MA"],
-      "exchanges": ["JSE", "Saudi Exchange", "ADX", "DFM", "Qatar Stock Exchange", "Boursa Kuwait", "Tel Aviv Stock Exchange", "EGX", "NGX", "Nairobi Securities Exchange", "Casablanca Stock Exchange"],
-      "priority": 2
+      "countries": ["ZA", "SA", "AE", "QA", "KW", "IL", "EG", "NG", "KE", "MA", "BH", "OM", "JO", "LB", "IQ", "PS", "TN", "DZ", "GH", "MU", "BW", "NA", "ZM", "TZ", "UG", "RW", "ET", "CI", "SN", "BJ", "BF", "GW", "ML", "NE", "TG"],
+      "exchanges": ["JSE", "Saudi Exchange", "Nomu", "ADX", "DFM", "Nasdaq Dubai", "Qatar Stock Exchange", "Boursa Kuwait", "Tel Aviv Stock Exchange", "EGX", "NGX", "Nairobi Securities Exchange", "Casablanca Stock Exchange", "Bahrain Bourse", "Muscat Stock Exchange", "Amman Stock Exchange", "Beirut Stock Exchange", "Iraq Stock Exchange", "Palestine Exchange", "Bourse de Tunis", "Bourse d'Alger", "Ghana Stock Exchange", "Stock Exchange of Mauritius", "Botswana Stock Exchange", "Namibian Stock Exchange", "Lusaka Securities Exchange", "Dar es Salaam Stock Exchange", "Uganda Securities Exchange", "Rwanda Stock Exchange", "Ethiopian Securities Exchange", "BRVM"],
+      "priority": 2,
+      "executionPolicy": "research-only-until-separately-certified"
     }
+  ],
+  "restrictedOrSpecialHandlingMarkets": [
+    {"country": "RU", "name": "Russia", "status": "restricted-research-only", "reason": "sanctions, market-access and settlement constraints"},
+    {"country": "BY", "name": "Belarus", "status": "restricted-research-only", "reason": "sanctions and market-access constraints"},
+    {"country": "IR", "name": "Iran", "status": "restricted-research-only", "reason": "sanctions and capital-market access constraints"},
+    {"country": "KP", "name": "North Korea", "status": "non-investable", "reason": "sanctions and no accessible public-market route"},
+    {"country": "SY", "name": "Syria", "status": "restricted-research-only", "reason": "sanctions and market-access constraints"},
+    {"country": "AF", "name": "Afghanistan", "status": "non-investable", "reason": "no accessible liquid public-equity market"}
   ],
   "assetClasses": [
     {"id": "equities", "name": "Equities", "target": "all-primary-listed-common-stocks-and-adrs", "status": "foundation"},
