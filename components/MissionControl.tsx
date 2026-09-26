@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { MissionControl as MissionControlData, RankedAsset } from "@/lib/mission";
+import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
@@ -208,7 +209,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">Execution-grade PAPER</p>
                 <h2 className="mt-1 text-lg font-black">{executionLabel(execution.state)}</h2>
                 <p className="mt-2 text-xs leading-5 opacity-80">
-                  {execution.ownerAction ?? execution.reasons[0] ?? "Quorum indipendente verificato."}
+                  {execution.ownerAction ?? executionReadinessCopy(execution.reasons[0]) ?? "Quorum indipendente verificato."}
                 </p>
                 <p className="mt-2 text-[11px] opacity-60">Feed realtime Directa a pagamento richiesto: <strong>{execution.metrics.directaPaidRealtimeRequired ? "sì" : "no"}</strong>.</p>
               </div>
