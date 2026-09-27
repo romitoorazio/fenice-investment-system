@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { evaluateIndependentGlobalSourceAdmission } from "../lib/trading/global-independent-source-admission.ts";
+import { admitIndependentGlobalEvidence } from "../lib/trading/global-independent-evidence.ts";
 
 const now = Date.parse("2026-09-28T10:00:30.000Z");
 const base = {
@@ -24,13 +25,24 @@ const good = evaluateIndependentGlobalSourceAdmission(base, now);
 assert.equal(good.admittedForPaper, true);
 assert.equal(good.eligibility, "PAPER");
 
+const gatedGood = admitIndependentGlobalEvidence(base, now);
+assert.equal(gatedGood.admission.admittedForPaper, true);
+assert.equal(gatedGood.evidence?.eligibility, "PAPER");
+assert.equal(gatedGood.evidence?.exchangeMic, "XMIL");
+assert.equal(gatedGood.evidence?.sourceFamily, "broker-independent");
+
 const sameFamily = evaluateIndependentGlobalSourceAdmission({ ...base, provider: "twelve-data", sourceFamily: "twelve-data" }, now);
 assert.equal(sameFamily.admittedForPaper, false);
 assert.ok(sameFamily.reasons.some((r) => r.includes("independent")));
+const sameFamilyEvidence = admitIndependentGlobalEvidence({ ...base, provider: "twelve-data", sourceFamily: "twelve-data" }, now);
+assert.equal(sameFamilyEvidence.evidence?.eligibility, "VALIDATION_ONLY");
 
-const delayed = evaluateIndependentGlobalSourceAdmission({ ...base, realtime: false, entitlement: { ...base.entitlement, status: "DELAYED_ONLY" } }, now);
+const delayedClaim = { ...base, realtime: false, entitlement: { ...base.entitlement, status: "DELAYED_ONLY" } };
+const delayed = evaluateIndependentGlobalSourceAdmission(delayedClaim, now);
 assert.equal(delayed.eligibility, "VALIDATION_ONLY");
 assert.ok(delayed.reasons.some((r) => r.includes("not verified realtime")));
+const delayedEvidence = admitIndependentGlobalEvidence(delayedClaim, now);
+assert.equal(delayedEvidence.evidence?.eligibility, "VALIDATION_ONLY");
 
 const wrongMic = evaluateIndependentGlobalSourceAdmission({ ...base, exchangeMic: "MIL" }, now);
 assert.equal(wrongMic.admittedForPaper, false);
@@ -45,36 +57,42 @@ const noEvidence = evaluateIndependentGlobalSourceAdmission({
 }, now);
 assert.equal(noEvidence.admittedForPaper, false);
 
-const directaSafe = evaluateIndependentGlobalSourceAdmission({
+const directaSafeClaim = {
   ...base,
   provider: "directa-readonly",
   sourceFamily: "directa",
   readOnly: true,
   datafeedEntitled: true,
   writeTradingCommandsAllowed: false,
-}, now);
+};
+const directaSafe = evaluateIndependentGlobalSourceAdmission(directaSafeClaim, now);
 assert.equal(directaSafe.admittedForPaper, true);
+assert.equal(admitIndependentGlobalEvidence(directaSafeClaim, now).evidence?.eligibility, "PAPER");
 
-const directaNoEntitlement = evaluateIndependentGlobalSourceAdmission({
+const directaNoEntitlementClaim = {
   ...base,
   provider: "directa-readonly",
   sourceFamily: "directa",
   readOnly: true,
   datafeedEntitled: false,
   writeTradingCommandsAllowed: false,
-}, now);
+};
+const directaNoEntitlement = evaluateIndependentGlobalSourceAdmission(directaNoEntitlementClaim, now);
 assert.equal(directaNoEntitlement.admittedForPaper, false);
 assert.ok(directaNoEntitlement.reasons.some((r) => r.includes("Directa datafeed entitlement")));
+assert.equal(admitIndependentGlobalEvidence(directaNoEntitlementClaim, now).evidence?.eligibility, "VALIDATION_ONLY");
 
-const directaWrites = evaluateIndependentGlobalSourceAdmission({
+const directaWritesClaim = {
   ...base,
   provider: "directa-readonly",
   sourceFamily: "directa",
   readOnly: true,
   datafeedEntitled: true,
   writeTradingCommandsAllowed: true,
-}, now);
+};
+const directaWrites = evaluateIndependentGlobalSourceAdmission(directaWritesClaim, now);
 assert.equal(directaWrites.admittedForPaper, false);
 assert.ok(directaWrites.reasons.some((r) => r.includes("writes")));
+assert.equal(admitIndependentGlobalEvidence(directaWritesClaim, now).evidence?.eligibility, "VALIDATION_ONLY");
 
 console.log("Fenice independent global source admission tests: PASS");
