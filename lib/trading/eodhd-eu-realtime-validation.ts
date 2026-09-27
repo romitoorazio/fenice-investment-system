@@ -54,7 +54,10 @@ export function validateEodhdEuRealtimeMessage(
   if (!/^[A-Z0-9]{4}$/.test(primaryMic)) reasons.push("primary MIC missing or invalid");
 
   const accepted = Boolean(returnedSymbol === expectedProviderSymbol && price && Number.isFinite(observedAtMs) && /^[A-Z0-9]{4}$/.test(primaryMic));
-  // Keep the runtime gate and the normalized evidence type aligned. `accepted`\n  // includes this check, but the explicit guard prevents a nullable price from\n  // crossing the evidence boundary if the acceptance expression changes.\n  if (!accepted || price === null) return { accepted: false, fresh, reasons, evidence: null };
+  // Keep the runtime gate and the normalized evidence type aligned. `accepted`
+  // includes this check, but the explicit guard prevents a nullable price from
+  // crossing the evidence boundary if the acceptance expression changes.
+  if (!accepted || price === null) return { accepted: false, fresh, reasons, evidence: null };
 
   const normalized = normalizeExecutionEvidence({
     symbol: String(expected.symbol || "").trim().toUpperCase(),
