@@ -7,6 +7,7 @@ import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
+import { classifyPaperEvidenceState } from "@/lib/ui/paper-evidence-state";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,6 +24,17 @@ type PaperEvidenceView = {
   brokerConnectivityAllowed?: boolean;
   auditChainValid?: boolean;
   reconciliationBalanced?: boolean;
+  marketSession?: {
+    phase?: string;
+    evidence?: {
+      state?: string;
+      authoritative?: boolean;
+    };
+    decision?: {
+      allowed?: boolean;
+      reasons?: string[];
+    };
+  };
   validationFingerprint?: {
     digest?: string;
     complete?: boolean;
@@ -150,15 +162,10 @@ export default function ReadinessPage() {
   );
   const campaignSafe = paperCampaignView.liveTradingAllowed === false
     && (!latestPaperEvidence || (latestPaperEvidence.liveTradingAllowed === false && latestPaperEvidence.brokerConnectivityAllowed === false));
-  const protectedNoTrade = Boolean(
-    latestPaperEvidence
-    && Number(latestPaperEvidence.newPaperFills || 0) === 0
-    && riskRejected > 0
-    && latestPaperEvidence.auditChainValid === true
-    && latestPaperEvidence.reconciliationBalanced === true
-    && latestPaperEvidence.liveTradingAllowed === false
-    && latestPaperEvidence.brokerConnectivityAllowed === false,
-  );
+  const latestPaperEvidenceState = latestPaperEvidence ? classifyPaperEvidenceState(latestPaperEvidence) : "RECORDED";
+  const protectedNoTrade = latestPaperEvidenceState === "RISK_REJECTED_NO_TRADE";
+  const marketClosedNoTrade = latestPaperEvidenceState === "MARKET_CLOSED_NO_RISK";
+  const noRiskEvidence = protectedNoTrade || marketClosedNoTrade;
   const baselineMetrics = paperCampaignView.baselineEligibility?.metrics;
 
   return (
@@ -218,15 +225,23 @@ export default function ReadinessPage() {
           </div>
 
           {latestPaperEvidence && (
-            <div className={`mt-4 rounded-2xl border p-4 ${protectedNoTrade ? "border-amber-300/20 bg-amber-300/[0.05]" : "border-white/10 bg-black/20"}`}>
+            <div className={`mt-4 rounded-2xl border p-4 ${noRiskEvidence ? "border-amber-300/20 bg-amber-300/[0.05]" : "border-white/10 bg-black/20"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Ultima evidenza · {latestPaperEvidence.date || "n/d"}</p>
-                  <p className="mt-1 text-sm font-black text-slate-200">{protectedNoTrade ? "NO-TRADE PROTETTO: nessun fill forzato" : "Ciclo PAPER registrato"}</p>
+                  <p className="mt-1 text-sm font-black text-slate-200">
+                    {marketClosedNoTrade
+                      ? "MERCATO CHIUSO: evidence no-risk registrata"
+                      : protectedNoTrade
+                        ? "NO-TRADE PROTETTO: nessun fill forzato"
+                        : "Ciclo PAPER registrato"}
+                  </p>
                   <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-400">
-                    {protectedNoTrade
-                      ? "Il risk engine ha rifiutato il tentativo perché la qualità dati locale era sotto soglia. Audit e riconciliazione restano validi: un blocco prudenziale senza fill non viene trasformato in una falsa esecuzione."
-                      : "Lo stato del giorno deriva esclusivamente dall'evidenza PAPER persistita; nessun dato LIVE viene usato per maturare la campagna."}
+                    {marketClosedNoTrade
+                      ? "La sessione autorevole risulta chiusa e il gate operativo ha negato nuove esecuzioni. Zero fill, audit e riconciliazione sono persistiti: la giornata conta come evidence di sicurezza, non come attività di mercato."
+                      : protectedNoTrade
+                        ? "Il risk engine ha rifiutato il tentativo perché la qualità dati locale era sotto soglia. Audit e riconciliazione restano validi: un blocco prudenziale senza fill non viene trasformato in una falsa esecuzione."
+                        : "Lo stato del giorno deriva esclusivamente dall'evidenza PAPER persistita; nessun dato LIVE viene usato per maturare la campagna."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-[9px] font-black">
