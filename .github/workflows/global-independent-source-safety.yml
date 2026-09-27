@@ -1,0 +1,57 @@
+name: Fenice Independent Global Source Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/global-independent-source-admission.ts"
+      - "scripts/test-global-independent-source-admission.mjs"
+      - "data/global-independent-source-registry.json"
+      - ".github/workflows/global-independent-source-safety.yml"
+  push:
+    branches:
+      - feat/global-market-data-certification
+    paths:
+      - "lib/trading/global-independent-source-admission.ts"
+      - "scripts/test-global-independent-source-admission.mjs"
+      - "data/global-independent-source-registry.json"
+      - ".github/workflows/global-independent-source-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-independent-source-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test independent non-US source fail-closed admission
+        run: node --experimental-strip-types scripts/test-global-independent-source-admission.mjs
+
+      - name: Assert provider registry defaults to no PAPER admission
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-independent-source-registry.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_INDEPENDENT_SOURCE') throw new Error('INDEPENDENT_SOURCE_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.providers) || d.providers.length < 4) throw new Error('INDEPENDENT_SOURCE_REGISTRY_TOO_SMALL');
+          for (const p of d.providers) {
+            if (p?.paperAllowed !== false) throw new Error(`UNVERIFIED_PROVIDER_CANNOT_BE_PAPER:${p?.id || 'unknown'}`);
+            if (!p?.sourceFamily) throw new Error(`SOURCE_FAMILY_REQUIRED:${p?.id || 'unknown'}`);
+          }
+          console.log('Independent global provider registry is default-deny; no provider is silently PAPER-eligible.');
+          NODE
+
+      - name: Assert Twelve Data cannot count as its own second family
+        run: |
+          grep -q 'second source must be independent from Twelve Data' lib/trading/global-independent-source-admission.ts
+          grep -q 'sourceFamily === "twelve-data"' lib/trading/global-independent-source-admission.ts
+          echo 'Independent-source anti-self-quorum guard present.'
