@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "lib/trading/directa-global-entitlement-proof.ts"
+      - "lib/trading/directa-global-source-candidate.ts"
       - "scripts/test-directa-global-entitlement-proof.mjs"
+      - "scripts/test-directa-global-source-candidate.mjs"
       - "data/directa-global-market-entitlements.json"
       - ".github/workflows/directa-global-entitlement-safety.yml"
   push:
@@ -13,7 +15,9 @@ on:
       - feat/global-market-data-certification
     paths:
       - "lib/trading/directa-global-entitlement-proof.ts"
+      - "lib/trading/directa-global-source-candidate.ts"
       - "scripts/test-directa-global-entitlement-proof.mjs"
+      - "scripts/test-directa-global-source-candidate.mjs"
       - "data/directa-global-market-entitlements.json"
       - ".github/workflows/directa-global-entitlement-safety.yml"
 
@@ -36,6 +40,12 @@ jobs:
       - name: Test persisted plus runtime Directa entitlement proof
         run: node --experimental-strip-types scripts/test-directa-global-entitlement-proof.mjs
 
+      - name: Test composed Directa read-only global source admission
+        run: node --experimental-strip-types scripts/test-directa-global-source-candidate.mjs
+
+      - name: Syntax-check Directa source candidate path
+        run: node --experimental-strip-types --check lib/trading/directa-global-source-candidate.ts
+
       - name: Assert Directa entitlement registry is empty default-deny
         run: |
           node - <<'NODE'
@@ -52,4 +62,6 @@ jobs:
           grep -q 'persistedEvidenceFound && runtimeClaimMatched' lib/trading/directa-global-entitlement-proof.ts
           grep -q 'evidenceSha256' lib/trading/directa-global-entitlement-proof.ts
           grep -q 'validUntil' lib/trading/directa-global-entitlement-proof.ts
-          echo 'Directa exact-MIC dual-control entitlement invariants present.'
+          grep -q 'resolveBrokerVenueIdentity' lib/trading/directa-global-source-candidate.ts
+          grep -q 'admitIndependentGlobalEvidence' lib/trading/directa-global-source-candidate.ts
+          echo 'Directa exact-MIC dual-control entitlement and independent admission pipeline present.'
