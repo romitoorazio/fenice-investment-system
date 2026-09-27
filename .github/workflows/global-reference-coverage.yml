@@ -33,10 +33,21 @@ jobs:
     steps:
       - name: Checkout proposed revision
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Reject manually edited provider evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          if git diff --name-only "$base_sha"...HEAD -- data/global-reference-coverage.json | grep -Fxq data/global-reference-coverage.json; then
+            echo "data/global-reference-coverage.json is workflow-owned provider evidence and cannot be edited in a pull request"
+            exit 1
+          fi
       - name: Validate isolated global reference collector
         run: node scripts/collect-global-reference-coverage.mjs --validate-only
 

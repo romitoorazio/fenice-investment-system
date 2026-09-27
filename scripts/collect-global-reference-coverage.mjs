@@ -42,6 +42,7 @@ const extraCountryAliases = {
   CI: ["Ivory Coast", "Cote d'Ivoire", "Côte d’Ivoire"],
   CV: ["Cape Verde", "Cabo Verde"],
   SZ: ["Eswatini", "Swaziland"],
+  MK: ["North Macedonia", "Macedonia"],
 };
 
 async function requestJson(url, timeoutMs = 60_000, fetchImpl = fetch) {
@@ -287,12 +288,70 @@ function buildCoverage({ universe, exchangeRows, stockRows, generatedAt }) {
   };
 }
 
+function validateCoverageReport(report, target, { enforceProductionMinimums = true } = {}) {
+  if (!report || typeof report !== "object" || Array.isArray(report)) throw new Error("GLOBAL_REFERENCE_REPORT_INVALID");
+  if (!Array.isArray(report.countryCoverage) || !Array.isArray(report.regionCoverage)) throw new Error("GLOBAL_REFERENCE_REPORT_COVERAGE_INVALID");
+  if (report?.provider?.id !== "twelve-data") throw new Error("GLOBAL_REFERENCE_PROVIDER_INVALID");
+  if (report?.safety?.researchOnly !== true) throw new Error("GLOBAL_REFERENCE_RESEARCH_ONLY_REQUIRED");
+  if (report?.safety?.paperExecutionAllowed !== false || report?.safety?.liveTradingAllowed !== false || report?.safety?.brokerConnectivityAllowed !== false) {
+    throw new Error("GLOBAL_REFERENCE_EXECUTION_LOCK_FAILURE");
+  }
+  if (report?.safety?.isolatedFromPaperV6InstrumentMaster !== true || report?.safety?.changesPaperV6Fingerprint !== false) {
+    throw new Error("GLOBAL_REFERENCE_PAPER_ISOLATION_FAILURE");
+  }
+
+  const codes = report.countryCoverage.map((row) => upper(row?.code));
+  const expectedCodes = [...target.countries.keys()].sort();
+  if (new Set(codes).size !== codes.length || JSON.stringify([...codes].sort()) !== JSON.stringify(expectedCodes)) {
+    throw new Error("GLOBAL_REFERENCE_COUNTRY_SET_INVALID");
+  }
+  if (report.countryCoverage.some((row) => row?.executionEligible !== false)) throw new Error("GLOBAL_REFERENCE_COUNTRY_EXECUTION_LOCK_FAILURE");
+  if (report.countryCoverage.some((row) => !Number.isInteger(Number(row?.instrumentCount)) || Number(row.instrumentCount) < 0 || row?.providerCovered !== (Number(row.instrumentCount) > 0))) {
+    throw new Error("GLOBAL_REFERENCE_COUNTRY_COVERAGE_INVALID");
+  }
+
+  const targetCountries = report.countryCoverage.length;
+  const providerMatchedCountries = report.countryCoverage.filter((row) => row?.providerCovered === true && Number(row?.instrumentCount || 0) > 0).length;
+  const matchedInstrumentReferences = report.countryCoverage.reduce((sum, row) => sum + Number(row?.instrumentCount || 0), 0);
+  const uncoveredCountries = report.countryCoverage.filter((row) => Number(row?.instrumentCount || 0) === 0).map((row) => upper(row.code)).sort();
+  const reportedUncovered = [...(report?.coverage?.uncoveredCountries || [])].map(upper).sort();
+
+  if (Number(report?.coverage?.targetCountries) !== targetCountries) throw new Error("GLOBAL_REFERENCE_TARGET_COUNT_MISMATCH");
+  if (Number(report?.coverage?.providerMatchedCountries) !== providerMatchedCountries) throw new Error("GLOBAL_REFERENCE_MATCHED_COUNTRY_COUNT_MISMATCH");
+  if (Number(report?.coverage?.matchedInstrumentReferences) !== matchedInstrumentReferences || Number(report?.provider?.matchedInstrumentReferences) !== matchedInstrumentReferences) {
+    throw new Error("GLOBAL_REFERENCE_INSTRUMENT_COUNT_MISMATCH");
+  }
+  if (JSON.stringify(reportedUncovered) !== JSON.stringify(uncoveredCountries)) throw new Error("GLOBAL_REFERENCE_UNCOVERED_COUNTRY_MISMATCH");
+  if (enforceProductionMinimums && targetCountries < 150) throw new Error("GLOBAL_REFERENCE_TARGET_SET_TOO_SMALL");
+  if (enforceProductionMinimums && providerMatchedCountries < 10) throw new Error("GLOBAL_REFERENCE_COUNTRY_COVERAGE_TOO_SMALL");
+  if (enforceProductionMinimums && matchedInstrumentReferences < 100) throw new Error("GLOBAL_REFERENCE_INSTRUMENT_SET_TOO_SMALL");
+  return true;
+}
+
+async function validateCommittedReport(target) {
+  let raw;
+  try {
+    raw = await readFile(outputPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw new Error("GLOBAL_REFERENCE_REPORT_READ_FAILED");
+  }
+  let report;
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    throw new Error("GLOBAL_REFERENCE_REPORT_JSON_INVALID");
+  }
+  validateCoverageReport(report, target);
+  return true;
+}
+
 async function runSelfTest() {
   const universe = {
     version: 99,
     regions: [
       { id: "north-america", name: "North America", countries: ["US", "CA"], priority: 1 },
-      { id: "europe", name: "Europe", countries: ["GB"], priority: 1 },
+      { id: "europe", name: "Europe", countries: ["GB", "MK"], priority: 1 },
       { id: "asia-pacific", name: "Asia Pacific", countries: ["JP"], priority: 1 },
     ],
     restrictedOrSpecialHandlingMarkets: [
@@ -309,14 +368,16 @@ async function runSelfTest() {
       { symbol: "AAPL", country: "United States", exchange: "NASDAQ", currency: "USD", type: "Common Stock" },
       { symbol: "RY", country_code: "CA", exchange: "TSX", currency: "CAD", type: "Common Stock" },
       { symbol: "VOD", exchange: "LSE", currency: "GBP", type: "Common Stock" },
+      { symbol: "MSE", country: "Macedonia", exchange: "MSE", currency: "MKD", type: "Common Stock" },
       { symbol: "VOID", country: "Atlantis", exchange: "ATL", currency: "AAA", type: "Common Stock" },
     ],
     generatedAt: "2026-09-26T00:00:00.000Z",
   });
-  if (result.coverage.targetCountries !== 5) throw new Error(`SELF_TEST_TARGET_COUNTRIES_${result.coverage.targetCountries}`);
-  if (result.coverage.providerMatchedCountries !== 3) throw new Error(`SELF_TEST_MATCHED_COUNTRIES_${result.coverage.providerMatchedCountries}`);
-  if (result.coverage.matchedInstrumentReferences !== 3) throw new Error(`SELF_TEST_MATCHED_INSTRUMENTS_${result.coverage.matchedInstrumentReferences}`);
+  if (result.coverage.targetCountries !== 6) throw new Error(`SELF_TEST_TARGET_COUNTRIES_${result.coverage.targetCountries}`);
+  if (result.coverage.providerMatchedCountries !== 4) throw new Error(`SELF_TEST_MATCHED_COUNTRIES_${result.coverage.providerMatchedCountries}`);
+  if (result.coverage.matchedInstrumentReferences !== 4) throw new Error(`SELF_TEST_MATCHED_INSTRUMENTS_${result.coverage.matchedInstrumentReferences}`);
   if (!result.coverage.uncoveredCountries.includes("RU")) throw new Error("SELF_TEST_SPECIAL_COUNTRY_EXPECTED_UNCOVERED");
+  validateCoverageReport(result, buildTargetCountries(universe), { enforceProductionMinimums: false });
   if (result.safety.paperExecutionAllowed !== false || result.safety.liveTradingAllowed !== false || result.safety.brokerConnectivityAllowed !== false) throw new Error("SELF_TEST_EXECUTION_LOCK_FAILURE");
   if (result.safety.isolatedFromPaperV6InstrumentMaster !== true || result.safety.changesPaperV6Fingerprint !== false) throw new Error("SELF_TEST_PAPER_ISOLATION_FAILURE");
   const syntheticSecret = "self-test-provider-secret";
@@ -345,6 +406,8 @@ if (target.countries.size < 150) throw new Error(`GLOBAL_TARGET_COUNTRY_SET_TOO_
 
 if (validateOnly) {
   await runSelfTest();
+  const committedReportValid = await validateCommittedReport(target);
+  if (committedReportValid) console.log("Fenice committed global reference coverage validation: PASS.");
   console.log(`Fenice global reference collector validation: targetCountries=${target.countries.size}; no provider call.`);
   process.exit(0);
 }
