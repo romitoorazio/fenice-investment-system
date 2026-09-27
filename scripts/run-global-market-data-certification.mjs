@@ -20,6 +20,7 @@ const dataDir = path.join(root, "data");
 const evidencePath = path.join(dataDir, "execution-market-evidence.json");
 const certificationPath = path.join(dataDir, "global-market-data-certification.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
+const observeOnly = process.argv.includes("--observe-only") || String(process.env.FENICE_GLOBAL_OBSERVE_ONLY || "").trim() === "1";
 const probeLimit = Math.max(0, Math.min(14, Number(process.env.FENICE_GLOBAL_EXECUTION_PROBES || 14) || 14));
 const minIntervalMs = Math.max(1_000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_MIN_INTERVAL_MS || 9_000) || 9_000));
 const maxRateLimitRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_429_RETRIES || 2) || 2));
@@ -178,6 +179,7 @@ for (const instrument of targets) {
     const yahooEvidence = await fetchYahooValidation(instrument);
     newObservations.push(yahooEvidence);
     result.yahoo.accepted = true;
+    result.yahoo.observedAt = yahooEvidence.observedAt;
   } catch (error) {
     errors.push({ symbol: instrument.symbol, exchangeMic: instrument.exchangeMic, provider: "yahoo", code: String(error?.message || "FETCH_FAILED").replace(/[^A-Z0-9_:-]/gi, "_").slice(0, 120) });
   }
@@ -191,6 +193,7 @@ for (const instrument of targets) {
       result.twelveData.eligibility = evidence.eligibility;
       result.twelveData.fresh = verification.fresh;
       result.twelveData.identity = verification.identity;
+      result.twelveData.observedAt = evidence.observedAt;
     } catch (error) {
       result.twelveData.reasons = error?.verification?.reasons || [String(error?.message || "FETCH_FAILED")];
       errors.push({ symbol: instrument.symbol, exchangeMic: instrument.exchangeMic, provider: "twelve-data", code: String(error?.message || "FETCH_FAILED").replace(/[^A-Z0-9_:-]/gi, "_").slice(0, 120) });
@@ -212,17 +215,21 @@ const summary = {
   degraded: certifications.filter((item) => item.state === "DEGRADED").length,
   blocked: certifications.filter((item) => item.state === "BLOCKED").length,
   allowNewRiskMarkets: certifications.filter((item) => item.allowNewRisk).length,
-  paperEligibleTwelveData: mergedObservations.filter((item) => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER" && targets.some((target) => normalizeExecutionSymbol(target.symbol) === item.symbol)).length,
+  yahooValidated: probeResults.filter((item) => item.yahoo.accepted).length,
+  twelveDataAccepted: probeResults.filter((item) => item.twelveData.accepted).length,
+  paperEligibleTwelveData: newObservations.filter((item) => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER").length,
 };
 const generatedAt = new Date().toISOString();
 const globalCertification = {
-  version: 1,
+  version: 2,
   generatedAt,
-  mode: "PAPER_ONLY",
+  mode: observeOnly ? "OBSERVATION_ONLY" : "PAPER_CANDIDATE_COLLECTION",
+  paperCoreMutation: !observeOnly,
   liveTradingReleased: false,
+  brokerConnectivityAllowed: false,
   providerPolicy: {
-    twelveData: "PAPER candidate only after authenticated quote has exact symbol, exact MIC, exact currency and <=120s provider market timestamp",
-    yahoo: "cross-check only; never satisfies PAPER quorum",
+    twelveData: "plan-dependent PAPER candidate only after authenticated quote has exact symbol, exact MIC, exact currency and <=120s provider market timestamp; unsupported entitlements fail closed",
+    yahoo: "broad global cross-check only; never satisfies PAPER quorum",
     alphaVantage: "not used for international realtime certification because realtime/delayed entitlement is US-market scoped",
     quorum: "two independent PAPER-eligible source families required before new risk; three preferred",
   },
@@ -235,24 +242,26 @@ const globalCertification = {
 };
 
 await writeJsonStateAtomic(certificationPath, globalCertification);
-await writeJsonStateAtomic(evidencePath, {
-  ...existingEvidence,
-  version: Math.max(12, Number(existingEvidence?.version || 0)),
-  generatedAt,
-  observations: mergedObservations,
-  errors: [...(Array.isArray(existingEvidence?.errors) ? existingEvidence.errors : []), ...errors],
-  capabilities: {
-    ...(existingEvidence?.capabilities || {}),
-    globalMarketCertificationEnabled: true,
-    globalMarketProbeCount: targets.length,
-    globalMarketSentinelCount: GLOBAL_MARKET_SENTINELS.length,
-    globalMarketTwelveDataConfigured: Boolean(twelveDataApiKey),
-    globalMarketCertifiedCount: summary.certified,
-    globalMarketDegradedCount: summary.degraded,
-    globalMarketBlockedCount: summary.blocked,
-    globalMarketLiveTradingReleased: false,
-  },
-  globalCertification,
-});
+if (!observeOnly) {
+  await writeJsonStateAtomic(evidencePath, {
+    ...existingEvidence,
+    version: Math.max(12, Number(existingEvidence?.version || 0)),
+    generatedAt,
+    observations: mergedObservations,
+    errors: [...(Array.isArray(existingEvidence?.errors) ? existingEvidence.errors : []), ...errors],
+    capabilities: {
+      ...(existingEvidence?.capabilities || {}),
+      globalMarketCertificationEnabled: true,
+      globalMarketProbeCount: targets.length,
+      globalMarketSentinelCount: GLOBAL_MARKET_SENTINELS.length,
+      globalMarketTwelveDataConfigured: Boolean(twelveDataApiKey),
+      globalMarketCertifiedCount: summary.certified,
+      globalMarketDegradedCount: summary.degraded,
+      globalMarketBlockedCount: summary.blocked,
+      globalMarketLiveTradingReleased: false,
+    },
+    globalCertification,
+  });
+}
 
-console.log(JSON.stringify({ generatedAt, summary, twelveDataConfigured: Boolean(twelveDataApiKey), errors: errors.length }, null, 2));
+console.log(JSON.stringify({ generatedAt, mode: globalCertification.mode, summary, twelveDataConfigured: Boolean(twelveDataApiKey), errors: errors.length }, null, 2));
