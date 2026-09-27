@@ -65,6 +65,10 @@ for (const asset of report.assets || []) {
 }
 report.assets = (report.assets || []).sort((left, right) => Number(right.bestRobustnessScore) - Number(left.bestRobustnessScore));
 report.robustCount = report.assets.filter((asset) => asset.conclusion === 'ROBUSTA').length;
+report.source = {
+  ...(report.source || {}),
+  detail: `${report.assets.length}/${Number(report.universeSize || report.assets.length)} strumenti analizzati; ${report.robustCount} con almeno una famiglia classificata ROBUSTA.`,
+};
 report.methodology = [...new Set([
   ...(report.methodology || []),
   'Il miglioramento del drawdown è positivo quando la strategia perde meno del benchmark SPY.',
