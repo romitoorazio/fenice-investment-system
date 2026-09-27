@@ -1,0 +1,56 @@
+name: Fenice Broker Venue Identity Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/global-broker-venue-identity.ts"
+      - "scripts/test-global-broker-venue-identity.mjs"
+      - "data/global-broker-venue-identities.json"
+      - ".github/workflows/global-broker-venue-identity-safety.yml"
+  push:
+    branches:
+      - feat/global-market-data-certification
+    paths:
+      - "lib/trading/global-broker-venue-identity.ts"
+      - "scripts/test-global-broker-venue-identity.mjs"
+      - "data/global-broker-venue-identities.json"
+      - ".github/workflows/global-broker-venue-identity-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-broker-venue-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test broker ticker ISIN exact-MIC identity gate
+        run: node --experimental-strip-types scripts/test-global-broker-venue-identity.mjs
+
+      - name: Assert persisted registry is empty and default-deny
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-broker-venue-identities.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_BROKER_VENUE_IDENTITY') throw new Error('BROKER_VENUE_IDENTITY_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.identities)) throw new Error('BROKER_VENUE_IDENTITY_ARRAY_REQUIRED');
+          if (d.identities.length !== 0) throw new Error('BROKER_VENUE_IDENTITY_MUST_REMAIN_EMPTY_UNTIL_REAL_EVIDENCE');
+          console.log('Broker venue identity registry is default-deny and contains no invented identity evidence.');
+          NODE
+
+      - name: Assert identity requires ISIN MIC evidence hash and review time
+        run: |
+          grep -q 'valid ISIN required' lib/trading/global-broker-venue-identity.ts
+          grep -q 'evidenceSha256' lib/trading/global-broker-venue-identity.ts
+          grep -q 'reviewedAt' lib/trading/global-broker-venue-identity.ts
+          grep -q 'exactVenueVerified' lib/trading/global-broker-venue-identity.ts
+          echo 'Audited broker venue identity invariants present.'
