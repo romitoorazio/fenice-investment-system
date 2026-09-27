@@ -19,7 +19,7 @@ export type GlobalMarketSentinel = ExecutionInstrument & {
 export type TwelveDataQuoteVerification = {
   accepted: boolean;
   eligibility: "VALIDATION_ONLY" | "PAPER";
-  evidence: ExecutionMarketEvidence | null;
+  evidence: GlobalExecutionMarketEvidence | null;
   reasons: string[];
   identity: {
     expectedSymbol: string;
@@ -33,6 +33,16 @@ export type TwelveDataQuoteVerification = {
     currencyMatched: boolean;
   };
   fresh: boolean;
+};
+
+export type GlobalExecutionMarketEvidence = ExecutionMarketEvidence & {
+  exchangeMic: string;
+};
+
+export type GlobalPaperEntitlementProof = {
+  paperAllowed: boolean;
+  approvedMics: readonly string[];
+  evidenceRef: string;
 };
 
 export type GlobalInstrumentCertification = {
@@ -70,6 +80,27 @@ export const GLOBAL_MARKET_SENTINELS: readonly GlobalMarketSentinel[] = [
 export const TWELVE_DATA_GLOBAL_PROBE_MICS = new Set(
   GLOBAL_MARKET_SENTINELS.map((item) => String(item.exchangeMic || "").toUpperCase()),
 );
+
+const ASIA_SESSION_MICS = new Set(["XTKS", "XHKG", "XASX", "XNSE", "XSHG"]);
+const EUROPE_SESSION_MICS = new Set(["XMIL", "XETR", "XPAR", "XLON", "XAMS", "XMAD", "XSWX"]);
+const AMERICAS_SESSION_MICS = new Set(["XTSE", "BVMF"]);
+
+/**
+ * Conservative weekday UTC windows used only to suppress obviously closed
+ * observation probes. Exchange holidays remain fail-closed: a provider quote
+ * still needs a fresh market timestamp and exact-MIC identity to be accepted.
+ */
+export function isGlobalObservationSessionWindowOpen(exchangeMic: unknown, nowMs = Date.now()): boolean {
+  const now = new Date(nowMs);
+  const weekday = now.getUTCDay();
+  if (weekday === 0 || weekday === 6) return false;
+  const minute = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const mic = normalizedMic(exchangeMic);
+  if (ASIA_SESSION_MICS.has(mic)) return minute >= 0 && minute <= 390;
+  if (EUROPE_SESSION_MICS.has(mic)) return minute >= 420 && minute <= 930;
+  if (AMERICAS_SESSION_MICS.has(mic)) return minute >= 810 && minute <= 1200;
+  return false;
+}
 
 function normalizedMic(value: unknown): string {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -113,6 +144,7 @@ export function verifyTwelveDataGlobalQuote(
   raw: unknown,
   nowMs = Date.now(),
   maxAgeSeconds = 120,
+  entitlementProof?: GlobalPaperEntitlementProof,
 ): TwelveDataQuoteVerification {
   const data = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
   const expectedSymbol = normalizeExecutionSymbol(instrument.symbol);
@@ -140,13 +172,19 @@ export function verifyTwelveDataGlobalQuote(
 
   const identityVerified = symbolMatched && micMatched && currencyMatched;
   const provenanceVerified = identityVerified && Boolean(observedAt) && Number.isFinite(price) && price > 0;
+  const entitlementVerified = entitlementProof?.paperAllowed === true
+    && Boolean(String(entitlementProof.evidenceRef || "").trim())
+    && entitlementProof.approvedMics.map(normalizedMic).includes(expectedMic);
+  if (provenanceVerified && fresh && !entitlementVerified) {
+    reasons.push("PAPER entitlement for the exact MIC is not independently verified");
+  }
   const classifiedEligibility = observedAt
     ? classifyExecutionPaperEligibility({
       source: "Twelve Data authenticated exact-MIC global quote",
       sourceFamily: "twelve-data",
       observedAt,
       realtime: fresh,
-      entitlement: "PAPER",
+      entitlement: entitlementVerified ? "PAPER" : "VALIDATION_ONLY",
       provenanceVerified,
     }, nowMs, maxAgeSeconds)
     : "VALIDATION_ONLY";
@@ -154,7 +192,7 @@ export function verifyTwelveDataGlobalQuote(
     ? "PAPER"
     : "VALIDATION_ONLY";
 
-  const evidence = provenanceVerified && observedAt
+  const normalizedEvidence = provenanceVerified && observedAt
     ? normalizeExecutionEvidence({
       symbol: expectedSymbol,
       currency: expectedCurrency,
@@ -167,8 +205,13 @@ export function verifyTwelveDataGlobalQuote(
       price,
       observedAt,
       provenanceVerified: true,
-      provenanceMethod: `authenticated-exact-mic:${expectedMic}`,
+      provenanceMethod: entitlementVerified
+        ? `authenticated-exact-mic:${expectedMic};entitlement:verified`
+        : `authenticated-exact-mic:${expectedMic};entitlement:unverified`,
     })
+    : null;
+  const evidence = normalizedEvidence
+    ? { ...normalizedEvidence, exchangeMic: expectedMic } satisfies GlobalExecutionMarketEvidence
     : null;
 
   return {
@@ -193,14 +236,16 @@ export function verifyTwelveDataGlobalQuote(
 
 export function certifyGlobalInstrument(
   instrument: ExecutionInstrument,
-  observations: readonly ExecutionMarketEvidence[],
+  observations: readonly GlobalExecutionMarketEvidence[],
   nowMs = Date.now(),
 ): GlobalInstrumentCertification {
   const symbol = normalizeExecutionSymbol(instrument.symbol);
   const currency = normalizedCurrency(instrument.currency);
   const exchangeMic = normalizedMic(instrument.exchangeMic);
   const country = String(instrument.country || "").trim().toUpperCase();
-  const relevant = observations.filter((item) => normalizeExecutionSymbol(item.symbol) === symbol && normalizedCurrency(item.currency) === currency);
+  const relevant = observations.filter((item) => normalizeExecutionSymbol(item.symbol) === symbol
+    && normalizedCurrency(item.currency) === currency
+    && normalizedMic(item.exchangeMic) === exchangeMic);
   const quorumEvidence = relevant.map((item) => ({
     source: item.source,
     sourceFamily: item.sourceFamily,

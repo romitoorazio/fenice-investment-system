@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   GLOBAL_MARKET_SENTINELS,
   certifyGlobalInstrument,
+  isGlobalObservationSessionWindowOpen,
   isTwelveDataGlobalPaperCandidate,
   twelveDataGlobalQuoteUrl,
   verifyTwelveDataGlobalQuote,
@@ -32,10 +33,26 @@ const good = verifyTwelveDataGlobalQuote(enel, {
 }, now);
 assert.equal(good.accepted, true);
 assert.equal(good.fresh, true);
-assert.equal(good.eligibility, "PAPER");
-assert.equal(good.evidence?.eligibility, "PAPER");
+assert.equal(good.eligibility, "VALIDATION_ONLY", "freshness and identity must not invent provider entitlement");
+assert.equal(good.evidence?.eligibility, "VALIDATION_ONLY");
+assert.equal(good.evidence?.exchangeMic, "XMIL");
+assert.ok(good.reasons.some((reason) => reason.includes("entitlement")));
 assert.equal(good.identity.micMatched, true);
 assert.equal(good.identity.currencyMatched, true);
+
+const entitled = verifyTwelveDataGlobalQuote(enel, {
+  symbol: "ENEL",
+  mic_code: "XMIL",
+  currency: "EUR",
+  close: "8.125",
+  timestamp: Math.floor(Date.parse("2026-09-27T09:00:00.000Z") / 1000),
+}, now, 120, {
+  paperAllowed: true,
+  approvedMics: ["XMIL"],
+  evidenceRef: "account-entitlement-audit:test-fixture",
+});
+assert.equal(entitled.eligibility, "PAPER");
+assert.equal(entitled.evidence?.eligibility, "PAPER");
 
 const wrongVenue = verifyTwelveDataGlobalQuote(enel, {
   symbol: "ENEL",
@@ -72,15 +89,16 @@ assert.equal(stale.fresh, false);
 assert.equal(stale.eligibility, "VALIDATION_ONLY");
 assert.equal(stale.evidence?.eligibility, "VALIDATION_ONLY");
 
-const onePaper = certifyGlobalInstrument(enel, [good.evidence], now);
+const onePaper = certifyGlobalInstrument(enel, [entitled.evidence], now);
 assert.equal(onePaper.state, "DEGRADED");
 assert.equal(onePaper.allowNewRisk, false);
 assert.deepEqual(onePaper.paperEligibleFamilies, ["twelve-data"]);
 
 const certified = certifyGlobalInstrument(enel, [
-  good.evidence,
+  entitled.evidence,
   {
     symbol: "ENEL",
+    exchangeMic: "XMIL",
     currency: "EUR",
     assetClass: "equity",
     source: "Independent broker exact-venue quote",
@@ -96,9 +114,10 @@ assert.equal(certified.allowNewRisk, true);
 assert.equal(certified.quorum.independentSources, 2);
 
 const divergent = certifyGlobalInstrument(enel, [
-  good.evidence,
+  entitled.evidence,
   {
     symbol: "ENEL",
+    exchangeMic: "XMIL",
     currency: "EUR",
     source: "Independent broker exact-venue quote",
     sourceFamily: "broker-independent",
@@ -110,6 +129,30 @@ const divergent = certifyGlobalInstrument(enel, [
 assert.equal(divergent.allowNewRisk, false);
 assert.notEqual(divergent.state, "CERTIFIED");
 assert.ok(divergent.quorum.reasons.some((reason) => reason.includes("spread exceeds")));
+
+const wrongMicCannotCertify = certifyGlobalInstrument(enel, [
+  entitled.evidence,
+  {
+    symbol: "ENEL",
+    exchangeMic: "XPAR",
+    currency: "EUR",
+    source: "Independent quote from a different venue",
+    sourceFamily: "broker-independent",
+    eligibility: "PAPER",
+    price: 8.13,
+    observedAt: "2026-09-27T09:00:05.000Z",
+    provenanceVerified: true,
+  },
+], now);
+assert.equal(wrongMicCannotCertify.allowNewRisk, false, "same ticker/currency from another MIC must not contaminate quorum");
+assert.deepEqual(wrongMicCannotCertify.paperEligibleFamilies, ["twelve-data"]);
+
+assert.equal(isGlobalObservationSessionWindowOpen("XMIL", Date.parse("2026-09-28T09:00:00Z")), true);
+assert.equal(isGlobalObservationSessionWindowOpen("XMIL", Date.parse("2026-09-28T19:00:00Z")), false);
+assert.equal(isGlobalObservationSessionWindowOpen("XTKS", Date.parse("2026-09-28T05:30:00Z")), true);
+assert.equal(isGlobalObservationSessionWindowOpen("XTKS", Date.parse("2026-09-28T09:00:00Z")), false);
+assert.equal(isGlobalObservationSessionWindowOpen("XTSE", Date.parse("2026-09-28T15:00:00Z")), true);
+assert.equal(isGlobalObservationSessionWindowOpen("XMIL", Date.parse("2026-09-27T09:00:00Z")), false, "weekend probes must be suppressed");
 
 assert.equal(GLOBAL_MARKET_SENTINELS.filter((item) => item.tier === "EUROPE_CORE").length, 7);
 assert.ok(GLOBAL_MARKET_SENTINELS.some((item) => item.exchangeMic === "XTKS"));

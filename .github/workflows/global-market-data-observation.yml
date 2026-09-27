@@ -50,6 +50,7 @@ jobs:
     env:
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
       FENICE_GLOBAL_OBSERVE_ONLY: "1"
+      FENICE_GLOBAL_REQUIRE_OPEN_SESSION: "1"
       FENICE_GLOBAL_EXECUTION_PROBES: "14"
       FENICE_TWELVE_DATA_MIN_INTERVAL_MS: "9000"
     steps:
@@ -78,8 +79,9 @@ jobs:
           if (d?.mode !== 'OBSERVATION_ONLY') throw new Error('GLOBAL_OBSERVATION_MODE_REQUIRED');
           if (d?.paperCoreMutation !== false) throw new Error('GLOBAL_OBSERVATION_PAPER_CORE_MUTATION_FORBIDDEN');
           if (d?.liveTradingReleased !== false || d?.brokerConnectivityAllowed !== false) throw new Error('GLOBAL_OBSERVATION_LIVE_LOCK_FAILURE');
-          if (Number(d?.summary?.totalTargets || 0) < 14) throw new Error('GLOBAL_OBSERVATION_TARGET_SET_TOO_SMALL');
-          if (!Array.isArray(d?.certifications) || d.certifications.length < 14) throw new Error('GLOBAL_OBSERVATION_CERTIFICATION_SET_TOO_SMALL');
+          if (Number(d?.targetSelection?.catalogTargets || 0) < 14) throw new Error('GLOBAL_OBSERVATION_TARGET_CATALOG_TOO_SMALL');
+          if (Number(d?.targetSelection?.selectedTargets || 0) !== Number(d?.summary?.totalTargets || 0)) throw new Error('GLOBAL_OBSERVATION_TARGET_SELECTION_MISMATCH');
+          if (!Array.isArray(d?.certifications) || d.certifications.length !== Number(d?.summary?.totalTargets || 0)) throw new Error('GLOBAL_OBSERVATION_CERTIFICATION_SET_MISMATCH');
           console.log(`Global observation: targets=${d.summary.totalTargets}, yahoo=${d.summary.yahooValidated}, twelve=${d.summary.twelveDataAccepted}, certified=${d.summary.certified}, degraded=${d.summary.degraded}, blocked=${d.summary.blocked}; PAPER core untouched.`);
           NODE
 

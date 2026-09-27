@@ -4,12 +4,12 @@ import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state
 import {
   GLOBAL_MARKET_SENTINELS,
   certifyGlobalInstrument,
+  isGlobalObservationSessionWindowOpen,
   isTwelveDataGlobalPaperCandidate,
   twelveDataGlobalQuoteUrl,
   verifyTwelveDataGlobalQuote,
 } from "../lib/trading/global-market-data-certification.ts";
 import {
-  deduplicateExecutionEvidence,
   normalizeExecutionEvidence,
   normalizeExecutionSymbol,
   yahooSymbolForInstrument,
@@ -21,10 +21,17 @@ const evidencePath = path.join(dataDir, "execution-market-evidence.json");
 const certificationPath = path.join(dataDir, "global-market-data-certification.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const observeOnly = process.argv.includes("--observe-only") || String(process.env.FENICE_GLOBAL_OBSERVE_ONLY || "").trim() === "1";
+if (!observeOnly) throw new Error("GLOBAL_PAPER_CORE_MUTATION_DISABLED_DURING_ACTIVE_V6");
 const probeLimit = Math.max(0, Math.min(14, Number(process.env.FENICE_GLOBAL_EXECUTION_PROBES || 14) || 14));
 const minIntervalMs = Math.max(1_000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_MIN_INTERVAL_MS || 9_000) || 9_000));
 const maxRateLimitRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_429_RETRIES || 2) || 2));
 const timeoutMs = Math.max(2_000, Math.min(20_000, Number(process.env.FENICE_GLOBAL_MARKETDATA_TIMEOUT_MS || 8_000) || 8_000));
+const requireOpenSession = String(process.env.FENICE_GLOBAL_REQUIRE_OPEN_SESSION || "1").trim() !== "0";
+const approvedPaperMics = String(process.env.FENICE_TWELVE_DATA_GLOBAL_PAPER_MICS || "")
+  .split(",")
+  .map((value) => value.trim().toUpperCase())
+  .filter(Boolean);
+const entitlementEvidenceRef = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_REF || "").trim();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 let nextTwelveRequestAt = 0;
 let rateLimitEvents = 0;
@@ -88,7 +95,11 @@ async function fetchTwelveGlobal(instrument) {
   if (!twelveDataApiKey) throw new Error("TWELVE_DATA_NOT_CONFIGURED");
   if (!isTwelveDataGlobalPaperCandidate(instrument)) throw new Error("TWELVE_DATA_GLOBAL_NOT_A_CANDIDATE");
   const data = await requestTwelve(twelveDataGlobalQuoteUrl(instrument, twelveDataApiKey));
-  const verified = verifyTwelveDataGlobalQuote(instrument, data, Date.now(), 120);
+  const verified = verifyTwelveDataGlobalQuote(instrument, data, Date.now(), 120, {
+    paperAllowed: approvedPaperMics.includes(String(instrument.exchangeMic || "").toUpperCase()),
+    approvedMics: approvedPaperMics,
+    evidenceRef: entitlementEvidenceRef,
+  });
   if (!verified.accepted || !verified.evidence) {
     const reason = verified.reasons.length ? verified.reasons.join("; ") : "TWELVE_DATA_GLOBAL_QUOTE_REJECTED";
     const error = new Error(reason);
@@ -110,7 +121,7 @@ async function fetchYahooValidation(instrument) {
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp <= 0) throw new Error("INVALID_YAHOO_GLOBAL_QUOTE");
   if (!returnedCurrency || returnedCurrency !== expectedCurrency) throw new Error("YAHOO_GLOBAL_CURRENCY_MISMATCH");
   const observedAt = new Date(timestamp * 1000).toISOString();
-  const evidence = normalizeExecutionEvidence({
+  const normalized = normalizeExecutionEvidence({
     symbol: normalizeExecutionSymbol(instrument.symbol),
     currency: expectedCurrency,
     assetClass: instrument.assetClass,
@@ -122,8 +133,22 @@ async function fetchYahooValidation(instrument) {
     provenanceVerified: false,
     provenanceMethod: `public-yahoo-symbol:${providerSymbol}`,
   });
-  if (!evidence) throw new Error("INVALID_YAHOO_GLOBAL_EVIDENCE");
-  return evidence;
+  if (!normalized) throw new Error("INVALID_YAHOO_GLOBAL_EVIDENCE");
+  return { ...normalized, exchangeMic: String(instrument.exchangeMic || "").trim().toUpperCase() };
+}
+
+function deduplicateGlobalEvidence(values) {
+  const map = new Map();
+  for (const item of values) {
+    const exchangeMic = String(item?.exchangeMic || "").trim().toUpperCase();
+    const normalized = normalizeExecutionEvidence(item || {});
+    if (!normalized || !exchangeMic) continue;
+    const candidate = { ...normalized, exchangeMic };
+    const key = `${candidate.symbol}:${exchangeMic}:${candidate.sourceFamily}`;
+    const previous = map.get(key);
+    if (!previous || Date.parse(candidate.observedAt) > Date.parse(previous.observedAt)) map.set(key, candidate);
+  }
+  return [...map.values()];
 }
 
 function targetKey(instrument) {
@@ -158,7 +183,10 @@ const targetMap = new Map();
 for (const item of [...queuedTargets, ...GLOBAL_MARKET_SENTINELS]) {
   if (!targetMap.has(targetKey(item))) targetMap.set(targetKey(item), item);
 }
-const targets = [...targetMap.values()].slice(0, probeLimit);
+const catalogTargets = [...targetMap.values()];
+const targets = catalogTargets
+  .filter((instrument) => !requireOpenSession || isGlobalObservationSessionWindowOpen(instrument.exchangeMic, Date.now()))
+  .slice(0, probeLimit);
 const newObservations = [];
 const probeResults = [];
 const errors = [];
@@ -203,7 +231,7 @@ for (const instrument of targets) {
   probeResults.push(result);
 }
 
-const mergedObservations = deduplicateExecutionEvidence([
+const mergedObservations = deduplicateGlobalEvidence([
   ...(Array.isArray(existingEvidence?.observations) ? existingEvidence.observations : []),
   ...newObservations,
 ]);
@@ -228,12 +256,18 @@ const globalCertification = {
   liveTradingReleased: false,
   brokerConnectivityAllowed: false,
   providerPolicy: {
-    twelveData: "plan-dependent PAPER candidate only after authenticated quote has exact symbol, exact MIC, exact currency and <=120s provider market timestamp; unsupported entitlements fail closed",
+    twelveData: "validation-only by default; PAPER requires explicit exact-MIC entitlement evidence in addition to authenticated exact identity and <=120s provider timestamp",
     yahoo: "broad global cross-check only; never satisfies PAPER quorum",
     alphaVantage: "not used for international realtime certification because realtime/delayed entitlement is US-market scoped",
     quorum: "two independent PAPER-eligible source families required before new risk; three preferred",
   },
   targets,
+  targetSelection: {
+    catalogTargets: catalogTargets.length,
+    selectedTargets: targets.length,
+    requireOpenSession,
+    entitlementEvidenceConfigured: Boolean(entitlementEvidenceRef && approvedPaperMics.length),
+  },
   probes: probeResults,
   certifications,
   summary,
