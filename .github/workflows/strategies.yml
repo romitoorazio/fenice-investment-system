@@ -10,6 +10,7 @@ on:
       - "scripts/run-strategy-lab.mjs"
       - "scripts/finalize-strategy-lab.mjs"
       - "scripts/test-strategy-robustness.mjs"
+      - "scripts/test-strategy-report-consistency.mjs"
       - "lib/intelligence/strategy-robustness.mjs"
       - "lib/strategy.ts"
       - "components/StrategyLab.tsx"
@@ -69,6 +70,9 @@ jobs:
           }
           console.log('Strategy assets:',s.assetCount,'coverage',s.coveragePercent,'robust',s.robustCount);
           NODE
+
+      - name: Verify finalized strategy summary consistency
+        run: node scripts/test-strategy-report-consistency.mjs
 
       - name: Commit strategy analysis
         run: |
