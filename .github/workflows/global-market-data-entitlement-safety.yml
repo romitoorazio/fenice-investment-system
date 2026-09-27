@@ -1,0 +1,59 @@
+name: Fenice Global Market Data Entitlement Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/global-market-data-entitlements.json"
+      - "lib/trading/global-market-data-entitlement.ts"
+      - "lib/trading/global-market-data-certification.ts"
+      - "scripts/run-global-market-data-certification.mjs"
+      - "scripts/test-global-market-data-entitlement.mjs"
+      - "scripts/test-global-market-data-certification.mjs"
+      - ".github/workflows/global-market-data-entitlement-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/global-market-data-entitlements.json"
+      - "lib/trading/global-market-data-entitlement.ts"
+      - "lib/trading/global-market-data-certification.ts"
+      - "scripts/run-global-market-data-certification.mjs"
+      - "scripts/test-global-market-data-entitlement.mjs"
+      - "scripts/test-global-market-data-certification.mjs"
+      - ".github/workflows/global-market-data-entitlement-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-entitlement-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify global market-data certification invariants
+        run: node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+      - name: Verify persisted plus runtime entitlement dual control
+        run: node --experimental-strip-types scripts/test-global-market-data-entitlement.mjs
+      - name: Assert default-deny entitlement registry
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-market-data-entitlements.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_DUAL_CONTROL') throw new Error('GLOBAL_ENTITLEMENT_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.entitlements)) throw new Error('GLOBAL_ENTITLEMENT_REGISTRY_INVALID');
+          for (const item of d.entitlements) {
+            if (item?.status === 'VERIFIED' && item?.paperAllowed === true) {
+              if (!/^[A-Z0-9]+$/.test(String(item.exchangeMic || ''))) throw new Error('GLOBAL_ENTITLEMENT_EXACT_MIC_REQUIRED');
+              if (!String(item.evidenceRef || '').trim()) throw new Error('GLOBAL_ENTITLEMENT_EVIDENCE_REF_REQUIRED');
+              if (!/^[a-f0-9]{64}$/i.test(String(item.evidenceSha256 || ''))) throw new Error('GLOBAL_ENTITLEMENT_SHA256_REQUIRED');
+              if (!Number.isFinite(Date.parse(String(item.reviewedAt || '')))) throw new Error('GLOBAL_ENTITLEMENT_REVIEW_DATE_REQUIRED');
+            }
+          }
+          console.log(`Global entitlement registry: ${d.entitlements.length} record(s); default deny and dual-control invariants PASS.`);
+          NODE
