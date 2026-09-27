@@ -54,11 +54,11 @@ const noPersistedEvidence = evaluateDirectaGlobalSourceCandidate(
   now,
 );
 assert.equal(noPersistedEvidence.admission.admission.admittedForPaper, false);
-assert.equal(noPersistedEvidence.admission.evidence?.eligibility, "VALIDATION_ONLY");
+assert.equal(noPersistedEvidence.admission.evidence, null, "without verified broker venue identity Fenice must create no market evidence at all");
 
 const wrongIsin = evaluateDirectaGlobalSourceCandidate({ ...quote, isin: "IT0000000000" }, venueRegistry, entitlementRegistry, runtime, now);
 assert.equal(wrongIsin.venueIdentity.exactVenueVerified, false);
-assert.equal(wrongIsin.admission.evidence?.eligibility, "VALIDATION_ONLY");
+assert.equal(wrongIsin.admission.evidence, null, "mismatched ISIN must fail before evidence construction");
 
 const badRuntime = evaluateDirectaGlobalSourceCandidate(quote, venueRegistry, entitlementRegistry, { ...runtime, evidenceSha256: "d".repeat(64) }, now);
 assert.equal(badRuntime.entitlement.verified, false);
