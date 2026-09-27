@@ -1,14 +1,63 @@
 {
-  "version": 1,
+  "version": 2,
   "updatedAt": "2026-09-28T00:00:00.000Z",
   "policy": "DEFAULT_DENY_INDEPENDENT_SOURCE",
   "providers": [
     {
       "id": "directa-readonly",
       "sourceFamily": "directa",
-      "status": "CANDIDATE",
+      "status": "CANDIDATE_ACCOUNT_AUTHORIZED_DATAFEED_NOT_ENABLED",
       "paperAllowed": false,
-      "reason": "Fenice has a read-only local datafeed path, but exact-MIC realtime entitlement evidence must be verified per venue before PAPER admission."
+      "reason": "Fenice can reach the authorized Directa/Darwin API path, but the separate realtime/historical datafeed entitlement is not enabled. Exact-MIC realtime evidence is therefore not available from Directa today."
+    },
+    {
+      "id": "eodhd-eu-websocket",
+      "sourceFamily": "eodhd-cboe-europe",
+      "status": "REALTIME_CROSS_VENUE_CANDIDATE",
+      "paperAllowed": false,
+      "reason": "Official EU WebSockets provide realtime European trades/quotes sourced from Cboe Europe across 18 markets. Useful as an independent realtime cross-check, but not exact primary-MIC evidence for Xetra/Milan/Euronext listings."
+    },
+    {
+      "id": "cboe-europe-direct",
+      "sourceFamily": "cboe-europe",
+      "status": "REALTIME_DIRECT_OR_VENDOR_CANDIDATE",
+      "paperAllowed": false,
+      "reason": "Cboe Europe offers realtime top-of-book/depth feeds, pan-European coverage and free trials. Production PAPER admission still requires lawful feed entitlement and exact Cboe venue/instrument mapping."
+    },
+    {
+      "id": "dxfeed-eu",
+      "sourceFamily": "dxfeed",
+      "status": "REALTIME_VENDOR_CANDIDATE",
+      "paperAllowed": false,
+      "reason": "dxFeed offers realtime EU equities and exchange-sourced feeds including Cboe Europe, gettex and Tradegate. PAPER requires commercial entitlement and exact source/venue mapping."
+    },
+    {
+      "id": "interactive-brokers",
+      "sourceFamily": "ibkr",
+      "status": "REALTIME_BROKER_CANDIDATE_REQUIRES_ACCOUNT_SUBSCRIPTIONS",
+      "paperAllowed": false,
+      "reason": "IBKR Web API supports streaming Level 1 data and exchange-specific conId@EXCHANGE requests. Most securities require market-data subscriptions and no authorized IBKR account is connected to Fenice."
+    },
+    {
+      "id": "saxo-openapi",
+      "sourceFamily": "saxo",
+      "status": "REALTIME_BROKER_CANDIDATE_REQUIRES_ACCOUNT_DATA_ACCESS",
+      "paperAllowed": false,
+      "reason": "Saxo OpenAPI supports realtime streaming quotes, but market-data access requires an authorized account/token and applicable data terms."
+    },
+    {
+      "id": "xetra-direct-or-vendor",
+      "sourceFamily": "deutsche-boerse",
+      "status": "EXACT_VENUE_CANDIDATE_REQUIRES_CONTRACT",
+      "paperAllowed": false,
+      "reason": "Deutsche Boerse distributes Xetra realtime data through CEF direct feeds and data vendors. Exact XETR evidence is attractive but requires applicable data entitlement/non-display terms."
+    },
+    {
+      "id": "euronext-direct-or-vendor",
+      "sourceFamily": "euronext",
+      "status": "EXACT_VENUE_CANDIDATE_REQUIRES_CONTRACT",
+      "paperAllowed": false,
+      "reason": "Euronext realtime data is available by direct feed or redistributor under EMDA/EDSA/subscriber terms. Exact venue data can be PAPER-eligible only after entitlement is documented."
     },
     {
       "id": "finnhub",
@@ -25,11 +74,11 @@
       "reason": "Free service is end-of-day and current public intraday positioning does not establish exact-venue international realtime entitlement for Fenice."
     },
     {
-      "id": "eodhd",
-      "sourceFamily": "eodhd",
+      "id": "yahoo",
+      "sourceFamily": "yahoo",
       "status": "VALIDATION_ONLY",
       "paperAllowed": false,
-      "reason": "Available worldwide feeds include delayed products; Fenice has no persisted exact-MIC realtime entitlement evidence for PAPER admission."
+      "reason": "Public cross-check only; never satisfies PAPER quorum."
     }
   ]
 }
