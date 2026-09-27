@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "lib/trading/global-independent-source-admission.ts"
+      - "lib/trading/global-independent-evidence.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
@@ -13,6 +14,7 @@ on:
       - feat/global-market-data-certification
     paths:
       - "lib/trading/global-independent-source-admission.ts"
+      - "lib/trading/global-independent-evidence.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
@@ -36,6 +38,9 @@ jobs:
       - name: Test independent non-US source fail-closed admission
         run: node --experimental-strip-types scripts/test-global-independent-source-admission.mjs
 
+      - name: Syntax-check gated evidence path
+        run: node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
+
       - name: Assert provider registry defaults to no PAPER admission
         run: |
           node - <<'NODE'
@@ -54,4 +59,5 @@ jobs:
         run: |
           grep -q 'second source must be independent from Twelve Data' lib/trading/global-independent-source-admission.ts
           grep -q 'sourceFamily === "twelve-data"' lib/trading/global-independent-source-admission.ts
-          echo 'Independent-source anti-self-quorum guard present.'
+          grep -q 'evaluateIndependentGlobalSourceAdmission' lib/trading/global-independent-evidence.ts
+          echo 'Independent-source anti-self-quorum and evidence admission guards present.'
