@@ -6,7 +6,9 @@ on:
     paths:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
   push:
@@ -15,7 +17,9 @@ on:
     paths:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
 
@@ -38,8 +42,13 @@ jobs:
       - name: Test independent non-US source fail-closed admission
         run: node --experimental-strip-types scripts/test-global-independent-source-admission.mjs
 
-      - name: Syntax-check gated evidence path
-        run: node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
+      - name: Test EODHD EU realtime cross-venue safety
+        run: node --experimental-strip-types scripts/test-eodhd-eu-realtime-validation.mjs
+
+      - name: Syntax-check gated evidence paths
+        run: |
+          node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
+          node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
 
       - name: Assert provider registry defaults to no PAPER admission
         run: |
@@ -47,10 +56,13 @@ jobs:
           const fs = require('fs');
           const d = JSON.parse(fs.readFileSync('data/global-independent-source-registry.json', 'utf8'));
           if (d?.policy !== 'DEFAULT_DENY_INDEPENDENT_SOURCE') throw new Error('INDEPENDENT_SOURCE_DEFAULT_DENY_REQUIRED');
-          if (!Array.isArray(d?.providers) || d.providers.length < 4) throw new Error('INDEPENDENT_SOURCE_REGISTRY_TOO_SMALL');
+          if (!Array.isArray(d?.providers) || d.providers.length < 8) throw new Error('INDEPENDENT_SOURCE_REGISTRY_TOO_SMALL');
+          const families = new Set();
           for (const p of d.providers) {
             if (p?.paperAllowed !== false) throw new Error(`UNVERIFIED_PROVIDER_CANNOT_BE_PAPER:${p?.id || 'unknown'}`);
             if (!p?.sourceFamily) throw new Error(`SOURCE_FAMILY_REQUIRED:${p?.id || 'unknown'}`);
+            if (families.has(`${p.id}:${p.sourceFamily}`)) throw new Error(`DUPLICATE_PROVIDER_FAMILY:${p.id}`);
+            families.add(`${p.id}:${p.sourceFamily}`);
           }
           console.log('Independent global provider registry is default-deny; no provider is silently PAPER-eligible.');
           NODE
@@ -61,3 +73,10 @@ jobs:
           grep -q 'sourceFamily === "twelve-data"' lib/trading/global-independent-source-admission.ts
           grep -q 'evaluateIndependentGlobalSourceAdmission' lib/trading/global-independent-evidence.ts
           echo 'Independent-source anti-self-quorum and evidence admission guards present.'
+
+      - name: Assert EODHD cannot impersonate primary venue
+        run: |
+          grep -q 'eodhd-cboe-europe' lib/trading/eodhd-eu-realtime-validation.ts
+          grep -q 'primary-mic-not-source' lib/trading/eodhd-eu-realtime-validation.ts
+          grep -q 'VALIDATION_ONLY' lib/trading/eodhd-eu-realtime-validation.ts
+          echo 'EODHD EU realtime is locked to cross-venue validation-only semantics.'
