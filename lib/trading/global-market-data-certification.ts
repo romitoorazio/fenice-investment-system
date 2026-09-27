@@ -140,7 +140,7 @@ export function verifyTwelveDataGlobalQuote(
 
   const identityVerified = symbolMatched && micMatched && currencyMatched;
   const provenanceVerified = identityVerified && Boolean(observedAt) && Number.isFinite(price) && price > 0;
-  const eligibility = observedAt
+  const classifiedEligibility = observedAt
     ? classifyExecutionPaperEligibility({
       source: "Twelve Data authenticated exact-MIC global quote",
       sourceFamily: "twelve-data",
@@ -149,6 +149,9 @@ export function verifyTwelveDataGlobalQuote(
       entitlement: "PAPER",
       provenanceVerified,
     }, nowMs, maxAgeSeconds)
+    : "VALIDATION_ONLY";
+  const eligibility: "VALIDATION_ONLY" | "PAPER" = classifiedEligibility === "PAPER"
+    ? "PAPER"
     : "VALIDATION_ONLY";
 
   const evidence = provenanceVerified && observedAt
