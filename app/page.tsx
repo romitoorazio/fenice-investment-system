@@ -21,6 +21,7 @@ export default function Home() {
         <Link href="/" className="shrink-0 rounded-xl bg-amber-300 px-4 py-3 text-xs font-black text-slate-950">Oggi</Link>
         <Link href="/radar" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-cyan-300 transition hover:bg-white/5">Radar</Link>
         <Link href="/europe" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-sky-300 transition hover:bg-white/5">Europa</Link>
+        <Link href="/global" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-teal-300 transition hover:bg-white/5">Mondo</Link>
         <Link href="/dossier" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-emerald-300 transition hover:bg-white/5">Dossier</Link>
         <Link href="/memos" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-indigo-300 transition hover:bg-white/5">Memo IC</Link>
         <Link href="/portfolio" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Portafoglio</Link>
