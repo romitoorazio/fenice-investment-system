@@ -3,6 +3,11 @@ import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import { resolveGlobalPaperEntitlementProof } from "../lib/trading/global-market-data-entitlement.ts";
 import {
+  applyGlobalMarketStateGate,
+  twelveDataMarketStateUrl,
+  verifyTwelveDataGlobalMarketState,
+} from "../lib/trading/global-market-state.ts";
+import {
   GLOBAL_MARKET_SENTINELS,
   certifyGlobalInstrument,
   isGlobalObservationSessionWindowOpen,
@@ -170,13 +175,34 @@ async function fetchTwelveGlobal(instrument) {
   if (entitlementProof.reasons.length) {
     verified.reasons = [...new Set([...verified.reasons, ...entitlementProof.reasons])];
   }
+
+  let marketState = null;
+  if (verified.accepted && verified.evidence?.eligibility === "PAPER") {
+    try {
+      const marketStateRaw = await requestTwelve(twelveDataMarketStateUrl(instrument.exchangeMic, twelveDataApiKey));
+      marketState = verifyTwelveDataGlobalMarketState(instrument.exchangeMic, marketStateRaw, Date.now());
+    } catch (error) {
+      marketState = verifyTwelveDataGlobalMarketState(instrument.exchangeMic, null, Date.now());
+      marketState.reasons = [...new Set([...marketState.reasons, `market_state fetch failed: ${String(error?.message || "FETCH_FAILED")}`])];
+    }
+    verified.evidence = applyGlobalMarketStateGate(verified.evidence, marketState);
+    verified.eligibility = verified.evidence.eligibility === "PAPER" ? "PAPER" : "VALIDATION_ONLY";
+    if (!marketState.paperSessionAllowed) {
+      verified.reasons = [...new Set([
+        ...verified.reasons,
+        ...marketState.reasons,
+        "PAPER downgraded because exact-MIC market_state is not confirmed open",
+      ])];
+    }
+  }
+
   if (!verified.accepted || !verified.evidence) {
     const reason = verified.reasons.length ? verified.reasons.join("; ") : "TWELVE_DATA_GLOBAL_QUOTE_REJECTED";
     const error = new Error(reason);
     error.verification = verified;
     throw error;
   }
-  return { evidence: verified.evidence, verification: verified, entitlementProof };
+  return { evidence: verified.evidence, verification: verified, entitlementProof, marketState };
 }
 
 const masterByTicker = new Map(
@@ -223,6 +249,9 @@ for (const instrument of targets) {
       eligibility: "VALIDATION_ONLY",
       persistedEntitlementVerified: false,
       runtimeEntitlementMatched: false,
+      marketStateChecked: false,
+      exactMicMarketOpen: false,
+      paperSessionAllowed: false,
     },
     yahoo: { attempted: true, accepted: false, eligibility: "VALIDATION_ONLY" },
   };
@@ -239,7 +268,7 @@ for (const instrument of targets) {
   if (twelveDataApiKey) {
     result.twelveData.attempted = true;
     try {
-      const { evidence, verification, entitlementProof } = await fetchTwelveGlobal(instrument);
+      const { evidence, verification, entitlementProof, marketState } = await fetchTwelveGlobal(instrument);
       newObservations.push(evidence);
       result.twelveData.accepted = true;
       result.twelveData.eligibility = evidence.eligibility;
@@ -248,6 +277,10 @@ for (const instrument of targets) {
       result.twelveData.observedAt = evidence.observedAt;
       result.twelveData.persistedEntitlementVerified = entitlementProof.persistedEvidenceFound;
       result.twelveData.runtimeEntitlementMatched = entitlementProof.runtimeClaimMatched;
+      result.twelveData.marketStateChecked = Boolean(marketState);
+      result.twelveData.exactMicMarketOpen = marketState?.marketOpen === true;
+      result.twelveData.paperSessionAllowed = marketState?.paperSessionAllowed === true;
+      result.twelveData.marketStateReasons = marketState?.reasons || [];
     } catch (error) {
       result.twelveData.reasons = error?.verification?.reasons || [String(error?.message || "FETCH_FAILED")];
       errors.push({ symbol: instrument.symbol, exchangeMic: instrument.exchangeMic, provider: "twelve-data", code: String(error?.message || "FETCH_FAILED").replace(/[^A-Z0-9_:-]/gi, "_").slice(0, 120) });
@@ -272,22 +305,24 @@ const summary = {
   yahooValidated: probeResults.filter((item) => item.yahoo.accepted).length,
   twelveDataAccepted: probeResults.filter((item) => item.twelveData.accepted).length,
   paperEligibleTwelveData: newObservations.filter((item) => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER").length,
+  exactMicMarketStateOpen: probeResults.filter((item) => item.twelveData.paperSessionAllowed).length,
 };
 const generatedAt = new Date().toISOString();
 const persistedEntitlements = Array.isArray(entitlementRegistry?.entitlements) ? entitlementRegistry.entitlements : [];
 const globalCertification = {
-  version: 3,
+  version: 4,
   generatedAt,
   mode: observeOnly ? "OBSERVATION_ONLY" : "PAPER_CANDIDATE_COLLECTION",
   paperCoreMutation: !observeOnly,
   liveTradingReleased: false,
   brokerConnectivityAllowed: false,
   providerPolicy: {
-    twelveData: "validation-only by default; PAPER requires exact-MIC persisted VERIFIED entitlement evidence plus a matching runtime MIC/reference/SHA-256 claim, authenticated exact identity, and <=120s provider timestamp",
+    twelveData: "validation-only by default; PAPER requires exact-MIC persisted VERIFIED entitlement evidence plus matching runtime MIC/reference/SHA-256 claim, authenticated exact identity, <=120s quote timestamp, and exact-MIC market_state confirmed open",
     yahoo: "broad global cross-check only; never satisfies PAPER quorum",
     alphaVantage: "not used for international realtime certification because realtime/delayed entitlement is US-market scoped",
     quorum: "two independent PAPER-eligible source families required before new risk; three preferred",
     entitlementControl: "DEFAULT_DENY_DUAL_CONTROL; runtime variables alone cannot promote market data to PAPER",
+    sessionControl: "FAIL_CLOSED_EXACT_MIC_MARKET_STATE; a weekday/session window only suppresses probes and never proves an exchange is open",
   },
   targets,
   targetSelection: {
@@ -298,6 +333,7 @@ const globalCertification = {
     runtimeEntitlementClaimConfigured: Boolean(entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
     entitlementEvidenceConfigured: Boolean(persistedEntitlements.length && entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
     paperEntitlementDualControl: true,
+    exactMicMarketStateGate: true,
   },
   probes: probeResults,
   certifications,
@@ -325,6 +361,7 @@ if (!observeOnly) {
       globalMarketBlockedCount: summary.blocked,
       globalMarketLiveTradingReleased: false,
       globalPaperEntitlementDualControl: true,
+      globalExactMicMarketStateGate: true,
     },
     globalCertification,
   });
