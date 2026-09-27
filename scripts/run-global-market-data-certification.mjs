@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
+import { resolveGlobalPaperEntitlementProof } from "../lib/trading/global-market-data-entitlement.ts";
 import {
   GLOBAL_MARKET_SENTINELS,
   certifyGlobalInstrument,
@@ -32,6 +33,7 @@ const approvedPaperMics = String(process.env.FENICE_TWELVE_DATA_GLOBAL_PAPER_MIC
   .map((value) => value.trim().toUpperCase())
   .filter(Boolean);
 const entitlementEvidenceRef = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_REF || "").trim();
+const entitlementEvidenceSha256 = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_SHA256 || "").trim().toLowerCase();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 let nextTwelveRequestAt = 0;
 let rateLimitEvents = 0;
@@ -91,24 +93,6 @@ async function requestTwelve(url) {
   }
 }
 
-async function fetchTwelveGlobal(instrument) {
-  if (!twelveDataApiKey) throw new Error("TWELVE_DATA_NOT_CONFIGURED");
-  if (!isTwelveDataGlobalPaperCandidate(instrument)) throw new Error("TWELVE_DATA_GLOBAL_NOT_A_CANDIDATE");
-  const data = await requestTwelve(twelveDataGlobalQuoteUrl(instrument, twelveDataApiKey));
-  const verified = verifyTwelveDataGlobalQuote(instrument, data, Date.now(), 120, {
-    paperAllowed: approvedPaperMics.includes(String(instrument.exchangeMic || "").toUpperCase()),
-    approvedMics: approvedPaperMics,
-    evidenceRef: entitlementEvidenceRef,
-  });
-  if (!verified.accepted || !verified.evidence) {
-    const reason = verified.reasons.length ? verified.reasons.join("; ") : "TWELVE_DATA_GLOBAL_QUOTE_REJECTED";
-    const error = new Error(reason);
-    error.verification = verified;
-    throw error;
-  }
-  return { evidence: verified.evidence, verification: verified };
-}
-
 async function fetchYahooValidation(instrument) {
   const providerSymbol = yahooSymbolForInstrument(instrument);
   if (!providerSymbol) throw new Error("YAHOO_GLOBAL_UNSUPPORTED_SYMBOL");
@@ -155,11 +139,45 @@ function targetKey(instrument) {
   return `${normalizeExecutionSymbol(instrument.symbol)}:${String(instrument.exchangeMic || "").toUpperCase()}`;
 }
 
-const [existingEvidence, queue, master] = await Promise.all([
+const [existingEvidence, queue, master, entitlementRegistry] = await Promise.all([
   readJsonState(evidencePath, { version: 11, generatedAt: null, observations: [], errors: [], capabilities: {}, policy: {} }),
   readJson("paper-order-queue.json", { orders: [] }),
   readJson("instrument-master.json", { instruments: [] }),
+  readJson("global-market-data-entitlements.json", {
+    version: 1,
+    policy: "DEFAULT_DENY_DUAL_CONTROL",
+    provider: "twelve-data",
+    updatedAt: null,
+    entitlements: [],
+  }),
 ]);
+
+async function fetchTwelveGlobal(instrument) {
+  if (!twelveDataApiKey) throw new Error("TWELVE_DATA_NOT_CONFIGURED");
+  if (!isTwelveDataGlobalPaperCandidate(instrument)) throw new Error("TWELVE_DATA_GLOBAL_NOT_A_CANDIDATE");
+  const data = await requestTwelve(twelveDataGlobalQuoteUrl(instrument, twelveDataApiKey));
+  const entitlementProof = resolveGlobalPaperEntitlementProof(
+    entitlementRegistry,
+    instrument.exchangeMic,
+    {
+      approvedMics: approvedPaperMics,
+      evidenceRef: entitlementEvidenceRef,
+      evidenceSha256: entitlementEvidenceSha256,
+    },
+    Date.now(),
+  );
+  const verified = verifyTwelveDataGlobalQuote(instrument, data, Date.now(), 120, entitlementProof);
+  if (entitlementProof.reasons.length) {
+    verified.reasons = [...new Set([...verified.reasons, ...entitlementProof.reasons])];
+  }
+  if (!verified.accepted || !verified.evidence) {
+    const reason = verified.reasons.length ? verified.reasons.join("; ") : "TWELVE_DATA_GLOBAL_QUOTE_REJECTED";
+    const error = new Error(reason);
+    error.verification = verified;
+    throw error;
+  }
+  return { evidence: verified.evidence, verification: verified, entitlementProof };
+}
 
 const masterByTicker = new Map(
   (Array.isArray(master?.instruments) ? master.instruments : []).map((item) => [String(item?.ticker || "").toUpperCase(), item]),
@@ -199,7 +217,13 @@ for (const instrument of targets) {
     country: instrument.country,
     currency: instrument.currency,
     tier: instrument.tier,
-    twelveData: { attempted: false, accepted: false, eligibility: "VALIDATION_ONLY" },
+    twelveData: {
+      attempted: false,
+      accepted: false,
+      eligibility: "VALIDATION_ONLY",
+      persistedEntitlementVerified: false,
+      runtimeEntitlementMatched: false,
+    },
     yahoo: { attempted: true, accepted: false, eligibility: "VALIDATION_ONLY" },
   };
 
@@ -215,13 +239,15 @@ for (const instrument of targets) {
   if (twelveDataApiKey) {
     result.twelveData.attempted = true;
     try {
-      const { evidence, verification } = await fetchTwelveGlobal(instrument);
+      const { evidence, verification, entitlementProof } = await fetchTwelveGlobal(instrument);
       newObservations.push(evidence);
       result.twelveData.accepted = true;
       result.twelveData.eligibility = evidence.eligibility;
       result.twelveData.fresh = verification.fresh;
       result.twelveData.identity = verification.identity;
       result.twelveData.observedAt = evidence.observedAt;
+      result.twelveData.persistedEntitlementVerified = entitlementProof.persistedEvidenceFound;
+      result.twelveData.runtimeEntitlementMatched = entitlementProof.runtimeClaimMatched;
     } catch (error) {
       result.twelveData.reasons = error?.verification?.reasons || [String(error?.message || "FETCH_FAILED")];
       errors.push({ symbol: instrument.symbol, exchangeMic: instrument.exchangeMic, provider: "twelve-data", code: String(error?.message || "FETCH_FAILED").replace(/[^A-Z0-9_:-]/gi, "_").slice(0, 120) });
@@ -248,25 +274,30 @@ const summary = {
   paperEligibleTwelveData: newObservations.filter((item) => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER").length,
 };
 const generatedAt = new Date().toISOString();
+const persistedEntitlements = Array.isArray(entitlementRegistry?.entitlements) ? entitlementRegistry.entitlements : [];
 const globalCertification = {
-  version: 2,
+  version: 3,
   generatedAt,
   mode: observeOnly ? "OBSERVATION_ONLY" : "PAPER_CANDIDATE_COLLECTION",
   paperCoreMutation: !observeOnly,
   liveTradingReleased: false,
   brokerConnectivityAllowed: false,
   providerPolicy: {
-    twelveData: "validation-only by default; PAPER requires explicit exact-MIC entitlement evidence in addition to authenticated exact identity and <=120s provider timestamp",
+    twelveData: "validation-only by default; PAPER requires exact-MIC persisted VERIFIED entitlement evidence plus a matching runtime MIC/reference/SHA-256 claim, authenticated exact identity, and <=120s provider timestamp",
     yahoo: "broad global cross-check only; never satisfies PAPER quorum",
     alphaVantage: "not used for international realtime certification because realtime/delayed entitlement is US-market scoped",
     quorum: "two independent PAPER-eligible source families required before new risk; three preferred",
+    entitlementControl: "DEFAULT_DENY_DUAL_CONTROL; runtime variables alone cannot promote market data to PAPER",
   },
   targets,
   targetSelection: {
     catalogTargets: catalogTargets.length,
     selectedTargets: targets.length,
     requireOpenSession,
-    entitlementEvidenceConfigured: Boolean(entitlementEvidenceRef && approvedPaperMics.length),
+    persistedEntitlementRecords: persistedEntitlements.length,
+    runtimeEntitlementClaimConfigured: Boolean(entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
+    entitlementEvidenceConfigured: Boolean(persistedEntitlements.length && entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
+    paperEntitlementDualControl: true,
   },
   probes: probeResults,
   certifications,
@@ -293,6 +324,7 @@ if (!observeOnly) {
       globalMarketDegradedCount: summary.degraded,
       globalMarketBlockedCount: summary.blocked,
       globalMarketLiveTradingReleased: false,
+      globalPaperEntitlementDualControl: true,
     },
     globalCertification,
   });
