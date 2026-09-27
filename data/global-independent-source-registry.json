@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-28T00:00:00.000Z",
+  "policy": "DEFAULT_DENY_INDEPENDENT_SOURCE",
+  "providers": [
+    {
+      "id": "directa-readonly",
+      "sourceFamily": "directa",
+      "status": "CANDIDATE",
+      "paperAllowed": false,
+      "reason": "Fenice has a read-only local datafeed path, but exact-MIC realtime entitlement evidence must be verified per venue before PAPER admission."
+    },
+    {
+      "id": "finnhub",
+      "sourceFamily": "finnhub",
+      "status": "VALIDATION_ONLY",
+      "paperAllowed": false,
+      "reason": "International realtime stock quotes require separately verified enterprise market-data entitlement; no such entitlement is persisted in Fenice."
+    },
+    {
+      "id": "marketstack",
+      "sourceFamily": "marketstack",
+      "status": "VALIDATION_ONLY",
+      "paperAllowed": false,
+      "reason": "Free service is end-of-day and current public intraday positioning does not establish exact-venue international realtime entitlement for Fenice."
+    },
+    {
+      "id": "eodhd",
+      "sourceFamily": "eodhd",
+      "status": "VALIDATION_ONLY",
+      "paperAllowed": false,
+      "reason": "Available worldwide feeds include delayed products; Fenice has no persisted exact-MIC realtime entitlement evidence for PAPER admission."
+    }
+  ]
+}
