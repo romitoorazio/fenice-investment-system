@@ -52,16 +52,12 @@ function decimal(value: unknown): number | null {
 function nsEpochToMs(value: unknown): number | null {
   const raw = String(value ?? "").trim();
   // Official Cloud Stream sample/recovery API uses nanosecond timestamps.
-  // Require an ns-scale integer; never guess seconds/ms/us units.
+  // Require an ns-scale integer; never guess seconds/ms/us units. Avoid BigInt
+  // syntax because Fenice's production TypeScript target is intentionally below ES2020.
   if (!/^\d{19}$/.test(raw)) return null;
-  try {
-    const ns = BigInt(raw);
-    const ms = ns / 1_000_000n;
-    const numeric = Number(ms);
-    return Number.isSafeInteger(numeric) && numeric >= 1_000_000_000_000 ? numeric : null;
-  } catch {
-    return null;
-  }
+  const millisecondsDigits = raw.slice(0, -6);
+  const numeric = Number(millisecondsDigits);
+  return Number.isSafeInteger(numeric) && numeric >= 1_000_000_000_000 ? numeric : null;
 }
 
 export function validateDeutscheBoerseXetraEtpMessage(
