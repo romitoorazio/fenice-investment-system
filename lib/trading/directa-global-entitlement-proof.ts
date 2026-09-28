@@ -1,3 +1,5 @@
+export type DirectaEntitlementUsageScope = "NON_DISPLAY_INTERNAL" | "DISPLAY_ONLY" | "UNKNOWN";
+
 export type PersistedDirectaGlobalEntitlement = {
   exchangeMic: string;
   status: "VERIFIED" | "PENDING" | "REVOKED";
@@ -6,6 +8,8 @@ export type PersistedDirectaGlobalEntitlement = {
   evidenceSha256: string;
   reviewedAt: string;
   validUntil?: string | null;
+  usageScope?: DirectaEntitlementUsageScope;
+  automatedUseAllowed?: boolean;
 };
 
 export type DirectaGlobalEntitlementRegistry = {
@@ -28,10 +32,14 @@ export type ResolvedDirectaGlobalEntitlement = {
   exchangeMic: string;
   evidenceRef: string;
   evidenceSha256: string;
+  validUntil: string;
+  usageScope: DirectaEntitlementUsageScope;
+  automatedUseAllowed: boolean;
   persistedEvidenceFound: boolean;
   runtimeClaimMatched: boolean;
   runtimeClaimFresh: boolean;
   expired: boolean;
+  legalUseScopeVerified: boolean;
   reasons: string[];
 };
 
@@ -54,6 +62,12 @@ function dateMs(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function usageScope(value: unknown): DirectaEntitlementUsageScope {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "NON_DISPLAY_INTERNAL" || normalized === "DISPLAY_ONLY") return normalized;
+  return "UNKNOWN";
+}
+
 export function resolveDirectaGlobalEntitlementProof(
   registry: DirectaGlobalEntitlementRegistry | null | undefined,
   exchangeMic: unknown,
@@ -73,14 +87,22 @@ export function resolveDirectaGlobalEntitlementProof(
 
   let selected: PersistedDirectaGlobalEntitlement | undefined;
   let expired = false;
+  let scopeMismatch = false;
   for (const record of candidates) {
     const reviewedAt = dateMs(record.reviewedAt);
     const validUntil = record.validUntil ? dateMs(record.validUntil) : null;
     const evidenceRef = String(record.evidenceRef || "").trim();
     const evidenceSha256 = hash(record.evidenceSha256);
+    const scope = usageScope(record.usageScope);
     if (reviewedAt === null || reviewedAt > nowMs || !evidenceRef || !evidenceSha256) continue;
-    if (record.validUntil && (validUntil === null || validUntil <= nowMs)) {
+    // Broker-grade admission requires an explicit expiry. An open-ended or malformed
+    // entitlement cannot silently survive forever in persisted state.
+    if (validUntil === null || validUntil <= nowMs) {
       expired = true;
+      continue;
+    }
+    if (scope !== "NON_DISPLAY_INTERNAL" || record.automatedUseAllowed !== true) {
+      scopeMismatch = true;
       continue;
     }
     selected = record;
@@ -88,9 +110,11 @@ export function resolveDirectaGlobalEntitlementProof(
   }
 
   const persistedEvidenceFound = Boolean(selected);
-  if (!persistedEvidenceFound) reasons.push(expired
-    ? `persisted Directa realtime entitlement for ${expectedMic || "unknown MIC"} is expired`
-    : `no valid persisted Directa realtime entitlement for ${expectedMic || "unknown MIC"}`);
+  if (!persistedEvidenceFound) {
+    if (scopeMismatch) reasons.push(`persisted Directa entitlement for ${expectedMic || "unknown MIC"} does not prove automated internal non-display use rights`);
+    else if (expired) reasons.push(`persisted Directa realtime entitlement for ${expectedMic || "unknown MIC"} is missing a valid future expiry or is expired`);
+    else reasons.push(`no valid persisted Directa realtime entitlement for ${expectedMic || "unknown MIC"}`);
+  }
 
   const runtimeMics = (runtimeClaim.confirmedMarketMics || []).map(mic).filter(Boolean);
   const runtimeRef = String(runtimeClaim.evidenceRef || "").trim();
@@ -110,16 +134,29 @@ export function resolveDirectaGlobalEntitlementProof(
   if (selected && !runtimeClaimFresh) reasons.push("runtime Directa entitlement confirmation is missing, future-dated, or older than 5 minutes");
   if (selected && runtimeClaimFresh && !runtimeClaimMatched) reasons.push("runtime Directa entitlement claim does not match persisted exact-MIC evidence reference and SHA-256");
 
-  const verified = Boolean(expectedMic) && persistedEvidenceFound && runtimeClaimMatched && reasons.length === 0;
+  const selectedScope = usageScope(selected?.usageScope);
+  const legalUseScopeVerified = Boolean(selected)
+    && selectedScope === "NON_DISPLAY_INTERNAL"
+    && selected?.automatedUseAllowed === true;
+  const verified = Boolean(expectedMic)
+    && persistedEvidenceFound
+    && runtimeClaimMatched
+    && legalUseScopeVerified
+    && reasons.length === 0;
+
   return {
     verified,
     exchangeMic: expectedMic,
     evidenceRef: verified ? String(selected?.evidenceRef || "").trim() : "",
     evidenceSha256: verified ? hash(selected?.evidenceSha256) : "",
+    validUntil: verified ? String(selected?.validUntil || "").trim() : "",
+    usageScope: verified ? selectedScope : "UNKNOWN",
+    automatedUseAllowed: verified ? selected?.automatedUseAllowed === true : false,
     persistedEvidenceFound,
     runtimeClaimMatched,
     runtimeClaimFresh,
     expired,
+    legalUseScopeVerified,
     reasons,
   };
 }
