@@ -47,6 +47,7 @@ jobs:
 
       - name: Syntax-check gated evidence paths
         run: |
+          node --experimental-strip-types --check lib/trading/global-independent-source-admission.ts
           node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
           node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
 
@@ -73,6 +74,14 @@ jobs:
           grep -q 'sourceFamily === "twelve-data"' lib/trading/global-independent-source-admission.ts
           grep -q 'evaluateIndependentGlobalSourceAdmission' lib/trading/global-independent-evidence.ts
           echo 'Independent-source anti-self-quorum and evidence admission guards present.'
+
+      - name: Assert entitlement covers automated non-display use and is unexpired
+        run: |
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/global-independent-source-admission.ts
+          grep -q 'automatedUseAllowed' lib/trading/global-independent-source-admission.ts
+          grep -q 'validUntil' lib/trading/global-independent-source-admission.ts
+          grep -q 'realtime entitlement expired' lib/trading/global-independent-source-admission.ts
+          echo 'Independent-source licence scope and expiry gates present.'
 
       - name: Assert EODHD cannot impersonate primary venue
         run: |
