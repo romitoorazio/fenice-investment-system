@@ -12,7 +12,8 @@ on:
       - "scripts/test-global-market-data-certification.mjs"
       - ".github/workflows/global-market-data-entitlement-safety.yml"
   push:
-    branches: [main]
+    branches:
+      - feat/global-market-data-certification
     paths:
       - "data/global-market-data-entitlements.json"
       - "lib/trading/global-market-data-entitlement.ts"
@@ -32,14 +33,23 @@ jobs:
     steps:
       - name: Checkout revision
         uses: actions/checkout@v5
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
+
       - name: Verify global market-data certification invariants
         run: node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+
       - name: Verify persisted plus runtime entitlement dual control
         run: node --experimental-strip-types scripts/test-global-market-data-entitlement.mjs
+
+      - name: Syntax-check global entitlement paths
+        run: |
+          node --experimental-strip-types --check lib/trading/global-market-data-entitlement.ts
+          node --experimental-strip-types --check lib/trading/global-market-data-certification.ts
+
       - name: Assert default-deny entitlement registry
         run: |
           node - <<'NODE'
@@ -49,11 +59,26 @@ jobs:
           if (!Array.isArray(d?.entitlements)) throw new Error('GLOBAL_ENTITLEMENT_REGISTRY_INVALID');
           for (const item of d.entitlements) {
             if (item?.status === 'VERIFIED' && item?.paperAllowed === true) {
-              if (!/^[A-Z0-9]+$/.test(String(item.exchangeMic || ''))) throw new Error('GLOBAL_ENTITLEMENT_EXACT_MIC_REQUIRED');
+              if (!/^[A-Z0-9]{4}$/.test(String(item.exchangeMic || ''))) throw new Error('GLOBAL_ENTITLEMENT_EXACT_MIC_REQUIRED');
               if (!String(item.evidenceRef || '').trim()) throw new Error('GLOBAL_ENTITLEMENT_EVIDENCE_REF_REQUIRED');
               if (!/^[a-f0-9]{64}$/i.test(String(item.evidenceSha256 || ''))) throw new Error('GLOBAL_ENTITLEMENT_SHA256_REQUIRED');
               if (!Number.isFinite(Date.parse(String(item.reviewedAt || '')))) throw new Error('GLOBAL_ENTITLEMENT_REVIEW_DATE_REQUIRED');
+              const validUntil = Date.parse(String(item.validUntil || ''));
+              if (!Number.isFinite(validUntil)) throw new Error('GLOBAL_ENTITLEMENT_VALID_UNTIL_REQUIRED');
+              if (item.usageScope !== 'NON_DISPLAY_INTERNAL') throw new Error('GLOBAL_ENTITLEMENT_NON_DISPLAY_INTERNAL_REQUIRED');
+              if (item.automatedUseAllowed !== true) throw new Error('GLOBAL_ENTITLEMENT_AUTOMATED_USE_REQUIRED');
             }
           }
-          console.log(`Global entitlement registry: ${d.entitlements.length} record(s); default deny and dual-control invariants PASS.`);
+          console.log(`Global entitlement registry: ${d.entitlements.length} record(s); default deny, legal-scope and dual-control invariants PASS.`);
           NODE
+
+      - name: Assert runtime claim cannot silently become indefinite PAPER
+        run: |
+          grep -q 'MAX_RUNTIME_CLAIM_AGE_MS' lib/trading/global-market-data-entitlement.ts
+          grep -q 'runtimeClaimFresh' lib/trading/global-market-data-entitlement.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/global-market-data-entitlement.ts
+          grep -q 'automatedUseAllowed' lib/trading/global-market-data-entitlement.ts
+          grep -q 'legalUseScopeVerified' lib/trading/global-market-data-entitlement.ts
+          grep -q 'validUntil' lib/trading/global-market-data-entitlement.ts
+          grep -q 'isCompletePaperEntitlementProof' lib/trading/global-market-data-certification.ts
+          echo 'Twelve Data PAPER entitlement requires current hash-bound exact-MIC automated non-display proof.'
