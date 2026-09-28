@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "updatedAt": "2026-09-28T16:46:00.000Z",
+  "version": 5,
+  "updatedAt": "2026-09-28T17:12:00.000Z",
   "policy": "DEFAULT_DENY_INDEPENDENT_SOURCE",
   "providers": [
     {
@@ -36,14 +36,21 @@
       "sourceFamily": "deutsche-boerse-cloud-stream",
       "status": "REALTIME_EXACT_XETR_ETF_ETP_VALIDATOR_IMPLEMENTED_TRIAL_RIGHTS_UNPROVEN",
       "paperAllowed": false,
-      "reason": "Fenice now has a tested fail-closed parser for the official md-xetraetfetp Cloud Stream with exact XETR identity and nanosecond provider timestamps. Deutsche Boerse documents 30-day free access, but current product scope is Xetra ETFs/ETPs rather than blanket Xetra equities and automated/non-display usage rights are not inferred from trial access."
+      "reason": "Fenice has a tested fail-closed parser for the official md-xetraetfetp Cloud Stream with exact XETR identity and nanosecond provider timestamps. Deutsche Boerse documents 30-day free access, but current product scope is Xetra ETFs/ETPs rather than blanket Xetra equities and automated/non-display usage rights are not inferred from trial access."
+    },
+    {
+      "id": "deutsche-boerse-tradegate",
+      "sourceFamily": "deutsche-boerse-tradegate",
+      "status": "REALTIME_EXACT_XGAT_VALIDATOR_IMPLEMENTED_DATA_LICENCE_NO_CHARGE_TECHNICAL_ACCESS_SEPARATE",
+      "paperAllowed": false,
+      "reason": "Fenice has a fail-closed parser for official Cloud Stream md-tradegate common-stock messages requiring exact XGAT, expected provider symbol, EUR/expected currency, positive non-crossed explicitly TRADEABLE BBO, ACTIVE/CONTINUOUS state and nanosecond Tm. Deutsche Boerse lists the Tradegate BSX information product and its Non-Display licence as no charge until further notice, but Cloud Stream technical access is separately priced; neither free data licensing nor public/display access is treated as runtime entitlement."
     },
     {
       "id": "euronext-stream",
       "sourceFamily": "euronext-stream",
       "status": "REALTIME_EXACT_MIC_VALIDATOR_IMPLEMENTED_NONDISPLAY_ENTITLEMENT_REQUIRED",
       "paperAllowed": false,
-      "reason": "Fenice now has a tested fail-closed Euronext Stream BBO/StandingData parser binding topic path, symbolIndex, ISIN, exact MIC, currency and nanosecond provider timestamps. It remains validation-only until the applicable Euronext automated/non-display entitlement is proven and hash-bound."
+      "reason": "Fenice has a tested fail-closed Euronext Stream BBO/StandingData parser binding topic path, symbolIndex, ISIN, exact MIC, currency and nanosecond provider timestamps. It remains validation-only until the applicable Euronext automated/non-display entitlement is proven and hash-bound."
     },
     {
       "id": "dxfeed-eu",
