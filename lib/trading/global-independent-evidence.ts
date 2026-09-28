@@ -20,7 +20,7 @@ export function admitIndependentGlobalEvidence(
   const normalized = normalizeExecutionEvidence({
     symbol: claim.symbol,
     currency: claim.currency,
-    assetClass: "equity",
+    assetClass: String(claim.assetClass || "equity").trim().toLowerCase() || "equity",
     source: `${claim.provider} exact-MIC independent quote (${claim.exchangeMic})`,
     sourceFamily: claim.sourceFamily,
     eligibility: admission.eligibility,
