@@ -36,6 +36,7 @@ const runtime = {
   confirmedMarketMics: ["XMIL"],
   evidenceRef: entitlementRecord.evidenceRef,
   evidenceSha256: entitlementRecord.evidenceSha256,
+  confirmedAt: "2026-09-28T10:00:00.000Z",
 };
 
 const good = evaluateDirectaGlobalSourceCandidate(quote, venueRegistry, entitlementRegistry, runtime, now);
@@ -63,6 +64,18 @@ assert.equal(wrongIsin.admission.evidence, null, "mismatched ISIN must fail befo
 const badRuntime = evaluateDirectaGlobalSourceCandidate(quote, venueRegistry, entitlementRegistry, { ...runtime, evidenceSha256: "d".repeat(64) }, now);
 assert.equal(badRuntime.entitlement.verified, false);
 assert.equal(badRuntime.admission.evidence?.eligibility, "VALIDATION_ONLY");
+
+const staleRuntime = evaluateDirectaGlobalSourceCandidate(
+  quote,
+  venueRegistry,
+  entitlementRegistry,
+  { ...runtime, confirmedAt: "2026-09-28T09:54:00.000Z" },
+  now,
+);
+assert.equal(staleRuntime.entitlement.runtimeClaimFresh, false);
+assert.equal(staleRuntime.entitlement.verified, false);
+assert.equal(staleRuntime.admission.admission.admittedForPaper, false);
+assert.equal(staleRuntime.admission.evidence?.eligibility, "VALIDATION_ONLY");
 
 const stale = evaluateDirectaGlobalSourceCandidate({ ...quote, priceObservedAt: "2026-09-28T09:55:00.000Z" }, venueRegistry, entitlementRegistry, runtime, now);
 assert.equal(stale.admission.admission.admittedForPaper, false);
