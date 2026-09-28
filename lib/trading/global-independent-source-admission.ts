@@ -1,5 +1,11 @@
 export type IndependentGlobalSourceEligibility = "VALIDATION_ONLY" | "PAPER";
 
+export type IndependentEntitlementUsageScope =
+  | "NON_DISPLAY_INTERNAL"
+  | "DISPLAY_ONLY"
+  | "REDISTRIBUTION_ONLY"
+  | "UNKNOWN";
+
 export type IndependentGlobalSourceClaim = {
   provider: string;
   sourceFamily: string;
@@ -15,6 +21,9 @@ export type IndependentGlobalSourceClaim = {
     status: "VERIFIED" | "UNVERIFIED" | "NOT_ENTITLED" | "DELAYED_ONLY" | "EOD_ONLY";
     evidenceRef?: string;
     evidenceSha256?: string;
+    validUntil?: string;
+    usageScope?: IndependentEntitlementUsageScope;
+    automatedUseAllowed?: boolean;
   };
   readOnly?: boolean;
   datafeedEntitled?: boolean;
@@ -58,6 +67,8 @@ export function evaluateIndependentGlobalSourceAdmission(
   const ageSeconds = observedAtMs === null ? Number.POSITIVE_INFINITY : (nowMs - observedAtMs) / 1000;
   const evidenceRef = String(claim?.entitlement?.evidenceRef || "").trim();
   const evidenceSha256 = String(claim?.entitlement?.evidenceSha256 || "").trim().toLowerCase();
+  const entitlementValidUntilMs = validIso(claim?.entitlement?.validUntil);
+  const usageScope = String(claim?.entitlement?.usageScope || "UNKNOWN").trim().toUpperCase();
 
   if (!provider) reasons.push("provider missing");
   if (!sourceFamily) reasons.push("source family missing");
@@ -74,6 +85,10 @@ export function evaluateIndependentGlobalSourceAdmission(
   if (claim?.entitlement?.status !== "VERIFIED") reasons.push("realtime entitlement not independently verified");
   if (!evidenceRef) reasons.push("entitlement evidence reference missing");
   if (!SHA256.test(evidenceSha256)) reasons.push("entitlement evidence SHA-256 missing or invalid");
+  if (entitlementValidUntilMs === null) reasons.push("entitlement validity end missing or invalid");
+  else if (entitlementValidUntilMs <= nowMs) reasons.push("realtime entitlement expired");
+  if (usageScope !== "NON_DISPLAY_INTERNAL") reasons.push("entitlement does not explicitly cover internal non-display use");
+  if (claim?.entitlement?.automatedUseAllowed !== true) reasons.push("entitlement does not explicitly allow automated application use");
 
   if (provider === "directa-readonly" || sourceFamily === "directa") {
     if (claim?.readOnly !== true) reasons.push("Directa admission requires read-only mode");
