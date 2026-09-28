@@ -12,7 +12,11 @@ on:
     - cron: "25 17 * * 1-5"
   workflow_run:
     workflows:
+      # Either upstream provides an event-driven recovery opportunity when
+      # GitHub omits the dedicated PAPER schedules. Both still pass the same
+      # market-window, freshness, quality, cooldown and duplicate gates below.
       - Fenice Global Sources
+      - Fenice Foundation
     types:
       - completed
   push:
