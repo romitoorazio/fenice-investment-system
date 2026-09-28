@@ -18,6 +18,9 @@ const base = {
     status: "VERIFIED",
     evidenceRef: "fixture:verified-entitlement",
     evidenceSha256: "a".repeat(64),
+    validUntil: "2026-10-31T23:59:59.000Z",
+    usageScope: "NON_DISPLAY_INTERNAL",
+    automatedUseAllowed: true,
   },
 };
 
@@ -53,9 +56,37 @@ assert.ok(stale.reasons.some((r) => r.includes("freshness")));
 
 const noEvidence = evaluateIndependentGlobalSourceAdmission({
   ...base,
-  entitlement: { status: "VERIFIED", evidenceRef: "", evidenceSha256: "" },
+  entitlement: { ...base.entitlement, evidenceRef: "", evidenceSha256: "" },
 }, now);
 assert.equal(noEvidence.admittedForPaper, false);
+
+const expired = evaluateIndependentGlobalSourceAdmission({
+  ...base,
+  entitlement: { ...base.entitlement, validUntil: "2026-09-28T09:59:59.000Z" },
+}, now);
+assert.equal(expired.admittedForPaper, false);
+assert.ok(expired.reasons.some((r) => r.includes("expired")));
+
+const missingValidity = evaluateIndependentGlobalSourceAdmission({
+  ...base,
+  entitlement: { ...base.entitlement, validUntil: "" },
+}, now);
+assert.equal(missingValidity.admittedForPaper, false);
+assert.ok(missingValidity.reasons.some((r) => r.includes("validity")));
+
+const displayOnly = evaluateIndependentGlobalSourceAdmission({
+  ...base,
+  entitlement: { ...base.entitlement, usageScope: "DISPLAY_ONLY" },
+}, now);
+assert.equal(displayOnly.admittedForPaper, false);
+assert.ok(displayOnly.reasons.some((r) => r.includes("non-display")));
+
+const noAutomatedUse = evaluateIndependentGlobalSourceAdmission({
+  ...base,
+  entitlement: { ...base.entitlement, automatedUseAllowed: false },
+}, now);
+assert.equal(noAutomatedUse.admittedForPaper, false);
+assert.ok(noAutomatedUse.reasons.some((r) => r.includes("automated")));
 
 const directaSafeClaim = {
   ...base,
