@@ -51,6 +51,43 @@ assert.equal(stale.accepted, true);
 assert.equal(stale.fresh, false);
 assert.equal(stale.evidence?.eligibility, "VALIDATION_ONLY");
 
+const epochSeconds = validateEodhdEuRealtimeMessage({
+  s: "SAP.XETRA",
+  p: 241.3,
+  t: Math.floor(Date.parse("2026-09-28T10:00:00.000Z") / 1000),
+}, expected, now);
+assert.equal(epochSeconds.accepted, false);
+assert.equal(epochSeconds.evidence, null);
+assert.ok(epochSeconds.reasons.some((r) => r.includes("epoch-ms")));
+
+const future = validateEodhdEuRealtimeMessage({
+  s: "SAP.XETRA",
+  p: 241.3,
+  t: Date.parse("2026-09-28T10:01:30.000Z"),
+}, expected, now);
+assert.equal(future.accepted, false);
+assert.equal(future.fresh, false);
+assert.equal(future.evidence, null);
+assert.ok(future.reasons.some((r) => r.includes("future")));
+
+const smallClockSkew = validateEodhdEuRealtimeMessage({
+  s: "SAP.XETRA",
+  p: 241.3,
+  t: Date.parse("2026-09-28T10:00:33.000Z"),
+}, expected, now);
+assert.equal(smallClockSkew.accepted, true);
+assert.equal(smallClockSkew.fresh, true);
+
+const closedMarket = validateEodhdEuRealtimeMessage({
+  s: "SAP.XETRA",
+  p: 241.3,
+  t: Date.parse("2026-09-28T10:00:00.000Z"),
+  ms: "closed",
+}, expected, now);
+assert.equal(closedMarket.accepted, true);
+assert.equal(closedMarket.evidence?.eligibility, "VALIDATION_ONLY");
+assert.ok(closedMarket.reasons.some((r) => r.includes("market status is closed")));
+
 const badMic = validateEodhdEuRealtimeMessage({
   s: "SAP.XETRA",
   p: 241.3,
