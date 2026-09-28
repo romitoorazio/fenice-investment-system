@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "updatedAt": "2026-09-28T16:30:00.000Z",
+  "version": 4,
+  "updatedAt": "2026-09-28T16:46:00.000Z",
   "policy": "DEFAULT_DENY_INDEPENDENT_SOURCE",
   "providers": [
     {
@@ -29,14 +29,21 @@
       "sourceFamily": "cboe-europe-public-delayed",
       "status": "FREE_DELAYED_VALIDATION_ONLY",
       "paperAllowed": false,
-      "reason": "Cboe publishes MiFID public trade CSV files free of charge with no more than 15-minute delay and minute files for recent data. This is lawful and useful for independent sanity checks, but delayed data can never satisfy Fenice realtime PAPER quorum."
+      "reason": "Cboe publishes MiFID public trade data with a delay. This is lawful and useful for independent sanity checks, but delayed data can never satisfy Fenice realtime PAPER quorum."
     },
     {
       "id": "deutsche-boerse-cloud-stream",
       "sourceFamily": "deutsche-boerse-cloud-stream",
-      "status": "REALTIME_30_DAY_TRIAL_SCOPE_LIMITED",
+      "status": "REALTIME_EXACT_XETR_ETF_ETP_VALIDATOR_IMPLEMENTED_TRIAL_RIGHTS_UNPROVEN",
       "paperAllowed": false,
-      "reason": "Deutsche Boerse documents a cloud WebSocket realtime feed and 30-day free access. Current published Cloud Stream product scope includes Xetra ETFs/ETPs, selected Eurex products, Tradegate BSX, DBDX and 360T, not a blanket entitlement to Xetra equities. PAPER requires exact product/MIC mapping and explicit automated/non-display usage rights."
+      "reason": "Fenice now has a tested fail-closed parser for the official md-xetraetfetp Cloud Stream with exact XETR identity and nanosecond provider timestamps. Deutsche Boerse documents 30-day free access, but current product scope is Xetra ETFs/ETPs rather than blanket Xetra equities and automated/non-display usage rights are not inferred from trial access."
+    },
+    {
+      "id": "euronext-stream",
+      "sourceFamily": "euronext-stream",
+      "status": "REALTIME_EXACT_MIC_VALIDATOR_IMPLEMENTED_NONDISPLAY_ENTITLEMENT_REQUIRED",
+      "paperAllowed": false,
+      "reason": "Fenice now has a tested fail-closed Euronext Stream BBO/StandingData parser binding topic path, symbolIndex, ISIN, exact MIC, currency and nanosecond provider timestamps. It remains validation-only until the applicable Euronext automated/non-display entitlement is proven and hash-bound."
     },
     {
       "id": "dxfeed-eu",
@@ -50,7 +57,7 @@
       "sourceFamily": "ibkr",
       "status": "REALTIME_BROKER_CANDIDATE_REQUIRES_ACCOUNT_SUBSCRIPTIONS",
       "paperAllowed": false,
-      "reason": "IBKR Web API supports streaming Level 1 data and exchange-specific conId@EXCHANGE requests. Most securities require market-data subscriptions and no authorized IBKR account is connected to Fenice."
+      "reason": "IBKR Web API supports streaming Level 1 data and exchange-specific requests. Most securities require market-data subscriptions and no authorized IBKR account is connected to Fenice."
     },
     {
       "id": "saxo-openapi",
@@ -62,23 +69,51 @@
     {
       "id": "xetra-direct-or-vendor",
       "sourceFamily": "deutsche-boerse",
-      "status": "EXACT_VENUE_CANDIDATE_REQUIRES_CONTRACT",
+      "status": "EXACT_VENUE_EQUITY_CANDIDATE_REQUIRES_CONTRACT",
       "paperAllowed": false,
-      "reason": "Deutsche Boerse distributes exact Xetra realtime data through CEF direct feeds and data vendors. This remains the stronger exact-XETR route for equities, but applicable data entitlement/non-display rights must be documented before PAPER."
-    },
-    {
-      "id": "euronext-direct-or-vendor",
-      "sourceFamily": "euronext",
-      "status": "EXACT_VENUE_CANDIDATE_REQUIRES_CONTRACT",
-      "paperAllowed": false,
-      "reason": "Euronext realtime data is available by direct feed/Stream API or redistributor. Euronext explicitly distinguishes Display from Non-Display application/algorithm use; exact venue data can be PAPER-eligible only after the applicable entitlement is documented."
+      "reason": "Deutsche Boerse distributes exact Xetra equity realtime data through direct feeds and authorized vendors. This remains the stronger exact-XETR route for individual equities, but applicable market-data and automated/non-display rights must be documented before PAPER."
     },
     {
       "id": "twelve-data-cboe-europe",
       "sourceFamily": "twelve-data-cboe-europe",
       "status": "REALTIME_BCXE_ADDON_CANDIDATE_PRIMARY_NOT_HOME_VENUE",
       "paperAllowed": false,
-      "reason": "Twelve Data documents licensed Cboe Europe realtime coverage at MIC BCXE via a data add-on. This can become exact Cboe-venue evidence if the account entitlement and automated-use rights are proven, but it must not be mislabeled as exact XETR/XMIL/XPAR home-venue evidence."
+      "reason": "Twelve Data documents licensed Cboe Europe realtime coverage at MIC BCXE via a data add-on. This can become exact Cboe-venue evidence if account entitlement and automated-use rights are proven, but it must not be mislabeled as exact XETR/XMIL/XPAR home-venue evidence."
+    },
+    {
+      "id": "jpx-tse-flex",
+      "sourceFamily": "jpx-tse",
+      "status": "REALTIME_EXACT_XTKS_CANDIDATE_PAID_OR_VENDOR_ENTITLEMENT_REQUIRED",
+      "paperAllowed": false,
+      "reason": "JPX/TSE officially provides realtime FLEX market data directly or through market information providers. TSE documentation distinguishes direct licensing, vendor access and end-user procedures; internal realtime use cannot be inferred from the free 15-minute-delayed API. Exact XTKS runtime evidence and applicable internal/automated-use entitlement remain required."
+    },
+    {
+      "id": "jpx-public-15m-api",
+      "sourceFamily": "jpx-public-delayed",
+      "status": "DELAYED_VALIDATION_ONLY",
+      "paperAllowed": false,
+      "reason": "JPX explicitly offers a 15-minute-delayed stock-price API path. It can be useful for lawful validation and history checks but cannot satisfy realtime PAPER quorum."
+    },
+    {
+      "id": "hkex-realtime",
+      "sourceFamily": "hkex",
+      "status": "REALTIME_EXACT_XHKG_CANDIDATE_END_USER_OR_VENDOR_LICENCE_REQUIRED",
+      "paperAllowed": false,
+      "reason": "HKEX provides realtime data services under Market Data End-User, Vendor and Application Service Provider licensing and publishes specific guidance for Non-Display Usage. Fenice will not treat a vendor/display subscription as automated XHKG entitlement without the applicable licence evidence."
+    },
+    {
+      "id": "asx-marketsource",
+      "sourceFamily": "asx",
+      "status": "REALTIME_EXACT_XASX_CANDIDATE_DIRECT_OR_AUTHORIZED_VENDOR",
+      "paperAllowed": false,
+      "reason": "ASX MarketSource provides realtime ASX-operated market data including Level 1/2, trades, instrument status and reference data such as ISIN, via direct connectivity or authorized vendors. PAPER requires exact XASX identity, provider timestamps and applicable automated internal-use rights."
+    },
+    {
+      "id": "tmx-tsx-realtime",
+      "sourceFamily": "tmx-tsx",
+      "status": "REALTIME_EXACT_XTSE_CANDIDATE_SUBSCRIPTION_AND_AGREEMENT_REQUIRED",
+      "paperAllowed": false,
+      "reason": "TMX Datalinx offers official TSX realtime Level 1/2 and consolidated feeds, with pricing and internal-distribution agreements published separately. Fenice requires a valid subscription/agreement, exact XTSE venue identity and provider/source timestamps before PAPER admission."
     },
     {
       "id": "finnhub",
