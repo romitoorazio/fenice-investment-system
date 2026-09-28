@@ -44,6 +44,7 @@ assert.equal(good.entitlement.verified, true);
 assert.equal(good.admission.admission.admittedForPaper, true);
 assert.equal(good.admission.evidence?.eligibility, "PAPER");
 assert.equal(good.admission.evidence?.exchangeMic, "EXGM");
+assert.equal(good.admission.evidence?.assetClass, "equity");
 
 const noPersisted = evaluateExchangeDirectSourceCandidate(evidence, "euronext-stream", "euronext-stream", { entitlements: [] }, runtime, now);
 assert.equal(noPersisted.entitlement.verified, false);
@@ -77,5 +78,41 @@ const alreadyPaperInput = { ...evidence, eligibility: "PAPER" };
 const bypassAttempt = evaluateExchangeDirectSourceCandidate(alreadyPaperInput, "euronext-stream", "euronext-stream", registry, runtime, now);
 assert.equal(bypassAttempt.admission.admission.admittedForPaper, false, "composer only accepts parser validation evidence and must not trust pre-promoted input");
 assert.equal(bypassAttempt.admission.evidence?.eligibility, "VALIDATION_ONLY");
+
+const etfRecord = {
+  ...record,
+  provider: "deutsche-boerse-cloud-stream",
+  sourceFamily: "deutsche-boerse-cloud-stream",
+  exchangeMic: "XETR",
+  evidenceRef: "fixture:dbag-xetra-etp-nondisplay",
+  evidenceSha256: "d".repeat(64),
+};
+const etfRuntime = {
+  provider: etfRecord.provider,
+  sourceFamily: etfRecord.sourceFamily,
+  approvedMics: ["XETR"],
+  evidenceRef: etfRecord.evidenceRef,
+  evidenceSha256: etfRecord.evidenceSha256,
+  confirmedAt: "2026-09-28T10:00:00.000Z",
+};
+const etfEvidence = {
+  symbol: "EXSA",
+  exchangeMic: "XETR",
+  currency: "EUR",
+  assetClass: "etf",
+  source: "Deutsche Boerse Cloud Stream Xetra ETF/ETP (XETR)",
+  sourceFamily: "deutsche-boerse-cloud-stream",
+  eligibility: "VALIDATION_ONLY",
+  price: 201.25,
+  observedAt: "2026-09-28T10:00:00.000Z",
+  provenanceVerified: true,
+  provenanceMethod: "cloud-stream:md-xetraetfetp;mktid:XETR;timestamp-ns",
+};
+const etf = evaluateExchangeDirectSourceCandidate(etfEvidence, etfRecord.provider, etfRecord.sourceFamily, { policy: "DEFAULT_DENY_DUAL_CONTROL", entitlements: [etfRecord] }, etfRuntime, now);
+assert.equal(etf.entitlement.verified, true);
+assert.equal(etf.admission.admission.admittedForPaper, true);
+assert.equal(etf.admission.evidence?.eligibility, "PAPER");
+assert.equal(etf.admission.evidence?.exchangeMic, "XETR");
+assert.equal(etf.admission.evidence?.assetClass, "etf", "ETF/ETP identity must survive generic independent-source admission");
 
 console.log("Fenice exchange-direct source candidate tests: PASS");
