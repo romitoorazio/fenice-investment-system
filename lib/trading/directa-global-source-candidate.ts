@@ -59,6 +59,7 @@ export function evaluateDirectaGlobalSourceCandidate(
       validUntil: entitlement.validUntil,
       usageScope: entitlement.usageScope,
       automatedUseAllowed: entitlement.automatedUseAllowed,
+      dualControlVerified: entitlement.verified && entitlement.persistedEvidenceFound && entitlement.runtimeClaimMatched && entitlement.runtimeClaimFresh,
     },
     readOnly: true,
     datafeedEntitled: entitlement.verified,
