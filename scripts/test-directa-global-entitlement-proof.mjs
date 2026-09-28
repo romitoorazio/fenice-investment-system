@@ -10,6 +10,8 @@ const record = {
   evidenceSha256: "c".repeat(64),
   reviewedAt: "2026-09-27T10:00:00.000Z",
   validUntil: "2026-10-28T10:00:00.000Z",
+  usageScope: "NON_DISPLAY_INTERNAL",
+  automatedUseAllowed: true,
 };
 const registry = {
   version: 1,
@@ -29,6 +31,10 @@ assert.equal(good.verified, true);
 assert.equal(good.persistedEvidenceFound, true);
 assert.equal(good.runtimeClaimMatched, true);
 assert.equal(good.runtimeClaimFresh, true);
+assert.equal(good.legalUseScopeVerified, true);
+assert.equal(good.usageScope, "NON_DISPLAY_INTERNAL");
+assert.equal(good.automatedUseAllowed, true);
+assert.equal(good.validUntil, record.validUntil);
 
 const runtimeOnly = resolveDirectaGlobalEntitlementProof({ policy: "DEFAULT_DENY_DUAL_CONTROL", entitlements: [] }, "XMIL", runtime, now);
 assert.equal(runtimeOnly.verified, false);
@@ -68,6 +74,28 @@ const expired = resolveDirectaGlobalEntitlementProof({
 }, "XMIL", runtime, now);
 assert.equal(expired.verified, false);
 assert.equal(expired.expired, true);
+
+const noExpiry = resolveDirectaGlobalEntitlementProof({
+  ...registry,
+  entitlements: [{ ...record, validUntil: null }],
+}, "XMIL", runtime, now);
+assert.equal(noExpiry.verified, false);
+assert.equal(noExpiry.expired, true);
+
+const displayOnly = resolveDirectaGlobalEntitlementProof({
+  ...registry,
+  entitlements: [{ ...record, usageScope: "DISPLAY_ONLY" }],
+}, "XMIL", runtime, now);
+assert.equal(displayOnly.verified, false);
+assert.equal(displayOnly.legalUseScopeVerified, false);
+assert.ok(displayOnly.reasons.some((r) => r.includes("non-display")));
+
+const noAutomatedUse = resolveDirectaGlobalEntitlementProof({
+  ...registry,
+  entitlements: [{ ...record, automatedUseAllowed: false }],
+}, "XMIL", runtime, now);
+assert.equal(noAutomatedUse.verified, false);
+assert.equal(noAutomatedUse.legalUseScopeVerified, false);
 
 const revoked = resolveDirectaGlobalEntitlementProof({
   ...registry,
