@@ -10,12 +10,14 @@ on:
       - "lib/trading/exchange-direct-source-candidate.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
+      - "lib/trading/deutsche-boerse-tradegate-validation.ts"
       - "lib/trading/euronext-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "scripts/test-global-independent-entitlement-proof.mjs"
       - "scripts/test-exchange-direct-source-candidate.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
+      - "scripts/test-deutsche-boerse-tradegate-validation.mjs"
       - "scripts/test-euronext-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
       - "data/global-independent-source-entitlements.json"
@@ -30,12 +32,14 @@ on:
       - "lib/trading/exchange-direct-source-candidate.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
+      - "lib/trading/deutsche-boerse-tradegate-validation.ts"
       - "lib/trading/euronext-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "scripts/test-global-independent-entitlement-proof.mjs"
       - "scripts/test-exchange-direct-source-candidate.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
+      - "scripts/test-deutsche-boerse-tradegate-validation.mjs"
       - "scripts/test-euronext-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
       - "data/global-independent-source-entitlements.json"
@@ -72,6 +76,9 @@ jobs:
       - name: Test Deutsche Boerse Cloud Stream exact-XETR validation
         run: node --experimental-strip-types scripts/test-deutsche-boerse-cloud-stream-validation.mjs
 
+      - name: Test Deutsche Boerse Tradegate exact-XGAT validation
+        run: node --experimental-strip-types scripts/test-deutsche-boerse-tradegate-validation.mjs
+
       - name: Test Euronext Stream exact-MIC validation
         run: node --experimental-strip-types scripts/test-euronext-stream-validation.mjs
 
@@ -83,6 +90,7 @@ jobs:
           node --experimental-strip-types --check lib/trading/exchange-direct-source-candidate.ts
           node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
           node --experimental-strip-types --check lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          node --experimental-strip-types --check lib/trading/deutsche-boerse-tradegate-validation.ts
           node --experimental-strip-types --check lib/trading/euronext-stream-validation.ts
 
       - name: Assert provider registry defaults to no PAPER admission
@@ -154,6 +162,15 @@ jobs:
           grep -q 'NON_DISPLAY_INTERNAL' lib/trading/deutsche-boerse-cloud-stream-validation.ts
           grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/deutsche-boerse-cloud-stream-validation.ts
           echo 'Deutsche Boerse Cloud Stream is exact-XETR ETF/ETP validation-only until legal-use entitlement is proven.'
+
+      - name: Assert Tradegate remains exact-XGAT tradeable-BBO validation-only
+        run: |
+          grep -q 'md-tradegate' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'marketMic !== "XGAT"' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'TRADEABLE' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'nanosecond epoch' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/deutsche-boerse-tradegate-validation.ts
+          echo 'Tradegate parser is exact-XGAT tradeable-BBO validation-only until technical and legal-use entitlement is proven.'
 
       - name: Assert Euronext Stream remains exact-MIC and validation-only
         run: |
