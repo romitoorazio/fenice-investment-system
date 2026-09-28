@@ -24,6 +24,7 @@ export type IndependentGlobalSourceClaim = {
     validUntil?: string;
     usageScope?: IndependentEntitlementUsageScope;
     automatedUseAllowed?: boolean;
+    dualControlVerified?: boolean;
   };
   readOnly?: boolean;
   datafeedEntitled?: boolean;
@@ -83,6 +84,7 @@ export function evaluateIndependentGlobalSourceAdmission(
   if (claim?.exactVenueVerified !== true) reasons.push("exact venue/MIC provenance not verified");
   if (claim?.provenanceVerified !== true) reasons.push("provider provenance not verified");
   if (claim?.entitlement?.status !== "VERIFIED") reasons.push("realtime entitlement not independently verified");
+  if (claim?.entitlement?.dualControlVerified !== true) reasons.push("persisted plus fresh runtime entitlement dual control not verified");
   if (!evidenceRef) reasons.push("entitlement evidence reference missing");
   if (!SHA256.test(evidenceSha256)) reasons.push("entitlement evidence SHA-256 missing or invalid");
   if (entitlementValidUntilMs === null) reasons.push("entitlement validity end missing or invalid");
