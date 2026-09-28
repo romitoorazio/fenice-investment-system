@@ -7,8 +7,10 @@ on:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
+      - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
+      - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
   push:
@@ -18,8 +20,10 @@ on:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
+      - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
+      - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
       - ".github/workflows/global-independent-source-safety.yml"
 
@@ -45,11 +49,15 @@ jobs:
       - name: Test EODHD EU realtime cross-venue safety
         run: node --experimental-strip-types scripts/test-eodhd-eu-realtime-validation.mjs
 
+      - name: Test Deutsche Boerse Cloud Stream exact-XETR validation
+        run: node --experimental-strip-types scripts/test-deutsche-boerse-cloud-stream-validation.mjs
+
       - name: Syntax-check gated evidence paths
         run: |
           node --experimental-strip-types --check lib/trading/global-independent-source-admission.ts
           node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
           node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
+          node --experimental-strip-types --check lib/trading/deutsche-boerse-cloud-stream-validation.ts
 
       - name: Assert provider registry defaults to no PAPER admission
         run: |
@@ -89,3 +97,12 @@ jobs:
           grep -q 'primary-mic-not-source' lib/trading/eodhd-eu-realtime-validation.ts
           grep -q 'VALIDATION_ONLY' lib/trading/eodhd-eu-realtime-validation.ts
           echo 'EODHD EU realtime is locked to cross-venue validation-only semantics.'
+
+      - name: Assert Deutsche Boerse Cloud Stream remains scope-limited and validation-only
+        run: |
+          grep -q 'md-xetraetfetp' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'marketMic !== "XETR"' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'nanosecond epoch' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          echo 'Deutsche Boerse Cloud Stream is exact-XETR ETF/ETP validation-only until legal-use entitlement is proven.'
