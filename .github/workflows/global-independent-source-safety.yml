@@ -6,14 +6,19 @@ on:
     paths:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-entitlement-proof.ts"
+      - "lib/trading/exchange-direct-source-candidate.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
       - "lib/trading/euronext-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-global-independent-entitlement-proof.mjs"
+      - "scripts/test-exchange-direct-source-candidate.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
       - "scripts/test-euronext-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
+      - "data/global-independent-source-entitlements.json"
       - ".github/workflows/global-independent-source-safety.yml"
   push:
     branches:
@@ -21,14 +26,19 @@ on:
     paths:
       - "lib/trading/global-independent-source-admission.ts"
       - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-entitlement-proof.ts"
+      - "lib/trading/exchange-direct-source-candidate.ts"
       - "lib/trading/eodhd-eu-realtime-validation.ts"
       - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
       - "lib/trading/euronext-stream-validation.ts"
       - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-global-independent-entitlement-proof.mjs"
+      - "scripts/test-exchange-direct-source-candidate.mjs"
       - "scripts/test-eodhd-eu-realtime-validation.mjs"
       - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
       - "scripts/test-euronext-stream-validation.mjs"
       - "data/global-independent-source-registry.json"
+      - "data/global-independent-source-entitlements.json"
       - ".github/workflows/global-independent-source-safety.yml"
 
 permissions:
@@ -50,6 +60,12 @@ jobs:
       - name: Test independent non-US source fail-closed admission
         run: node --experimental-strip-types scripts/test-global-independent-source-admission.mjs
 
+      - name: Test independent feed dual-control entitlement
+        run: node --experimental-strip-types scripts/test-global-independent-entitlement-proof.mjs
+
+      - name: Test exchange-direct entitlement composition
+        run: node --experimental-strip-types scripts/test-exchange-direct-source-candidate.mjs
+
       - name: Test EODHD EU realtime cross-venue safety
         run: node --experimental-strip-types scripts/test-eodhd-eu-realtime-validation.mjs
 
@@ -63,6 +79,8 @@ jobs:
         run: |
           node --experimental-strip-types --check lib/trading/global-independent-source-admission.ts
           node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
+          node --experimental-strip-types --check lib/trading/global-independent-entitlement-proof.ts
+          node --experimental-strip-types --check lib/trading/exchange-direct-source-candidate.ts
           node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
           node --experimental-strip-types --check lib/trading/deutsche-boerse-cloud-stream-validation.ts
           node --experimental-strip-types --check lib/trading/euronext-stream-validation.ts
@@ -83,6 +101,28 @@ jobs:
           }
           console.log('Independent global provider registry is default-deny; no provider is silently PAPER-eligible.');
           NODE
+
+      - name: Assert independent entitlement registry is empty default-deny
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-independent-source-entitlements.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_DUAL_CONTROL') throw new Error('INDEPENDENT_ENTITLEMENT_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.entitlements)) throw new Error('INDEPENDENT_ENTITLEMENT_ARRAY_REQUIRED');
+          if (d.entitlements.length !== 0) throw new Error('INDEPENDENT_ENTITLEMENT_REGISTRY_MUST_REMAIN_EMPTY_UNTIL_REAL_EVIDENCE');
+          console.log('Independent feed entitlement registry is empty default-deny; no invented entitlement evidence.');
+          NODE
+
+      - name: Assert independent PAPER requires persisted plus fresh runtime dual control
+        run: |
+          grep -q 'MAX_RUNTIME_CLAIM_AGE_MS' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'persistedEvidenceFound' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'runtimeClaimMatched' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'runtimeClaimFresh' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'dualControlVerified' lib/trading/global-independent-source-admission.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'automatedUseAllowed' lib/trading/global-independent-entitlement-proof.ts
+          echo 'Independent exchange feeds require exact-MIC persisted and fresh runtime legal-use evidence.'
 
       - name: Assert Twelve Data cannot count as its own second family
         run: |
