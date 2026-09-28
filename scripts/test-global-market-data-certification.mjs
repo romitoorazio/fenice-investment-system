@@ -23,14 +23,16 @@ assert.equal(url.searchParams.get("mic_code"), "XMIL");
 assert.equal(url.searchParams.get("interval"), "1min");
 assert.equal(url.searchParams.get("apikey"), "secret-test-key");
 
-const good = verifyTwelveDataGlobalQuote(enel, {
+const rawGood = {
   symbol: "ENEL",
   exchange: "Euronext Milan",
   mic_code: "XMIL",
   currency: "EUR",
   close: "8.125",
   timestamp: Math.floor(Date.parse("2026-09-27T09:00:00.000Z") / 1000),
-}, now);
+};
+
+const good = verifyTwelveDataGlobalQuote(enel, rawGood, now);
 assert.equal(good.accepted, true);
 assert.equal(good.fresh, true);
 assert.equal(good.eligibility, "VALIDATION_ONLY", "freshness and identity must not invent provider entitlement");
@@ -40,19 +42,37 @@ assert.ok(good.reasons.some((reason) => reason.includes("entitlement")));
 assert.equal(good.identity.micMatched, true);
 assert.equal(good.identity.currencyMatched, true);
 
-const entitled = verifyTwelveDataGlobalQuote(enel, {
-  symbol: "ENEL",
-  mic_code: "XMIL",
-  currency: "EUR",
-  close: "8.125",
-  timestamp: Math.floor(Date.parse("2026-09-27T09:00:00.000Z") / 1000),
-}, now, 120, {
+const completeProof = {
   paperAllowed: true,
   approvedMics: ["XMIL"],
   evidenceRef: "account-entitlement-audit:test-fixture",
-});
+  evidenceSha256: "a".repeat(64),
+  validUntil: "2026-10-27T09:00:30.000Z",
+  usageScope: "NON_DISPLAY_INTERNAL",
+  automatedUseAllowed: true,
+  runtimeClaimFresh: true,
+  legalUseScopeVerified: true,
+};
+
+const entitled = verifyTwelveDataGlobalQuote(enel, rawGood, now, 120, completeProof);
 assert.equal(entitled.eligibility, "PAPER");
 assert.equal(entitled.evidence?.eligibility, "PAPER");
+
+const weakProofs = [
+  { ...completeProof, evidenceSha256: "" },
+  { ...completeProof, validUntil: "" },
+  { ...completeProof, validUntil: "2026-09-27T08:59:00.000Z" },
+  { ...completeProof, usageScope: "DISPLAY_ONLY" },
+  { ...completeProof, automatedUseAllowed: false },
+  { ...completeProof, runtimeClaimFresh: false },
+  { ...completeProof, legalUseScopeVerified: false },
+  { ...completeProof, approvedMics: ["XPAR"] },
+];
+for (const proof of weakProofs) {
+  const result = verifyTwelveDataGlobalQuote(enel, rawGood, now, 120, proof);
+  assert.equal(result.eligibility, "VALIDATION_ONLY", "incomplete entitlement proof must fail closed");
+  assert.equal(result.evidence?.eligibility, "VALIDATION_ONLY");
+}
 
 const wrongVenue = verifyTwelveDataGlobalQuote(enel, {
   symbol: "ENEL",
@@ -83,7 +103,7 @@ const stale = verifyTwelveDataGlobalQuote(enel, {
   currency: "EUR",
   close: "8.125",
   timestamp: Math.floor(Date.parse("2026-09-27T08:45:00.000Z") / 1000),
-}, now);
+}, now, 120, completeProof);
 assert.equal(stale.accepted, true, "correct identity may remain useful as validation evidence even when stale");
 assert.equal(stale.fresh, false);
 assert.equal(stale.eligibility, "VALIDATION_ONLY");
