@@ -12,6 +12,7 @@ export type IndependentGlobalSourceClaim = {
   symbol: string;
   exchangeMic: string;
   currency: string;
+  assetClass?: string;
   price: number;
   observedAt: string;
   realtime: boolean;
