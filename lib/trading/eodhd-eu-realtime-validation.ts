@@ -31,6 +31,7 @@ export function validateEodhdEuRealtimeMessage(
   expected: { symbol: string; providerSymbol: string; primaryMic: string; currency: string },
   nowMs = Date.now(),
   maxAgeSeconds = 120,
+  maxFutureSkewSeconds = 5,
 ): EodhdEuValidationResult {
   const reasons: string[] = [];
   const returnedSymbol = canonicalTicker(message?.s);
@@ -44,16 +45,37 @@ export function validateEodhdEuRealtimeMessage(
   if (!price) reasons.push("EODHD EU message has no positive trade or bid/ask price");
 
   const timestamp = Number(message?.t);
-  const observedAtMs = Number.isFinite(timestamp) && timestamp > 0 ? timestamp : NaN;
-  if (!Number.isFinite(observedAtMs)) reasons.push("EODHD EU message timestamp missing or invalid");
-  const ageMs = Number.isFinite(observedAtMs) ? Math.max(0, nowMs - observedAtMs) : Number.POSITIVE_INFINITY;
-  const fresh = ageMs <= Math.max(1, maxAgeSeconds) * 1000;
-  if (!fresh) reasons.push(`EODHD EU message freshness exceeds ${maxAgeSeconds}s`);
+  // EODHD documents `t` as UTC epoch milliseconds on both EU trade and quote streams.
+  // Reject epoch-seconds or malformed values rather than silently normalizing them.
+  const epochMsPlausible = Number.isFinite(timestamp) && timestamp >= 1_000_000_000_000;
+  const observedAtMs = epochMsPlausible ? timestamp : NaN;
+  if (!Number.isFinite(observedAtMs)) reasons.push("EODHD EU message timestamp missing or invalid epoch-ms");
+
+  const futureSkewMs = Number.isFinite(observedAtMs) ? observedAtMs - nowMs : Number.POSITIVE_INFINITY;
+  const tooFarFuture = Number.isFinite(futureSkewMs) && futureSkewMs > Math.max(0, maxFutureSkewSeconds) * 1000;
+  if (tooFarFuture) reasons.push(`EODHD EU provider timestamp is more than ${maxFutureSkewSeconds}s in the future`);
+
+  const ageMs = Number.isFinite(observedAtMs) ? nowMs - observedAtMs : Number.POSITIVE_INFINITY;
+  const fresh = Number.isFinite(ageMs)
+    && ageMs >= -Math.max(0, maxFutureSkewSeconds) * 1000
+    && ageMs <= Math.max(1, maxAgeSeconds) * 1000;
+  if (!fresh && !tooFarFuture) reasons.push(`EODHD EU message freshness exceeds ${maxAgeSeconds}s`);
+
+  const marketStatus = String(message?.ms ?? "").trim().toLowerCase();
+  if (marketStatus && marketStatus !== "open") {
+    reasons.push(`EODHD EU trade market status is ${marketStatus}; observation remains validation-only`);
+  }
 
   const primaryMic = String(expected?.primaryMic || "").trim().toUpperCase();
   if (!/^[A-Z0-9]{4}$/.test(primaryMic)) reasons.push("primary MIC missing or invalid");
 
-  const accepted = Boolean(returnedSymbol === expectedProviderSymbol && price && Number.isFinite(observedAtMs) && /^[A-Z0-9]{4}$/.test(primaryMic));
+  const accepted = Boolean(
+    returnedSymbol === expectedProviderSymbol
+    && price
+    && Number.isFinite(observedAtMs)
+    && !tooFarFuture
+    && /^[A-Z0-9]{4}$/.test(primaryMic),
+  );
   // Keep the runtime gate and the normalized evidence type aligned. `accepted`
   // includes this check, but the explicit guard prevents a nullable price from
   // crossing the evidence boundary if the acceptance expression changes.
