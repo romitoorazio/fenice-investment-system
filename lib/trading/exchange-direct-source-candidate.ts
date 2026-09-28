@@ -41,6 +41,7 @@ export function evaluateExchangeDirectSourceCandidate(
     symbol: String(validatedEvidence?.symbol || "").trim().toUpperCase(),
     exchangeMic,
     currency: String(validatedEvidence?.currency || "").trim().toUpperCase(),
+    assetClass: String(validatedEvidence?.assetClass || "").trim().toLowerCase(),
     price: Number(validatedEvidence?.price),
     observedAt: String(validatedEvidence?.observedAt || "").trim(),
     realtime: parserEvidenceIsValidationOnly && parserProvenanceVerified && entitlement.verified,
