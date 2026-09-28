@@ -51,14 +51,13 @@ function upper(value: unknown): string {
 
 function nsEpochToMs(value: unknown): number | null {
   const raw = String(value ?? "").trim();
+  // Euronext publishes nanosecond epoch timestamps. Require the exact ns-scale
+  // shape and remove the six sub-millisecond digits without BigInt literal syntax,
+  // keeping Fenice compatible with its intentional ES2017 TypeScript target.
   if (!/^\d{19}$/.test(raw)) return null;
-  try {
-    const ms = BigInt(raw) / 1_000_000n;
-    const numeric = Number(ms);
-    return Number.isSafeInteger(numeric) && numeric >= 1_000_000_000_000 ? numeric : null;
-  } catch {
-    return null;
-  }
+  const millisecondsDigits = raw.slice(0, -6);
+  const numeric = Number(millisecondsDigits);
+  return Number.isSafeInteger(numeric) && numeric >= 1_000_000_000_000 ? numeric : null;
 }
 
 function scaledPrice(value: unknown, decimals: number): number | null {
