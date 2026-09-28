@@ -28,6 +28,8 @@ const entitlementRecord = {
   evidenceSha256: "c".repeat(64),
   reviewedAt: "2026-09-27T10:00:00.000Z",
   validUntil: "2026-10-28T10:00:00.000Z",
+  usageScope: "NON_DISPLAY_INTERNAL",
+  automatedUseAllowed: true,
 };
 const venueRegistry = { policy: "DEFAULT_DENY_BROKER_VENUE_IDENTITY", identities: [venueRecord] };
 const entitlementRegistry = { policy: "DEFAULT_DENY_DUAL_CONTROL", entitlements: [entitlementRecord] };
@@ -42,6 +44,7 @@ const runtime = {
 const good = evaluateDirectaGlobalSourceCandidate(quote, venueRegistry, entitlementRegistry, runtime, now);
 assert.equal(good.venueIdentity.exactVenueVerified, true);
 assert.equal(good.entitlement.verified, true);
+assert.equal(good.entitlement.legalUseScopeVerified, true);
 assert.equal(good.admission.admission.admittedForPaper, true);
 assert.equal(good.admission.evidence?.eligibility, "PAPER");
 assert.equal(good.admission.evidence?.exchangeMic, "XMIL");
@@ -76,6 +79,17 @@ assert.equal(staleRuntime.entitlement.runtimeClaimFresh, false);
 assert.equal(staleRuntime.entitlement.verified, false);
 assert.equal(staleRuntime.admission.admission.admittedForPaper, false);
 assert.equal(staleRuntime.admission.evidence?.eligibility, "VALIDATION_ONLY");
+
+const displayOnly = evaluateDirectaGlobalSourceCandidate(
+  quote,
+  venueRegistry,
+  { ...entitlementRegistry, entitlements: [{ ...entitlementRecord, usageScope: "DISPLAY_ONLY" }] },
+  runtime,
+  now,
+);
+assert.equal(displayOnly.entitlement.verified, false);
+assert.equal(displayOnly.admission.admission.admittedForPaper, false);
+assert.equal(displayOnly.admission.evidence?.eligibility, "VALIDATION_ONLY");
 
 const stale = evaluateDirectaGlobalSourceCandidate({ ...quote, priceObservedAt: "2026-09-28T09:55:00.000Z" }, venueRegistry, entitlementRegistry, runtime, now);
 assert.equal(stale.admission.admission.admittedForPaper, false);
