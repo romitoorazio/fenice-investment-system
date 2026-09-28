@@ -20,6 +20,7 @@ export type DirectaGlobalRuntimeClaim = {
   confirmedMarketMics?: readonly string[];
   evidenceRef?: string;
   evidenceSha256?: string;
+  confirmedAt?: string;
 };
 
 export type ResolvedDirectaGlobalEntitlement = {
@@ -29,12 +30,14 @@ export type ResolvedDirectaGlobalEntitlement = {
   evidenceSha256: string;
   persistedEvidenceFound: boolean;
   runtimeClaimMatched: boolean;
+  runtimeClaimFresh: boolean;
   expired: boolean;
   reasons: string[];
 };
 
 const SHA256 = /^[a-f0-9]{64}$/i;
 const MIC = /^[A-Z0-9]{4}$/;
+const MAX_RUNTIME_CLAIM_AGE_MS = 5 * 60 * 1000;
 
 function mic(value: unknown): string {
   const normalized = String(value || "").trim().toUpperCase();
@@ -92,13 +95,20 @@ export function resolveDirectaGlobalEntitlementProof(
   const runtimeMics = (runtimeClaim.confirmedMarketMics || []).map(mic).filter(Boolean);
   const runtimeRef = String(runtimeClaim.evidenceRef || "").trim();
   const runtimeHash = hash(runtimeClaim.evidenceSha256);
+  const runtimeConfirmedAt = dateMs(runtimeClaim.confirmedAt);
+  const runtimeClaimFresh = runtimeConfirmedAt !== null
+    && runtimeConfirmedAt <= nowMs
+    && nowMs - runtimeConfirmedAt <= MAX_RUNTIME_CLAIM_AGE_MS;
+
   const runtimeClaimMatched = Boolean(selected)
     && runtimeClaim.apiRealtimeHistoricalConfirmed === true
     && runtimeMics.includes(expectedMic)
     && runtimeRef === String(selected?.evidenceRef || "").trim()
-    && runtimeHash === hash(selected?.evidenceSha256);
+    && runtimeHash === hash(selected?.evidenceSha256)
+    && runtimeClaimFresh;
 
-  if (selected && !runtimeClaimMatched) reasons.push("runtime Directa entitlement claim does not match persisted exact-MIC evidence reference and SHA-256");
+  if (selected && !runtimeClaimFresh) reasons.push("runtime Directa entitlement confirmation is missing, future-dated, or older than 5 minutes");
+  if (selected && runtimeClaimFresh && !runtimeClaimMatched) reasons.push("runtime Directa entitlement claim does not match persisted exact-MIC evidence reference and SHA-256");
 
   const verified = Boolean(expectedMic) && persistedEvidenceFound && runtimeClaimMatched && reasons.length === 0;
   return {
@@ -108,6 +118,7 @@ export function resolveDirectaGlobalEntitlementProof(
     evidenceSha256: verified ? hash(selected?.evidenceSha256) : "",
     persistedEvidenceFound,
     runtimeClaimMatched,
+    runtimeClaimFresh,
     expired,
     reasons,
   };
