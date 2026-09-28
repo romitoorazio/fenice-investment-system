@@ -43,6 +43,12 @@ export type GlobalPaperEntitlementProof = {
   paperAllowed: boolean;
   approvedMics: readonly string[];
   evidenceRef: string;
+  evidenceSha256: string;
+  validUntil: string;
+  usageScope: "NON_DISPLAY_INTERNAL" | "DISPLAY_ONLY" | "REDISTRIBUTION_ONLY" | "UNKNOWN";
+  automatedUseAllowed: boolean;
+  runtimeClaimFresh: boolean;
+  legalUseScopeVerified: boolean;
 };
 
 export type GlobalInstrumentCertification = {
@@ -59,6 +65,7 @@ export type GlobalInstrumentCertification = {
 };
 
 const LISTED_SECURITY = /equity|stock|etf|azione|azion/i;
+const SHA256 = /^[a-f0-9]{64}$/i;
 
 export const GLOBAL_MARKET_SENTINELS: readonly GlobalMarketSentinel[] = [
   { symbol: "ENEL", name: "Enel", exchangeMic: "XMIL", country: "IT", currency: "EUR", assetClass: "equity", tier: "EUROPE_CORE" },
@@ -139,6 +146,24 @@ export function twelveDataGlobalQuoteUrl(instrument: ExecutionInstrument, apiKey
   return `https://api.twelvedata.com/quote?${params.toString()}`;
 }
 
+function isCompletePaperEntitlementProof(
+  proof: GlobalPaperEntitlementProof | undefined,
+  expectedMic: string,
+  nowMs: number,
+): boolean {
+  if (!proof || proof.paperAllowed !== true) return false;
+  if (!proof.approvedMics.map(normalizedMic).includes(expectedMic)) return false;
+  if (!String(proof.evidenceRef || "").trim()) return false;
+  if (!SHA256.test(String(proof.evidenceSha256 || "").trim())) return false;
+  const validUntilMs = Date.parse(String(proof.validUntil || ""));
+  if (!Number.isFinite(validUntilMs) || validUntilMs <= nowMs) return false;
+  if (proof.usageScope !== "NON_DISPLAY_INTERNAL") return false;
+  if (proof.automatedUseAllowed !== true) return false;
+  if (proof.runtimeClaimFresh !== true) return false;
+  if (proof.legalUseScopeVerified !== true) return false;
+  return true;
+}
+
 export function verifyTwelveDataGlobalQuote(
   instrument: ExecutionInstrument,
   raw: unknown,
@@ -172,11 +197,9 @@ export function verifyTwelveDataGlobalQuote(
 
   const identityVerified = symbolMatched && micMatched && currencyMatched;
   const provenanceVerified = identityVerified && Boolean(observedAt) && Number.isFinite(price) && price > 0;
-  const entitlementVerified = entitlementProof?.paperAllowed === true
-    && Boolean(String(entitlementProof.evidenceRef || "").trim())
-    && entitlementProof.approvedMics.map(normalizedMic).includes(expectedMic);
+  const entitlementVerified = isCompletePaperEntitlementProof(entitlementProof, expectedMic, nowMs);
   if (provenanceVerified && fresh && !entitlementVerified) {
-    reasons.push("PAPER entitlement for the exact MIC is not independently verified");
+    reasons.push("PAPER entitlement for the exact MIC lacks complete current automated non-display proof");
   }
   const classifiedEligibility = observedAt
     ? classifyExecutionPaperEligibility({
@@ -199,15 +222,15 @@ export function verifyTwelveDataGlobalQuote(
       assetClass: instrument.assetClass,
       source: eligibility === "PAPER"
         ? `Twelve Data exact-MIC fresh quote (${expectedMic})`
-        : `Twelve Data exact-MIC quote (${expectedMic}); not fresh enough for PAPER`,
+        : `Twelve Data exact-MIC quote (${expectedMic}); entitlement/freshness not PAPER-complete`,
       sourceFamily: "twelve-data",
       eligibility,
       price,
       observedAt,
       provenanceVerified: true,
       provenanceMethod: entitlementVerified
-        ? `authenticated-exact-mic:${expectedMic};entitlement:verified`
-        : `authenticated-exact-mic:${expectedMic};entitlement:unverified`,
+        ? `authenticated-exact-mic:${expectedMic};entitlement:verified-nondisplay-automated`
+        : `authenticated-exact-mic:${expectedMic};entitlement:unverified-or-incomplete`,
     })
     : null;
   const evidence = normalizedEvidence
