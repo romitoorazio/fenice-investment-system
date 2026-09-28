@@ -43,8 +43,10 @@ jobs:
       - name: Test composed Directa read-only global source admission
         run: node --experimental-strip-types scripts/test-directa-global-source-candidate.mjs
 
-      - name: Syntax-check Directa source candidate path
-        run: node --experimental-strip-types --check lib/trading/directa-global-source-candidate.ts
+      - name: Syntax-check Directa entitlement and source candidate paths
+        run: |
+          node --experimental-strip-types --check lib/trading/directa-global-entitlement-proof.ts
+          node --experimental-strip-types --check lib/trading/directa-global-source-candidate.ts
 
       - name: Assert Directa entitlement registry is empty default-deny
         run: |
@@ -59,9 +61,14 @@ jobs:
 
       - name: Assert runtime env alone cannot unlock Directa global PAPER
         run: |
-          grep -q 'persistedEvidenceFound && runtimeClaimMatched' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'persistedEvidenceFound' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'runtimeClaimMatched' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'runtimeClaimFresh' lib/trading/directa-global-entitlement-proof.ts
           grep -q 'evidenceSha256' lib/trading/directa-global-entitlement-proof.ts
           grep -q 'validUntil' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'automatedUseAllowed' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'legalUseScopeVerified' lib/trading/directa-global-entitlement-proof.ts
           grep -q 'resolveBrokerVenueIdentity' lib/trading/directa-global-source-candidate.ts
           grep -q 'admitIndependentGlobalEvidence' lib/trading/directa-global-source-candidate.ts
-          echo 'Directa exact-MIC dual-control entitlement and independent admission pipeline present.'
+          echo 'Directa exact-MIC dual-control entitlement, legal-use scope and independent admission pipeline present.'
