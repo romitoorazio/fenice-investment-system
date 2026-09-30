@@ -26,12 +26,20 @@ Admission policy remains fail-closed: exact venue/MIC identity, fresh provider t
 
 5. **EODHD EU WebSocket** — EODHD documents realtime European trades/quotes sourced from Cboe Europe across BXE, CXE and DXE, covering 18 European markets and roughly 9,400 symbols in a normal session. The quote stream is consolidated across those Cboe books, so it is valuable cross-venue evidence but **not** exact home-venue evidence for XETR/XMIL/XPAR. EODHD documents `t` as UTC epoch milliseconds on the European streams. V7 therefore rejects seconds-scale timestamps, timestamps beyond a small future-skew allowance, stale messages and symbol mismatches. This path remains `VALIDATION_ONLY` until provider entitlement/use rights are proven, and even then its Cboe provenance must never be relabelled as the primary listing MIC.
 
+## Verified 2026-09-30 from official sources
+
+6. **SIX Market Signal / 1BBO** — SIX launched Market Signal on 8 September 2026 as a cloud API/WebSocket service carrying real-time and historical European exchange data. Its 1BBO product is a real-time consolidated top-of-book/trades stream sourced from SIX Swiss Exchange, BME and Aquis; Aquis contributes coverage across 16 European markets. SIX describes sub-100 ms streaming, JSON/CSV delivery, an all-in-one licence with no reporting obligation, and explicitly positions the service for developing, training and deploying trading models. The public catalogue currently offers a one-month trial and states internal derivative-data usage is allowed while external redistribution is not.
+
+   This materially improves SIX as an independent V7 candidate because automated/model use is expressly contemplated by the product. It does **not**, however, justify automatic PAPER admission. 1BBO is consolidated across SIX/BME/Aquis and therefore must not be relabelled as an exact home-venue quote for XETR/XMIL/XPAR. Before it contributes to PAPER quorum, Fenice must capture the subscribed product/account entitlement, applicable Market Signal terms, exact source/venue identity exposed by the runtime message, provider-supplied timestamp semantics, instrument identity and an explicit validity end. If a runtime payload cannot prove its exact source MIC, it remains cross-venue `VALIDATION_ONLY`.
+
+   SIX's traditional Exfeed licensing documentation separately states that real-time Non-Display Information Usage requires a specific licence/direct contractual relationship. Fenice must therefore bind evidence to the **actual Market Signal product terms/account entitlement** and must never infer Market Signal automated-use rights from an Exfeed subscription, or vice versa. Trial/API reachability alone remains insufficient.
+
 ## Other priority candidates
 
-6. **dxFeed** — realtime/delayed/historical APIs with EU equities coverage; candidate subject to commercial feed entitlement, automated-use rights and exact source/venue mapping.
-7. **Interactive Brokers Web API** — streaming Level 1 data with exchange-specific requests; most securities require market-data subscriptions. Candidate only if an authorized account is connected later.
-8. **Saxo OpenAPI** — realtime streaming prices are supported; non-FX market data requires authorized account/data access and applicable terms.
-9. **Twelve Data Cboe Europe** — Twelve Data documents licensed Cboe Europe realtime coverage at MIC `BCXE` as a data add-on. It can become exact Cboe-venue evidence only if account entitlement and automated-use rights are proven; it must never be presented as exact XETR/XMIL/XPAR home-venue evidence.
+7. **dxFeed** — realtime/delayed/historical APIs with EU equities coverage; candidate subject to commercial feed entitlement, automated-use rights and exact source/venue mapping.
+8. **Interactive Brokers Web API** — streaming Level 1 data with exchange-specific requests; most securities require market-data subscriptions. Candidate only if an authorized account is connected later.
+9. **Saxo OpenAPI** — realtime streaming prices are supported; non-FX market data requires authorized account/data access and applicable terms.
+10. **Twelve Data Cboe Europe** — Twelve Data documents licensed Cboe Europe realtime coverage at MIC `BCXE` as a data add-on. It can become exact Cboe-venue evidence only if account entitlement and automated-use rights are proven; it must never be presented as exact XETR/XMIL/XPAR home-venue evidence.
 
 ## Evidence packet required before promotion
 
