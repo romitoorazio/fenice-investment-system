@@ -64,21 +64,29 @@ jobs:
             probe_cycle_budget_ready=true
           fi
 
+          # Apply the conservative recovery window to every trigger type. GitHub
+          # may deliver cron events hours late, so a schedule event is not proof
+          # that the market is still open. This gate prevents dispatching the
+          # canonical provider-refresh cycle outside the safe US session window.
+          utc_weekday="$(date -u +%u)"
+          utc_hour="$(date -u +%H)"
+          utc_minute="$(date -u +%M)"
+          utc_minutes=$((10#$utc_hour * 60 + 10#$utc_minute))
+          request_window_ready=false
+          # 14:35-19:30 UTC is safely inside regular US equity hours in both
+          # daylight and standard time. Holidays/early closes still fail closed
+          # inside the canonical authoritative Alpaca market-clock gate.
+          if [ "$utc_weekday" -le 5 ] \
+            && [ "$utc_minutes" -ge 875 ] \
+            && [ "$utc_minutes" -le 1170 ]; then
+            request_window_ready=true
+          fi
+
           recovery_event_ready=true
           if [ "$EVENT_NAME" = "workflow_run" ]; then
-            utc_weekday="$(date -u +%u)"
-            utc_hour="$(date -u +%H)"
-            utc_minute="$(date -u +%M)"
-            utc_minutes=$((10#$utc_hour * 60 + 10#$utc_minute))
             recovery_event_ready=false
-            # 14:35-19:30 UTC is safely inside the regular US equity session in
-            # both US daylight and standard time. Holidays/early closes still
-            # fail closed inside the canonical authoritative market-clock gate.
             if [ "$UPSTREAM_CONCLUSION" = "success" ] \
-              && [ "$UPSTREAM_EVENT" = "schedule" ] \
-              && [ "$utc_weekday" -le 5 ] \
-              && [ "$utc_minutes" -ge 875 ] \
-              && [ "$utc_minutes" -le 1170 ]; then
+              && [ "$UPSTREAM_EVENT" = "schedule" ]; then
               recovery_event_ready=true
             fi
           fi
@@ -154,6 +162,7 @@ jobs:
             && [ "$attempted_today" != "true" ] \
             && [ "$active_probe_run" != "true" ] \
             && [ "$probe_cycle_budget_ready" = "true" ] \
+            && [ "$request_window_ready" = "true" ] \
             && [ "$recovery_event_ready" = "true" ] \
             && [ "$intelligence_age_valid" = "true" ] \
             && [ "$source_age_valid" = "true" ] \
@@ -168,6 +177,7 @@ jobs:
           echo "active_probe_run=$active_probe_run" >> "$GITHUB_OUTPUT"
           echo "probe_cycles_today=$probe_cycles_today" >> "$GITHUB_OUTPUT"
           echo "probe_cycle_budget_ready=$probe_cycle_budget_ready" >> "$GITHUB_OUTPUT"
+          echo "request_window_ready=$request_window_ready" >> "$GITHUB_OUTPUT"
           echo "recovery_event_ready=$recovery_event_ready" >> "$GITHUB_OUTPUT"
           echo "intelligence_age_valid=$intelligence_age_valid" >> "$GITHUB_OUTPUT"
           echo "source_age_valid=$source_age_valid" >> "$GITHUB_OUTPUT"
@@ -176,7 +186,7 @@ jobs:
           echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
 
-          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; request_window_ready=$request_window_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
           echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
           echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
 
@@ -194,4 +204,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, two canonical probe cycles already launched today, an event-driven recovery outside its approved market window, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, two canonical probe cycles already launched today, any trigger delivered outside the conservative US market recovery window, an invalid event-driven recovery, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
