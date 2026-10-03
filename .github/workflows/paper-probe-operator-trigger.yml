@@ -3,26 +3,31 @@ name: Fenice PAPER Probe Operator Trigger
 on:
   workflow_dispatch:
   schedule:
-    # External recovery checkpoint for the certifying PAPER probe. It does not
+    # Spread recovery checkpoints across the session: nearby cron events have
+    # repeatedly arrived together after the US close. These checks do not
     # execute PAPER logic itself: it can only dispatch the fingerprinted
     # canonical probe after duplicate/quality/cooldown/active-run suppression.
+    - cron: "55 14 * * 1-5"
+    - cron: "5 16 * * 1-5"
     - cron: "15 17 * * 1-5"
-    # Secondary recovery checkpoint if GitHub skips/delays the first recovery
-    # registration. The same fail-closed preflight and duplicate suppression apply.
-    - cron: "25 17 * * 1-5"
+    - cron: "25 18 * * 1-5"
   workflow_run:
     workflows:
-      # Either upstream provides an event-driven recovery opportunity when
-      # GitHub omits the dedicated PAPER schedules. Both still pass the same
+      # Successful scheduled main runs provide recovery opportunities even if
+      # GitHub omits dedicated PAPER cron events. All still pass the same
       # market-window, freshness, quality, cooldown and duplicate gates below.
       - Fenice Global Sources
       - Fenice Foundation
+      - Fenice World Terminal
+      - Fenice Autonomous Analysis
+      - Fenice Production CI
     types:
       - completed
   push:
     branches: [main]
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - "scripts/paper-probe-recovery-trigger.mjs"
 
 permissions:
   actions: write
@@ -36,14 +41,34 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      UPSTREAM_NAME: ${{ github.event.workflow_run.name }}
+      UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+      UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      UPSTREAM_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      UPSTREAM_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
     steps:
+      - name: Checkout trusted main recovery policy
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Gate recovery trigger before repository API reads
+        id: trigger_gate
+        run: node scripts/paper-probe-recovery-trigger.mjs --github-output "$GITHUB_OUTPUT"
+
       - name: Verify active fail-closed campaign, evidence age and intelligence quality
+        if: steps.trigger_gate.outputs.allowed == 'true'
         id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
-          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
           campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
@@ -86,7 +111,8 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_run" ]; then
             recovery_event_ready=false
             if [ "$UPSTREAM_CONCLUSION" = "success" ] \
-              && [ "$UPSTREAM_EVENT" = "schedule" ]; then
+              && [ "$UPSTREAM_EVENT" = "schedule" ] \
+              && [ "$UPSTREAM_HEAD_BRANCH" = "main" ]; then
               recovery_event_ready=true
             fi
           fi
@@ -196,6 +222,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          node scripts/paper-probe-recovery-trigger.mjs --require-allowed
           dispatch_token="operator-probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
           echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
