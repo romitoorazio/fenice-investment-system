@@ -61,4 +61,16 @@ assert.ok(requestWindowIndex >= 0 && eventSpecificIndex >= 0 && requestWindowInd
   "market recovery window must guard schedule, workflow_run and manual triggers before event-specific checks");
 
 assert.doesNotMatch(workflow, /liveTradingAllowed\s*=\s*true|brokerConnectivityAllowed\s*=\s*true/);
+assert.doesNotMatch(workflow, /cooldownReady\s*=\s*ageValid\s*&&\s*ageMinutes\s*>=\s*15/,
+  "fresh research quality must not restart the execution-provider cooldown");
+assert.match(workflow, /--workflow paper-probe-staging\.yml[^\n]*updatedAt/);
+assert.match(workflow, /--workflow paper-validation\.yml[^\n]*updatedAt/);
+assert.match(workflow, /execution-market-evidence\.json\?ref=main/);
+assert.match(workflow, /node scripts\/paper-probe-cooldown\.mjs --probe-runs[^\n]*--validation-runs[^\n]*--execution-evidence/);
+assert.ok(workflow.includes('cooldown_ready="$(jq -r \'.ready\' <<<"$cooldown_metrics")"'));
+assert.ok(workflow.includes('probe_cycles_today" -lt 2'), "daily provider-cycle cap must stay unchanged");
+const regression = readFileSync(".github/workflows/paper-recovery-regression.yml", "utf8");
+assert.match(regression, /actions: read/);
+assert.doesNotMatch(regression, /actions: write|contents: write|gh workflow run|git push|pull_request_target/);
+assert.match(regression, /name: Audit current provider cooldown without dispatch or provider requests\n\s+if: github.event_name != 'pull_request' && github.ref == 'refs\/heads\/main'/);
 console.log("PAPER operator recovery config: PASS");

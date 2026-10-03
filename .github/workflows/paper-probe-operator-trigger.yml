@@ -28,6 +28,7 @@ on:
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
       - "scripts/paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-probe-cooldown.mjs"
 
 permissions:
   actions: write
@@ -76,7 +77,20 @@ jobs:
           oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
           intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
           source_health="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/global-source-health.json?ref=main")"
-          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,event,headBranch)"
+          execution="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/execution-market-evidence.json?ref=main")"
+          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch)"
+          validation_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch)"
+
+          # Preserve the 15-minute provider cooldown without penalizing a fresh
+          # research-quality report. Also suppress overlapping canonical PAPER
+          # validation cycles, which can spend the same provider credits.
+          probe_file="$RUNNER_TEMP/paper-cooldown-probe-runs.json"
+          validation_file="$RUNNER_TEMP/paper-cooldown-validation-runs.json"
+          execution_file="$RUNNER_TEMP/paper-cooldown-execution-evidence.json"
+          printf '%s\n' "$probe_runs" > "$probe_file"
+          printf '%s\n' "$validation_runs" > "$validation_file"
+          printf '%s\n' "$execution" > "$execution_file"
+          cooldown_metrics="$(node scripts/paper-probe-cooldown.mjs --probe-runs "$probe_file" --validation-runs "$validation_file" --execution-evidence "$execution_file")"
 
           active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
           prefix="$(jq -r '.idPrefix // "fenice-paper-validation-"' <<<"$approval")"
@@ -129,7 +143,6 @@ jobs:
             const assetClasses = Array.isArray(q?.coverage?.assetClasses) ? q.coverage.assetClasses.length : 0;
             const timestampPolicy = q?.policy?.unknownTimestampEvidenceExcluded === true;
             const ageValid = Number.isFinite(ageMinutes) && ageMinutes >= 0 && ageMinutes <= 24 * 60;
-            const cooldownReady = ageValid && ageMinutes >= 15;
             const qualityReady = ageValid
               && Number.isFinite(confidence)
               && Number.isFinite(checks)
@@ -145,7 +158,6 @@ jobs:
             process.stdout.write(JSON.stringify({
               ageMinutes: Number.isFinite(ageMinutes) ? Number(ageMinutes.toFixed(1)) : null,
               ageValid,
-              cooldownReady,
               qualityReady,
               confidence,
               checks,
@@ -177,7 +189,7 @@ jobs:
 
           intelligence_age_valid="$(jq -r '.ageValid' <<<"$intelligence_metrics")"
           intelligence_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$intelligence_metrics")"
-          cooldown_ready="$(jq -r '.cooldownReady' <<<"$intelligence_metrics")"
+          cooldown_ready="$(jq -r '.ready' <<<"$cooldown_metrics")"
           quality_ready="$(jq -r '.qualityReady' <<<"$intelligence_metrics")"
           source_age_valid="$(jq -r '.ageValid' <<<"$source_metrics")"
           source_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$source_metrics")"
@@ -215,6 +227,7 @@ jobs:
           echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; request_window_ready=$request_window_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
           echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
           echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
+          echo "Provider-cooldown diagnostics: $(jq -c '.' <<<"$cooldown_metrics")"
 
       - name: Dispatch canonical PAPER probe cycle
         if: steps.preflight.outputs.run_probe == 'true'
@@ -231,4 +244,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, two canonical probe cycles already launched today, any trigger delivered outside the conservative US market recovery window, an invalid event-driven recovery, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, an active canonical PAPER probe or validation cycle, two canonical probe cycles already launched today, any trigger delivered outside the conservative US market recovery window, an invalid event-driven recovery, persisted intelligence/source-health evidence older than 24 hours or future-dated, invalid provider/run timestamps or less than 15 minutes since the latest execution-provider evidence or canonical PAPER cycle, institutional intelligence quality below baseline standards, or critical source health not GREEN."

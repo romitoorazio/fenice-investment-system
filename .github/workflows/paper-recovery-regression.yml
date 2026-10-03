@@ -8,6 +8,8 @@ on:
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-probe-cooldown.mjs"
+      - "scripts/test-paper-probe-cooldown.mjs"
   push:
     branches: [main]
     paths:
@@ -16,9 +18,12 @@ on:
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-probe-cooldown.mjs"
+      - "scripts/test-paper-probe-cooldown.mjs"
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -38,3 +43,19 @@ jobs:
         run: node scripts/test-paper-probe-recovery-trigger.mjs
       - name: Verify event-driven recovery remains fail-closed
         run: node scripts/test-paper-operator-recovery-config.mjs
+      - name: Verify provider cooldown and canonical PAPER run suppression
+        run: node scripts/test-paper-probe-cooldown.mjs
+      - name: Audit current provider cooldown without dispatch or provider requests
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          probe_file="$RUNNER_TEMP/paper-cooldown-audit-probe.json"
+          validation_file="$RUNNER_TEMP/paper-cooldown-audit-validation.json"
+          execution_file="$RUNNER_TEMP/paper-cooldown-audit-execution.json"
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch > "$probe_file"
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch > "$validation_file"
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/execution-market-evidence.json?ref=main" > "$execution_file"
+          node scripts/paper-probe-cooldown.mjs --probe-runs "$probe_file" --validation-runs "$validation_file" --execution-evidence "$execution_file"
+          echo "Read-only provider cooldown audit. No workflow dispatch, provider request or PAPER state mutation."
