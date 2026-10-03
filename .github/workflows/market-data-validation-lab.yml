@@ -1,0 +1,78 @@
+name: Fenice Market Data Validation Lab
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Fenice Intelligence Quality, Fenice Foundation]
+    types: [completed]
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/market-data-validation-lab.mjs"
+      - "scripts/run-market-data-validation-lab.mjs"
+      - "scripts/test-market-data-validation-lab.mjs"
+      - ".github/workflows/market-data-validation-lab.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/market-data-validation-lab.mjs"
+      - "scripts/run-market-data-validation-lab.mjs"
+      - "scripts/test-market-data-validation-lab.mjs"
+      - ".github/workflows/market-data-validation-lab.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-market-data-validation-lab-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validation-lab-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout tested revision
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify identity, timestamps, pacing, failure reports and V6 isolation
+        run: node scripts/test-market-data-validation-lab.mjs
+      - name: Audit repository inputs without provider requests
+        run: node scripts/run-market-data-validation-lab.mjs --audit-only
+
+  observe-public-data:
+    needs: validation-lab-tests
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        contains(fromJSON('["schedule","workflow_dispatch","push"]'), github.event.workflow_run.event)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Collect isolated public validation evidence
+        run: node scripts/run-market-data-validation-lab.mjs
+      - name: Retain timestamped research evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-data-validation-lab-${{ github.run_id }}
+          path: artifacts/market-data-validation-lab.json
+          if-no-files-found: error
+          retention-days: 30
