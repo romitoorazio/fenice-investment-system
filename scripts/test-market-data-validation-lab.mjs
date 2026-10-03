@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   LAB_POLICY, auditPrimarySnapshot, collectMarketDataValidationLab, compareWithPrimary, compareSynchronizedObservations,
-  planCryptoValidation, providerTimestamp, sourceFamily, validateCoinbaseProduct, validateCoinbaseTicker, validateCoinGeckoMarkets,
+  compareVenueObservations, planCryptoValidation, providerTimestamp, sourceFamily,
+  validateCoinbaseProduct, validateCoinbaseTicker, validateCoinGeckoMarkets, validateKrakenPair, validateKrakenTrades,
 } from "../lib/intelligence/market-data-validation-lab.mjs";
 
 const now = Date.parse("2026-10-03T17:00:00Z");
@@ -25,6 +26,19 @@ const geckoMarket = (symbol = "BTC", overrides = {}) => ({
   name: { BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana" }[symbol], current_price: 100, last_updated: at(2), ...overrides,
 });
 const geckoMarkets = () => [geckoMarket(), geckoMarket("ETH"), geckoMarket("SOL")];
+const krakenAlias = (symbol) => ({ BTC: "XBT", DOGE: "XDG" }[symbol] || symbol);
+const krakenPair = (symbol = "BTC", overrides = {}) => ({ base: symbol, quote: "USD",
+  aclass_base: "currency", aclass_quote: "currency", status: "online",
+  altname: `${krakenAlias(symbol)}USD`, wsname: `${krakenAlias(symbol)}/USD`, ...overrides });
+const krakenCatalog = (symbols = ["BTC", "ETH", "SOL"]) => ({ error: [],
+  result: Object.fromEntries(symbols.map((symbol) => [`${symbol}/USD`, krakenPair(symbol)])) });
+const krakenTrades = (symbol = "BTC", overrides = {}) => ({ error: [], result: {
+  [`${symbol}/USD`]: [["100.2", "0.5", (now - 2000) / 1000, "b", "m", "", 43]], last: String(now * 1000000),
+}, ...overrides });
+const krakenSymbolFromUrl = (url) => {
+  const alias = new URL(url).searchParams.get("pair").replace(/USD$/, "");
+  return ({ XBT: "BTC", XDG: "DOGE" }[alias] || alias);
+};
 const target = planCryptoValidation(snapshot, quality, now).targets[0];
 
 assert.equal(providerTimestamp(at()), now);
@@ -114,10 +128,65 @@ for (const overrides of [{ sourceFamily: "coinbase" }, { coingeckoId: "wrapped-b
 }
 assert.equal(compareSynchronizedObservations(target, freshPrimary, observation, now + 121000).reason, "PRIMARY_REFRESH_PROVIDER_TIMESTAMP_STALE");
 
+const pair = validateKrakenPair(target, krakenCatalog()).pair;
+assert.deepEqual(pair, { pairId: "BTC/USD", requestPair: "XBTUSD" });
+for (const overrides of [{ base: "WBTC" }, { quote: "USDT" }, { aclass_base: "tokenized_asset" },
+  { aclass_quote: undefined }, { altname: "WBTCUSD" }, { wsname: "BTC/USDT" }]) {
+  assert.equal(validateKrakenPair(target, { error: [], result: { "BTC/USD": krakenPair("BTC", overrides) } }).reason,
+    "KRAKEN_PAIR_IDENTITY_MISMATCH");
+}
+assert.equal(validateKrakenPair(target, { error: [], result: { "BTC/USD": krakenPair("BTC", { status: "cancel_only" }) } }).reason,
+  "KRAKEN_PAIR_NOT_ACTIVE");
+assert.equal(validateKrakenPair(target, { error: [], result: { "XXBTZUSD": krakenPair() } }).reason,
+  "EXACT_KRAKEN_USD_PAIR_NOT_LISTED", "require the requested canonical display identity contract");
+assert.equal(validateKrakenPair({ ...target, name: "Wrapped Bitcoin" }, krakenCatalog()).reason, "KRAKEN_TARGET_IDENTITY_INVALID");
+const krakenObservation = validateKrakenTrades(target, pair, krakenTrades(), now).observation;
+assert.equal(krakenObservation.observedAt, at(2));
+assert.equal(krakenObservation.providerTradeTimeUnixSeconds, (now - 2000) / 1000);
+assert.equal(krakenObservation.timestampOrigin, "provider-last-trade");
+assert.equal(compareVenueObservations(target, observation, krakenObservation, now).status, "CONFIRMED");
+assert.equal(compareVenueObservations(target, observation, { ...krakenObservation, price: 101 }, now).status, "ATTENTION");
+assert.equal(compareVenueObservations(target, observation, { ...krakenObservation, price: 105 }, now).status, "DIVERGENT");
+for (const seconds of [undefined, null, "1791046798", 0, -1, Infinity, NaN, now / 1000 + 1, now / 1000 - 121, now]) {
+  const payload = krakenTrades();
+  payload.result["BTC/USD"][0][2] = seconds;
+  assert(validateKrakenTrades(target, pair, payload, now).reason, "never use receipt time or the pagination cursor as trade time");
+}
+for (const payload of [krakenTrades("ETH"), { error: [], result: { ...krakenTrades().result, "ETH/USD": [] } }]) {
+  assert.equal(validateKrakenTrades(target, pair, payload, now).reason, "KRAKEN_TRADES_IDENTITY_MISMATCH");
+}
+for (const trades of [[], {}, [krakenTrades().result["BTC/USD"][0], krakenTrades().result["BTC/USD"][0]]]) {
+  assert.equal(validateKrakenTrades(target, pair, { error: [], result: { "BTC/USD": trades } }, now).reason,
+    "KRAKEN_TRADES_INVALID_SCHEMA");
+}
+for (const [index, value] of [[0, true], [1, 0], [3, "unknown"], [4, "unknown"], [6, null]]) {
+  const payload = krakenTrades();
+  payload.result["BTC/USD"][0][index] = value;
+  assert(validateKrakenTrades(target, pair, payload, now).reason);
+}
+for (const [payload, reason] of [[{}, "KRAKEN_RESPONSE_INVALID_SCHEMA"],
+  [{ error: ["EGeneral:private response body"] }, "KRAKEN_API_ERROR"],
+  [{ error: ["EAPI:Rate limit exceeded"] }, "PUBLIC_PROVIDER_RATE_LIMITED"],
+  [{ error: ["EService:Throttled: 1791046800"] }, "PUBLIC_PROVIDER_RATE_LIMITED"]]) {
+  assert.equal(validateKrakenTrades(target, pair, payload, now).reason, reason);
+  assert.equal(validateKrakenPair(target, payload).reason, reason);
+}
+for (const overrides of [{ sourceFamily: "coinbase" }, { productId: "BTC/USDT" }, { requestPair: "WBTCUSD" },
+  { name: "Wrapped Bitcoin" }, { currency: "EUR" }, { priceSemantics: "AGGREGATED_MARKET_PRICE" },
+  { timestampOrigin: "receipt-time" }, { eligibility: "PAPER" }, { validationOnly: false }]) {
+  assert.equal(compareVenueObservations(target, observation, { ...krakenObservation, ...overrides }, now).status, "INCOMPARABLE");
+}
+assert.equal(compareVenueObservations(target, observation, krakenObservation, now + 121000).reason,
+  "COINBASE_PROVIDER_TIMESTAMP_STALE");
+assert.equal(compareVenueObservations(target, observation, { ...krakenObservation, observedAt: at(121) }, now).reason,
+  "KRAKEN_PROVIDER_TIMESTAMP_STALE");
+
 const calls = [];
 const pacing = [];
 const fixtureFetch = async (url, options) => {
   calls.push({ url, options });
+  if (url.startsWith("https://api.kraken.com/")) return { ok: true,
+    json: async () => url.includes("/AssetPairs?") ? krakenCatalog() : krakenTrades(krakenSymbolFromUrl(url)) };
   return { ok: true, json: async () => url.startsWith("https://api.coingecko.com/") ? geckoMarkets() : url.endsWith("/products")
     ? [product(), product("ETH"), product("SOL")]
     : url.includes("/ETH-") ? ticker({ time: undefined }) : ticker() };
@@ -126,8 +195,8 @@ const inputsBefore = JSON.stringify({ snapshot, quality });
 const report = await collectMarketDataValidationLab({ snapshot, quality, fetchImpl: fixtureFetch,
   clock: () => now, pace: async (ms) => pacing.push(ms) });
 assert.equal(JSON.stringify({ snapshot, quality }), inputsBefore, "lab must not mutate production inputs");
-assert.equal(report.version, 2);
-assert.equal(report.collection.requests, 5);
+assert.equal(report.version, 3);
+assert.equal(report.collection.requests, 8);
 assert.equal(report.collection.collected, 2);
 assert.equal(report.productionQuality.concentrationState, "BLOCKED", "never round 50.85% down into a passing gate");
 assert.equal(report.productionQuality.dominantFamilyAttributionAvailable, false,
@@ -138,7 +207,11 @@ assert.equal(report.collection.synchronized.primaryRequests, 1, "all exact prima
 assert.equal(report.collection.synchronized.primaryCollected, 3);
 assert.equal(report.collection.synchronized.statusCounts.CONFIRMED, 2);
 assert.equal(report.collection.synchronized.snapshotFallbackAllowed, false);
-assert.deepEqual(pacing, [300, 300, 300, 300]);
+assert.equal(report.collection.venues.requests, 3);
+assert.equal(report.collection.venues.collected, 2);
+assert.equal(report.collection.venues.statusCounts.CONFIRMED, 2);
+assert.equal(report.collection.venues.reasonCounts.COINBASE_OBSERVATION_NOT_COLLECTED, 1);
+assert.deepEqual(pacing, [300, 300, 300, 300, 1000, 1000, 1000]);
 for (const call of calls) {
   const url = new URL(call.url);
   if (url.hostname === "api.coingecko.com") {
@@ -148,6 +221,14 @@ for (const call of calls) {
     assert.equal(url.searchParams.get("per_page"), "16");
     assert.equal(url.searchParams.get("locale"), "en");
     assert(!url.searchParams.has("symbols") && !url.searchParams.has("names"), "never fall back to ambiguous symbol searches");
+  } else if (url.hostname === "api.kraken.com") {
+    assert(["/0/public/AssetPairs", "/0/public/Trades"].includes(url.pathname));
+    assert.equal(url.searchParams.get("assetVersion"), "1");
+    if (url.pathname.endsWith("Trades")) assert.equal(url.searchParams.get("count"), "1");
+    else {
+      assert.equal(url.searchParams.get("aclass_base"), "currency");
+      assert.equal(url.searchParams.get("execution_venue"), "international");
+    }
   } else assert.match(call.url, /^https:\/\/api\.exchange\.coinbase\.com\/products(?:\/[A-Z]+-USD\/ticker)?$/);
   assert.equal(call.options.method, "GET");
   assert.equal(call.options.credentials, "omit");
@@ -220,6 +301,39 @@ const stalePrimaryReport = await collectMarketDataValidationLab({ snapshot, qual
     : fixtureFetch(url, options) });
 assert.equal(stalePrimaryReport.collection.synchronized.statusCounts.INCOMPARABLE, 3);
 assert.equal(stalePrimaryReport.collection.synchronized.reasonCounts.PROVIDER_TIMESTAMP_STALE, 2);
+assert.equal(stalePrimaryReport.collection.venues.statusCounts.CONFIRMED, 2,
+  "two venue trades remain separate from the rejected CoinGecko refresh");
+for (const reply of [{ ok: false, status: 429 }, { ok: true, json: async () => ({ error: ["EAPI:Rate limit exceeded"] }) }]) {
+  let tradeCalls = 0;
+  const stopped = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now, pace: async () => {},
+    fetchImpl: async (url, options) => {
+      if (url.includes("api.kraken.com/0/public/Trades?")) { tradeCalls += 1; return reply; }
+      return fixtureFetch(url, options);
+    } });
+  assert.equal(tradeCalls, 1, "HTTP and HTTP-200 Kraken rate limits both stop remaining requests");
+  assert.equal(stopped.collection.venues.reasonCounts.PUBLIC_PROVIDER_RATE_LIMITED, 1);
+  assert.equal(stopped.collection.venues.reasonCounts.RATE_LIMIT_STOPPED_REMAINING_REQUESTS, 1);
+}
+const privateError = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now, pace: async () => {},
+  fetchImpl: async (url, options) => url.startsWith("https://api.kraken.com/")
+    ? { ok: true, json: async () => ({ error: ["EGeneral:confidential raw body"] }) } : fixtureFetch(url, options) });
+assert.equal(privateError.collection.venues.requests, 1, "invalid catalog must not produce trade requests");
+assert.equal(privateError.collection.venues.reasonCounts.KRAKEN_API_ERROR, 2);
+assert(!JSON.stringify(privateError).includes("confidential"));
+let venueNow = now;
+const slowVenues = await collectMarketDataValidationLab({ snapshot, quality, clock: () => venueNow, pace: async () => {},
+  fetchImpl: async (url, options) => {
+    if (url.includes("api.kraken.com/0/public/Trades?")) {
+      venueNow += 61000;
+      const payload = krakenTrades(krakenSymbolFromUrl(url));
+      Object.values(payload.result)[0][0][2] = (venueNow - 1000) / 1000;
+      return { ok: true, json: async () => payload };
+    }
+    return fixtureFetch(url, options);
+  } });
+assert.equal(slowVenues.collection.venues.collected, 2);
+assert.equal(slowVenues.collection.venues.statusCounts.CONFIRMED, undefined, "recheck Coinbase after slow Kraken collection");
+assert.equal(slowVenues.collection.venues.reasonCounts.COINBASE_PROVIDER_TIMESTAMP_STALE, 2);
 let delayedNow = now;
 const delayed = await collectMarketDataValidationLab({ snapshot, quality, clock: () => delayedNow, pace: async () => {},
   fetchImpl: async (url, options) => {
@@ -237,6 +351,7 @@ assert.equal(delayed.collection.synchronized.reasonCounts.PRIMARY_REFRESH_PROVID
 const auditOnly = await collectMarketDataValidationLab({ snapshot, quality, auditOnly: true, clock: () => now,
   fetchImpl: async () => assert.fail("audit-only must never perform network calls") });
 assert.equal(auditOnly.collection.requests, 0);
+assert.equal(auditOnly.collection.venues.requests, 0);
 assert.equal(auditOnly.collection.statusCounts.AUDIT_ONLY_NO_PROVIDER_REQUEST, 3);
 for (const incomplete of [{}, { generatedAt: at(25 * 3600), ...{ confidenceModel: quality.confidenceModel } },
   { generatedAt: at(-1), confidenceModel: quality.confidenceModel },
@@ -257,7 +372,20 @@ const allNames = { BTC: "Bitcoin", ETH: "Ethereum", ADA: "Cardano", AVAX: "Avala
   SOL: "Solana", SUI: "Sui", UNI: "Uniswap", XRP: "XRP", XLM: "Stellar", ZEC: "Zcash" };
 assert.equal(planCryptoValidation({ marketObservations: Object.entries(allNames).map(([s, n]) => primary(s, n)) }, quality, now).targets.length, 16);
 assert.equal(LAB_POLICY.maxTargets, 16);
-assert.equal(LAB_POLICY.maxRequests, 18);
+assert.equal(LAB_POLICY.maxRequests, 35);
+assert.equal(LAB_POLICY.krakenRequestIntervalMs, 1000);
+const fullSnapshot = { marketObservations: Object.entries(allNames).map(([s, n]) => primary(s, n)) };
+let fullCalls = 0;
+const fullReport = await collectMarketDataValidationLab({ snapshot: fullSnapshot, quality, clock: () => now, pace: async () => {},
+  fetchImpl: async (url) => {
+    fullCalls += 1;
+    return { ok: true, json: async () => url.includes("api.kraken.com")
+      ? url.includes("/AssetPairs?") ? krakenCatalog(Object.keys(allNames)) : krakenTrades(krakenSymbolFromUrl(url))
+      : url.includes("api.coingecko.com") ? geckoMarkets()
+        : url.endsWith("/products") ? Object.keys(allNames).map((symbol) => product(symbol)) : ticker() };
+  } });
+assert.equal(fullCalls, 35, "the complete curated experiment must stay inside the public request budget");
+assert.equal(fullReport.collection.venues.statusCounts.CONFIRMED, 16);
 assert.equal(LAB_POLICY.providerMaxAgeSeconds, 120);
 assert.equal(LAB_POLICY.comparisonMaxSkewSeconds, 300);
 assert.equal(LAB_POLICY.confirmationBandPercent, 0.5);
@@ -278,4 +406,4 @@ assert.match(runner, /market-data-validation-lab\.json/);
 const rejectedCli = spawnSync(process.execPath, [path.join(root, "scripts/run-market-data-validation-lab.mjs"), "--output=data/latest-snapshot.json"], { encoding: "utf8" });
 assert.notEqual(rejectedCli.status, 0, "output path cannot be redirected to V6 inputs");
 assert.match(rejectedCli.stderr, /LAB_UNSUPPORTED_ARGUMENT/);
-console.log("Market-data validation lab PASS: exact IDs, synchronized provider timestamps, no snapshot fallback, bounded public requests, failure reports and PAPER V6 isolation.");
+console.log("Market-data validation lab PASS: exact IDs, canonical Kraken spot pairs, explicit venue trade timestamps, stale exclusion, no snapshot fallback, bounded requests, rate-limit stops and PAPER V6 isolation.");

@@ -38,5 +38,9 @@ console.log(JSON.stringify({ generatedAt: report.generatedAt, productionQuality:
   primarySnapshotAudit: report.primarySnapshotAudit, collection: report.collection,
   results: report.attempts.map((row) => ({ symbol: row.symbol, state: row.state,
     reason: row.reason, comparison: row.comparison, primaryRefreshState: row.primaryRefresh.state,
-    primaryRefreshReason: row.primaryRefresh.reason, synchronizedComparison: row.synchronizedComparison })),
+    primaryRefreshReason: row.primaryRefresh.reason, synchronizedComparison: row.synchronizedComparison,
+    krakenState: row.kraken.state, krakenReason: row.kraken.reason, venueComparison: row.venueComparison,
+    venueProviderTimes: row.kraken.state === "COLLECTED" ? {
+      coinbaseObservedAt: row.observation.observedAt, krakenObservedAt: row.kraken.observation.observedAt,
+    } : undefined })),
   isolation: report.isolation, safety: report.safety }, null, 2));
