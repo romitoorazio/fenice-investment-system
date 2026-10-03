@@ -59,6 +59,16 @@ for (const invalid of ["bad", "2026-02-30T16:00:00Z", "2026-10-05", new Date(NaN
 const ordered = [run({ databaseId: 2, updatedAt: at(901) }), run({ databaseId: 3, updatedAt: at(3600) })];
 assert.equal(evaluate({ probeRuns: ordered }).latestProviderActivityAt, at(901), "history order must not select an older anchor");
 assert.equal(evaluate({ probeRuns: [...ordered].reverse() }).latestProviderActivityAt, at(901));
+// The real main audit includes pre-V6 push-triggered canonical probes. These
+// remain provider activity; history provenance never authorizes a new trigger.
+const legacyPush = { databaseId: 36052665388, status: "completed", event: "push", headBranch: "main",
+  createdAt: "2026-09-24T20:06:48Z", updatedAt: "2026-09-24T20:11:42Z" };
+assert.equal(evaluate({ probeRuns: [legacyPush, run()] }).ready, true);
+assert.equal(evaluate({ validationRuns: [legacyPush] }).ready, true);
+assert.equal(evaluate({ probeRuns: [run({ event: "push", updatedAt: at(60) })] }).ready, false,
+  "a recent push-triggered canonical cycle still spends the full provider cooldown");
+assert.equal(evaluate({ probeRuns: [run({ event: "push", status: "in_progress" })] }).reason,
+  "canonical-paper-cycle-active");
 const before = JSON.stringify(base);
 evaluatePaperProbeCooldown(base);
 assert.equal(JSON.stringify(base), before, "policy must not mutate provider evidence or histories");

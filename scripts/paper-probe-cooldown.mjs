@@ -29,7 +29,7 @@ export function evaluatePaperProbeCooldown({ now = new Date(), probeRuns, valida
     const ids = new Set();
     for (const run of runs) {
       if (!Number.isSafeInteger(run?.databaseId) || run.databaseId <= 0 || ids.has(run.databaseId)
-        || run.headBranch !== "main" || !["schedule", "workflow_dispatch"].includes(run.event)
+        || run.headBranch !== "main" || !["schedule", "workflow_dispatch", "push"].includes(run.event)
         || (!activeStatuses.has(run.status) && run.status !== "completed")) {
         return blocked("invalid-paper-run-metadata");
       }
