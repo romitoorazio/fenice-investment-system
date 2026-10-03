@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  LAB_POLICY, auditPrimarySnapshot, collectMarketDataValidationLab, compareWithPrimary,
-  planCryptoValidation, providerTimestamp, sourceFamily, validateCoinbaseProduct, validateCoinbaseTicker,
+  LAB_POLICY, auditPrimarySnapshot, collectMarketDataValidationLab, compareWithPrimary, compareSynchronizedObservations,
+  planCryptoValidation, providerTimestamp, sourceFamily, validateCoinbaseProduct, validateCoinbaseTicker, validateCoinGeckoMarkets,
 } from "../lib/intelligence/market-data-validation-lab.mjs";
 
 const now = Date.parse("2026-10-03T17:00:00Z");
@@ -20,6 +20,11 @@ const quality = { generatedAt: at(1), confidenceModel: { metrics: { concentratio
 const product = (symbol = "BTC", overrides = {}) => ({ id: `${symbol}-USD`, base_currency: symbol,
   quote_currency: "USD", status: "online", trading_disabled: false, ...overrides });
 const ticker = (overrides = {}) => ({ trade_id: 42, price: "100.1", time: at(1), ...overrides });
+const geckoMarket = (symbol = "BTC", overrides = {}) => ({
+  id: { BTC: "bitcoin", ETH: "ethereum", SOL: "solana" }[symbol], symbol: symbol.toLowerCase(),
+  name: { BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana" }[symbol], current_price: 100, last_updated: at(2), ...overrides,
+});
+const geckoMarkets = () => [geckoMarket(), geckoMarket("ETH"), geckoMarket("SOL")];
 const target = planCryptoValidation(snapshot, quality, now).targets[0];
 
 assert.equal(providerTimestamp(at()), now);
@@ -82,11 +87,38 @@ assert.equal(compareWithPrimary({ ...target, primaryObservedAt: at(302) }, obser
 assert.equal(compareWithPrimary(target, { ...observation, currency: "EUR" }, now).status, "INCOMPARABLE");
 assert.equal(compareWithPrimary(target, observation, now + 121000).status, "INCOMPARABLE");
 
+const freshPrimary = validateCoinGeckoMarkets(target, geckoMarkets(), now).observation;
+assert.equal(freshPrimary.observedAt, at(2));
+assert.equal(freshPrimary.timestampOrigin, "provider-last-updated");
+assert.equal(freshPrimary.priceSemantics, "AGGREGATED_MARKET_PRICE");
+assert.equal(compareSynchronizedObservations(target, freshPrimary, observation, now).status, "CONFIRMED");
+assert.equal(compareSynchronizedObservations(target, freshPrimary, { ...observation, price: 101 }, now).status, "ATTENTION");
+assert.equal(compareSynchronizedObservations(target, freshPrimary, { ...observation, price: 105 }, now).status, "DIVERGENT");
+for (const bad of [undefined, null, "2026-10-03", "2026-10-03T17:00:00", at(121), at(-1)]) {
+  assert(validateCoinGeckoMarkets(target, [geckoMarket("BTC", { last_updated: bad })], now).reason,
+    "fresh primary must use its actual provider timestamp, never receipt time or a snapshot timestamp");
+}
+for (const overrides of [{ symbol: "wbtc" }, { name: "Wrapped Bitcoin" }]) {
+  assert.equal(validateCoinGeckoMarkets(target, [geckoMarket("BTC", overrides)], now).reason, "PRIMARY_REFRESH_IDENTITY_MISMATCH");
+}
+assert.equal(validateCoinGeckoMarkets(target, [geckoMarket("BTC", { id: "wrapped-bitcoin" })], now).reason, "PRIMARY_REFRESH_ID_NOT_RETURNED");
+assert.equal(validateCoinGeckoMarkets(target, [geckoMarket(), geckoMarket()], now).reason, "PRIMARY_REFRESH_AMBIGUOUS_IDENTITY");
+assert.equal(validateCoinGeckoMarkets(target, { error: "invalid schema" }, now).reason, "PRIMARY_REFRESH_INVALID_SCHEMA");
+assert.equal(validateCoinGeckoMarkets({ ...target, coingeckoId: "wrapped-bitcoin" }, geckoMarkets(), now).reason, "PRIMARY_REFRESH_TARGET_IDENTITY_INVALID");
+for (const price of [null, "", 0, -1, true, Infinity]) {
+  assert.equal(validateCoinGeckoMarkets(target, [geckoMarket("BTC", { current_price: price })], now).reason, "PRIMARY_REFRESH_PRICE_INVALID");
+}
+for (const overrides of [{ sourceFamily: "coinbase" }, { coingeckoId: "wrapped-bitcoin" }, { currency: "EUR" },
+  { symbol: "ETH" }, { name: "Wrapped Bitcoin" }, { eligibility: "PAPER" }, { validationOnly: false }]) {
+  assert.equal(compareSynchronizedObservations(target, { ...freshPrimary, ...overrides }, observation, now).status, "INCOMPARABLE");
+}
+assert.equal(compareSynchronizedObservations(target, freshPrimary, observation, now + 121000).reason, "PRIMARY_REFRESH_PROVIDER_TIMESTAMP_STALE");
+
 const calls = [];
 const pacing = [];
 const fixtureFetch = async (url, options) => {
   calls.push({ url, options });
-  return { ok: true, json: async () => url.endsWith("/products")
+  return { ok: true, json: async () => url.startsWith("https://api.coingecko.com/") ? geckoMarkets() : url.endsWith("/products")
     ? [product(), product("ETH"), product("SOL")]
     : url.includes("/ETH-") ? ticker({ time: undefined }) : ticker() };
 };
@@ -94,16 +126,29 @@ const inputsBefore = JSON.stringify({ snapshot, quality });
 const report = await collectMarketDataValidationLab({ snapshot, quality, fetchImpl: fixtureFetch,
   clock: () => now, pace: async (ms) => pacing.push(ms) });
 assert.equal(JSON.stringify({ snapshot, quality }), inputsBefore, "lab must not mutate production inputs");
-assert.equal(report.collection.requests, 4);
+assert.equal(report.version, 2);
+assert.equal(report.collection.requests, 5);
 assert.equal(report.collection.collected, 2);
 assert.equal(report.productionQuality.concentrationState, "BLOCKED", "never round 50.85% down into a passing gate");
 assert.equal(report.productionQuality.dominantFamilyAttributionAvailable, false,
   "the summary does not contain enough rows to identify its dominant source family");
 assert.equal(report.collection.statusCounts.CONFIRMED, 2);
 assert.equal(report.collection.statusCounts.PROVIDER_TIMESTAMP_MISSING_OR_INVALID, 1);
-assert.deepEqual(pacing, [300, 300, 300]);
+assert.equal(report.collection.synchronized.primaryRequests, 1, "all exact primary IDs share one bounded request");
+assert.equal(report.collection.synchronized.primaryCollected, 3);
+assert.equal(report.collection.synchronized.statusCounts.CONFIRMED, 2);
+assert.equal(report.collection.synchronized.snapshotFallbackAllowed, false);
+assert.deepEqual(pacing, [300, 300, 300, 300]);
 for (const call of calls) {
-  assert.match(call.url, /^https:\/\/api\.exchange\.coinbase\.com\/products(?:\/[A-Z]+-USD\/ticker)?$/);
+  const url = new URL(call.url);
+  if (url.hostname === "api.coingecko.com") {
+    assert.equal(url.pathname, "/api/v3/coins/markets");
+    assert.equal(url.searchParams.get("ids"), "bitcoin,ethereum,solana");
+    assert.equal(url.searchParams.get("vs_currency"), "usd");
+    assert.equal(url.searchParams.get("per_page"), "16");
+    assert.equal(url.searchParams.get("locale"), "en");
+    assert(!url.searchParams.has("symbols") && !url.searchParams.has("names"), "never fall back to ambiguous symbol searches");
+  } else assert.match(call.url, /^https:\/\/api\.exchange\.coinbase\.com\/products(?:\/[A-Z]+-USD\/ticker)?$/);
   assert.equal(call.options.method, "GET");
   assert.equal(call.options.credentials, "omit");
   assert.equal(call.options.redirect, "error");
@@ -117,12 +162,13 @@ assert.equal(report.safety.upstreamDataIndependenceCertified, false);
 
 let rateLimitCalls = 0;
 const rateLimited = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now, pace: async () => {},
-  fetchImpl: async () => {
+  fetchImpl: async (url) => {
     rateLimitCalls += 1;
-    return rateLimitCalls === 1 ? { ok: true, json: async () => [product(), product("ETH"), product("SOL")] }
+    return url.startsWith("https://api.coingecko.com/") ? { ok: true, json: async () => geckoMarkets() }
+      : url.endsWith("/products") ? { ok: true, json: async () => [product(), product("ETH"), product("SOL")] }
       : { ok: false, status: 429 };
   } });
-assert.equal(rateLimitCalls, 2, "rate limit response must stop all remaining requests");
+assert.equal(rateLimitCalls, 3, "Coinbase rate limit response must stop all remaining Coinbase requests");
 assert.equal(rateLimited.collection.collected, 0);
 assert.equal(rateLimited.collection.statusCounts.RATE_LIMIT_STOPPED_REMAINING_REQUESTS, 2);
 
@@ -141,6 +187,52 @@ assert.equal(invalidJson.collection.statusCounts.PUBLIC_PROVIDER_INVALID_JSON, 3
 const forbidden = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now,
   fetchImpl: async () => ({ ok: false, status: 403 }) });
 assert.equal(forbidden.collection.statusCounts.PUBLIC_PROVIDER_HTTP_403, 3);
+
+// Reproduce the observed six-minute snapshot skew without changing that snapshot.
+const lateSnapshot = { marketObservations: snapshot.marketObservations.map((row) => ({ ...row, observedAt: at(380) })) };
+const synchronized = await collectMarketDataValidationLab({ snapshot: lateSnapshot, quality,
+  clock: () => now, pace: async () => {}, fetchImpl: fixtureFetch });
+assert.equal(synchronized.collection.statusCounts.INCOMPARABLE, 2, "keep the original snapshot diagnosis");
+assert.equal(synchronized.collection.synchronized.statusCounts.CONFIRMED, 2, "fresh exact primary quotes recover valid research comparisons");
+assert.equal(lateSnapshot.marketObservations[0].observedAt, at(380), "never rewrite the snapshot timestamp");
+
+for (const [providerReply, expectedReason] of [
+  [{ ok: false, status: 429 }, "PUBLIC_PROVIDER_RATE_LIMITED"],
+  [{ ok: false, status: 403 }, "PUBLIC_PROVIDER_HTTP_403"],
+  [{ ok: true, json: async () => ({ error: "unexpected provider payload" }) }, "PRIMARY_REFRESH_INVALID_SCHEMA"],
+  [{ ok: true, json: async () => [] }, "PRIMARY_REFRESH_ID_NOT_RETURNED"],
+]) {
+  let primaryCalls = 0;
+  const unavailable = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now, pace: async () => {},
+    fetchImpl: async (url, options) => {
+      if (url.startsWith("https://api.coingecko.com/")) { primaryCalls += 1; return providerReply; }
+      return fixtureFetch(url, options);
+    } });
+  assert.equal(primaryCalls, 1, "no retries or alternate endpoints after a primary failure");
+  assert.equal(unavailable.collection.statusCounts.CONFIRMED, 2, "snapshot comparison remains explicitly separate");
+  assert.equal(unavailable.collection.synchronized.statusCounts.CONFIRMED, undefined, "never substitute the snapshot for a failed refresh");
+  assert.equal(unavailable.collection.synchronized.reasonCounts[expectedReason], 2);
+  assert(!JSON.stringify(unavailable).includes("unexpected provider payload"));
+}
+const stalePrimaryReport = await collectMarketDataValidationLab({ snapshot, quality, clock: () => now, pace: async () => {},
+  fetchImpl: async (url, options) => url.startsWith("https://api.coingecko.com/")
+    ? { ok: true, json: async () => geckoMarkets().map((row) => ({ ...row, last_updated: at(121) })) }
+    : fixtureFetch(url, options) });
+assert.equal(stalePrimaryReport.collection.synchronized.statusCounts.INCOMPARABLE, 3);
+assert.equal(stalePrimaryReport.collection.synchronized.reasonCounts.PROVIDER_TIMESTAMP_STALE, 2);
+let delayedNow = now;
+const delayed = await collectMarketDataValidationLab({ snapshot, quality, clock: () => delayedNow, pace: async () => {},
+  fetchImpl: async (url, options) => {
+    if (url.startsWith("https://api.coingecko.com/")) return { ok: true, json: async () => geckoMarkets() };
+    if (url.endsWith("/ticker")) {
+      delayedNow += 50000;
+      return { ok: true, json: async () => ticker({ time: new Date(delayedNow - 1000).toISOString() }) };
+    }
+    return fixtureFetch(url, options);
+  } });
+assert.equal(delayed.collection.synchronized.primaryCollected, 3);
+assert.equal(delayed.collection.synchronized.statusCounts.INCOMPARABLE, 3, "recheck both timestamps after a slow collection");
+assert.equal(delayed.collection.synchronized.reasonCounts.PRIMARY_REFRESH_PROVIDER_TIMESTAMP_STALE, 3);
 
 const auditOnly = await collectMarketDataValidationLab({ snapshot, quality, auditOnly: true, clock: () => now,
   fetchImpl: async () => assert.fail("audit-only must never perform network calls") });
@@ -165,6 +257,11 @@ const allNames = { BTC: "Bitcoin", ETH: "Ethereum", ADA: "Cardano", AVAX: "Avala
   SOL: "Solana", SUI: "Sui", UNI: "Uniswap", XRP: "XRP", XLM: "Stellar", ZEC: "Zcash" };
 assert.equal(planCryptoValidation({ marketObservations: Object.entries(allNames).map(([s, n]) => primary(s, n)) }, quality, now).targets.length, 16);
 assert.equal(LAB_POLICY.maxTargets, 16);
+assert.equal(LAB_POLICY.maxRequests, 18);
+assert.equal(LAB_POLICY.providerMaxAgeSeconds, 120);
+assert.equal(LAB_POLICY.comparisonMaxSkewSeconds, 300);
+assert.equal(LAB_POLICY.confirmationBandPercent, 0.5);
+assert.equal(LAB_POLICY.divergenceBandPercent, 2);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflow = await readFile(path.join(root, ".github/workflows/market-data-validation-lab.yml"), "utf8");
@@ -181,4 +278,4 @@ assert.match(runner, /market-data-validation-lab\.json/);
 const rejectedCli = spawnSync(process.execPath, [path.join(root, "scripts/run-market-data-validation-lab.mjs"), "--output=data/latest-snapshot.json"], { encoding: "utf8" });
 assert.notEqual(rejectedCli.status, 0, "output path cannot be redirected to V6 inputs");
 assert.match(rejectedCli.stderr, /LAB_UNSUPPORTED_ARGUMENT/);
-console.log("Market-data validation lab PASS: exact identities, provider timestamps, family deduplication, bounded public requests, failure reports and PAPER V6 isolation.");
+console.log("Market-data validation lab PASS: exact IDs, synchronized provider timestamps, no snapshot fallback, bounded public requests, failure reports and PAPER V6 isolation.");
