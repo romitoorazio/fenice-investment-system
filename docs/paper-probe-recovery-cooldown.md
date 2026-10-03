@@ -1,6 +1,8 @@
 # PAPER recovery provider cooldown
 
-The operator recovery workflow waits at least fifteen minutes after the latest execution-market evidence timestamp or canonical PAPER probe/validation run update. Queued, waiting, pending, requested and running canonical cycles block dispatch regardless of age. Both run histories must have valid main-branch schedule/manual provenance and explicit UTC creation/update timestamps; missing, future, malformed or inconsistent metadata blocks dispatch. Failed or cancelled runs also count as provider activity because they may have spent credits before failing.
+The operator recovery workflow waits at least fifteen minutes after the latest execution-market evidence timestamp or canonical PAPER probe/validation run update. Queued, waiting, pending, requested and running canonical cycles block dispatch regardless of age. Both run histories must have valid main-branch schedule/manual/push provenance and explicit UTC creation/update timestamps; missing, future, malformed or inconsistent metadata blocks dispatch. Failed or cancelled runs also count as provider activity because they may have spent credits before failing.
+
+Historical push-triggered canonical cycles, including [24 September run 36052665388](https://github.com/romitoorazio/fenice-investment-system/actions/runs/36052665388), still appear in GitHub's thirty-run history. They count as provider activity without granting permission to dispatch a new cycle. The actual recovery event allow-list and repeat time/provenance check are separate and unchanged.
 
 The cooldown is evaluated by `scripts/paper-probe-cooldown.mjs`, which reads supplied execution evidence and both canonical run lists without calling providers or modifying any dataset. It reports safe timing diagnostics separately from intelligence-quality age. A freshly rebuilt research report can satisfy the existing institutional quality gate without restarting the provider-credit cooldown.
 
