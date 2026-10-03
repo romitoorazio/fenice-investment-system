@@ -6,12 +6,16 @@ on:
       - ".github/workflows/paper-probe-operator-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
+      - "scripts/paper-probe-recovery-trigger.mjs"
+      - "scripts/test-paper-probe-recovery-trigger.mjs"
   push:
     branches: [main]
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
+      - "scripts/paper-probe-recovery-trigger.mjs"
+      - "scripts/test-paper-probe-recovery-trigger.mjs"
   workflow_dispatch:
 
 permissions:
@@ -30,5 +34,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify recovery timing and upstream provenance
+        run: node scripts/test-paper-probe-recovery-trigger.mjs
       - name: Verify event-driven recovery remains fail-closed
         run: node scripts/test-paper-operator-recovery-config.mjs
