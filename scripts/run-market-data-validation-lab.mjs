@@ -37,4 +37,6 @@ await writeFile(path.join(outputDir, "market-data-validation-lab.json"), `${JSON
 console.log(JSON.stringify({ generatedAt: report.generatedAt, productionQuality: report.productionQuality,
   primarySnapshotAudit: report.primarySnapshotAudit, collection: report.collection,
   results: report.attempts.map((row) => ({ symbol: row.symbol, state: row.state,
-    reason: row.reason, comparison: row.comparison })), isolation: report.isolation, safety: report.safety }, null, 2));
+    reason: row.reason, comparison: row.comparison, primaryRefreshState: row.primaryRefresh.state,
+    primaryRefreshReason: row.primaryRefresh.reason, synchronizedComparison: row.synchronizedComparison })),
+  isolation: report.isolation, safety: report.safety }, null, 2));
