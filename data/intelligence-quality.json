@@ -1,23 +1,23 @@
 {
-  "generatedAt": "2026-10-04T20:16:02.748Z",
-  "intelligenceConfidence": 92,
+  "generatedAt": "2026-10-04T20:32:39.678Z",
+  "intelligenceConfidence": 90,
   "confidenceModel": {
-    "confidence": 92,
+    "confidence": 90,
     "components": {
-      "activeSourceQuality": 38.04,
+      "activeSourceQuality": 37.85,
       "criticalSources": 25,
       "crossValidation": 20,
       "sourceDiversity": 6,
       "assetClassDiversity": 7,
       "concentrationPenalty": 0,
       "divergencePenalty": 0,
-      "optionalFailurePenalty": 4
+      "optionalFailurePenalty": 6
     },
     "metrics": {
-      "activeAverageQuality": 95.1,
+      "activeAverageQuality": 94.63,
       "criticalGreen": true,
       "criticalHealthFresh": true,
-      "criticalHealthAgeHours": 0.46,
+      "criticalHealthAgeHours": 0.05,
       "criticalReady": 9,
       "criticalTotal": 9,
       "checked": 21,
@@ -28,7 +28,7 @@
       "validationCreditPercent": 100,
       "sourceCount": 3,
       "assetClassCount": 4,
-      "concentrationPercent": 47.06
+      "concentrationPercent": 47.76
     }
   },
   "sourceQuality": [
@@ -47,14 +47,6 @@
       "qualityScore": 99,
       "freshnessScore": 100,
       "coverageCount": 5
-    },
-    {
-      "id": "clinicaltrials",
-      "name": "ClinicalTrials.gov",
-      "state": "operativo",
-      "qualityScore": 98,
-      "freshnessScore": 100,
-      "coverageCount": 4
     },
     {
       "id": "cftc-tff",
@@ -87,14 +79,6 @@
       "qualityScore": 97,
       "freshnessScore": 100,
       "coverageCount": 3
-    },
-    {
-      "id": "ecb",
-      "name": "Banca Centrale Europea",
-      "state": "operativo",
-      "qualityScore": 96,
-      "freshnessScore": 100,
-      "coverageCount": 2
     },
     {
       "id": "worldbank",
@@ -135,6 +119,14 @@
       "qualityScore": 13,
       "freshnessScore": 35,
       "coverageCount": 5
+    },
+    {
+      "id": "ecb",
+      "name": "Banca Centrale Europea",
+      "state": "errore",
+      "qualityScore": 10,
+      "freshnessScore": 35,
+      "coverageCount": 2
     }
   ],
   "crossSourceValidation": {
@@ -144,39 +136,39 @@
     "divergent": 0,
     "checks": [
       {
+        "instrument": "LTC:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.36,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
         "instrument": "XRP:USD",
         "sources": [
           "CoinGecko",
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.232,
+        "spreadPercent": 0.273,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
         "divergenceBandPercent": 2
       },
       {
-        "instrument": "XMR:USD",
+        "instrument": "ADA:USD",
         "sources": [
           "CoinGecko",
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.19,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "HBAR:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.184,
+        "spreadPercent": 0.218,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -189,7 +181,21 @@
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.16,
+        "spreadPercent": 0.172,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "HBAR:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation",
+          "Coinbase Exchange independent validation"
+        ],
+        "observations": 3,
+        "spreadPercent": 0.143,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -202,59 +208,7 @@
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.16,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "WBT:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.143,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "LINK:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.12,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "SOL:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.108,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "LTC:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.097,
+        "spreadPercent": 0.111,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -267,47 +221,33 @@
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.093,
+        "spreadPercent": 0.109,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
         "divergenceBandPercent": 2
       },
       {
-        "instrument": "HYPE:USD",
-        "sources": [
-          "CoinGecko",
-          "Coinbase Exchange independent validation"
-        ],
-        "observations": 2,
-        "spreadPercent": 0.088,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "BNB:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation",
-          "Coinbase Exchange independent validation"
-        ],
-        "observations": 3,
-        "spreadPercent": 0.066,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "BTC:USD",
+        "instrument": "LINK:USD",
         "sources": [
           "CoinGecko",
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.055,
+        "spreadPercent": 0.106,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "WBT:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.086,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -321,7 +261,34 @@
           "Coinbase Exchange independent validation"
         ],
         "observations": 3,
-        "spreadPercent": 0.054,
+        "spreadPercent": 0.076,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "SOL:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.058,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "BNB:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation",
+          "Coinbase Exchange independent validation"
+        ],
+        "observations": 3,
+        "spreadPercent": 0.048,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -331,11 +298,10 @@
         "instrument": "ETH:USD",
         "sources": [
           "CoinGecko",
-          "Yahoo Finance independent validation",
-          "Coinbase Exchange independent validation"
+          "Yahoo Finance independent validation"
         ],
-        "observations": 3,
-        "spreadPercent": 0.036,
+        "observations": 2,
+        "spreadPercent": 0.044,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -349,7 +315,46 @@
           "Coinbase Exchange independent validation"
         ],
         "observations": 3,
-        "spreadPercent": 0.031,
+        "spreadPercent": 0.041,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "XMR:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.037,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "HYPE:USD",
+        "sources": [
+          "CoinGecko",
+          "Coinbase Exchange independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.033,
+        "status": "confermato",
+        "confidenceCredit": 1,
+        "confirmationBandPercent": 0.5,
+        "divergenceBandPercent": 2
+      },
+      {
+        "instrument": "BTC:USD",
+        "sources": [
+          "CoinGecko",
+          "Yahoo Finance independent validation"
+        ],
+        "observations": 2,
+        "spreadPercent": 0.02,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -363,7 +368,7 @@
           "Coinbase Exchange independent validation"
         ],
         "observations": 3,
-        "spreadPercent": 0.027,
+        "spreadPercent": 0.018,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -376,21 +381,7 @@
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.007,
-        "status": "confermato",
-        "confidenceCredit": 1,
-        "confirmationBandPercent": 0.5,
-        "divergenceBandPercent": 2
-      },
-      {
-        "instrument": "ADA:USD",
-        "sources": [
-          "CoinGecko",
-          "Yahoo Finance independent validation",
-          "Coinbase Exchange independent validation"
-        ],
-        "observations": 3,
-        "spreadPercent": 0.006,
+        "spreadPercent": 0.012,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
@@ -416,16 +407,16 @@
           "Yahoo Finance independent validation"
         ],
         "observations": 2,
-        "spreadPercent": 0.001,
+        "spreadPercent": 0.004,
         "status": "confermato",
         "confidenceCredit": 1,
         "confirmationBandPercent": 0.5,
         "divergenceBandPercent": 2
       }
     ],
-    "evidenceObservations": 68,
+    "evidenceObservations": 67,
     "rawEvidenceObservations": 83,
-    "staleEvidenceExcluded": 15,
+    "staleEvidenceExcluded": 16,
     "validationSources": [
       "CoinGecko",
       "Coinbase Exchange independent validation",
@@ -438,7 +429,7 @@
   },
   "coverage": {
     "instruments": 41,
-    "marketObservations": 68,
+    "marketObservations": 67,
     "marketSources": 3,
     "assetClasses": [
       "Criptovaluta",
@@ -446,7 +437,7 @@
       "Materie prime",
       "Obbligazioni"
     ],
-    "sourceConcentrationPercent": 47
+    "sourceConcentrationPercent": 48
   },
   "policy": {
     "institutionalSourcesFirst": true,
