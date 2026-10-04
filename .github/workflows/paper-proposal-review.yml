@@ -1,0 +1,28 @@
+name: PAPER proposal Sì-No regression
+
+on:
+  push:
+    branches: [feature/paper-yes-no-review]
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-review*.ts"
+      - "components/PaperProposalReview.tsx"
+      - "app/proposte/**"
+      - "app/api/trading/proposals/**"
+      - "scripts/test-paper-proposal-review.mjs"
+      - ".github/workflows/paper-proposal-review.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Proposal consent and PAPER-only invariants
+        run: node --experimental-strip-types scripts/test-paper-proposal-review.mjs

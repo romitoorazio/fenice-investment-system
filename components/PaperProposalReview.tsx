@@ -1,0 +1,162 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  createPaperReviewDemo, decidePaperReview, parsePaperReviewHistory, reviewTermsKey,
+  type PaperReviewPayload, type PaperReviewProposal,
+} from "@/lib/ui/paper-review";
+
+const storageKey = "fenice-paper-proposal-review-v1";
+const changeEvent = "fenice-paper-review-change";
+const loadingHistory = "__LOADING__";
+const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const number = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 6 });
+
+function euroOrUnknown(value: number) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? euro.format(value) : "Non disponibile";
+}
+
+function subscribeHistory(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(changeEvent, callback);
+  return () => { window.removeEventListener("storage", callback); window.removeEventListener(changeEvent, callback); };
+}
+
+function readHistory() {
+  try { return window.localStorage.getItem(storageKey); }
+  catch { return "__STORAGE_UNAVAILABLE__"; }
+}
+
+async function fetchProposals(signal?: AbortSignal): Promise<PaperReviewPayload> {
+  const response = await fetch("/api/trading/proposals", { cache: "no-store", signal });
+  if (!response.ok) throw new Error("Le proposte non si possono aggiornare. Riprova tra poco.");
+  const data = await response.json() as PaperReviewPayload;
+  if (data.mode !== "PAPER_REVIEW" || data.liveTradingAllowed !== false || data.brokerOrderSubmissionAllowed !== false || !Array.isArray(data.proposals)) {
+    throw new Error("La modalità simulazione non è verificata.");
+  }
+  return data;
+}
+
+export default function PaperProposalReview({ initialData }: { initialData: PaperReviewPayload }) {
+  const [data, setData] = useState(initialData);
+  const [demo, setDemo] = useState<PaperReviewProposal | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.parse(initialData.generatedAt));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const actionPending = useRef(false);
+  const rawHistory = useSyncExternalStore(subscribeHistory, readHistory, () => loadingHistory);
+  const history = useMemo(() => {
+    if (rawHistory === loadingHistory) return null;
+    try { return parsePaperReviewHistory(rawHistory); } catch { return null; }
+  }, [rawHistory]);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    async function refresh() {
+      try {
+        const next = await fetchProposals(controller.signal);
+        if (active) { setData(next); setError(null); }
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : "Aggiornamento non riuscito.");
+      }
+    }
+    void refresh();
+    const refreshTimer = window.setInterval(() => void refresh(), 30_000);
+    const clockTimer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => { active = false; controller.abort(); window.clearInterval(refreshTimer); window.clearInterval(clockTimer); };
+  }, []);
+
+  const proposals = demo ? [demo] : data.proposals;
+  const proposal = proposals.find((item) => item.id === selectedId) ?? proposals[0] ?? null;
+  const decision = history?.find((record) => record.proposalId === proposal?.id);
+  const remaining = proposal ? Math.max(0, Math.ceil((Date.parse(proposal.expiresAt) - now) / 1000)) : 0;
+  const eligible = Boolean(proposal && proposal.blockers.length === 0 && remaining > 0 && !decision && history);
+
+  async function answer(choice: "YES" | "NO") {
+    if (!proposal || actionPending.current || history === null || decision) return;
+    actionPending.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      let current = proposal;
+      if (choice === "YES" && proposal.scope === "PAPER_QUEUE") {
+        const next = await fetchProposals(AbortSignal.timeout(10_000));
+        setData(next);
+        const fresh = next.proposals.find((item) => item.id === proposal.id);
+        if (!fresh || reviewTermsKey(fresh) !== reviewTermsKey(proposal)) throw new Error("La proposta è cambiata. Controlla i nuovi dettagli prima di dire Sì.");
+        current = fresh;
+      }
+      const saveDecision = () => {
+        const latest = parsePaperReviewHistory(window.localStorage.getItem(storageKey));
+        const record = decidePaperReview(current, choice, latest, Date.now());
+        const records = latest.some((item) => item.proposalId === record.proposalId) ? latest : [...latest, record].slice(-100);
+        window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, mode: "PAPER_REVIEW", records }));
+        window.dispatchEvent(new Event(changeEvent));
+      };
+      if (!navigator.locks) throw new Error("Per salvare le decisioni in sicurezza usa una versione aggiornata di Chrome o Edge.");
+      await navigator.locks.request(storageKey, saveDecision);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "La decisione non è stata salvata. Nessuna operazione effettuata.");
+    } finally { actionPending.current = false; setBusy(false); }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <header className="flex items-center justify-between gap-4">
+          <div><p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">Fenice</p><h1 className="mt-2 text-3xl font-black">Tu scegli: Sì o No</h1></div>
+          <Link href="/" className="rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-slate-300">Oggi</Link>
+        </header>
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
+          <strong>Modalità simulazione.</strong> Il Sì prova la proposta con denaro virtuale. Nessun ordine viene inviato a Directa e nessun euro reale viene speso.
+        </div>
+        {error ? <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-200">{error}</p> : null}
+        {history === null && rawHistory !== loadingHistory ? <p role="alert" className="rounded-xl border border-rose-400/30 p-4 text-sm text-rose-200">Il registro su questo dispositivo non è disponibile. Le conferme sono sospese.</p> : null}
+
+        {!proposal ? (
+          <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-8">
+            <p className="text-2xl font-black">Nessuna proposta da confermare</p>
+            <p className="mt-3 text-sm leading-6 text-slate-400">{data.notices[0] ?? "Fenice mostrerà qui le proposte complete disponibili in simulazione."}</p>
+            <button onClick={() => { setDemo(createPaperReviewDemo()); setNow(Date.now()); setError(null); }} className="mt-6 rounded-xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950">Prova Sì / No con un esempio</button>
+          </section>
+        ) : (
+          <section aria-labelledby="proposal-title" className="overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04]">
+            <div className="space-y-5 p-5 sm:p-8">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="rounded-full bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-200">{proposal.scope === "DEMO" ? "ESEMPIO INVENTATO" : "PROPOSTA PAPER"}</span>
+                <span className="text-sm text-slate-400">{decision ? "Risposta registrata" : remaining > 0 ? `Valida per ${remaining} secondi` : "Proposta scaduta"}</span>
+              </div>
+              <div><p className="text-sm font-bold text-slate-400">Acquisto simulato · {proposal.order.symbol}</p><h2 id="proposal-title" className="mt-2 text-2xl font-black sm:text-3xl">{proposal.name}</h2></div>
+              <p className="text-sm leading-6 text-slate-300">{proposal.reason}</p>
+              <dl className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-black/25 p-4"><dt className="text-xs text-slate-400">Quantità simulata</dt><dd className="mt-2 text-xl font-black">{Number.isFinite(proposal.order.quantity) && proposal.order.quantity > 0 ? number.format(proposal.order.quantity) : "Non disponibile"}</dd></div>
+                <div className="rounded-2xl bg-black/25 p-4"><dt className="text-xs text-slate-400">Prezzo massimo per unità</dt><dd className="mt-2 text-xl font-black">{Number.isFinite(proposal.order.limitPrice) ? `${number.format(proposal.order.limitPrice!)} ${proposal.order.currency}` : "Non disponibile"}</dd></div>
+                <div className="rounded-2xl bg-black/25 p-4"><dt className="text-xs text-slate-400">Costi simulati stimati</dt><dd className="mt-2 text-xl font-black">{euroOrUnknown(proposal.estimatedFeeEuro)}</dd></div>
+                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><dt className="text-xs text-amber-100">Totale massimo stimato</dt><dd className="mt-2 text-xl font-black text-amber-300">{euroOrUnknown(proposal.maxTotalEuro)}</dd></div>
+              </dl>
+              <p className="text-xs leading-5 text-slate-400">Capitale del laboratorio: {euroOrUnknown(proposal.context.capitalEuro)}. I costi sono quelli del simulatore; non sono un preventivo Directa. Le quantità frazionarie PAPER non attestano la negoziabilità presso il broker.</p>
+              {proposal.blockers.length > 0 ? <div className="rounded-xl border border-rose-300/20 bg-rose-300/10 p-4"><p className="font-bold text-rose-200">Conferma sospesa</p><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-100">{proposal.blockers.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
+              {decision ? (
+                <div role="status" className={`rounded-2xl border p-5 ${decision.answer === "YES" ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100" : "border-slate-400/25 bg-slate-400/10 text-slate-200"}`}>
+                  <p className="text-xl font-black">{decision.answer === "YES" ? "Sì registrato · simulazione completata" : "No registrato · proposta rifiutata"}</p>
+                  <p className="mt-2 text-sm">{decision.execution ? `Importo simulato con i costi: ${euro.format(decision.execution.notionalEuro + decision.execution.estimatedFeeEuro)}. ` : ""}Nessun acquisto reale effettuato.</p>
+                </div>
+              ) : <p className="text-center text-lg font-bold">Vuoi provare questa proposta in simulazione?</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-5 sm:px-8">
+              <button type="button" disabled={!eligible || busy} onClick={() => void answer("YES")} style={{ fontSize: "2rem", fontWeight: 900 }} className="min-h-20 rounded-2xl bg-emerald-300 text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-30" aria-label="Sì, approva solo la simulazione">Sì</button>
+              <button type="button" disabled={busy || Boolean(decision) || history === null} onClick={() => void answer("NO")} style={{ fontSize: "2rem", fontWeight: 900 }} className="min-h-20 rounded-2xl border-2 border-slate-400/40 bg-slate-800 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-30" aria-label="No, rifiuta la proposta">No</button>
+            </div>
+          </section>
+        )}
+        {demo ? <button disabled={busy} onClick={() => { setDemo(null); setError(null); }} className="rounded-xl border border-white/15 px-4 py-3 text-sm text-slate-300">Esci dall’esempio</button> : null}
+        {!demo && proposals.length > 1 ? <nav aria-label="Altre proposte" className="flex flex-wrap gap-2">{proposals.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} disabled={busy} className={`rounded-xl border px-4 py-3 text-sm ${item.id === proposal?.id ? "border-amber-300 text-amber-300" : "border-white/15 text-slate-400"}`}>{item.order.symbol}</button>)}</nav> : null}
+        <p className="text-xs leading-5 text-slate-500">Ogni Sì vale per una sola proposta e per i dettagli mostrati. Le decisioni restano su questo dispositivo. Queste prove sono separate dalla campagna PAPER e non ne aumentano la certificazione.</p>
+        {history && history.length > 0 ? <details className="rounded-2xl border border-white/10 p-5"><summary className="cursor-pointer text-sm font-bold text-slate-300">Ultime risposte ({history.length})</summary><ul className="mt-4 space-y-3 text-sm text-slate-400">{history.slice(-5).reverse().map((record) => <li key={record.proposalId}>{record.scope === "DEMO" ? "Esempio" : "Proposta PAPER"} · {record.answer === "YES" ? "Sì" : "No"} · {new Date(record.decidedAt).toLocaleString("it-IT")} · nessun invio al broker</li>)}</ul></details> : null}
+      </div>
+    </main>
+  );
+}
