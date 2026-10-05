@@ -2,6 +2,7 @@ import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { selectPaperV7ProbeSymbols, uniquePaperV7Symbols } from "../lib/trading/paper-v7-probe-selection.mjs";
 
 const PROTECTED_V6_TWELVE_DATA_SYMBOLS = ["SPY", "QQQ", "AAPL", "MSFT"];
+const PROTECTED_V6_TWELVE_DATA_PROBE_LIMIT = 4;
 
 function assertProtectedV6Base(actualSymbols) {
   const actual = uniquePaperV7Symbols(actualSymbols);
@@ -15,10 +16,20 @@ function assertProtectedV6Base(actualSymbols) {
   return actual;
 }
 
+function assertProtectedV6ProbeLimit(actualLimit) {
+  if (!Number.isInteger(actualLimit) || actualLimit !== PROTECTED_V6_TWELVE_DATA_PROBE_LIMIT) {
+    throw new Error(
+      `PAPER_V7_PROTECTED_PROBE_LIMIT_MISMATCH:expected=${PROTECTED_V6_TWELVE_DATA_PROBE_LIMIT};actual=${String(actualLimit)}`,
+    );
+  }
+  return actualLimit;
+}
+
 export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbols = 8 }) {
   const capabilities = evidence?.capabilities || {};
   const probeUniverse = uniquePaperV7Symbols(capabilities.probeUniverse);
   const currentV6Symbols = assertProtectedV6Base(capabilities.twelveDataProbedSymbols);
+  const currentV6ProbeLimit = assertProtectedV6ProbeLimit(capabilities.twelveDataProbeLimit);
   const requestedPromotions = uniquePaperV7Symbols(priorityPlan?.recommendedExpansionOrder);
   const selection = selectPaperV7ProbeSymbols({
     baseSymbols: currentV6Symbols,
@@ -51,7 +62,9 @@ export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbo
     currentV6: {
       protectedBaseVerified: true,
       protectedBaseSymbols: [...PROTECTED_V6_TWELVE_DATA_SYMBOLS],
-      probeLimit: Number(capabilities.twelveDataProbeLimit || currentV6Symbols.length || 0),
+      protectedProbeLimitVerified: true,
+      protectedProbeLimit: PROTECTED_V6_TWELVE_DATA_PROBE_LIMIT,
+      probeLimit: currentV6ProbeLimit,
       twelveDataProbedSymbols: currentV6Symbols,
     },
     futureV7: {
@@ -84,6 +97,7 @@ function summary(report) {
     "",
     "Planning only. Active PAPER V6 remains unchanged.",
     `Protected V6 base verified: ${report.currentV6.protectedBaseVerified ? "yes" : "no"}`,
+    `Protected V6 probe limit verified: ${report.currentV6.protectedProbeLimitVerified ? "yes" : "no"} (${report.currentV6.probeLimit})`,
     `Current V6 Twelve Data symbols: ${report.currentV6.twelveDataProbedSymbols.join(", ") || "none"}`,
     `Planned V7 Twelve Data symbols: ${v7.plannedTwelveDataSymbols.join(", ") || "none"}`,
     `Promotions included: ${v7.promotedSymbolsIncluded.join(", ") || "none"}`,
@@ -105,5 +119,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   };
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary(report));
-  console.log(`Fenice PAPER V7 probe universe: protectedBaseVerified=${report.currentV6.protectedBaseVerified}; planned=${report.futureV7.plannedTwelveDataSymbols.join(",") || "none"}; promotions=${report.futureV7.promotedSymbolsIncluded.join(",") || "none"}; adaptive=${report.futureV7.adaptiveSelectionRequired}; credits+${report.futureV7.additionalBatchCredits}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
+  console.log(`Fenice PAPER V7 probe universe: protectedBaseVerified=${report.currentV6.protectedBaseVerified}; protectedProbeLimitVerified=${report.currentV6.protectedProbeLimitVerified}; planned=${report.futureV7.plannedTwelveDataSymbols.join(",") || "none"}; promotions=${report.futureV7.promotedSymbolsIncluded.join(",") || "none"}; adaptive=${report.futureV7.adaptiveSelectionRequired}; credits+${report.futureV7.additionalBatchCredits}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
 }
