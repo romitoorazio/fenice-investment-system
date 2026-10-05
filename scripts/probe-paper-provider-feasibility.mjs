@@ -5,17 +5,19 @@ import {
   isTwelveDataUsRealtimeVenue,
   normalizeExecutionSymbol,
 } from "../lib/trading/execution-market-data.ts";
+import { DEFAULT_MARKET_DATA_QUORUM_LIMITS } from "../lib/trading/market-data-quorum.ts";
 import { parseTwelveDataQuoteTime, unwrapTwelveDataBatchQuote } from "../lib/trading/twelve-data-batch.mjs";
 
-const targetSymbols = String(process.env.FENICE_FEASIBILITY_SYMBOLS || "ASML,TSM")
+const targetSymbols = String(process.env.FENICE_FEASIBILITY_SYMBOLS || "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN")
   .split(",")
   .map(normalizeExecutionSymbol)
   .filter(Boolean)
-  .slice(0, 4);
+  .slice(0, 8);
 const alpacaKey = String(process.env.APCA_API_KEY_ID || "").trim();
 const alpacaSecret = String(process.env.APCA_API_SECRET_KEY || "").trim();
 const twelveKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
-const maxAgeSeconds = 120;
+const maxAgeSeconds = DEFAULT_MARKET_DATA_QUORUM_LIMITS.maxQuoteAgeSeconds;
+const maxSpreadPercent = DEFAULT_MARKET_DATA_QUORUM_LIMITS.maxSpreadPercent;
 
 function ageSeconds(observedAt) {
   const observedMs = Date.parse(String(observedAt || ""));
@@ -25,6 +27,14 @@ function ageSeconds(observedAt) {
 function safeAge(observedAt) {
   const age = ageSeconds(observedAt);
   return Number.isFinite(age) ? Number(age.toFixed(1)) : null;
+}
+
+function spreadPercent(firstPrice, secondPrice) {
+  const first = Number(firstPrice);
+  const second = Number(secondPrice);
+  if (!Number.isFinite(first) || first <= 0 || !Number.isFinite(second) || second <= 0) return null;
+  const median = (first + second) / 2;
+  return median > 0 ? Number((((Math.max(first, second) - Math.min(first, second)) / median) * 100).toFixed(4)) : null;
 }
 
 async function requestJson(url, headers = {}) {
@@ -127,12 +137,13 @@ function markdown(report) {
     "## Fenice provider feasibility lab",
     "",
     "Read-only diagnostic. No PAPER state, order, broker, campaign evidence or LIVE setting is modified.",
+    `Current quorum spread limit: ${report.maxSpreadPercent}%.",
     "",
-    "| Symbol | Venue | Alpaca fresh | Twelve Data fresh | Dual-source feasible |",
-    "| --- | --- | --- | --- | --- |",
+    "| Symbol | Venue | Alpaca fresh | Twelve Data fresh | Spread % | Quorum-compatible |",
+    "| --- | --- | --- | --- | ---: | --- |",
   ];
   for (const row of report.targets) {
-    lines.push(`| ${row.symbol} | ${row.exchangeMic || "unknown"} | ${row.alpaca.freshVerifiedQuote === true ? "yes" : "no"} | ${row.twelveData.freshVerifiedQuote === true ? "yes" : "no"} | ${row.dualSourceFeasible ? "yes" : "no"} |`);
+    lines.push(`| ${row.symbol} | ${row.exchangeMic || "unknown"} | ${row.alpaca.freshVerifiedQuote === true ? "yes" : "no"} | ${row.twelveData.freshVerifiedQuote === true ? "yes" : "no"} | ${row.crossSourceSpreadPercent ?? "n/a"} | ${row.quorumCompatible ? "yes" : "no"} |`);
   }
   return `${lines.join("\n")}\n`;
 }
@@ -160,11 +171,17 @@ for (const instrument of instruments) {
   const twelveData = instrument.twelveDataCandidate
     ? (twelveMap.get(instrument.symbol) || { configured: Boolean(twelveKey), ok: false, freshVerifiedQuote: false, reason: "not-returned" })
     : { configured: Boolean(twelveKey), ok: false, freshVerifiedQuote: false, reason: "not-paper-candidate" };
+  const crossSourceSpreadPercent = spreadPercent(alpaca.midpoint, twelveData.price);
+  const dualSourceFeasible = alpaca.freshVerifiedQuote === true && twelveData.freshVerifiedQuote === true;
+  const withinCurrentQuorumSpreadLimit = crossSourceSpreadPercent !== null && crossSourceSpreadPercent <= maxSpreadPercent;
   targets.push({
     ...instrument,
     alpaca,
     twelveData,
-    dualSourceFeasible: alpaca.freshVerifiedQuote === true && twelveData.freshVerifiedQuote === true,
+    crossSourceSpreadPercent,
+    withinCurrentQuorumSpreadLimit,
+    dualSourceFeasible,
+    quorumCompatible: dualSourceFeasible && withinCurrentQuorumSpreadLimit,
   });
 }
 
@@ -176,10 +193,12 @@ const report = {
   brokerConnectivityAllowed: false,
   liveTradingAllowed: false,
   maxAgeSeconds,
+  maxSpreadPercent,
+  quorumCompatibleSymbols: targets.filter((row) => row.quorumCompatible).map((row) => row.symbol),
   targets,
 };
 
 const outputPath = String(process.env.FENICE_PROVIDER_FEASIBILITY_REPORT || "paper-provider-feasibility.json").trim();
 await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown(report));
-console.log(`Fenice provider feasibility: ${targets.map((row) => `${row.symbol}=${row.dualSourceFeasible ? "DUAL_SOURCE_FEASIBLE" : "NOT_CONFIRMED"}`).join(", ")}; diagnosticOnly=true; paperStateModified=false; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+console.log(`Fenice provider feasibility: ${targets.map((row) => `${row.symbol}=${row.quorumCompatible ? "QUORUM_COMPATIBLE" : row.dualSourceFeasible ? "SPREAD_BLOCKED" : "NOT_CONFIRMED"}`).join(", ")}; diagnosticOnly=true; paperStateModified=false; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
