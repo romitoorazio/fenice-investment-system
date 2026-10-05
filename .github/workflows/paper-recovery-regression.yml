@@ -4,20 +4,26 @@ on:
   pull_request:
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-validation-event-recovery-trigger.mjs"
+      - "scripts/test-paper-validation-event-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
   push:
     branches: [main]
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-validation-event-recovery-trigger.mjs"
+      - "scripts/test-paper-validation-event-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
   workflow_dispatch:
@@ -27,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: paper-recovery-regression-\${{ github.ref }}
+  group: paper-recovery-regression-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,6 +49,8 @@ jobs:
         run: node scripts/test-paper-probe-recovery-trigger.mjs
       - name: Verify event-driven recovery remains fail-closed
         run: node scripts/test-paper-operator-recovery-config.mjs
+      - name: Verify daily PAPER evidence event recovery remains fail-closed
+        run: node scripts/test-paper-validation-event-recovery-trigger.mjs
       - name: Verify provider cooldown and canonical PAPER run suppression
         run: node scripts/test-paper-probe-cooldown.mjs
       - name: Audit current provider cooldown without dispatch or provider requests
