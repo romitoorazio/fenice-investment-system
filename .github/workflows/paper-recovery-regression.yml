@@ -20,6 +20,8 @@ on:
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
       - "scripts/rank-paper-validation-opportunities.mjs"
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
+      - "scripts/analyze-paper-v6-committee-sensitivity.mjs"
+      - "scripts/test-paper-v6-committee-sensitivity.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -45,6 +47,8 @@ on:
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
       - "scripts/rank-paper-validation-opportunities.mjs"
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
+      - "scripts/analyze-paper-v6-committee-sensitivity.mjs"
+      - "scripts/test-paper-v6-committee-sensitivity.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -81,6 +85,8 @@ jobs:
         run: node scripts/test-paper-validation-candidate-diagnostics.mjs
       - name: Verify PAPER opportunity ranking remains diagnostic-only
         run: node scripts/test-paper-validation-opportunity-ranking.mjs
+      - name: Verify active V6 committee sensitivity remains diagnostic-only
+        run: node scripts/test-paper-v6-committee-sensitivity.mjs
       - name: Verify PAPER V7 probe planner remains inactive
         run: node scripts/test-paper-v7-probe-priority.mjs
       - name: Verify PAPER V7 fail-closed probe selector remains inactive
