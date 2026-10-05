@@ -8,6 +8,7 @@ on:
       - ".github/workflows/paper-recovery-regression.yml"
       - ".github/workflows/paper-candidate-diagnostics.yml"
       - ".github/workflows/paper-provider-feasibility.yml"
+      - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
@@ -23,6 +24,7 @@ on:
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-selection.mjs"
   push:
     branches: [main]
     paths:
@@ -31,6 +33,7 @@ on:
       - ".github/workflows/paper-recovery-regression.yml"
       - ".github/workflows/paper-candidate-diagnostics.yml"
       - ".github/workflows/paper-provider-feasibility.yml"
+      - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
@@ -46,6 +49,7 @@ on:
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-selection.mjs"
   workflow_dispatch:
 
 permissions:
@@ -79,6 +83,8 @@ jobs:
         run: node scripts/test-paper-validation-opportunity-ranking.mjs
       - name: Verify PAPER V7 probe planner remains inactive
         run: node scripts/test-paper-v7-probe-priority.mjs
+      - name: Verify PAPER V7 fail-closed probe selector remains inactive
+        run: node scripts/test-paper-v7-probe-selection.mjs
       - name: Verify PAPER V7 adaptive universe remains inactive
         run: node scripts/test-paper-v7-probe-universe.mjs
       - name: Audit current provider cooldown without dispatch or provider requests

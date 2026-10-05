@@ -1,41 +1,26 @@
 import { appendFile, readFile, writeFile } from "node:fs/promises";
-
-function upper(value) {
-  return String(value || "").trim().toUpperCase();
-}
-
-function uniqueSymbols(values) {
-  const seen = new Set();
-  const result = [];
-  for (const value of Array.isArray(values) ? values : []) {
-    const symbol = upper(value);
-    if (!symbol || seen.has(symbol)) continue;
-    seen.add(symbol);
-    result.push(symbol);
-  }
-  return result;
-}
+import { selectPaperV7ProbeSymbols, uniquePaperV7Symbols } from "../lib/trading/paper-v7-probe-selection.mjs";
 
 export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbols = 8 }) {
-  const ceiling = Math.max(1, Math.min(8, Number(maxBatchSymbols) || 8));
   const capabilities = evidence?.capabilities || {};
-  const probeUniverse = uniqueSymbols(capabilities.probeUniverse);
-  const currentV6Symbols = uniqueSymbols(capabilities.twelveDataProbedSymbols);
-  const requestedPromotions = uniqueSymbols(priorityPlan?.recommendedExpansionOrder);
-  const probeUniverseSet = new Set(probeUniverse);
-  const baseSet = new Set(currentV6Symbols);
+  const probeUniverse = uniquePaperV7Symbols(capabilities.probeUniverse);
+  const currentV6Symbols = uniquePaperV7Symbols(capabilities.twelveDataProbedSymbols);
+  const requestedPromotions = uniquePaperV7Symbols(priorityPlan?.recommendedExpansionOrder);
+  const selection = selectPaperV7ProbeSymbols({
+    baseSymbols: currentV6Symbols,
+    promotionSymbols: requestedPromotions,
+    allowedUniverse: probeUniverse,
+    maxBatchSymbols,
+  });
 
-  const promotionsInUniverse = requestedPromotions.filter((symbol) => probeUniverseSet.has(symbol) && !baseSet.has(symbol));
-  const missingFromProbeUniverse = requestedPromotions.filter((symbol) => !probeUniverseSet.has(symbol));
-  const availablePromotionSlots = Math.max(0, ceiling - currentV6Symbols.length);
-  const promotedSymbolsIncluded = promotionsInUniverse.slice(0, availablePromotionSlots);
-  const deferredByCeiling = promotionsInUniverse.slice(availablePromotionSlots);
-  const plannedTwelveDataSymbols = [...currentV6Symbols, ...promotedSymbolsIncluded];
+  const plannedTwelveDataSymbols = selection.selectedSymbols;
+  const promotedSymbolsIncluded = selection.includedPromotions;
+  const deferredByCeiling = selection.deferredByCeiling;
+  const missingFromProbeUniverse = selection.missingPromotions;
   const staticPrefixAtPlannedSize = probeUniverse.slice(0, plannedTwelveDataSymbols.length);
   const staticPrefixSet = new Set(staticPrefixAtPlannedSize);
   const promotionsOutsideStaticPrefix = promotedSymbolsIncluded.filter((symbol) => !staticPrefixSet.has(symbol));
   const adaptiveSelectionRequired = promotionsOutsideStaticPrefix.length > 0;
-  const additionalBatchCredits = Math.max(0, plannedTwelveDataSymbols.length - currentV6Symbols.length);
 
   const blockers = ["active-v6-fingerprint-must-remain-unchanged"];
   if (missingFromProbeUniverse.length) blockers.push("recommended-symbol-missing-from-probe-universe");
@@ -54,14 +39,14 @@ export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbo
       twelveDataProbedSymbols: currentV6Symbols,
     },
     futureV7: {
-      maxBatchSymbols: ceiling,
+      maxBatchSymbols: selection.maxBatchSymbols,
       plannedProbeLimit: plannedTwelveDataSymbols.length,
       plannedTwelveDataSymbols,
       requestedPromotions,
       promotedSymbolsIncluded,
       deferredByCeiling,
       missingFromProbeUniverse,
-      additionalBatchCredits,
+      additionalBatchCredits: selection.additionalBatchCredits,
       staticPrefixAtPlannedSize,
       promotionsOutsideStaticPrefix,
       adaptiveSelectionRequired,
