@@ -23,6 +23,14 @@ on:
     - cron: "5 17 * * 0,6"
     - cron: "5 19 * * 0,6"
     - cron: "35 19 * * 0,6"
+  workflow_run:
+    workflows:
+      - "Fenice Global Sources"
+      - "Fenice Foundation"
+      - "Fenice World Terminal"
+      - "Fenice Autonomous Analysis"
+      - "Fenice Production CI"
+    types: [completed]
   workflow_dispatch:
   # GitHub can omit a scheduled dispatcher run. A completed canonical probe is
   # already constrained by the operator market window, so use it as an
@@ -54,8 +62,21 @@ jobs:
         with:
           ref: main
 
+      - name: Gate event-driven daily-evidence recovery
+        id: event_recovery
+        if: github.event_name == 'workflow_run'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          UPSTREAM_NAME: ${{ github.event.workflow_run.name }}
+          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          UPSTREAM_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          UPSTREAM_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: node scripts/paper-validation-event-recovery-trigger.mjs --github-output "$GITHUB_OUTPUT"
+
       - name: Check final evidence and active canonical runs
         id: today
+        if: github.event_name != 'workflow_run' || steps.event_recovery.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,7 +96,7 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
 
       - name: Dispatch canonical PAPER validation
-        if: steps.today.outputs.should_dispatch == 'true'
+        if: (github.event_name != 'workflow_run' || steps.event_recovery.outputs.allowed == 'true') && steps.today.outputs.should_dispatch == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -85,5 +106,9 @@ jobs:
           echo "Canonical PAPER validation dispatched with correlation token $dispatch_token. LIVE and broker connectivity remain unchanged."
 
       - name: Confirm duplicate-day suppression
-        if: steps.today.outputs.should_dispatch != 'true'
+        if: (github.event_name != 'workflow_run' || steps.event_recovery.outputs.allowed == 'true') && steps.today.outputs.should_dispatch != 'true'
         run: echo "PAPER validation not dispatched; finalEvidence=${{ steps.today.outputs.already_recorded }}, activeRun=${{ steps.today.outputs.active_run }}, sessionPhase=${{ steps.today.outputs.session_phase }}."
+
+      - name: Confirm event recovery suppression
+        if: github.event_name == 'workflow_run' && steps.event_recovery.outputs.allowed != 'true'
+        run: echo "Event-driven PAPER evidence recovery suppressed; reason=${{ steps.event_recovery.outputs.reason }}."
