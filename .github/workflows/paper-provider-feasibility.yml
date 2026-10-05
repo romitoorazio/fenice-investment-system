@@ -1,0 +1,49 @@
+name: Fenice PAPER Provider Feasibility Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-provider-feasibility.yml"
+      - "scripts/probe-paper-provider-feasibility.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paper-provider-feasibility
+  cancel-in-progress: true
+
+jobs:
+  provider-feasibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FENICE_FEASIBILITY_SYMBOLS: "ASML,TSM"
+      FENICE_PROVIDER_FEASIBILITY_REPORT: paper-provider-feasibility.json
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe read-only provider feasibility
+        run: node --experimental-strip-types scripts/probe-paper-provider-feasibility.mjs
+
+      - name: Upload provider feasibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-provider-feasibility-${{ github.run_id }}
+          path: paper-provider-feasibility.json
+          if-no-files-found: error
+          retention-days: 14
