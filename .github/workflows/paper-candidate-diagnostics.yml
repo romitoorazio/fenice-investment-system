@@ -38,15 +38,26 @@ jobs:
       - name: Regression-test PAPER opportunity ranking
         run: node scripts/test-paper-validation-opportunity-ranking.mjs
 
+      - name: Regression-test active V6 committee sensitivity
+        run: node scripts/test-paper-v6-committee-sensitivity.mjs
+
       - name: Build PAPER opportunity map
         env:
           FENICE_PAPER_OPPORTUNITY_REPORT: paper-candidate-opportunities.json
         run: node scripts/rank-paper-validation-opportunities.mjs
 
-      - name: Upload PAPER opportunity map
+      - name: Explain active V6 committee threshold distance
+        env:
+          FENICE_PAPER_OPPORTUNITY_REPORT: paper-candidate-opportunities.json
+          FENICE_PAPER_V6_COMMITTEE_SENSITIVITY: paper-v6-committee-sensitivity.json
+        run: node scripts/analyze-paper-v6-committee-sensitivity.mjs
+
+      - name: Upload PAPER diagnostics
         uses: actions/upload-artifact@v4
         with:
           name: paper-candidate-opportunities-${{ github.run_id }}
-          path: paper-candidate-opportunities.json
+          path: |
+            paper-candidate-opportunities.json
+            paper-v6-committee-sensitivity.json
           if-no-files-found: error
           retention-days: 14
