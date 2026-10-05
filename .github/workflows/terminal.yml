@@ -31,8 +31,6 @@ on:
       - "app/terminal/**"
       - "app/alerts/**"
       - "app/committee/**"
-      - "data/fundamental-research.json"
-      - "data/global-source-health.json"
       - "package.json"
       - ".github/workflows/terminal.yml"
 
@@ -63,6 +61,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Verify Foundation-to-Terminal trigger is not duplicated
+        run: node scripts/test-terminal-trigger-config.mjs
 
       - name: Reject substring-only catalyst matches
         run: node scripts/test-investment-committee-catalysts.mjs
