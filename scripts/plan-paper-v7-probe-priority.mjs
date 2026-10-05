@@ -14,6 +14,7 @@ function priorityClass(candidate, feasibility) {
   const failed = Array.isArray(candidate?.failedGates) ? candidate.failedGates : [];
   const structuralFailed = failed.filter((gate) => gate !== "execution-coverage");
   if (feasibility?.quorumCompatible !== true) return "DEFER_PROVIDER_QUORUM";
+  if (failed.includes("candidate-missing")) return "DEFER_MISSING_CANDIDATE";
   if (structuralFailed.length === 0 && failed.includes("execution-coverage")) return "PROMOTE_COVERAGE_ONLY";
   if (structuralFailed.length === 1) return "PROMOTE_ONE_STRUCTURAL_GATE";
   return "DEFER_MULTI_GATE";
@@ -45,8 +46,9 @@ export function planPaperV7ProbePriority({ diagnostic, feasibility }) {
   const order = {
     PROMOTE_COVERAGE_ONLY: 0,
     PROMOTE_ONE_STRUCTURAL_GATE: 1,
-    DEFER_MULTI_GATE: 2,
-    DEFER_PROVIDER_QUORUM: 3,
+    DEFER_MISSING_CANDIDATE: 2,
+    DEFER_MULTI_GATE: 3,
+    DEFER_PROVIDER_QUORUM: 4,
   };
   rows.sort((a, b) => (order[a.classification] - order[b.classification])
     || (b.metrics.committeeScore - a.metrics.committeeScore)
