@@ -1615,6 +1615,144 @@
       "liveOrders": 0,
       "liveTradingAllowed": false,
       "brokerConnectivityAllowed": false
+    },
+    {
+      "date": "2026-10-05",
+      "observedAt": "2026-10-05T17:54:33.752Z",
+      "softwareCommit": "ff0a412b6307e8887f69343e60b607aaf8a5cf0a",
+      "validationFingerprint": {
+        "version": 1,
+        "algorithm": "sha256",
+        "digest": "9af99a3da2fcebef1cf8d6e804d8717ed2bdbe89cf13c19870d0cff88d04ede8",
+        "complete": true
+      },
+      "paperCycles": 1,
+      "cumulativeExecutions": 2,
+      "cumulativePaperFilled": 2,
+      "newPaperFills": 0,
+      "additionalPaperFillsThisRun": 0,
+      "cumulativeRiskRejected": 0,
+      "openPositions": 2,
+      "killSwitchEngaged": false,
+      "reconciliationBalanced": true,
+      "reconciliationBreaks": 0,
+      "auditChainValid": true,
+      "auditChainEntries": 2,
+      "consecutiveExecutionErrors": 0,
+      "decisionDataGate": {
+        "ready": false,
+        "sourceReady": true,
+        "dataReady": false,
+        "reasons": [
+          "institutional intelligence-quality evidence is not ready"
+        ],
+        "sourceAgeMinutes": 3.5,
+        "intelligenceAgeMinutes": 0.6,
+        "criticalReady": 9,
+        "criticalTotal": 9,
+        "confidence": 77,
+        "sourceConcentrationPercent": 71,
+        "marketSources": 3,
+        "assetClasses": 2,
+        "crossChecks": 8,
+        "divergent": 0,
+        "freshnessPolicyReady": true,
+        "newRiskAllowedThisRun": false
+      },
+      "executionMarketCoverage": {
+        "ready": true,
+        "fresh": true,
+        "matchesEvidence": true,
+        "policyReady": true,
+        "broadCoverageReady": true,
+        "paperSourceRedundancyReady": true,
+        "paperEligibleSourceFamilies": 2,
+        "unverifiedPaperObservations": 0,
+        "executionEvidenceVersion": 11,
+        "executionCoverageVersion": 7,
+        "approvedPaperFamilies": [
+          "alpaca",
+          "twelve-data"
+        ],
+        "directaPaidRealtimeRequired": false,
+        "directaEvidenceOptionalForPaperCertification": true,
+        "ageMinutes": 0,
+        "requestedSymbols": 12,
+        "paperEligibleSymbols": 4,
+        "paperEligiblePercent": 33.3,
+        "requiredForAdditionalFills": false
+      },
+      "marketFxEvidence": {
+        "readyNow": true,
+        "requiredForNonEuro": true,
+        "reasons": [],
+        "provider": "twelve-data",
+        "expectedProvider": "twelve-data",
+        "baseCurrency": "EUR",
+        "expectedBaseCurrency": "EUR",
+        "usdPair": "USD/EUR",
+        "usdRate": 0.89245,
+        "usdObservedAt": "2026-10-05T17:53:00.000Z",
+        "usdAgeSeconds": 93.8,
+        "generatedAt": "2026-10-05T17:54:33.160Z",
+        "generatedAgeSeconds": 0.6,
+        "maxAgeSeconds": 120,
+        "evidenceMaxAgeSeconds": 120,
+        "provenanceVerified": true,
+        "liveTradingAllowed": false,
+        "brokerConnectivityAllowed": false,
+        "permittedCurrencies": [
+          "USD",
+          "EUR"
+        ],
+        "requiredForAdditionalFills": false
+      },
+      "marketSession": {
+        "phase": "OPEN",
+        "configured": true,
+        "generatedAt": "2026-10-05T17:54:33.303Z",
+        "evidence": {
+          "venue": "US_EQUITIES",
+          "state": "OPEN",
+          "source": "Alpaca Paper Trading Clock",
+          "observedAt": "2026-10-05T17:54:33.441Z",
+          "authoritative": true
+        },
+        "decision": {
+          "allowed": true,
+          "state": "OPEN",
+          "ageSeconds": 0.021,
+          "reasons": []
+        },
+        "nextOpen": "2026-10-06T13:30:00.000Z",
+        "nextClose": "2026-10-05T20:00:00.000Z",
+        "liveTradingAllowed": false
+      },
+      "fillEvidenceProof": {
+        "version": 2,
+        "requiredFills": 0,
+        "coveredFills": 0,
+        "complete": true,
+        "windows": []
+      },
+      "executionQuality": {
+        "state": "INSUFFICIENT",
+        "allowPilot": false,
+        "riskMultiplier": 0,
+        "fills": 2,
+        "grossNotionalEuro": 600,
+        "slippageCostBps": 5,
+        "implementationShortfallBps": 55.02,
+        "weightedDirectionalSlippageBps": 5,
+        "totalFeesEuro": 3,
+        "totalSlippageEuro": 0.2999,
+        "reasons": [
+          "execution-quality sample 2 fill(s) < required 10"
+        ]
+      },
+      "liveOrders": 0,
+      "liveTradingAllowed": false,
+      "brokerConnectivityAllowed": false
     }
   ],
   "notes": "V5 was retired from certification after discovering that its USD stress factor was reused as the economic USD-to-EUR conversion in sizing/notional/TCA. V6 starts clean with no carried fills, executions, positions or evidence. V6 requires fresh market FX for non-EUR PAPER probes, keeps LIVE and broker connectivity forbidden, and excludes bootstrap-only orchestration from the immutable validation fingerprint while retaining trading, risk, data, evidence and canonical validation workflows in the fingerprint.",
