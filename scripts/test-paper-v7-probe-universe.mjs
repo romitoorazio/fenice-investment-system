@@ -17,6 +17,8 @@ assert.equal(report.plannedForVersion, 7);
 assert.equal(report.activationAllowed, false);
 assert.equal(report.currentV6Modified, false);
 assert.equal(report.liveTradingAllowed, false);
+assert.equal(report.currentV6.protectedBaseVerified, true);
+assert.deepEqual(report.currentV6.protectedBaseSymbols, ["SPY", "QQQ", "AAPL", "MSFT"]);
 assert.deepEqual(report.currentV6.twelveDataProbedSymbols, ["SPY", "QQQ", "AAPL", "MSFT"]);
 assert.deepEqual(report.futureV7.plannedTwelveDataSymbols, ["SPY", "QQQ", "AAPL", "MSFT", "ASML"]);
 assert.deepEqual(report.futureV7.promotedSymbolsIncluded, ["ASML"]);
@@ -52,5 +54,24 @@ const missing = planPaperV7ProbeUniverse({
 assert.deepEqual(missing.futureV7.promotedSymbolsIncluded, []);
 assert.deepEqual(missing.futureV7.missingFromProbeUniverse, ["UNKNOWN"]);
 assert.ok(missing.activationBlockers.includes("recommended-symbol-missing-from-probe-universe"));
+
+for (const badBase of [
+  ["SPY", "QQQ", "AAPL"],
+  ["QQQ", "SPY", "AAPL", "MSFT"],
+  ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+]) {
+  assert.throws(
+    () => planPaperV7ProbeUniverse({
+      evidence: {
+        capabilities: {
+          ...evidence.capabilities,
+          twelveDataProbedSymbols: badBase,
+        },
+      },
+      priorityPlan: { recommendedExpansionOrder: ["ASML"] },
+    }),
+    /PAPER_V7_PROTECTED_BASE_MISMATCH/,
+  );
+}
 
 console.log("paper V7 adaptive probe universe tests: PASS");
