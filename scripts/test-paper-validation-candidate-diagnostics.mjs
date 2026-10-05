@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { buildPaperValidationProbe } from "./paper-validation-stager.mjs";
-import { explainPaperValidationCandidates } from "./explain-paper-validation-candidates.mjs";
+import { buildDiagnosticRuntimeApproval, explainPaperValidationCandidates } from "./explain-paper-validation-candidates.mjs";
 
 const now = "2026-10-05T16:30:00.000Z";
 
@@ -124,6 +124,21 @@ function compare(input, expectedEligible, expectedFailedGate = null) {
   const input = fixture();
   input.committee.topDecisions[0].riskScore = 76;
   compare(input, false, "risk-score");
+}
+
+{
+  const input = fixture();
+  input.coverage.rows[0].paperEligible = false;
+  input.coverage.rows[0].state = "RED";
+  compare(input, false, "execution-coverage");
+}
+
+{
+  const input = fixture();
+  delete input.approval.riskFxToEuroByCurrency;
+  const runtimeApproval = buildDiagnosticRuntimeApproval(input.approval, { metrics: { usdRate: 0.91 } });
+  assert.deepEqual(runtimeApproval.riskFxToEuroByCurrency, { EUR: 1, USD: 0.91 });
+  compare({ ...input, approval: runtimeApproval }, true);
 }
 
 console.log("paper validation candidate diagnostics tests: PASS");
