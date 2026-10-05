@@ -93,6 +93,27 @@ export function analyzeCandidateCommitteeSensitivity(candidate, threshold) {
 export function buildPaperV6CommitteeSensitivity({ approval, opportunityMap, committee }) {
   const threshold = numeric(approval?.minCommitteeScore, NaN);
   if (!Number.isFinite(threshold)) throw new Error("PAPER_V6_COMMITTEE_THRESHOLD_MISSING");
+
+  const opportunityStatus = String(opportunityMap?.status || "UNKNOWN").toUpperCase();
+  if (opportunityStatus !== "READY") {
+    return {
+      status: "SKIPPED",
+      reasons: Array.isArray(opportunityMap?.reasons) ? opportunityMap.reasons : ["paper-opportunity-map-not-ready"],
+      diagnosticOnly: true,
+      activeCampaignVersion: numeric(approval?.version),
+      committeeThreshold: threshold,
+      liveTradingAllowed: false,
+      brokerConnectivityAllowed: false,
+      thresholdModified: false,
+      scoreFormulaModified: false,
+      activeV6Targets: [],
+      missingTargets: [],
+      reconstructionMismatches: [],
+      ready: false,
+      candidates: [],
+    };
+  }
+
   const targets = new Set(
     (Array.isArray(opportunityMap?.activeV6OneGateAwayTargets) ? opportunityMap.activeV6OneGateAwayTargets : [])
       .map((symbol) => String(symbol || "").toUpperCase())
@@ -106,6 +127,8 @@ export function buildPaperV6CommitteeSensitivity({ approval, opportunityMap, com
   const mismatches = candidates.filter((candidate) => !candidate.reconstructionMatches).map((candidate) => candidate.symbol);
 
   return {
+    status: "READY",
+    reasons: [],
     diagnosticOnly: true,
     activeCampaignVersion: numeric(approval?.version),
     committeeThreshold: threshold,
@@ -125,14 +148,21 @@ function summaryMarkdown(report) {
   const lines = [
     "## Fenice PAPER V6 committee sensitivity",
     "",
+    `- Status: ${report.status}`,
     `- Threshold: ${report.committeeThreshold} (unchanged)`,
     `- Active V6 targets: ${report.activeV6Targets.join(", ") || "none"}`,
-    `- Reconstruction: ${report.ready ? "verified" : "fail-closed"}`,
+    `- Reconstruction: ${report.ready ? "verified" : "fail-closed / unavailable"}`,
     "- Safety: diagnostic only; formula, threshold, LIVE and broker connectivity remain unchanged.",
+  ];
+  if (report.status !== "READY") {
+    lines.push(`- Reasons: ${report.reasons.join(" | ") || "paper-opportunity-map-not-ready"}`, "");
+    return `${lines.join("\n")}\n`;
+  }
+  lines.push(
     "",
     "| Symbol | Score | Raw | Gap | Smallest authentic scorecard changes that would cross threshold |",
     "| --- | ---: | ---: | ---: | --- |",
-  ];
+  );
   for (const candidate of report.candidates) {
     const smallest = candidate.componentSensitivity
       .filter((item) => item.minimumScorecardDelta === candidate.componentSensitivity[0]?.minimumScorecardDelta)
@@ -159,5 +189,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   };
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown(report));
-  console.log(`Fenice PAPER V6 committee sensitivity: targets=${report.activeV6Targets.join(",") || "none"}; threshold=${report.committeeThreshold}; ready=${report.ready}; mismatches=${report.reconstructionMismatches.join(",") || "none"}; diagnosticOnly=true; thresholdModified=false; scoreFormulaModified=false; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+  console.log(`Fenice PAPER V6 committee sensitivity: status=${report.status}; targets=${report.activeV6Targets.join(",") || "none"}; threshold=${report.committeeThreshold}; ready=${report.ready}; mismatches=${report.reconstructionMismatches.join(",") || "none"}; diagnosticOnly=true; thresholdModified=false; scoreFormulaModified=false; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
 }
