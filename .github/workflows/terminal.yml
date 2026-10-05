@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "27 * * * *"
+  workflow_run:
+    workflows: ["Fenice Foundation"]
+    types: [completed]
+    branches: [main]
   push:
     branches: [main]
     paths:
@@ -41,6 +45,7 @@ concurrency:
 
 jobs:
   terminal:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
