@@ -21,6 +21,8 @@ on:
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/plan-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-universe.mjs"
   push:
     branches: [main]
     paths:
@@ -42,6 +44,8 @@ on:
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/plan-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-universe.mjs"
   workflow_dispatch:
 
 permissions:
@@ -75,6 +79,8 @@ jobs:
         run: node scripts/test-paper-validation-opportunity-ranking.mjs
       - name: Verify PAPER V7 probe planner remains inactive
         run: node scripts/test-paper-v7-probe-priority.mjs
+      - name: Verify PAPER V7 adaptive universe remains inactive
+        run: node scripts/test-paper-v7-probe-universe.mjs
       - name: Audit current provider cooldown without dispatch or provider requests
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
