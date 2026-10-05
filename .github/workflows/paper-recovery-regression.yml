@@ -10,6 +10,8 @@ on:
       - "scripts/test-paper-probe-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
+      - "scripts/explain-paper-validation-candidates.mjs"
+      - "scripts/test-paper-validation-candidate-diagnostics.mjs"
   push:
     branches: [main]
     paths:
@@ -20,6 +22,8 @@ on:
       - "scripts/test-paper-probe-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
+      - "scripts/explain-paper-validation-candidates.mjs"
+      - "scripts/test-paper-validation-candidate-diagnostics.mjs"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: paper-recovery-regression-\${{ github.ref }}
+  group: paper-recovery-regression-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -45,6 +49,8 @@ jobs:
         run: node scripts/test-paper-operator-recovery-config.mjs
       - name: Verify provider cooldown and canonical PAPER run suppression
         run: node scripts/test-paper-probe-cooldown.mjs
+      - name: Verify PAPER candidate rejection diagnostics match the canonical stager
+        run: node scripts/test-paper-validation-candidate-diagnostics.mjs
       - name: Audit current provider cooldown without dispatch or provider requests
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
