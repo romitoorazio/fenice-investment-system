@@ -25,7 +25,12 @@ assert.equal(evaluate({ now: new Date("2026-10-05T17:04:59.000Z") }).allowed, fa
 assert.equal(evaluate({ now: new Date("2026-10-05T19:31:00.000Z") }).allowed, false);
 assert.equal(evaluate({ now: new Date("2026-10-04T17:10:00.000Z") }).allowed, false);
 assert.equal(evaluate({ eventName: "push" }).allowed, false);
-assert.equal(evaluate({ upstream: { ...goodUpstream, event: "push" } }).allowed, false);
+assert.deepEqual(
+  evaluate({ upstream: { ...goodUpstream, event: "push" } }),
+  { allowed: true, reason: "eligible-daily-evidence-recovery-trigger" },
+);
+assert.equal(evaluate({ upstream: { ...goodUpstream, event: "workflow_dispatch" } }).allowed, false);
+assert.equal(evaluate({ upstream: { ...goodUpstream, event: "push", name: "Fenice World Terminal" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, conclusion: "failure" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, headBranch: "feature/test" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, headRepository: "other/repo" } }).allowed, false);
