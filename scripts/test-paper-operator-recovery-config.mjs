@@ -15,9 +15,10 @@ assert.match(workflowRun, /types:\n\s+- completed\b/, "recovery must only inspec
 const schedule = workflow.match(/  schedule:\n([\s\S]*?)\n  workflow_run:/)?.[1] ?? "";
 const recoveryTimes = [...schedule.matchAll(/cron: "(\d+) (\d+) \* \* 1-5"/g)]
   .map((match) => Number(match[2]) * 60 + Number(match[1]));
-assert.equal(recoveryTimes.length, 4, "recovery needs distinct early, middle and late session opportunities");
+assert.equal(recoveryTimes.length, 5, "recovery needs distinct early, middle, late and final quality-recovery opportunities");
 assert.ok(recoveryTimes.every((time) => time >= 875 && time <= 1170), "recovery schedules must fit the conservative US window");
 assert.ok(recoveryTimes.at(-1) - recoveryTimes[0] >= 180, "nearby schedules must not be the only recovery opportunities");
+assert.ok(recoveryTimes.at(-1) >= 1160, "recovery must include a final checkpoint after 19:20 UTC for late quality recovery");
 
 assert.match(workflow, /Checkout trusted main recovery policy[\s\S]*ref: main\n\s+persist-credentials: false/);
 assert.match(workflow, /id: trigger_gate\n\s+run: node scripts\/paper-probe-recovery-trigger\.mjs --github-output/);
@@ -67,7 +68,7 @@ assert.match(workflow, /--workflow paper-probe-staging\.yml[^\n]*updatedAt/);
 assert.match(workflow, /--workflow paper-validation\.yml[^\n]*updatedAt/);
 assert.match(workflow, /execution-market-evidence\.json\?ref=main/);
 assert.match(workflow, /node scripts\/paper-probe-cooldown\.mjs --probe-runs[^\n]*--validation-runs[^\n]*--execution-evidence/);
-assert.ok(workflow.includes('cooldown_ready="$(jq -r \'.ready\' <<<"$cooldown_metrics")"'));
+assert.ok(workflow.includes('cooldown_ready="$(jq -r \' .ready\' <<<"$cooldown_metrics")"'.replace("' .ready'", "'.ready'")));
 assert.ok(workflow.includes('probe_cycles_today" -lt 2'), "daily provider-cycle cap must stay unchanged");
 const regression = readFileSync(".github/workflows/paper-recovery-regression.yml", "utf8");
 assert.match(regression, /actions: read/);
