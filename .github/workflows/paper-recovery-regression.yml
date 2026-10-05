@@ -4,10 +4,14 @@ on:
   pull_request:
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
+      - ".github/workflows/paper-candidate-diagnostics.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-validation-event-recovery-trigger.mjs"
+      - "scripts/test-paper-validation-event-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
       - "scripts/explain-paper-validation-candidates.mjs"
@@ -16,10 +20,14 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
+      - ".github/workflows/paper-candidate-diagnostics.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-validation-event-recovery-trigger.mjs"
+      - "scripts/test-paper-validation-event-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
       - "scripts/test-paper-probe-cooldown.mjs"
       - "scripts/explain-paper-validation-candidates.mjs"
@@ -47,6 +55,8 @@ jobs:
         run: node scripts/test-paper-probe-recovery-trigger.mjs
       - name: Verify event-driven recovery remains fail-closed
         run: node scripts/test-paper-operator-recovery-config.mjs
+      - name: Verify daily PAPER evidence event recovery remains fail-closed
+        run: node scripts/test-paper-validation-event-recovery-trigger.mjs
       - name: Verify provider cooldown and canonical PAPER run suppression
         run: node scripts/test-paper-probe-cooldown.mjs
       - name: Verify PAPER candidate rejection diagnostics match the canonical stager
