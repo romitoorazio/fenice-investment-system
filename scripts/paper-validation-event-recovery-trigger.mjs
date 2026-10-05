@@ -25,8 +25,16 @@ export function evaluatePaperValidationEventRecovery({
   }
 
   if (!PAPER_PROBE_RECOVERY_UPSTREAMS.includes(upstream.name)) return blocked("unapproved-upstream");
-  if (upstream.event !== "schedule" || upstream.conclusion !== "success") {
-    return blocked("upstream-not-successful-schedule");
+
+  // Scheduled trusted upstreams remain the normal recovery source. A successful
+  // Production CI push on main is also trusted because it is the repository's
+  // post-merge safety gate and can occur after GitHub has already missed the
+  // day's final scheduled dispatcher checkpoint. Other push-triggered workflows
+  // remain excluded to avoid broadening recovery provenance unnecessarily.
+  const approvedUpstreamEvent = upstream.event === "schedule"
+    || (upstream.event === "push" && upstream.name === "Fenice Production CI");
+  if (!approvedUpstreamEvent || upstream.conclusion !== "success") {
+    return blocked("upstream-not-successful-approved-event");
   }
   if (upstream.headBranch !== "main" || !repository || upstream.headRepository !== repository) {
     return blocked("upstream-not-repository-main");
