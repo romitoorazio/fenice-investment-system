@@ -7,6 +7,7 @@ on:
       - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - ".github/workflows/paper-candidate-diagnostics.yml"
+      - ".github/workflows/paper-provider-feasibility.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
@@ -18,6 +19,8 @@ on:
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
       - "scripts/rank-paper-validation-opportunities.mjs"
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
+      - "scripts/plan-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-probe-priority.mjs"
   push:
     branches: [main]
     paths:
@@ -25,6 +28,7 @@ on:
       - ".github/workflows/paper-validation-early-trigger.yml"
       - ".github/workflows/paper-recovery-regression.yml"
       - ".github/workflows/paper-candidate-diagnostics.yml"
+      - ".github/workflows/paper-provider-feasibility.yml"
       - "scripts/test-paper-operator-recovery-config.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
@@ -36,6 +40,8 @@ on:
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
       - "scripts/rank-paper-validation-opportunities.mjs"
       - "scripts/test-paper-validation-opportunity-ranking.mjs"
+      - "scripts/plan-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-probe-priority.mjs"
   workflow_dispatch:
 
 permissions:
@@ -67,6 +73,8 @@ jobs:
         run: node scripts/test-paper-validation-candidate-diagnostics.mjs
       - name: Verify PAPER opportunity ranking remains diagnostic-only
         run: node scripts/test-paper-validation-opportunity-ranking.mjs
+      - name: Verify PAPER V7 probe planner remains inactive
+        run: node scripts/test-paper-v7-probe-priority.mjs
       - name: Audit current provider cooldown without dispatch or provider requests
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
