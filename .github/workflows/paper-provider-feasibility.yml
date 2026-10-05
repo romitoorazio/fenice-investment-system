@@ -9,6 +9,8 @@ on:
       - "scripts/probe-paper-provider-feasibility.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/plan-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-universe.mjs"
 
 permissions:
   contents: read
@@ -25,6 +27,7 @@ jobs:
       FENICE_FEASIBILITY_SYMBOLS: "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN"
       FENICE_PROVIDER_FEASIBILITY_REPORT: paper-provider-feasibility.json
       FENICE_V7_PROBE_PLAN: paper-v7-probe-plan.json
+      FENICE_V7_PROBE_UNIVERSE_PLAN: paper-v7-probe-universe.json
       APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
       APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
@@ -46,15 +49,22 @@ jobs:
       - name: Regression-test inactive V7 planner
         run: node scripts/test-paper-v7-probe-priority.mjs
 
+      - name: Regression-test inactive V7 adaptive universe
+        run: node scripts/test-paper-v7-probe-universe.mjs
+
       - name: Build inactive V7 probe priority plan
         run: node scripts/plan-paper-v7-probe-priority.mjs
 
-      - name: Upload provider feasibility and V7 plan
+      - name: Build inactive V7 adaptive probe universe
+        run: node scripts/plan-paper-v7-probe-universe.mjs
+
+      - name: Upload provider feasibility and V7 plans
         uses: actions/upload-artifact@v4
         with:
           name: paper-provider-feasibility-${{ github.run_id }}
           path: |
             paper-provider-feasibility.json
             paper-v7-probe-plan.json
+            paper-v7-probe-universe.json
           if-no-files-found: error
           retention-days: 14
