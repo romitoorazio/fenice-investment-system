@@ -92,7 +92,7 @@ export async function loadPaperReviewPayload(root = process.cwd(), now = Date.no
   const turnover = state.executions.filter(item => item.status === "PAPER_FILLED" && item.filledAt?.startsWith(day))
     .reduce((sum, item) => sum + Number(item.notionalEuro ?? NaN), 0);
   const seenOrders = new Set<string>();
-  for (const queued of queue.orders.slice(0, 20)) {
+  for (const queued of queue.orders) {
     if (!object(queued) || queued.mode !== "PAPER" || typeof queued.symbol !== "string" || typeof queued.clientOrderId !== "string" || !queued.clientOrderId) {
       payload.notices.push("Una voce della coda senza identità PAPER verificata è stata esclusa."); continue;
     }
@@ -157,7 +157,9 @@ export async function loadPaperReviewPayload(root = process.cwd(), now = Date.no
       brokerWritesEnabled: false, liveTradingReleased: false,
     }, now) : undefined;
     const terms = { order, context, expiresAt: new Date(expiry).toISOString(), name, reason, evidence: proof, ...(aiDecision ? { aiDecision } : {}) };
-    payload.proposals.push(buildPaperReviewProposal({ ...terms, id: createHash("sha256").update(JSON.stringify(terms)).digest("hex"), scope: "PAPER_QUEUE", blockers }, now));
+    const proposalId = createHash("sha256").update(JSON.stringify(["PAPER_QUEUE", queued.clientOrderId])).digest("hex");
+    payload.proposals.push(buildPaperReviewProposal({ ...terms, id: proposalId, scope: "PAPER_QUEUE", blockers }, now));
+    if (payload.proposals.length >= 20) break;
   }
   if (payload.proposals.length === 0) payload.notices.unshift("Nessuna proposta PAPER completa in attesa. Fenice non richiede un Sì quando manca una proposta verificabile.");
   payload.notices = [...new Set([...payload.notices, ...globalBlockers])];
