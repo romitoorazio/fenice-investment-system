@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises";
+import { evaluateDecisionDataGate } from "../lib/trading/decision-data-gate.mjs";
+import { evaluatePaperFxEvidence } from "../lib/trading/paper-fx-evidence.mjs";
 
 function positive(value) {
   return Number.isFinite(Number(value)) && Number(value) > 0;
@@ -11,6 +13,16 @@ function unique(values) {
 function boundedNumber(value, fallback, min, max) {
   const parsed = Number(value);
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+}
+
+export function buildDiagnosticRuntimeApproval(approval, fxEvaluation) {
+  return {
+    ...approval,
+    riskFxToEuroByCurrency: {
+      EUR: 1,
+      ...(Number.isFinite(Number(fxEvaluation?.metrics?.usdRate)) ? { USD: Number(fxEvaluation.metrics.usdRate) } : {}),
+    },
+  };
 }
 
 export function explainPaperValidationCandidates({ approval, coverage, state, terminal, committee }) {
@@ -108,18 +120,35 @@ async function readJson(path) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [approval, coverage, state, terminal, committee] = await Promise.all([
+  const [approval, coverage, state, terminal, committee, sourceHealth, intelligence, fxEvidence] = await Promise.all([
     readJson("data/paper-validation-approval.json"),
     readJson("data/execution-market-coverage.json"),
     readJson("data/paper-oms-state.json"),
     readJson("data/terminal-intelligence.json"),
     readJson("data/investment-committee.json"),
+    readJson("data/global-source-health.json"),
+    readJson("data/intelligence-quality.json"),
+    readJson("data/paper-fx-evidence.json"),
   ]);
-  const report = explainPaperValidationCandidates({ approval, coverage, state, terminal, committee });
-  for (const candidate of report.candidates.filter((row) => row.paperEligibleMarketData)) {
+
+  const decisionData = evaluateDecisionDataGate({ sourceHealth, intelligence });
+  if (!decisionData.ready) {
+    console.log(`Fenice PAPER candidate diagnostics: SKIPPED reason=decision-data-not-ready; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+    process.exit(0);
+  }
+
+  const fx = evaluatePaperFxEvidence({ fxEvidence, approval });
+  if (!fx.ready) {
+    console.log(`Fenice PAPER candidate diagnostics: SKIPPED reason=market-fx-not-ready; reasons=${fx.reasons.join(" | ")}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+    process.exit(0);
+  }
+
+  const runtimeApproval = buildDiagnosticRuntimeApproval(approval, fx);
+  const report = explainPaperValidationCandidates({ approval: runtimeApproval, coverage, state, terminal, committee });
+  for (const candidate of report.candidates) {
     const status = candidate.eligible ? "ELIGIBLE" : "BLOCKED";
     const reasons = candidate.failedGates.length ? candidate.failedGates.join(",") : "none";
     console.log(`PAPER candidate ${candidate.symbol}: ${status}; failed=${reasons}; committee=${candidate.metrics.committeeScore}; confidence=${candidate.metrics.validationDataConfidence}; risk=${candidate.metrics.riskScore}; capacityEUR=${candidate.metrics.notionalCapacityEuro}.`);
   }
-  console.log(`Fenice PAPER candidate diagnostics: executionEligible=${report.executionEligibleSymbols.length}; probeEligible=${report.eligibleSymbols.length}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+  console.log(`Fenice PAPER candidate diagnostics: candidates=${report.candidates.length}; executionEligible=${report.executionEligibleSymbols.length}; probeEligible=${report.eligibleSymbols.length}; fxProvider=${fx.metrics.provider}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
 }
