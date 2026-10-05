@@ -1,10 +1,24 @@
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { selectPaperV7ProbeSymbols, uniquePaperV7Symbols } from "../lib/trading/paper-v7-probe-selection.mjs";
 
+const PROTECTED_V6_TWELVE_DATA_SYMBOLS = ["SPY", "QQQ", "AAPL", "MSFT"];
+
+function assertProtectedV6Base(actualSymbols) {
+  const actual = uniquePaperV7Symbols(actualSymbols);
+  const matches = actual.length === PROTECTED_V6_TWELVE_DATA_SYMBOLS.length
+    && actual.every((symbol, index) => symbol === PROTECTED_V6_TWELVE_DATA_SYMBOLS[index]);
+  if (!matches) {
+    throw new Error(
+      `PAPER_V7_PROTECTED_BASE_MISMATCH:expected=${PROTECTED_V6_TWELVE_DATA_SYMBOLS.join(",")};actual=${actual.join(",") || "none"}`,
+    );
+  }
+  return actual;
+}
+
 export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbols = 8 }) {
   const capabilities = evidence?.capabilities || {};
   const probeUniverse = uniquePaperV7Symbols(capabilities.probeUniverse);
-  const currentV6Symbols = uniquePaperV7Symbols(capabilities.twelveDataProbedSymbols);
+  const currentV6Symbols = assertProtectedV6Base(capabilities.twelveDataProbedSymbols);
   const requestedPromotions = uniquePaperV7Symbols(priorityPlan?.recommendedExpansionOrder);
   const selection = selectPaperV7ProbeSymbols({
     baseSymbols: currentV6Symbols,
@@ -35,6 +49,8 @@ export function planPaperV7ProbeUniverse({ evidence, priorityPlan, maxBatchSymbo
     brokerConnectivityAllowed: false,
     selectionPolicy: "preserve-current-v6-twelve-data-symbols-then-add-provider-compatible-v7-promotions",
     currentV6: {
+      protectedBaseVerified: true,
+      protectedBaseSymbols: [...PROTECTED_V6_TWELVE_DATA_SYMBOLS],
       probeLimit: Number(capabilities.twelveDataProbeLimit || currentV6Symbols.length || 0),
       twelveDataProbedSymbols: currentV6Symbols,
     },
@@ -67,6 +83,7 @@ function summary(report) {
     "## Fenice PAPER V7 adaptive probe universe",
     "",
     "Planning only. Active PAPER V6 remains unchanged.",
+    `Protected V6 base verified: ${report.currentV6.protectedBaseVerified ? "yes" : "no"}`,
     `Current V6 Twelve Data symbols: ${report.currentV6.twelveDataProbedSymbols.join(", ") || "none"}`,
     `Planned V7 Twelve Data symbols: ${v7.plannedTwelveDataSymbols.join(", ") || "none"}`,
     `Promotions included: ${v7.promotedSymbolsIncluded.join(", ") || "none"}`,
@@ -88,5 +105,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   };
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary(report));
-  console.log(`Fenice PAPER V7 probe universe: planned=${report.futureV7.plannedTwelveDataSymbols.join(",") || "none"}; promotions=${report.futureV7.promotedSymbolsIncluded.join(",") || "none"}; adaptive=${report.futureV7.adaptiveSelectionRequired}; credits+${report.futureV7.additionalBatchCredits}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
+  console.log(`Fenice PAPER V7 probe universe: protectedBaseVerified=${report.currentV6.protectedBaseVerified}; planned=${report.futureV7.plannedTwelveDataSymbols.join(",") || "none"}; promotions=${report.futureV7.promotedSymbolsIncluded.join(",") || "none"}; adaptive=${report.futureV7.adaptiveSelectionRequired}; credits+${report.futureV7.additionalBatchCredits}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
 }
