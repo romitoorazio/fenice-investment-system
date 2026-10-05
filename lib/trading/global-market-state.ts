@@ -12,10 +12,14 @@ export type GlobalMarketStateDecision = {
 export type GlobalMarketStateGatedEvidence<T extends { eligibility?: string; provenanceMethod?: string }> = T & {
   eligibility: "VALIDATION_ONLY" | "PAPER" | "LIVE";
   provenanceMethod?: string;
+  marketState?: GlobalMarketStateDecision;
 };
 
+export const GLOBAL_MARKET_STATE_MAX_AGE_MS = 60_000;
+
 function normalizedMic(value: unknown): string {
-  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const mic = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return /^[A-Z0-9]{4}$/.test(mic) ? mic : "";
 }
 
 export function twelveDataMarketStateUrl(exchangeMic: unknown, apiKey: string): string {
@@ -34,7 +38,10 @@ export function verifyTwelveDataGlobalMarketState(
 ): GlobalMarketStateDecision {
   const expectedMic = normalizedMic(exchangeMic);
   const reasons: string[] = [];
-  const observedAt = new Date(observedAtMs).toISOString();
+  const clockValid = typeof observedAtMs === "number" && Number.isFinite(observedAtMs)
+    && Number.isFinite(new Date(observedAtMs).getTime());
+  const observedAt = clockValid ? new Date(observedAtMs).toISOString() : "";
+  if (!clockValid) reasons.push("invalid market-state observation clock");
 
   if (!expectedMic) {
     return {
@@ -49,12 +56,7 @@ export function verifyTwelveDataGlobalMarketState(
     };
   }
 
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    const object = raw as Record<string, unknown>;
-    if (String(object.status || "").toLowerCase() === "error" || object.code && !Array.isArray(raw)) {
-      reasons.push("provider returned an API error or non-array market-state payload");
-    }
-  }
+  if (!Array.isArray(raw)) reasons.push("provider returned an API error or non-array market-state payload");
 
   const rows = Array.isArray(raw) ? raw : [];
   const exact = rows.filter((item) => normalizedMic((item as Record<string, unknown>)?.code) === expectedMic);
@@ -84,9 +86,10 @@ export function verifyTwelveDataGlobalMarketState(
   };
 }
 
-export function applyGlobalMarketStateGate<T extends { eligibility?: string; provenanceMethod?: string }>(
+export function applyGlobalMarketStateGate<T extends { eligibility?: string; provenanceMethod?: string; exchangeMic?: string }>(
   evidence: T,
   state: GlobalMarketStateDecision | null | undefined,
+  nowMs = Date.now(),
 ): GlobalMarketStateGatedEvidence<T> {
   const current = String(evidence?.eligibility || "VALIDATION_ONLY").toUpperCase();
   const requested: "VALIDATION_ONLY" | "PAPER" | "LIVE" = current === "LIVE"
@@ -99,17 +102,27 @@ export function applyGlobalMarketStateGate<T extends { eligibility?: string; pro
     return { ...evidence, eligibility: "VALIDATION_ONLY" } as GlobalMarketStateGatedEvidence<T>;
   }
 
-  if (!state?.paperSessionAllowed) {
+  const evidenceMic = normalizedMic(evidence?.exchangeMic);
+  const observedAtMs = typeof state?.observedAt === "string" ? Date.parse(state.observedAt) : NaN;
+  const fresh = Number.isFinite(nowMs) && Number.isFinite(observedAtMs)
+    && observedAtMs <= nowMs && nowMs - observedAtMs <= GLOBAL_MARKET_STATE_MAX_AGE_MS;
+  const exact = Boolean(evidenceMic) && normalizedMic(state?.exchangeMic) === evidenceMic
+    && normalizedMic(state?.returnedMic) === evidenceMic;
+  const allowed = state?.provider === "twelve-data" && state.accepted === true
+    && state.marketOpen === true && state.paperSessionAllowed === true && fresh && exact;
+
+  if (!allowed) {
     const suffix = state?.exchangeMic
-      ? `session-gate:${state.exchangeMic}:${state.accepted ? "closed" : "unverified"}`
+      ? `session-gate:${normalizedMic(state.exchangeMic) || "invalid"}:${!exact ? "venue-mismatch" : !fresh ? "stale-or-invalid-time" : state.accepted === true && state.marketOpen === false ? "closed" : "unverified"}`
       : "session-gate:missing";
     const provenanceMethod = [String(evidence?.provenanceMethod || "").trim(), suffix].filter(Boolean).join(";");
     return {
       ...evidence,
       eligibility: "VALIDATION_ONLY",
       provenanceMethod,
+      marketState: state ?? undefined,
     } as GlobalMarketStateGatedEvidence<T>;
   }
 
-  return { ...evidence, eligibility: requested } as GlobalMarketStateGatedEvidence<T>;
+  return { ...evidence, eligibility: requested, marketState: state } as GlobalMarketStateGatedEvidence<T>;
 }

@@ -10,6 +10,7 @@ import {
 import {
   GLOBAL_MARKET_SENTINELS,
   certifyGlobalInstrument,
+  deduplicateGlobalEvidence,
   isGlobalObservationSessionWindowOpen,
   isTwelveDataGlobalPaperCandidate,
   twelveDataGlobalQuoteUrl,
@@ -22,15 +23,18 @@ import {
 } from "../lib/trading/execution-market-data.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dataDir = path.join(root, "data");
+const dataDir = process.env.FENICE_GLOBAL_OBSERVATION_DATA_DIR
+  ? path.resolve(process.env.FENICE_GLOBAL_OBSERVATION_DATA_DIR) : path.join(root, "data");
 const evidencePath = path.join(dataDir, "execution-market-evidence.json");
 const certificationPath = path.join(dataDir, "global-market-data-certification.json");
 const twelveDataApiKey = String(process.env.TWELVE_DATA_API_KEY || "").trim();
 const observeOnly = process.argv.includes("--observe-only") || String(process.env.FENICE_GLOBAL_OBSERVE_ONLY || "").trim() === "1";
 if (!observeOnly) throw new Error("GLOBAL_PAPER_CORE_MUTATION_DISABLED_DURING_ACTIVE_V6");
-const probeLimit = Math.max(0, Math.min(14, Number(process.env.FENICE_GLOBAL_EXECUTION_PROBES || 14) || 14));
+const probeLimit = Number(process.env.FENICE_GLOBAL_EXECUTION_PROBES ?? 14);
+if (!Number.isInteger(probeLimit) || probeLimit < 0 || probeLimit > 14) throw new Error("GLOBAL_INVALID_PROBE_LIMIT");
 const minIntervalMs = Math.max(1_000, Math.min(60_000, Number(process.env.FENICE_TWELVE_DATA_MIN_INTERVAL_MS || 9_000) || 9_000));
-const maxRateLimitRetries = Math.max(0, Math.min(3, Number(process.env.FENICE_TWELVE_DATA_429_RETRIES || 2) || 2));
+const maxRateLimitRetries = Number(process.env.FENICE_TWELVE_DATA_429_RETRIES ?? 2);
+if (!Number.isInteger(maxRateLimitRetries) || maxRateLimitRetries < 0 || maxRateLimitRetries > 3) throw new Error("GLOBAL_INVALID_RETRY_LIMIT");
 const timeoutMs = Math.max(2_000, Math.min(20_000, Number(process.env.FENICE_GLOBAL_MARKETDATA_TIMEOUT_MS || 8_000) || 8_000));
 const requireOpenSession = String(process.env.FENICE_GLOBAL_REQUIRE_OPEN_SESSION || "1").trim() !== "0";
 const approvedPaperMics = String(process.env.FENICE_TWELVE_DATA_GLOBAL_PAPER_MICS || "")
@@ -39,6 +43,7 @@ const approvedPaperMics = String(process.env.FENICE_TWELVE_DATA_GLOBAL_PAPER_MIC
   .filter(Boolean);
 const entitlementEvidenceRef = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_REF || "").trim();
 const entitlementEvidenceSha256 = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_SHA256 || "").trim().toLowerCase();
+const entitlementConfirmedAt = String(process.env.FENICE_TWELVE_DATA_GLOBAL_ENTITLEMENT_CONFIRMED_AT || "").trim();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 let nextTwelveRequestAt = 0;
 let rateLimitEvents = 0;
@@ -126,20 +131,6 @@ async function fetchYahooValidation(instrument) {
   return { ...normalized, exchangeMic: String(instrument.exchangeMic || "").trim().toUpperCase() };
 }
 
-function deduplicateGlobalEvidence(values) {
-  const map = new Map();
-  for (const item of values) {
-    const exchangeMic = String(item?.exchangeMic || "").trim().toUpperCase();
-    const normalized = normalizeExecutionEvidence(item || {});
-    if (!normalized || !exchangeMic) continue;
-    const candidate = { ...normalized, exchangeMic };
-    const key = `${candidate.symbol}:${exchangeMic}:${candidate.sourceFamily}`;
-    const previous = map.get(key);
-    if (!previous || Date.parse(candidate.observedAt) > Date.parse(previous.observedAt)) map.set(key, candidate);
-  }
-  return [...map.values()];
-}
-
 function targetKey(instrument) {
   return `${normalizeExecutionSymbol(instrument.symbol)}:${String(instrument.exchangeMic || "").toUpperCase()}`;
 }
@@ -168,6 +159,7 @@ async function fetchTwelveGlobal(instrument) {
       approvedMics: approvedPaperMics,
       evidenceRef: entitlementEvidenceRef,
       evidenceSha256: entitlementEvidenceSha256,
+      confirmedAt: entitlementConfirmedAt,
     },
     Date.now(),
   );
@@ -185,7 +177,7 @@ async function fetchTwelveGlobal(instrument) {
       marketState = verifyTwelveDataGlobalMarketState(instrument.exchangeMic, null, Date.now());
       marketState.reasons = [...new Set([...marketState.reasons, `market_state fetch failed: ${String(error?.message || "FETCH_FAILED")}`])];
     }
-    verified.evidence = applyGlobalMarketStateGate(verified.evidence, marketState);
+    verified.evidence = applyGlobalMarketStateGate(verified.evidence, marketState, Date.now());
     verified.eligibility = verified.evidence.eligibility === "PAPER" ? "PAPER" : "VALIDATION_ONLY";
     if (!marketState.paperSessionAllowed) {
       verified.reasons = [...new Set([
@@ -304,13 +296,13 @@ const summary = {
   allowNewRiskMarkets: certifications.filter((item) => item.allowNewRisk).length,
   yahooValidated: probeResults.filter((item) => item.yahoo.accepted).length,
   twelveDataAccepted: probeResults.filter((item) => item.twelveData.accepted).length,
-  paperEligibleTwelveData: newObservations.filter((item) => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER").length,
+  paperEligibleTwelveData: certifications.filter((item) => item.paperEligibleFamilies.includes("twelve-data")).length,
   exactMicMarketStateOpen: probeResults.filter((item) => item.twelveData.paperSessionAllowed).length,
 };
 const generatedAt = new Date().toISOString();
 const persistedEntitlements = Array.isArray(entitlementRegistry?.entitlements) ? entitlementRegistry.entitlements : [];
 const globalCertification = {
-  version: 4,
+  version: 5,
   generatedAt,
   mode: observeOnly ? "OBSERVATION_ONLY" : "PAPER_CANDIDATE_COLLECTION",
   paperCoreMutation: !observeOnly,
@@ -323,6 +315,8 @@ const globalCertification = {
     quorum: "two independent PAPER-eligible source families required before new risk; three preferred",
     entitlementControl: "DEFAULT_DENY_DUAL_CONTROL; runtime variables alone cannot promote market data to PAPER",
     sessionControl: "FAIL_CLOSED_EXACT_MIC_MARKET_STATE; a weekday/session window only suppresses probes and never proves an exchange is open",
+    admissionControl: "PAPER labels alone are not proof; quote-bound entitlement admission plus <=60s exact-MIC open session are rechecked at report generation",
+    probeStatusScope: "probe diagnostics describe collection time; certification and paperEligibleTwelveData are re-evaluated at report generation",
   },
   targets,
   targetSelection: {
@@ -330,8 +324,8 @@ const globalCertification = {
     selectedTargets: targets.length,
     requireOpenSession,
     persistedEntitlementRecords: persistedEntitlements.length,
-    runtimeEntitlementClaimConfigured: Boolean(entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
-    entitlementEvidenceConfigured: Boolean(persistedEntitlements.length && entitlementEvidenceRef && entitlementEvidenceSha256 && approvedPaperMics.length),
+    runtimeEntitlementClaimConfigured: Boolean(entitlementEvidenceRef && entitlementEvidenceSha256 && entitlementConfirmedAt && approvedPaperMics.length),
+    entitlementEvidenceConfigured: Boolean(persistedEntitlements.length && entitlementEvidenceRef && entitlementEvidenceSha256 && entitlementConfirmedAt && approvedPaperMics.length),
     paperEntitlementDualControl: true,
     exactMicMarketStateGate: true,
   },

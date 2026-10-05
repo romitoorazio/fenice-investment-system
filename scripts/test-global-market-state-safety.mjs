@@ -89,14 +89,14 @@ const paperEvidence = {
   provenanceMethod: "authenticated-exact-mic:XMIL;entitlement:verified",
 };
 
-const allowed = applyGlobalMarketStateGate(paperEvidence, open);
+const allowed = applyGlobalMarketStateGate(paperEvidence, open, now);
 assert.equal(allowed.eligibility, "PAPER");
 
-const downgradedClosed = applyGlobalMarketStateGate(paperEvidence, closed);
+const downgradedClosed = applyGlobalMarketStateGate(paperEvidence, closed, now);
 assert.equal(downgradedClosed.eligibility, "VALIDATION_ONLY");
 assert.match(downgradedClosed.provenanceMethod, /session-gate:XMIL:closed/);
 
-const downgradedMissing = applyGlobalMarketStateGate(paperEvidence, null);
+const downgradedMissing = applyGlobalMarketStateGate(paperEvidence, null, now);
 assert.equal(downgradedMissing.eligibility, "VALIDATION_ONLY");
 assert.match(downgradedMissing.provenanceMethod, /session-gate:missing/);
 

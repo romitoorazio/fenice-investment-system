@@ -1,4 +1,5 @@
 import { evaluateMarketDataQuorum, type MarketDataQuorumDecision } from "./market-data-quorum.ts";
+import { applyGlobalMarketStateGate, type GlobalMarketStateDecision } from "./global-market-state.ts";
 import {
   classifyExecutionPaperEligibility,
   isExecutionObservationFresh,
@@ -37,6 +38,26 @@ export type TwelveDataQuoteVerification = {
 
 export type GlobalExecutionMarketEvidence = ExecutionMarketEvidence & {
   exchangeMic: string;
+  paperAdmissionProof?: GlobalPaperAdmissionProof;
+  marketState?: GlobalMarketStateDecision;
+};
+
+/** Carries the checked entitlement and binds it to this exact observation. */
+export type GlobalPaperAdmissionProof = {
+  provider: string;
+  sourceFamily: string;
+  symbol: string;
+  exchangeMic: string;
+  currency: string;
+  price: number;
+  observedAt: string;
+  checkedAt: string;
+  evidenceRef: string;
+  evidenceSha256: string;
+  validUntil: string;
+  usageScope: "NON_DISPLAY_INTERNAL";
+  automatedUseAllowed: true;
+  dualControlVerified: true;
 };
 
 export type GlobalPaperEntitlementProof = {
@@ -49,6 +70,8 @@ export type GlobalPaperEntitlementProof = {
   automatedUseAllowed: boolean;
   runtimeClaimFresh: boolean;
   legalUseScopeVerified: boolean;
+  persistedEvidenceFound: boolean;
+  runtimeClaimMatched: boolean;
 };
 
 export type GlobalInstrumentCertification = {
@@ -110,20 +133,31 @@ export function isGlobalObservationSessionWindowOpen(exchangeMic: unknown, nowMs
 }
 
 function normalizedMic(value: unknown): string {
-  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const mic = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return /^[A-Z0-9]{4}$/.test(mic) ? mic : "";
 }
 
 function normalizedCurrency(value: unknown): string {
-  return String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+  const currency = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return /^[A-Z]{3}$/.test(currency) ? currency : "";
+}
+
+function positiveNumber(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()))) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
 }
 
 function responseTimestamp(data: Record<string, unknown>): string | null {
-  const unix = Number(data.timestamp);
-  if (Number.isFinite(unix) && unix > 0) return new Date(unix * 1000).toISOString();
-  const raw = String(data.datetime || "").trim();
-  if (!raw) return null;
-  const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : `${raw.replace(" ", "T")}Z`;
-  const parsed = Date.parse(normalized);
+  if (data.timestamp !== undefined && data.timestamp !== null) {
+    const unix = positiveNumber(data.timestamp);
+    const date = new Date(unix === null ? NaN : unix * 1000);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  }
+  const raw = typeof data.datetime === "string" ? data.datetime.trim() : "";
+  // An exchange-local time without an offset is not proof of a UTC instant.
+  if (!/T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)) return null;
+  const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
@@ -152,7 +186,7 @@ function isCompletePaperEntitlementProof(
   nowMs: number,
 ): boolean {
   if (!proof || proof.paperAllowed !== true) return false;
-  if (!proof.approvedMics.map(normalizedMic).includes(expectedMic)) return false;
+  if (!Array.isArray(proof.approvedMics) || !proof.approvedMics.map(normalizedMic).includes(expectedMic)) return false;
   if (!String(proof.evidenceRef || "").trim()) return false;
   if (!SHA256.test(String(proof.evidenceSha256 || "").trim())) return false;
   const validUntilMs = Date.parse(String(proof.validUntil || ""));
@@ -161,6 +195,7 @@ function isCompletePaperEntitlementProof(
   if (proof.automatedUseAllowed !== true) return false;
   if (proof.runtimeClaimFresh !== true) return false;
   if (proof.legalUseScopeVerified !== true) return false;
+  if (proof.persistedEvidenceFound !== true || proof.runtimeClaimMatched !== true) return false;
   return true;
 }
 
@@ -171,7 +206,7 @@ export function verifyTwelveDataGlobalQuote(
   maxAgeSeconds = 120,
   entitlementProof?: GlobalPaperEntitlementProof,
 ): TwelveDataQuoteVerification {
-  const data = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const data = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   const expectedSymbol = normalizeExecutionSymbol(instrument.symbol);
   const returnedSymbol = normalizeExecutionSymbol(data.symbol);
   const expectedMic = normalizedMic(instrument.exchangeMic);
@@ -183,20 +218,24 @@ export function verifyTwelveDataGlobalQuote(
   const currencyMatched = Boolean(expectedCurrency && returnedCurrency && expectedCurrency === returnedCurrency);
   const reasons: string[] = [];
 
-  if (String(data.status || "").toLowerCase() === "error" || data.code) reasons.push("provider returned an API error");
+  const contextValid = typeof nowMs === "number" && Number.isFinite(nowMs) && Number.isFinite(new Date(nowMs).getTime())
+    && typeof maxAgeSeconds === "number" && Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0 && maxAgeSeconds <= 120;
+  if (!contextValid) reasons.push("invalid quote clock or freshness limit (maximum 120s)");
+  const providerError = String(data.status || "").toLowerCase() === "error" || Boolean(data.code);
+  if (providerError) reasons.push("provider returned an API error");
   if (!symbolMatched) reasons.push(`symbol mismatch: ${returnedSymbol || "missing"} != ${expectedSymbol || "missing"}`);
   if (!micMatched) reasons.push(`MIC mismatch: ${returnedMic || "missing"} != ${expectedMic || "missing"}`);
   if (!currencyMatched) reasons.push(`currency mismatch: ${returnedCurrency || "missing"} != ${expectedCurrency || "missing"}`);
 
-  const price = Number(data.close ?? data.price);
-  if (!Number.isFinite(price) || price <= 0) reasons.push("invalid or missing positive price");
+  const price = positiveNumber(data.close ?? data.price);
+  if (price === null) reasons.push("invalid or missing positive price");
   const observedAt = responseTimestamp(data);
   if (!observedAt) reasons.push("missing provider market timestamp");
-  const fresh = Boolean(observedAt && isExecutionObservationFresh(observedAt, nowMs, maxAgeSeconds));
+  const fresh = Boolean(contextValid && observedAt && isExecutionObservationFresh(observedAt, nowMs, maxAgeSeconds));
   if (observedAt && !fresh) reasons.push(`provider timestamp is older than ${maxAgeSeconds}s or is in the future`);
 
   const identityVerified = symbolMatched && micMatched && currencyMatched;
-  const provenanceVerified = identityVerified && Boolean(observedAt) && Number.isFinite(price) && price > 0;
+  const provenanceVerified = contextValid && !providerError && identityVerified && Boolean(observedAt) && price !== null;
   const entitlementVerified = isCompletePaperEntitlementProof(entitlementProof, expectedMic, nowMs);
   if (provenanceVerified && fresh && !entitlementVerified) {
     reasons.push("PAPER entitlement for the exact MIC lacks complete current automated non-display proof");
@@ -225,7 +264,7 @@ export function verifyTwelveDataGlobalQuote(
         : `Twelve Data exact-MIC quote (${expectedMic}); entitlement/freshness not PAPER-complete`,
       sourceFamily: "twelve-data",
       eligibility,
-      price,
+      price: price!,
       observedAt,
       provenanceVerified: true,
       provenanceMethod: entitlementVerified
@@ -234,7 +273,16 @@ export function verifyTwelveDataGlobalQuote(
     })
     : null;
   const evidence = normalizedEvidence
-    ? { ...normalizedEvidence, exchangeMic: expectedMic } satisfies GlobalExecutionMarketEvidence
+    ? { ...normalizedEvidence, exchangeMic: expectedMic, ...(eligibility === "PAPER" && entitlementVerified ? {
+      paperAdmissionProof: {
+        provider: "twelve-data", sourceFamily: "twelve-data", symbol: expectedSymbol,
+        exchangeMic: expectedMic, currency: expectedCurrency, price: normalizedEvidence.price,
+        observedAt: normalizedEvidence.observedAt, checkedAt: new Date(nowMs).toISOString(),
+        evidenceRef: entitlementProof!.evidenceRef, evidenceSha256: entitlementProof!.evidenceSha256,
+        validUntil: entitlementProof!.validUntil, usageScope: "NON_DISPLAY_INTERNAL" as const,
+        automatedUseAllowed: true as const, dualControlVerified: true as const,
+      },
+    } : {}) } satisfies GlobalExecutionMarketEvidence
     : null;
 
   return {
@@ -257,6 +305,41 @@ export function verifyTwelveDataGlobalQuote(
   };
 }
 
+function admissionMatchesObservation(item: GlobalExecutionMarketEvidence, nowMs: number): boolean {
+  const proof = item.paperAdmissionProof;
+  if (!proof || typeof proof !== "object" || Array.isArray(proof) || item.provenanceVerified !== true) return false;
+  const family = typeof item.sourceFamily === "string" ? item.sourceFamily.trim().toLowerCase() : "";
+  const checkedAt = typeof proof.checkedAt === "string" ? Date.parse(proof.checkedAt) : NaN;
+  const validUntil = typeof proof.validUntil === "string" ? Date.parse(proof.validUntil) : NaN;
+  return /^[a-z0-9][a-z0-9._-]*$/.test(family) && proof.sourceFamily === family
+    && typeof proof.provider === "string" && /^[a-z0-9][a-z0-9._-]*$/.test(proof.provider)
+    && normalizeExecutionSymbol(proof.symbol) === normalizeExecutionSymbol(item.symbol)
+    && normalizedMic(proof.exchangeMic) === normalizedMic(item.exchangeMic)
+    && normalizedCurrency(proof.currency) === normalizedCurrency(item.currency)
+    && proof.price === item.price && proof.observedAt === item.observedAt
+    && Number.isFinite(checkedAt) && checkedAt <= nowMs && nowMs - checkedAt <= 120_000
+    && Number.isFinite(validUntil) && validUntil > nowMs
+    && typeof proof.evidenceRef === "string" && proof.evidenceRef.trim().length > 0
+    && typeof proof.evidenceSha256 === "string" && SHA256.test(proof.evidenceSha256)
+    && proof.usageScope === "NON_DISPLAY_INTERNAL" && proof.automatedUseAllowed === true
+    && proof.dualControlVerified === true;
+}
+
+/** Preserve checked proof and session metadata; normalization alone cannot admit PAPER. */
+export function deduplicateGlobalEvidence(values: readonly GlobalExecutionMarketEvidence[]): GlobalExecutionMarketEvidence[] {
+  const byFamily = new Map<string, GlobalExecutionMarketEvidence>();
+  for (const item of Array.isArray(values) ? values : []) {
+    const exchangeMic = normalizedMic(item?.exchangeMic);
+    const normalized = normalizeExecutionEvidence(item || {});
+    if (!normalized || !exchangeMic) continue;
+    const candidate = { ...normalized, exchangeMic, paperAdmissionProof: item.paperAdmissionProof, marketState: item.marketState };
+    const key = `${candidate.symbol}:${exchangeMic}:${candidate.sourceFamily}`;
+    const previous = byFamily.get(key);
+    if (!previous || Date.parse(candidate.observedAt) > Date.parse(previous.observedAt)) byFamily.set(key, candidate);
+  }
+  return [...byFamily.values()];
+}
+
 export function certifyGlobalInstrument(
   instrument: ExecutionInstrument,
   observations: readonly GlobalExecutionMarketEvidence[],
@@ -266,20 +349,27 @@ export function certifyGlobalInstrument(
   const currency = normalizedCurrency(instrument.currency);
   const exchangeMic = normalizedMic(instrument.exchangeMic);
   const country = String(instrument.country || "").trim().toUpperCase();
-  const relevant = observations.filter((item) => normalizeExecutionSymbol(item.symbol) === symbol
+  const contextValid = Boolean(symbol && currency && exchangeMic) && Number.isFinite(nowMs);
+  const relevant = (contextValid && Array.isArray(observations) ? observations : []).filter((item) => item && typeof item === "object"
+    && typeof item.price === "number" && Number.isFinite(item.price) && item.price > 0
+    && typeof item.sourceFamily === "string" && item.sourceFamily.trim().length > 0
+    && normalizeExecutionSymbol(item.symbol) === symbol
     && normalizedCurrency(item.currency) === currency
     && normalizedMic(item.exchangeMic) === exchangeMic);
-  const quorumEvidence = relevant.map((item) => ({
-    source: item.source,
-    sourceFamily: item.sourceFamily,
-    eligibility: item.eligibility,
-    price: item.price,
-    observedAt: item.observedAt,
-  }));
+  let unprovenPaper = 0;
+  const quorumEvidence = relevant.map((item) => {
+    const gated = applyGlobalMarketStateGate(item, item.marketState, nowMs);
+    const admitted = item.eligibility === "PAPER" && gated.eligibility === "PAPER" && admissionMatchesObservation(item, nowMs);
+    if ((item.eligibility === "PAPER" || item.eligibility === "LIVE") && !admitted) unprovenPaper += 1;
+    return { source: item.source, sourceFamily: item.sourceFamily.trim().toLowerCase(),
+      eligibility: admitted ? "PAPER" as const : "VALIDATION_ONLY" as const, price: item.price, observedAt: item.observedAt };
+  });
   const quorum = evaluateMarketDataQuorum(quorumEvidence, undefined, nowMs);
-  const paperEligibleFamilies = [...new Set(relevant.filter((item) => item.eligibility === "PAPER" || item.eligibility === "LIVE").map((item) => item.sourceFamily))].sort();
-  const validationFamilies = [...new Set(relevant.filter((item) => item.eligibility === "VALIDATION_ONLY").map((item) => item.sourceFamily))].sort();
+  const paperEligibleFamilies = quorum.sourceFamilies;
+  const validationFamilies = [...new Set(relevant.filter((item) => item.eligibility === "VALIDATION_ONLY" && isExecutionObservationFresh(item.observedAt, nowMs, 120)).map((item) => item.sourceFamily.trim().toLowerCase()))].sort();
   const reasons = [...quorum.reasons];
+  if (!contextValid) reasons.push("invalid instrument identity or certification clock");
+  if (unprovenPaper > 0) reasons.push(`${unprovenPaper} PAPER/LIVE label(s) excluded without current observation-bound admission and exact-MIC open session proof`);
   let state: GlobalCertificationState = "BLOCKED";
   if (quorum.allowNewRisk) state = "CERTIFIED";
   else if (paperEligibleFamilies.length >= 1 || validationFamilies.length >= 2) state = "DEGRADED";

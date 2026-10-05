@@ -3,26 +3,32 @@ name: Fenice PAPER Probe Operator Trigger
 on:
   workflow_dispatch:
   schedule:
-    # External recovery checkpoint for the certifying PAPER probe. It does not
+    # Spread recovery checkpoints across the session: nearby cron events have
+    # repeatedly arrived together after the US close. These checks do not
     # execute PAPER logic itself: it can only dispatch the fingerprinted
     # canonical probe after duplicate/quality/cooldown/active-run suppression.
+    - cron: "55 14 * * 1-5"
+    - cron: "5 16 * * 1-5"
     - cron: "15 17 * * 1-5"
-    # Secondary recovery checkpoint if GitHub skips/delays the first recovery
-    # registration. The same fail-closed preflight and duplicate suppression apply.
-    - cron: "25 17 * * 1-5"
+    - cron: "25 18 * * 1-5"
   workflow_run:
     workflows:
-      # Either upstream provides an event-driven recovery opportunity when
-      # GitHub omits the dedicated PAPER schedules. Both still pass the same
+      # Successful scheduled main runs provide recovery opportunities even if
+      # GitHub omits dedicated PAPER cron events. All still pass the same
       # market-window, freshness, quality, cooldown and duplicate gates below.
       - Fenice Global Sources
       - Fenice Foundation
+      - Fenice World Terminal
+      - Fenice Autonomous Analysis
+      - Fenice Production CI
     types:
       - completed
   push:
     branches: [main]
     paths:
       - ".github/workflows/paper-probe-operator-trigger.yml"
+      - "scripts/paper-probe-recovery-trigger.mjs"
+      - "scripts/paper-probe-cooldown.mjs"
 
 permissions:
   actions: write
@@ -36,14 +42,34 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      UPSTREAM_NAME: ${{ github.event.workflow_run.name }}
+      UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+      UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      UPSTREAM_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      UPSTREAM_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
     steps:
+      - name: Checkout trusted main recovery policy
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Gate recovery trigger before repository API reads
+        id: trigger_gate
+        run: node scripts/paper-probe-recovery-trigger.mjs --github-output "$GITHUB_OUTPUT"
+
       - name: Verify active fail-closed campaign, evidence age and intelligence quality
+        if: steps.trigger_gate.outputs.allowed == 'true'
         id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
-          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
           campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
@@ -51,7 +77,20 @@ jobs:
           oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
           intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
           source_health="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/global-source-health.json?ref=main")"
-          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,event,headBranch)"
+          execution="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/execution-market-evidence.json?ref=main")"
+          probe_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-probe-staging.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch)"
+          validation_runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,event,headBranch)"
+
+          # Preserve the 15-minute provider cooldown without penalizing a fresh
+          # research-quality report. Also suppress overlapping canonical PAPER
+          # validation cycles, which can spend the same provider credits.
+          probe_file="$RUNNER_TEMP/paper-cooldown-probe-runs.json"
+          validation_file="$RUNNER_TEMP/paper-cooldown-validation-runs.json"
+          execution_file="$RUNNER_TEMP/paper-cooldown-execution-evidence.json"
+          printf '%s\n' "$probe_runs" > "$probe_file"
+          printf '%s\n' "$validation_runs" > "$validation_file"
+          printf '%s\n' "$execution" > "$execution_file"
+          cooldown_metrics="$(node scripts/paper-probe-cooldown.mjs --probe-runs "$probe_file" --validation-runs "$validation_file" --execution-evidence "$execution_file")"
 
           active="$(jq -r '(.startedAt != null) and (.baselineCommit != null) and (.baselineFingerprint.complete == true) and (.baselineFingerprint.algorithm == "sha256") and (.liveTradingAllowed == false)' <<<"$campaign")"
           prefix="$(jq -r '.idPrefix // "fenice-paper-validation-"' <<<"$approval")"
@@ -64,21 +103,30 @@ jobs:
             probe_cycle_budget_ready=true
           fi
 
+          # Apply the conservative recovery window to every trigger type. GitHub
+          # may deliver cron events hours late, so a schedule event is not proof
+          # that the market is still open. This gate prevents dispatching the
+          # canonical provider-refresh cycle outside the safe US session window.
+          utc_weekday="$(date -u +%u)"
+          utc_hour="$(date -u +%H)"
+          utc_minute="$(date -u +%M)"
+          utc_minutes=$((10#$utc_hour * 60 + 10#$utc_minute))
+          request_window_ready=false
+          # 14:35-19:30 UTC is safely inside regular US equity hours in both
+          # daylight and standard time. Holidays/early closes still fail closed
+          # inside the canonical authoritative Alpaca market-clock gate.
+          if [ "$utc_weekday" -le 5 ] \
+            && [ "$utc_minutes" -ge 875 ] \
+            && [ "$utc_minutes" -le 1170 ]; then
+            request_window_ready=true
+          fi
+
           recovery_event_ready=true
           if [ "$EVENT_NAME" = "workflow_run" ]; then
-            utc_weekday="$(date -u +%u)"
-            utc_hour="$(date -u +%H)"
-            utc_minute="$(date -u +%M)"
-            utc_minutes=$((10#$utc_hour * 60 + 10#$utc_minute))
             recovery_event_ready=false
-            # 14:35-19:30 UTC is safely inside the regular US equity session in
-            # both US daylight and standard time. Holidays/early closes still
-            # fail closed inside the canonical authoritative market-clock gate.
             if [ "$UPSTREAM_CONCLUSION" = "success" ] \
               && [ "$UPSTREAM_EVENT" = "schedule" ] \
-              && [ "$utc_weekday" -le 5 ] \
-              && [ "$utc_minutes" -ge 875 ] \
-              && [ "$utc_minutes" -le 1170 ]; then
+              && [ "$UPSTREAM_HEAD_BRANCH" = "main" ]; then
               recovery_event_ready=true
             fi
           fi
@@ -95,7 +143,6 @@ jobs:
             const assetClasses = Array.isArray(q?.coverage?.assetClasses) ? q.coverage.assetClasses.length : 0;
             const timestampPolicy = q?.policy?.unknownTimestampEvidenceExcluded === true;
             const ageValid = Number.isFinite(ageMinutes) && ageMinutes >= 0 && ageMinutes <= 24 * 60;
-            const cooldownReady = ageValid && ageMinutes >= 15;
             const qualityReady = ageValid
               && Number.isFinite(confidence)
               && Number.isFinite(checks)
@@ -111,7 +158,6 @@ jobs:
             process.stdout.write(JSON.stringify({
               ageMinutes: Number.isFinite(ageMinutes) ? Number(ageMinutes.toFixed(1)) : null,
               ageValid,
-              cooldownReady,
               qualityReady,
               confidence,
               checks,
@@ -143,7 +189,7 @@ jobs:
 
           intelligence_age_valid="$(jq -r '.ageValid' <<<"$intelligence_metrics")"
           intelligence_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$intelligence_metrics")"
-          cooldown_ready="$(jq -r '.cooldownReady' <<<"$intelligence_metrics")"
+          cooldown_ready="$(jq -r '.ready' <<<"$cooldown_metrics")"
           quality_ready="$(jq -r '.qualityReady' <<<"$intelligence_metrics")"
           source_age_valid="$(jq -r '.ageValid' <<<"$source_metrics")"
           source_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$source_metrics")"
@@ -154,6 +200,7 @@ jobs:
             && [ "$attempted_today" != "true" ] \
             && [ "$active_probe_run" != "true" ] \
             && [ "$probe_cycle_budget_ready" = "true" ] \
+            && [ "$request_window_ready" = "true" ] \
             && [ "$recovery_event_ready" = "true" ] \
             && [ "$intelligence_age_valid" = "true" ] \
             && [ "$source_age_valid" = "true" ] \
@@ -168,6 +215,7 @@ jobs:
           echo "active_probe_run=$active_probe_run" >> "$GITHUB_OUTPUT"
           echo "probe_cycles_today=$probe_cycles_today" >> "$GITHUB_OUTPUT"
           echo "probe_cycle_budget_ready=$probe_cycle_budget_ready" >> "$GITHUB_OUTPUT"
+          echo "request_window_ready=$request_window_ready" >> "$GITHUB_OUTPUT"
           echo "recovery_event_ready=$recovery_event_ready" >> "$GITHUB_OUTPUT"
           echo "intelligence_age_valid=$intelligence_age_valid" >> "$GITHUB_OUTPUT"
           echo "source_age_valid=$source_age_valid" >> "$GITHUB_OUTPUT"
@@ -176,9 +224,10 @@ jobs:
           echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
 
-          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; request_window_ready=$request_window_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
           echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
           echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
+          echo "Provider-cooldown diagnostics: $(jq -c '.' <<<"$cooldown_metrics")"
 
       - name: Dispatch canonical PAPER probe cycle
         if: steps.preflight.outputs.run_probe == 'true'
@@ -186,6 +235,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          node scripts/paper-probe-recovery-trigger.mjs --require-allowed
           dispatch_token="operator-probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
           echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
@@ -194,4 +244,4 @@ jobs:
         if: steps.preflight.outputs.run_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
-          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, a canonical probe already queued/running, two canonical probe cycles already launched today, an event-driven recovery outside its approved market window, persisted intelligence/source-health evidence older than 24 hours or future-dated, less than 15 minutes since the latest persisted intelligence refresh, institutional intelligence quality below baseline standards, or critical source health not GREEN."
+          echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, an active canonical PAPER probe or validation cycle, two canonical probe cycles already launched today, any trigger delivered outside the conservative US market recovery window, an invalid event-driven recovery, persisted intelligence/source-health evidence older than 24 hours or future-dated, invalid provider/run timestamps or less than 15 minutes since the latest execution-provider evidence or canonical PAPER cycle, institutional intelligence quality below baseline standards, or critical source health not GREEN."

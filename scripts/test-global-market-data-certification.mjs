@@ -7,6 +7,8 @@ import {
   twelveDataGlobalQuoteUrl,
   verifyTwelveDataGlobalQuote,
 } from "../lib/trading/global-market-data-certification.ts";
+import { admitIndependentGlobalEvidence } from "../lib/trading/global-independent-evidence.ts";
+import { applyGlobalMarketStateGate, verifyTwelveDataGlobalMarketState } from "../lib/trading/global-market-state.ts";
 
 const now = Date.parse("2026-09-27T09:00:30.000Z");
 const enel = GLOBAL_MARKET_SENTINELS.find((item) => item.symbol === "ENEL");
@@ -52,11 +54,22 @@ const completeProof = {
   automatedUseAllowed: true,
   runtimeClaimFresh: true,
   legalUseScopeVerified: true,
+  persistedEvidenceFound: true,
+  runtimeClaimMatched: true,
 };
 
 const entitled = verifyTwelveDataGlobalQuote(enel, rawGood, now, 120, completeProof);
 assert.equal(entitled.eligibility, "PAPER");
 assert.equal(entitled.evidence?.eligibility, "PAPER");
+const open = verifyTwelveDataGlobalMarketState("XMIL", [{ code: "XMIL", is_market_open: true }], now);
+entitled.evidence = applyGlobalMarketStateGate(entitled.evidence, open, now);
+const independent = (price, exchangeMic = "XMIL") => applyGlobalMarketStateGate(admitIndependentGlobalEvidence({
+  provider: "broker-independent", sourceFamily: "broker-independent", symbol: "ENEL", exchangeMic, currency: "EUR",
+  assetClass: "equity", price, observedAt: "2026-09-27T09:00:05.000Z", realtime: true,
+  exactVenueVerified: true, provenanceVerified: true,
+  entitlement: { status: "VERIFIED", evidenceRef: "fixture:independent", evidenceSha256: "b".repeat(64),
+    validUntil: completeProof.validUntil, usageScope: "NON_DISPLAY_INTERNAL", automatedUseAllowed: true, dualControlVerified: true },
+}, now).evidence, open, now);
 
 const weakProofs = [
   { ...completeProof, evidenceSha256: "" },
@@ -67,6 +80,9 @@ const weakProofs = [
   { ...completeProof, runtimeClaimFresh: false },
   { ...completeProof, legalUseScopeVerified: false },
   { ...completeProof, approvedMics: ["XPAR"] },
+  { ...completeProof, persistedEvidenceFound: false },
+  { ...completeProof, runtimeClaimMatched: false },
+  { ...completeProof, approvedMics: null },
 ];
 for (const proof of weakProofs) {
   const result = verifyTwelveDataGlobalQuote(enel, rawGood, now, 120, proof);
@@ -116,18 +132,7 @@ assert.deepEqual(onePaper.paperEligibleFamilies, ["twelve-data"]);
 
 const certified = certifyGlobalInstrument(enel, [
   entitled.evidence,
-  {
-    symbol: "ENEL",
-    exchangeMic: "XMIL",
-    currency: "EUR",
-    assetClass: "equity",
-    source: "Independent broker exact-venue quote",
-    sourceFamily: "broker-independent",
-    eligibility: "PAPER",
-    price: 8.13,
-    observedAt: "2026-09-27T09:00:05.000Z",
-    provenanceVerified: true,
-  },
+  independent(8.13),
 ], now);
 assert.equal(certified.state, "CERTIFIED");
 assert.equal(certified.allowNewRisk, true);
@@ -135,16 +140,7 @@ assert.equal(certified.quorum.independentSources, 2);
 
 const divergent = certifyGlobalInstrument(enel, [
   entitled.evidence,
-  {
-    symbol: "ENEL",
-    exchangeMic: "XMIL",
-    currency: "EUR",
-    source: "Independent broker exact-venue quote",
-    sourceFamily: "broker-independent",
-    eligibility: "PAPER",
-    price: 8.8,
-    observedAt: "2026-09-27T09:00:05.000Z",
-  },
+  independent(8.8),
 ], now);
 assert.equal(divergent.allowNewRisk, false);
 assert.notEqual(divergent.state, "CERTIFIED");
@@ -152,17 +148,7 @@ assert.ok(divergent.quorum.reasons.some((reason) => reason.includes("spread exce
 
 const wrongMicCannotCertify = certifyGlobalInstrument(enel, [
   entitled.evidence,
-  {
-    symbol: "ENEL",
-    exchangeMic: "XPAR",
-    currency: "EUR",
-    source: "Independent quote from a different venue",
-    sourceFamily: "broker-independent",
-    eligibility: "PAPER",
-    price: 8.13,
-    observedAt: "2026-09-27T09:00:05.000Z",
-    provenanceVerified: true,
-  },
+  independent(8.13, "XPAR"),
 ], now);
 assert.equal(wrongMicCannotCertify.allowNewRisk, false, "same ticker/currency from another MIC must not contaminate quorum");
 assert.deepEqual(wrongMicCannotCertify.paperEligibleFamilies, ["twelve-data"]);

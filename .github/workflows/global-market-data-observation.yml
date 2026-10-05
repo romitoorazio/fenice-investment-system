@@ -10,6 +10,11 @@ on:
       - "lib/trading/global-market-data-certification.ts"
       - "scripts/run-global-market-data-certification.mjs"
       - "scripts/test-global-market-data-certification.mjs"
+      - "scripts/test-global-certification-integrity.mjs"
+      - "scripts/test-global-observation-collector.mjs"
+      - "lib/trading/global-market-state.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-source-admission.ts"
       - ".github/workflows/global-market-data-observation.yml"
   push:
     branches: [main]
@@ -17,6 +22,11 @@ on:
       - "lib/trading/global-market-data-certification.ts"
       - "scripts/run-global-market-data-certification.mjs"
       - "scripts/test-global-market-data-certification.mjs"
+      - "scripts/test-global-certification-integrity.mjs"
+      - "scripts/test-global-observation-collector.mjs"
+      - "lib/trading/global-market-state.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-source-admission.ts"
       - ".github/workflows/global-market-data-observation.yml"
 
 permissions:
@@ -39,7 +49,10 @@ jobs:
         with:
           node-version: 22
       - name: Test global certification fail-closed invariants
-        run: node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+        run: |
+          node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+          node --experimental-strip-types scripts/test-global-certification-integrity.mjs
+          node scripts/test-global-observation-collector.mjs
 
   observe:
     if: github.event_name != 'pull_request'
@@ -66,7 +79,10 @@ jobs:
           node-version: 22
 
       - name: Test global certification fail-closed invariants
-        run: node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+        run: |
+          node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+          node --experimental-strip-types scripts/test-global-certification-integrity.mjs
+          node scripts/test-global-observation-collector.mjs
 
       - name: Observe non-US market data without mutating PAPER V6 core
         run: node --experimental-strip-types scripts/run-global-market-data-certification.mjs --observe-only

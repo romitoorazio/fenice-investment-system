@@ -72,13 +72,15 @@ export function evaluateIndependentGlobalSourceAdmission(
   const entitlementValidUntilMs = validIso(claim?.entitlement?.validUntil);
   const usageScope = String(claim?.entitlement?.usageScope || "UNKNOWN").trim().toUpperCase();
 
-  if (!provider) reasons.push("provider missing");
-  if (!sourceFamily) reasons.push("source family missing");
-  if (sourceFamily === "twelve-data" || provider === "twelve-data") reasons.push("second source must be independent from Twelve Data");
-  if (!symbol) reasons.push("symbol missing");
+  if (typeof nowMs !== "number" || !Number.isFinite(nowMs) || !Number.isFinite(new Date(nowMs).getTime())) reasons.push("invalid admission clock");
+  if (typeof maxAgeSeconds !== "number" || !Number.isFinite(maxAgeSeconds) || maxAgeSeconds <= 0 || maxAgeSeconds > 120) reasons.push("invalid freshness limit; maximum is 120s");
+  if (typeof claim?.provider !== "string" || !/^[a-z0-9][a-z0-9._-]*$/.test(provider)) reasons.push("provider missing or invalid");
+  if (typeof claim?.sourceFamily !== "string" || !/^[a-z0-9][a-z0-9._-]*$/.test(sourceFamily)) reasons.push("source family missing or invalid");
+  if (sourceFamily === "twelve-data" || sourceFamily.startsWith("twelve-data-") || provider === "twelve-data" || provider.startsWith("twelve-data-")) reasons.push("second source must be independent from Twelve Data");
+  if (typeof claim?.symbol !== "string" || !/^[A-Z0-9][A-Z0-9._:-]*$/.test(symbol)) reasons.push("symbol missing or invalid");
   if (!MIC.test(exchangeMic)) reasons.push("exact four-character MIC missing or invalid");
   if (!CURRENCY.test(currency)) reasons.push("currency missing or invalid");
-  if (!Number.isFinite(Number(claim?.price)) || Number(claim?.price) <= 0) reasons.push("positive price missing");
+  if (typeof claim?.price !== "number" || !Number.isFinite(claim.price) || claim.price <= 0) reasons.push("positive price missing");
   if (observedAtMs === null) reasons.push("provider timestamp missing or invalid");
   else if (ageSeconds < 0 || ageSeconds > maxAgeSeconds) reasons.push(`provider timestamp outside ${maxAgeSeconds}s freshness window`);
   if (claim?.realtime !== true) reasons.push("source is not verified realtime");
