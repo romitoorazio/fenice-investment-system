@@ -65,6 +65,15 @@ for (const invalidCeiling of [0, 9, 99, -1, 4.5, "not-a-number"]) {
 
 assert.throws(
   () => selectPaperV7ProbeSymbols({
+    baseSymbols: [],
+    promotionSymbols: ["ASML"],
+    allowedUniverse: universe,
+  }),
+  /PAPER_V7_BASE_EMPTY/,
+);
+
+assert.throws(
+  () => selectPaperV7ProbeSymbols({
     baseSymbols: [...base, "MISSING"],
     promotionSymbols: [],
     allowedUniverse: universe,
