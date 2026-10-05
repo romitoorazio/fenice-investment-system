@@ -34,3 +34,19 @@ jobs:
 
       - name: Explain PAPER candidate eligibility
         run: node scripts/explain-paper-validation-candidates.mjs
+
+      - name: Regression-test PAPER opportunity ranking
+        run: node scripts/test-paper-validation-opportunity-ranking.mjs
+
+      - name: Build PAPER opportunity map
+        env:
+          FENICE_PAPER_OPPORTUNITY_REPORT: paper-candidate-opportunities.json
+        run: node scripts/rank-paper-validation-opportunities.mjs
+
+      - name: Upload PAPER opportunity map
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-candidate-opportunities-${{ github.run_id }}
+          path: paper-candidate-opportunities.json
+          if-no-files-found: error
+          retention-days: 14

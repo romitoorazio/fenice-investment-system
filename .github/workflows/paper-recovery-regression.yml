@@ -16,6 +16,8 @@ on:
       - "scripts/test-paper-probe-cooldown.mjs"
       - "scripts/explain-paper-validation-candidates.mjs"
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
+      - "scripts/rank-paper-validation-opportunities.mjs"
+      - "scripts/test-paper-validation-opportunity-ranking.mjs"
   push:
     branches: [main]
     paths:
@@ -32,6 +34,8 @@ on:
       - "scripts/test-paper-probe-cooldown.mjs"
       - "scripts/explain-paper-validation-candidates.mjs"
       - "scripts/test-paper-validation-candidate-diagnostics.mjs"
+      - "scripts/rank-paper-validation-opportunities.mjs"
+      - "scripts/test-paper-validation-opportunity-ranking.mjs"
   workflow_dispatch:
 
 permissions:
@@ -61,6 +65,8 @@ jobs:
         run: node scripts/test-paper-probe-cooldown.mjs
       - name: Verify PAPER candidate rejection diagnostics match the canonical stager
         run: node scripts/test-paper-validation-candidate-diagnostics.mjs
+      - name: Verify PAPER opportunity ranking remains diagnostic-only
+        run: node scripts/test-paper-validation-opportunity-ranking.mjs
       - name: Audit current provider cooldown without dispatch or provider requests
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
