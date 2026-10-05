@@ -41,15 +41,27 @@ const unknown = selectPaperV7ProbeSymbols({
 assert.deepEqual(unknown.missingPromotions, ["UNKNOWN"]);
 assert.deepEqual(unknown.includedPromotions, ["ASML"]);
 
-const clamped = selectPaperV7ProbeSymbols({
+const bounded = selectPaperV7ProbeSymbols({
   baseSymbols: base,
   promotionSymbols: ["ASML", "TSM", "NVDA", "IWM", "META", "GOOGL"],
   allowedUniverse: universe,
-  maxBatchSymbols: 99,
+  maxBatchSymbols: 8,
 });
-assert.equal(clamped.maxBatchSymbols, 8);
-assert.equal(clamped.selectedSymbols.length, 8);
-assert.deepEqual(clamped.deferredByCeiling, ["META", "GOOGL"]);
+assert.equal(bounded.maxBatchSymbols, 8);
+assert.equal(bounded.selectedSymbols.length, 8);
+assert.deepEqual(bounded.deferredByCeiling, ["META", "GOOGL"]);
+
+for (const invalidCeiling of [0, 9, 99, -1, 4.5, "not-a-number"]) {
+  assert.throws(
+    () => selectPaperV7ProbeSymbols({
+      baseSymbols: base,
+      promotionSymbols: ["ASML"],
+      allowedUniverse: universe,
+      maxBatchSymbols: invalidCeiling,
+    }),
+    /PAPER_V7_INVALID_BATCH_CEILING/,
+  );
+}
 
 assert.throws(
   () => selectPaperV7ProbeSymbols({
