@@ -68,7 +68,7 @@ assert.match(workflow, /--workflow paper-probe-staging\.yml[^\n]*updatedAt/);
 assert.match(workflow, /--workflow paper-validation\.yml[^\n]*updatedAt/);
 assert.match(workflow, /execution-market-evidence\.json\?ref=main/);
 assert.match(workflow, /node scripts\/paper-probe-cooldown\.mjs --probe-runs[^\n]*--validation-runs[^\n]*--execution-evidence/);
-assert.ok(workflow.includes('cooldown_ready="$(jq -r \' .ready\' <<<"$cooldown_metrics")"'.replace("' .ready'", "'.ready'")));
+assert.ok(workflow.includes(`cooldown_ready="$(jq -r '.ready' <<<"$cooldown_metrics")"`));
 assert.ok(workflow.includes('probe_cycles_today" -lt 2'), "daily provider-cycle cap must stay unchanged");
 const regression = readFileSync(".github/workflows/paper-recovery-regression.yml", "utf8");
 assert.match(regression, /actions: read/);
