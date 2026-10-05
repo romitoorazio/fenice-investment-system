@@ -32,13 +32,6 @@ on:
       - "Fenice Production CI"
     types: [completed]
   workflow_dispatch:
-  # GitHub can omit a scheduled dispatcher run. A completed canonical probe is
-  # already constrained by the operator market window, so use it as an
-  # event-driven recovery signal. The dispatch policy below still suppresses
-  # duplicates and days with final safe evidence.
-  workflow_run:
-    workflows: ["Fenice PAPER Validation Probe Cycle"]
-    types: [completed]
 
 permissions:
   actions: write
