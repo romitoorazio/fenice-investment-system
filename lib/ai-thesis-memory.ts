@@ -1,0 +1,76 @@
+import type { FeniceAIAction, FeniceAIThesis } from "./ai-intelligence-core";
+
+export interface FeniceThesisSnapshot extends FeniceAIThesis {
+  id: string;
+  evidenceIds: string[];
+  modelVersion: string;
+  promptVersion: string;
+  marketPrice?: number;
+}
+
+export interface FeniceThesisChange {
+  symbol: string;
+  previousId: string;
+  currentId: string;
+  actionChanged: boolean;
+  previousAction: FeniceAIAction;
+  currentAction: FeniceAIAction;
+  confidenceDelta: number;
+  fsiDelta: number;
+  addedCatalysts: string[];
+  removedCatalysts: string[];
+  addedInvalidations: string[];
+  removedInvalidations: string[];
+}
+
+export interface FeniceThesisOutcome {
+  thesisId: string;
+  evaluatedAt: string;
+  horizonReached: boolean;
+  referencePrice?: number;
+  observedPrice?: number;
+  returnPct?: number;
+  thesisInvalidated: boolean;
+  invalidationReason?: string;
+}
+
+function difference(current: string[], previous: string[]): string[] {
+  const prior = new Set(previous);
+  return current.filter((item) => !prior.has(item));
+}
+
+/** Pure comparison: persistence belongs to the existing Fenice storage layer. */
+export function compareFeniceTheses(
+  previous: FeniceThesisSnapshot,
+  current: FeniceThesisSnapshot,
+): FeniceThesisChange {
+  if (previous.symbol !== current.symbol) {
+    throw new Error("FENICE_AI_THESIS_SYMBOL_MISMATCH");
+  }
+
+  return {
+    symbol: current.symbol,
+    previousId: previous.id,
+    currentId: current.id,
+    actionChanged: previous.action !== current.action,
+    previousAction: previous.action,
+    currentAction: current.action,
+    confidenceDelta: current.confidence - previous.confidence,
+    fsiDelta: current.fsiScore - previous.fsiScore,
+    addedCatalysts: difference(current.catalysts, previous.catalysts),
+    removedCatalysts: difference(previous.catalysts, current.catalysts),
+    addedInvalidations: difference(current.invalidation, previous.invalidation),
+    removedInvalidations: difference(previous.invalidation, current.invalidation),
+  };
+}
+
+export function validateThesisSnapshot(snapshot: FeniceThesisSnapshot): string[] {
+  const errors: string[] = [];
+  if (!snapshot.id.trim()) errors.push("MISSING_THESIS_ID");
+  if (!snapshot.symbol.trim()) errors.push("MISSING_SYMBOL");
+  if (!snapshot.modelVersion.trim()) errors.push("MISSING_MODEL_VERSION");
+  if (!snapshot.promptVersion.trim()) errors.push("MISSING_PROMPT_VERSION");
+  if (!snapshot.evidenceIds.length) errors.push("MISSING_EVIDENCE");
+  if (!snapshot.generatedAt || Number.isNaN(Date.parse(snapshot.generatedAt))) errors.push("INVALID_GENERATED_AT");
+  return errors;
+}
