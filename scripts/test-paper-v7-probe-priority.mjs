@@ -15,6 +15,7 @@ const feasibility = {
     { symbol: "B", quorumCompatible: true, crossSourceSpreadPercent: 0.03 },
     { symbol: "C", quorumCompatible: false, crossSourceSpreadPercent: 1.4 },
     { symbol: "D", quorumCompatible: true, crossSourceSpreadPercent: 0.04 },
+    { symbol: "E", quorumCompatible: true, crossSourceSpreadPercent: 0.01 },
   ],
 };
 
@@ -30,4 +31,6 @@ assert.equal(report.rows[1].symbol, "B");
 assert.equal(report.rows[1].classification, "PROMOTE_ONE_STRUCTURAL_GATE");
 assert.equal(report.rows.find((row) => row.symbol === "C").classification, "DEFER_PROVIDER_QUORUM");
 assert.equal(report.rows.find((row) => row.symbol === "D").classification, "DEFER_MULTI_GATE");
+assert.equal(report.rows.find((row) => row.symbol === "E").classification, "DEFER_MISSING_CANDIDATE");
+assert.equal(report.recommendedExpansionOrder.includes("E"), false);
 console.log("paper V7 probe priority planner tests: PASS");
