@@ -11,6 +11,15 @@ function numeric(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function compareCandidateDistance(left, right) {
+  return (Number(right.oneGateAway) - Number(left.oneGateAway))
+    || (left.distanceToEligibility - right.distanceToEligibility)
+    || (right.metrics.committeeScore - left.metrics.committeeScore)
+    || (right.metrics.validationDataConfidence - left.metrics.validationDataConfidence)
+    || (left.metrics.riskScore - right.metrics.riskScore)
+    || left.symbol.localeCompare(right.symbol);
+}
+
 export function rankPaperValidationOpportunities(diagnostic) {
   const candidates = Array.isArray(diagnostic?.candidates) ? diagnostic.candidates : [];
   const blocked = candidates
@@ -21,6 +30,7 @@ export function rankPaperValidationOpportunities(diagnostic) {
       const oneGateAway = failedGates.length === 1;
       return {
         symbol: String(candidate?.symbol || "").toUpperCase(),
+        paperEligibleMarketData: candidate?.paperEligibleMarketData === true,
         failedGates,
         distanceToEligibility: failedGates.length,
         oneGateAway,
@@ -44,6 +54,17 @@ export function rankPaperValidationOpportunities(diagnostic) {
         || left.symbol.localeCompare(right.symbol);
     });
 
+  const activeV6Nearest = blocked
+    .filter((candidate) => candidate.paperEligibleMarketData)
+    .sort(compareCandidateDistance)
+    .slice(0, 8);
+  const activeV6OneGateAwayTargets = activeV6Nearest
+    .filter((candidate) => candidate.oneGateAway)
+    .map((candidate) => candidate.symbol);
+  const futureCoverageExpansionTargets = blocked
+    .filter((candidate) => candidate.coverageOnly)
+    .map((candidate) => candidate.symbol);
+
   return {
     diagnosticOnly: true,
     liveTradingAllowed: false,
@@ -52,7 +73,10 @@ export function rankPaperValidationOpportunities(diagnostic) {
     blockedCandidates: blocked.length,
     oneGateAwayCount: blocked.filter((candidate) => candidate.oneGateAway).length,
     coverageOnlyCount: blocked.filter((candidate) => candidate.coverageOnly).length,
-    coverageOnlyTargets: blocked.filter((candidate) => candidate.coverageOnly).map((candidate) => candidate.symbol),
+    coverageOnlyTargets: futureCoverageExpansionTargets,
+    activeV6OneGateAwayTargets,
+    activeV6Nearest,
+    futureCoverageExpansionTargets,
     nearestBlocked: blocked.slice(0, 8),
   };
 }
@@ -66,14 +90,28 @@ function summaryMarkdown(report) {
     "## Fenice PAPER opportunity map",
     "",
     `- Eligible now: ${report.eligibleNow.length ? report.eligibleNow.join(", ") : "none"}`,
-    `- One gate away: ${report.oneGateAwayCount}`,
-    `- Coverage-only targets: ${report.coverageOnlyTargets.length ? report.coverageOnlyTargets.join(", ") : "none"}`,
+    `- Active V6 one gate away: ${report.activeV6OneGateAwayTargets.length ? report.activeV6OneGateAwayTargets.join(", ") : "none"}`,
+    `- Future coverage expansion (V7 candidates): ${report.futureCoverageExpansionTargets.length ? report.futureCoverageExpansionTargets.join(", ") : "none"}`,
+    `- One gate away overall: ${report.oneGateAwayCount}`,
     "- Safety: diagnostic only; LIVE and broker connectivity remain disabled.",
+    "",
+    "### Active V6 nearest blocked",
+    "",
+    "| Symbol | Failed gates | Committee | Confidence | Risk | Capacity EUR |",
+    "| --- | --- | ---: | ---: | ---: | ---: |",
+  ];
+
+  for (const candidate of report.activeV6Nearest) {
+    lines.push(`| ${candidate.symbol} | ${candidate.failedGates.join(", ")} | ${candidate.metrics.committeeScore} | ${candidate.metrics.validationDataConfidence} | ${candidate.metrics.riskScore} | ${candidate.metrics.notionalCapacityEuro.toFixed(2)} |`);
+  }
+
+  lines.push(
+    "",
+    "### Overall blocked map",
     "",
     "| Symbol | Priority | Failed gates | Committee | Confidence | Risk | Capacity EUR |",
     "| --- | --- | --- | ---: | ---: | ---: | ---: |",
-  ];
-
+  );
   for (const candidate of report.nearestBlocked) {
     lines.push(`| ${candidate.symbol} | ${candidate.priorityClass} | ${candidate.failedGates.join(", ")} | ${candidate.metrics.committeeScore} | ${candidate.metrics.validationDataConfidence} | ${candidate.metrics.riskScore} | ${candidate.metrics.notionalCapacityEuro.toFixed(2)} |`);
   }
@@ -128,5 +166,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     await appendFile(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown(report));
   }
 
-  console.log(`Fenice PAPER opportunity map: eligible=${report.eligibleNow.length}; oneGateAway=${report.oneGateAwayCount}; coverageOnly=${report.coverageOnlyCount}; targets=${report.coverageOnlyTargets.join(",") || "none"}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+  console.log(`Fenice PAPER opportunity map: eligible=${report.eligibleNow.length}; activeV6OneGateAway=${report.activeV6OneGateAwayTargets.join(",") || "none"}; futureCoverageExpansion=${report.futureCoverageExpansionTargets.join(",") || "none"}; oneGateAway=${report.oneGateAwayCount}; coverageOnly=${report.coverageOnlyCount}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
 }
