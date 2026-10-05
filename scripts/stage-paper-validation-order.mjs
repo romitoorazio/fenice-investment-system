@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateDecisionDataGate } from "../lib/trading/decision-data-gate.mjs";
 import { evaluatePaperFxEvidence } from "../lib/trading/paper-fx-evidence.mjs";
+import { explainPaperValidationCandidates } from "./explain-paper-validation-candidates.mjs";
 import { buildPaperValidationProbe } from "./paper-validation-stager.mjs";
 import { reservePaperValidationFillCap } from "./paper-validation-fill-cap.mjs";
 
@@ -76,6 +77,21 @@ const result = reservePaperValidationFillCap(stagedResult, runtimeApproval);
 
 if (!result.staged) {
   console.log(`Fenice PAPER validation stager: NO_ORDER reason=${result.reason}; liveTradingAllowed=false.`);
+  if (result.reason === "no-eligible-validation-candidate") {
+    const diagnostic = explainPaperValidationCandidates({
+      approval: runtimeApproval,
+      coverage,
+      state,
+      terminal,
+      committee,
+    });
+    for (const candidate of diagnostic.candidates) {
+      const status = candidate.eligible ? "ELIGIBLE" : "BLOCKED";
+      const reasons = candidate.failedGates.length ? candidate.failedGates.join(",") : "none";
+      console.log(`PAPER candidate ${candidate.symbol}: ${status}; failed=${reasons}; committee=${candidate.metrics.committeeScore}; confidence=${candidate.metrics.validationDataConfidence}; risk=${candidate.metrics.riskScore}; capacityEUR=${candidate.metrics.notionalCapacityEuro}.`);
+    }
+    console.log(`Fenice PAPER candidate diagnostics: candidates=${diagnostic.candidates.length}; executionEligible=${diagnostic.executionEligibleSymbols.length}; probeEligible=${diagnostic.eligibleSymbols.length}; fxProvider=${fx.metrics.provider}; diagnosticOnly=true; liveTradingAllowed=false; brokerConnectivityAllowed=false.`);
+  }
   process.exit(0);
 }
 
