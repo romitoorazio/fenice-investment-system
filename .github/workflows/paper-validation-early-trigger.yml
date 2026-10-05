@@ -24,6 +24,13 @@ on:
     - cron: "5 19 * * 0,6"
     - cron: "35 19 * * 0,6"
   workflow_dispatch:
+  # GitHub can omit a scheduled dispatcher run. A completed canonical probe is
+  # already constrained by the operator market window, so use it as an
+  # event-driven recovery signal. The dispatch policy below still suppresses
+  # duplicates and days with final safe evidence.
+  workflow_run:
+    workflows: ["Fenice PAPER Validation Probe Cycle"]
+    types: [completed]
 
 permissions:
   actions: write
@@ -35,6 +42,10 @@ concurrency:
 
 jobs:
   dispatch:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
