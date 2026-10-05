@@ -63,9 +63,10 @@ assert.equal(qqqDeltas.dataConfidence, 3);
 
 const report = buildPaperV6CommitteeSensitivity({
   approval: { version: 6, minCommitteeScore: 70 },
-  opportunityMap: { activeV6OneGateAwayTargets: ["SPY", "QQQ"] },
+  opportunityMap: { status: "READY", activeV6OneGateAwayTargets: ["SPY", "QQQ"] },
   committee: { topDecisions: [spy, qqq] },
 });
+assert.equal(report.status, "READY");
 assert.equal(report.ready, true);
 assert.equal(report.thresholdModified, false);
 assert.equal(report.scoreFormulaModified, false);
@@ -76,12 +77,24 @@ assert.deepEqual(report.reconstructionMismatches, []);
 
 const mismatch = buildPaperV6CommitteeSensitivity({
   approval: { version: 6, minCommitteeScore: 70 },
-  opportunityMap: { activeV6OneGateAwayTargets: ["SPY"] },
+  opportunityMap: { status: "READY", activeV6OneGateAwayTargets: ["SPY"] },
   committee: { topDecisions: [{ ...spy, committeeScore: 70 }] },
 });
+assert.equal(mismatch.status, "READY");
 assert.equal(mismatch.ready, false);
 assert.deepEqual(mismatch.reconstructionMismatches, ["SPY"]);
 assert.deepEqual(mismatch.candidates[0].componentSensitivity, []);
+
+const skipped = buildPaperV6CommitteeSensitivity({
+  approval: { version: 6, minCommitteeScore: 70 },
+  opportunityMap: { status: "SKIPPED", reasons: ["decision-data-not-ready"], activeV6OneGateAwayTargets: ["SPY"] },
+  committee: { topDecisions: [spy] },
+});
+assert.equal(skipped.status, "SKIPPED");
+assert.equal(skipped.ready, false);
+assert.deepEqual(skipped.reasons, ["decision-data-not-ready"]);
+assert.deepEqual(skipped.activeV6Targets, []);
+assert.deepEqual(skipped.candidates, []);
 
 assert.throws(
   () => buildPaperV6CommitteeSensitivity({ approval: {}, opportunityMap: {}, committee: {} }),
