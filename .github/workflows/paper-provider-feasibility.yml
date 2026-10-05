@@ -6,11 +6,13 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/paper-provider-feasibility.yml"
+      - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/probe-paper-provider-feasibility.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-selection.mjs"
 
 permissions:
   contents: read
@@ -48,6 +50,9 @@ jobs:
 
       - name: Regression-test inactive V7 planner
         run: node scripts/test-paper-v7-probe-priority.mjs
+
+      - name: Regression-test fail-closed V7 probe selector
+        run: node scripts/test-paper-v7-probe-selection.mjs
 
       - name: Regression-test inactive V7 adaptive universe
         run: node scripts/test-paper-v7-probe-universe.mjs
