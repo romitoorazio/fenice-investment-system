@@ -19,6 +19,9 @@ assert.equal(report.currentV6Modified, false);
 assert.equal(report.liveTradingAllowed, false);
 assert.equal(report.currentV6.protectedBaseVerified, true);
 assert.deepEqual(report.currentV6.protectedBaseSymbols, ["SPY", "QQQ", "AAPL", "MSFT"]);
+assert.equal(report.currentV6.protectedProbeLimitVerified, true);
+assert.equal(report.currentV6.protectedProbeLimit, 4);
+assert.equal(report.currentV6.probeLimit, 4);
 assert.deepEqual(report.currentV6.twelveDataProbedSymbols, ["SPY", "QQQ", "AAPL", "MSFT"]);
 assert.deepEqual(report.futureV7.plannedTwelveDataSymbols, ["SPY", "QQQ", "AAPL", "MSFT", "ASML"]);
 assert.deepEqual(report.futureV7.promotedSymbolsIncluded, ["ASML"]);
@@ -71,6 +74,21 @@ for (const badBase of [
       priorityPlan: { recommendedExpansionOrder: ["ASML"] },
     }),
     /PAPER_V7_PROTECTED_BASE_MISMATCH/,
+  );
+}
+
+for (const badProbeLimit of [undefined, null, 0, 3, 5, "4"]) {
+  assert.throws(
+    () => planPaperV7ProbeUniverse({
+      evidence: {
+        capabilities: {
+          ...evidence.capabilities,
+          twelveDataProbeLimit: badProbeLimit,
+        },
+      },
+      priorityPlan: { recommendedExpansionOrder: ["ASML"] },
+    }),
+    /PAPER_V7_PROTECTED_PROBE_LIMIT_MISMATCH/,
   );
 }
 
