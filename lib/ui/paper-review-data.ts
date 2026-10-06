@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { evaluateExecutionCoverageReport } from "../trading/execution-coverage.ts";
 import { evaluateDecisionDataGate } from "../trading/decision-data-gate.mjs";
+import { buildV7ProposalReadiness } from "../intelligence/proposal-readiness.mjs";
 import { evaluateMarketSession, type MarketSessionEvidence } from "../trading/market-session.ts";
 import { verifyAuditChain } from "../trading/audit-chain.ts";
 import { evaluateFeniceAIThesis, validateFeniceAIThesis, type FeniceAIThesis } from "../ai-intelligence-core.ts";
@@ -28,6 +29,7 @@ type State = {
   auditChain: Parameters<typeof verifyAuditChain>[0];
 };
 type Fx = { provider?: string; baseCurrency?: string; generatedAt?: string; provenanceVerified?: boolean; liveTradingAllowed?: boolean; brokerConnectivityAllowed?: boolean; ratesToEuro?: Record<string, { rate: number; observedAt: string }> };
+type MarketSessionState = { configured?: boolean; liveTradingAllowed?: boolean; evidence?: MarketSessionEvidence; decision?: { allowed?: boolean; reasons?: string[] } };
 type InstrumentMaster = { instruments?: { ticker?: string; assetClass?: string; exchangeMic?: string; currency?: string; country?: string; status?: string }[] };
 export type PaperReviewLoadOptions = {
   refreshLiveContext?: boolean;
@@ -101,15 +103,18 @@ export async function loadPaperReviewPayload(
   options: PaperReviewLoadOptions = {},
 ): Promise<PaperReviewPayload> {
   if (!Number.isFinite(now)) throw new Error("Invalid review clock");
-  const [queue, state, terminal, storedEvidence, storedMarket, storedFx, intelligence, sources, instrumentMaster] = await Promise.all([
+  const [queue, state, terminal, storedEvidence, storedMarket, storedFx, intelligence, sources, instrumentMaster, committee, executionCoverage, approval] = await Promise.all([
     readJson<Queue>(root, "paper-order-queue.json"), readJson<State>(root, "paper-oms-state.json"),
     readJson<{ capitalEuro?: number; generatedAt?: string; assets?: Asset[] }>(root, "terminal-intelligence.json"),
     readJson<{ generatedAt?: string; observations?: ExecutionMarketEvidence[] }>(root, "execution-market-evidence.json"),
-    readJson<{ configured?: boolean; liveTradingAllowed?: boolean; evidence?: MarketSessionEvidence }>(root, "paper-market-session.json"),
+    readJson<MarketSessionState>(root, "paper-market-session.json"),
     readJson<Fx>(root, "paper-fx-evidence.json"),
     readJson<{ generatedAt?: string; intelligenceConfidence?: number }>(root, "intelligence-quality.json"),
     readJson<{ generatedAt?: string; critical?: { gate?: string } }>(root, "global-source-health.json"),
     readJson<InstrumentMaster>(root, "instrument-master.json"),
+    readJson<Record<string, unknown>>(root, "investment-committee.json"),
+    readJson<Record<string, unknown>>(root, "execution-market-coverage.json"),
+    readJson<Record<string, unknown>>(root, "paper-validation-approval.json"),
   ]);
   let evidence = storedEvidence;
   let market = storedMarket;
@@ -117,8 +122,42 @@ export async function loadPaperReviewPayload(
   let liveContext: FreshPaperReviewContext | null = null;
   const payload: PaperReviewPayload = {
     generatedAt: new Date(now).toISOString(), mode: "PAPER_REVIEW", liveTradingAllowed: false,
-    brokerOrderSubmissionAllowed: false, reviewDataSource: "PERSISTED", proposals: [], notices: [],
+    brokerOrderSubmissionAllowed: false, reviewDataSource: "PERSISTED", proposals: [], diagnosticCandidates: [], notices: [],
   };
+  if (committee && executionCoverage && approval && terminal && storedMarket) {
+    const readiness = buildV7ProposalReadiness({
+      approval,
+      committee,
+      terminal,
+      coverage: executionCoverage,
+      marketSession: storedMarket,
+    }, now);
+    const safety = readiness?.safety || {};
+    if (safety.diagnosticOnly === true
+      && safety.queueWritesAllowed === false
+      && safety.paperCertificationEvidenceMutationAllowed === false
+      && safety.brokerSubmissionAllowed === false
+      && safety.liveTradingAllowed === false) {
+      payload.diagnosticCandidates = [...(readiness.rows || [])]
+        .sort((a, b) => (a.reviewProposalLocalBlockers?.length ?? 99) - (b.reviewProposalLocalBlockers?.length ?? 99)
+          || (b.committeeScore ?? -1) - (a.committeeScore ?? -1)
+          || String(a.symbol).localeCompare(String(b.symbol)))
+        .slice(0, 5)
+        .map((row) => ({
+          symbol: String(row.symbol),
+          name: String(row.name || row.symbol),
+          committeeDecision: row.committeeDecision ?? null,
+          terminalDecision: row.terminalDecision ?? null,
+          committeeScore: Number.isFinite(row.committeeScore) ? Number(row.committeeScore) : null,
+          calibratedConfidence: Number.isFinite(row.calibratedConfidence) ? Number(row.calibratedConfidence) : null,
+          riskScore: Number.isFinite(row.riskScore) ? Number(row.riskScore) : null,
+          paperEligible: row.executionCoverage?.paperEligible === true,
+          independentSourceFamilies: Number(row.executionCoverage?.independentSourceFamilies || 0),
+          reviewProposalCandidateReady: row.reviewProposalCandidateReady === true,
+          blockers: [...new Set(row.reviewProposalLocalBlockers || [])],
+        }));
+    }
+  }
   if (queue?.mode !== "PAPER" || !Array.isArray(queue.orders) || state?.mode !== "PAPER"
     || state.liveTradingAllowed !== false || state.brokerConnectivityAllowed !== false) {
     payload.notices.push("Il laboratorio deve essere PAPER con gli acquisti reali e il collegamento operativo al broker bloccati.");

@@ -69,6 +69,9 @@ try {
       crossSourceValidation: { checked: 10, divergent: 0 }, policy: { unknownTimestampEvidenceExcluded: true, validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 } } }),
     save("global-source-health.json", { generatedAt: new Date(now).toISOString(), critical: { gate: "GREEN", ready: 9, total: 9 } }),
     save("instrument-master.json", { version: 1, instruments: [{ ticker: "DEMO", assetClass: "equity", exchangeMic: "XNAS", country: "US", currency: "EUR", status: "active" }] }),
+    save("investment-committee.json", { generatedAt: new Date(now).toISOString(), sourceGate: "GREEN", executionGate: "ATTENDERE", allDecisions: [{ symbol: "DEMO", name: "Test instrument", currency: "EUR", decision: "OSSERVA", committeeScore: 70, confidence: 88, rawConfidenceBeforeCalibration: 98, riskScore: 20, entryPlan: { orderMode: "NESSUN ORDINE", maxEntryPrice: null, firstTrancheEuro: 0 } }] }),
+    save("execution-market-coverage.json", { generatedAt: new Date(now).toISOString(), policy: { requiredEligibility: "PAPER", liveTradingAllowed: false, minIndependentSourceFamilies: 2 }, rows: [{ symbol: "DEMO", paperEligible: true, independentSourceFamilies: 2, state: "READY" }] }),
+    save("paper-validation-approval.json", { approved: true, mode: "PAPER", expiresAt: new Date(now + 86_400_000).toISOString(), liveTradingAllowed: false, brokerConnectivityAllowed: false, minCommitteeScore: 70, minValidationDataConfidence: 90, maxRiskScore: 75, permittedDecisionStates: ["ACCUMULA", "MANTIENI", "OSSERVA"], permittedCurrencies: ["EUR", "USD"] }),
   ]);
   const snapshotBefore = await readFile(path.join(root, "data", "paper-oms-state.json"), "utf8");
   const payload = await loadPaperReviewPayload(root, now);
@@ -76,6 +79,13 @@ try {
   assert.equal(payload.brokerOrderSubmissionAllowed, false);
   assert.equal(payload.proposals.length, 1);
   assert.deepEqual(payload.proposals[0].blockers, []);
+  assert.equal(payload.diagnosticCandidates.length, 1);
+  assert.equal(payload.diagnosticCandidates[0].symbol, "DEMO");
+  assert.equal(payload.diagnosticCandidates[0].reviewProposalCandidateReady, false);
+  assert(payload.diagnosticCandidates[0].blockers.includes("COMMITTEE_NOT_BUY"));
+  assert(payload.diagnosticCandidates[0].blockers.includes("CALIBRATED_CONFIDENCE_BELOW_REVIEW_MINIMUM"));
+  assert.equal(payload.liveTradingAllowed, false);
+  assert.equal(payload.brokerOrderSubmissionAllowed, false);
   const refreshed = await loadPaperReviewPayload(root, now + 1000);
   assert.equal(reviewTermsKey(payload.proposals[0]), reviewTermsKey(refreshed.proposals[0]), "a refresh must not change EUR identity FX or inherit consent");
   decidePaperReview(refreshed.proposals[0], "YES", [], now + 1000);
@@ -215,6 +225,9 @@ assert.match(component, /Dati mercato aggiornati in sola lettura\. Controlla i d
   "a persisted-data Sì attempt must stop after refresh and require a second explicit confirmation");
 assert.doesNotMatch(component, /current = fresh;/,
   "a first-click refresh must never flow directly into the simulated YES decision");
+assert.match(component, /Più vicini a una proposta/);
+assert.match(component, /NON AZIONABILE/);
+assert.match(component, /Solo diagnostica: questi titoli non sono proposte/);
 
 const route = await readFile(new URL("../app/api/trading/proposals/route.ts", import.meta.url), "utf8");
 assert.match(route, /export async function GET/);
