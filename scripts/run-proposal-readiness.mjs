@@ -29,5 +29,5 @@ const top = report.rows.slice(0, 8)
   .map((row) => `${row.symbol}:v6=${row.validationCandidateReady ? "READY" : row.validationCandidateBlockers.join("+")};review=${row.reviewProposalCandidateReady ? "READY" : row.reviewProposalCandidateBlockers.join("+")}`)
   .join(" | ");
 console.log(
-  `Fenice V7 proposal readiness: candidates=${report.candidateCount}; validationCandidates=${report.validationCandidateReadyCount}; reviewCandidates=${report.reviewProposalCandidateReadyCount}; shared=${report.sharedGlobalBlockers.join(",") || "none"}; validationGlobal=${report.validationGlobalBlockers.join(",") || "none"}; ${top}; diagnosticOnly=true; queueWritesAllowed=false; liveTradingAllowed=false.`,
+  `Fenice V7 proposal readiness: candidates=${report.candidateCount}; validationStructural=${report.validationStructurallyReadyCount}; reviewStructural=${report.reviewProposalStructurallyReadyCount}; validationCandidates=${report.validationCandidateReadyCount}; reviewCandidates=${report.reviewProposalCandidateReadyCount}; shared=${report.sharedGlobalBlockers.join(",") || "none"}; validationGlobal=${report.validationGlobalBlockers.join(",") || "none"}; ${top}; diagnosticOnly=true; queueWritesAllowed=false; liveTradingAllowed=false.`,
 );
