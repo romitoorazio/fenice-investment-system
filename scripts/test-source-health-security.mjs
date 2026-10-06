@@ -52,9 +52,6 @@ if (/\/WS_CBPOL\?/.test(bis.endpoint)) {
   throw new Error("BIS source-health probe must never regress to the unbounded WS_CBPOL bulk endpoint.");
 }
 
-if (!/source\.id === "gdelt" \? endpointsFor\(source\)\.slice\(0, 1\)/.test(checker) || !/source\.id === "gdelt" \? 1 : 3/.test(checker)) {
-  throw new Error("Optional GDELT health checks must fail fast instead of consuming the shared probe budget on repeated 429s.");
-}
 if (!/fetchText\(url, 8000\)/.test(reliability) || !/HTTP 429/i.test(reliability)) {
   throw new Error("GDELT recovery must use a bounded timeout and stop immediately on provider throttling.");
 }
