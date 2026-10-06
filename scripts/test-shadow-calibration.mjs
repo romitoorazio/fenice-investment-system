@@ -1,73 +1,34 @@
 import assert from "node:assert/strict";
 import {
+  buildHistoricalShadowBackfill,
   buildShadowOutcomeSamples,
   selectShadowCalibrationCandidates,
   updateShadowCalibrationLedger,
 } from "../lib/intelligence/shadow-calibration.mjs";
 
-const candidates = selectShadowCalibrationCandidates([
-  {
-    symbol: "SPY",
+function candidateDecision(symbol, currentPrice, overrides = {}) {
+  return {
+    symbol,
     decision: "OSSERVA",
     terminalDecision: "ACCUMULA",
     committeeScore: 70,
     rawConfidenceBeforeCalibration: 98,
     confidence: 88,
     riskScore: 30,
-    currentPrice: 780,
+    currentPrice,
     currency: "USD",
     scorecard: { valuation: 50 },
     valuation: { status: "non applicabile" },
-  },
-  {
-    symbol: "QQQ",
-    decision: "OSSERVA",
-    terminalDecision: "ACCUMULA",
-    committeeScore: 70,
-    rawConfidenceBeforeCalibration: 98,
-    confidence: 88,
-    riskScore: 33,
-    currentPrice: 760,
-    currency: "USD",
-    scorecard: { valuation: 50 },
-    valuation: { status: "non applicabile" },
-  },
-  {
-    symbol: "BAD",
-    decision: "COMPRA",
-    terminalDecision: "ACCUMULA",
-    committeeScore: 90,
-    rawConfidenceBeforeCalibration: 99,
-    confidence: 90,
-    riskScore: 20,
-    currentPrice: 10,
-    currency: "USD",
-    scorecard: { valuation: 80 },
-  },
-  {
-    symbol: "NOACC",
-    decision: "OSSERVA",
-    terminalDecision: "ATTENDI",
-    committeeScore: 80,
-    rawConfidenceBeforeCalibration: 99,
-    confidence: 89,
-    riskScore: 20,
-    currentPrice: 10,
-    currency: "USD",
-    scorecard: { valuation: 80 },
-  },
-  {
-    symbol: "RISK",
-    decision: "OSSERVA",
-    terminalDecision: "ACCUMULA",
-    committeeScore: 80,
-    rawConfidenceBeforeCalibration: 99,
-    confidence: 89,
-    riskScore: 90,
-    currentPrice: 10,
-    currency: "USD",
-    scorecard: { valuation: 80 },
-  },
+    ...overrides,
+  };
+}
+
+const candidates = selectShadowCalibrationCandidates([
+  candidateDecision("SPY", 780),
+  candidateDecision("QQQ", 760, { riskScore: 33 }),
+  candidateDecision("BAD", 10, { decision: "COMPRA", committeeScore: 90, rawConfidenceBeforeCalibration: 99, confidence: 90, riskScore: 20, scorecard: { valuation: 80 } }),
+  candidateDecision("NOACC", 10, { terminalDecision: "ATTENDI", committeeScore: 80, rawConfidenceBeforeCalibration: 99, confidence: 89, riskScore: 20, scorecard: { valuation: 80 } }),
+  candidateDecision("RISK", 10, { committeeScore: 80, rawConfidenceBeforeCalibration: 99, confidence: 89, riskScore: 90, scorecard: { valuation: 80 } }),
 ]);
 
 assert.deepEqual(candidates.map((item) => item.symbol), ["SPY", "QQQ"]);
@@ -82,6 +43,43 @@ for (const item of candidates) {
 assert.equal(candidates[0].readiness.blockedOnlyByCalibration, false);
 assert(candidates[0].readiness.scoreGap > 0);
 assert(candidates[0].readiness.valuationGap > 0);
+
+const historical = buildHistoricalShadowBackfill([
+  {
+    generatedAt: "2026-09-24T20:00:00Z",
+    allDecisions: [
+      candidateDecision("SPY", 100),
+      candidateDecision("LEGACY", 50, { rawConfidenceBeforeCalibration: undefined }),
+    ],
+  },
+  {
+    generatedAt: "2026-09-24T22:00:00Z",
+    allDecisions: [candidateDecision("SPY", 101)],
+  },
+  {
+    generatedAt: "2026-09-25T22:00:00Z",
+    allDecisions: [candidateDecision("SPY", 102)],
+  },
+  {
+    generatedAt: "2026-09-26T22:00:00Z",
+    allDecisions: [candidateDecision("SPY", 999)],
+  },
+  {
+    generatedAt: "2026-10-01T22:00:00Z",
+    allDecisions: [candidateDecision("SPY", 110)],
+  },
+], { maxCheckpointDelayDays: 4 });
+
+assert.equal(historical.isolation.liveTradingAllowed, false);
+assert.equal(historical.methodology.requiresRawConfidenceBeforeCalibration, true);
+assert.equal(historical.records.some((record) => record.symbol === "LEGACY"), false, "legacy non-comparable confidence must be excluded");
+assert.equal(historical.records.some((record) => record.observationDate === "2026-09-26"), false, "weekend must not create a research observation");
+const sep24 = historical.records.find((record) => record.id === "2026-09-24:SPY");
+assert(sep24, "latest comparable snapshot for the weekday must seed SPY");
+assert.equal(sep24.referencePrice, 101, "latest snapshot of the UTC weekday must be used");
+assert.equal(sep24.checkpoints["1d"].price, 102);
+assert.equal(sep24.checkpoints["7d"].price, 110);
+assert.equal(sep24.checkpoints["7d"].source, "committee-history");
 
 const day0 = new Date("2026-10-01T22:00:00Z");
 const first = updateShadowCalibrationLedger(
@@ -110,4 +108,4 @@ assert(day8.records.every((record) => record.checkpoints["1d"]));
 assert(day8.records.every((record) => record.checkpoints["7d"]));
 assert.equal(buildShadowOutcomeSamples(day8.records, "7d").length, 2);
 
-console.log("Fenice V7 shadow calibration longitudinal guards: PASS");
+console.log("Fenice V7 shadow calibration historical + longitudinal guards: PASS");
