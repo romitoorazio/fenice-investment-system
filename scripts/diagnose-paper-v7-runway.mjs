@@ -84,6 +84,9 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
   const safety = {
     clockValid: Number.isFinite(nowMs),
     approvalWindowValid: expiresAtMs !== null,
+    approvalActive: approval?.approved === true,
+    approvalHumanConfirmed: approval?.humanConfirmation === true,
+    approvalPaperOnly: approval?.mode === "PAPER",
     campaignLiveLocked: campaign?.liveTradingAllowed === false,
     approvalLiveLocked: approval?.liveTradingAllowed === false,
     approvalBrokerLocked: approval?.brokerConnectivityAllowed === false,
