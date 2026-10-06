@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 const DEFAULT_TOLERANCE_MINUTES = 2;
 
@@ -109,4 +109,3 @@ if (invokedDirectly) {
   console.log(JSON.stringify(report, null, 2));
   if (strict && report.status !== 'COHERENT') process.exitCode = 2;
 }
-
