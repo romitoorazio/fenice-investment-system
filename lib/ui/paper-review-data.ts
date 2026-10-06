@@ -69,7 +69,7 @@ export async function loadPaperReviewPayload(
   let liveContext: FreshPaperReviewContext | null = null;
   const payload: PaperReviewPayload = {
     generatedAt: new Date(now).toISOString(), mode: "PAPER_REVIEW", liveTradingAllowed: false,
-    brokerOrderSubmissionAllowed: false, proposals: [], notices: [],
+    brokerOrderSubmissionAllowed: false, reviewDataSource: "PERSISTED", proposals: [], notices: [],
   };
   if (queue?.mode !== "PAPER" || !Array.isArray(queue.orders) || state?.mode !== "PAPER"
     || state.liveTradingAllowed !== false || state.brokerConnectivityAllowed !== false) {
@@ -116,6 +116,7 @@ export async function loadPaperReviewPayload(
           credentials: options.credentials ?? paperReviewCredentialsFromEnvironment(),
           now,
         });
+        payload.reviewDataSource = "LIVE_READONLY";
         const refreshedSymbols = new Set(liveContext.requestedSymbols);
         evidence = {
           generatedAt: liveContext.generatedAt,
