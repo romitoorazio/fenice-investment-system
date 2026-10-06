@@ -31,6 +31,25 @@ jobs:
       - name: Dry-run proposal readiness on repository evidence
         run: node scripts/run-proposal-readiness.mjs
 
+      - name: Fetch latest main evidence snapshot
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          mkdir -p .v7-main-evidence
+          for file in paper-validation-approval.json investment-committee.json terminal-intelligence.json execution-market-coverage.json paper-market-session.json; do
+            git show "origin/main:data/$file" > ".v7-main-evidence/$file"
+          done
+
+      - name: Dry-run proposal readiness on latest main evidence
+        env:
+          FENICE_V7_APPROVAL_PATH: .v7-main-evidence/paper-validation-approval.json
+          FENICE_V7_COMMITTEE_PATH: .v7-main-evidence/investment-committee.json
+          FENICE_V7_TERMINAL_PATH: .v7-main-evidence/terminal-intelligence.json
+          FENICE_V7_COVERAGE_PATH: .v7-main-evidence/execution-market-coverage.json
+          FENICE_V7_MARKET_SESSION_PATH: .v7-main-evidence/paper-market-session.json
+          FENICE_V7_PROPOSAL_READINESS: v7-proposal-readiness-main.json
+        run: node scripts/run-proposal-readiness.mjs
+
       - name: Validate diagnostic isolation
         run: |
           node - <<'NODE'
@@ -52,23 +71,55 @@ jobs:
             throw new Error('Malformed readiness report');
           }
           for (const row of r.rows) {
-            if (!Array.isArray(row.validationCandidateBlockers)
+            if (!Array.isArray(row.validationLocalBlockers)
+              || !Array.isArray(row.reviewProposalLocalBlockers)
+              || !Array.isArray(row.validationCandidateBlockers)
               || !Array.isArray(row.reviewProposalCandidateBlockers)) {
               throw new Error(`Malformed candidate readiness row: ${row.symbol}`);
+            }
+            if (row.validationCandidateReady && !row.validationStructurallyReady) {
+              throw new Error(`Current validation readiness cannot outrun structural readiness: ${row.symbol}`);
+            }
+            if (row.reviewProposalCandidateReady && !row.reviewProposalStructurallyReady) {
+              throw new Error(`Current review readiness cannot outrun structural readiness: ${row.symbol}`);
             }
           }
           console.log('V7 proposal readiness valid:',
             'candidates=', r.candidateCount,
+            'validationStructural=', r.validationStructurallyReadyCount,
+            'reviewStructural=', r.reviewProposalStructurallyReadyCount,
             'validationCandidates=', r.validationCandidateReadyCount,
             'reviewCandidates=', r.reviewProposalCandidateReadyCount,
             'shared=', r.sharedGlobalBlockers.join(',') || 'none',
             'validationGlobal=', r.validationGlobalBlockers.join(',') || 'none');
+
+          const current = JSON.parse(fs.readFileSync('v7-proposal-readiness-main.json', 'utf8'));
+          const cs = current.safety || {};
+          if (cs.diagnosticOnly !== true
+            || cs.queueWritesAllowed !== false
+            || cs.paperCertificationEvidenceMutationAllowed !== false
+            || cs.brokerSubmissionAllowed !== false
+            || cs.liveTradingAllowed !== false
+            || cs.userApprovalStillRequired !== true
+            || cs.finalProposalRecheckStillRequired !== true) {
+            throw new Error('Unsafe latest-main V7 readiness flags');
+          }
+          console.log('V7 latest-main readiness:',
+            'candidates=', current.candidateCount,
+            'validationStructural=', current.validationStructurallyReadyCount,
+            'reviewStructural=', current.reviewProposalStructurallyReadyCount,
+            'validationCandidates=', current.validationCandidateReadyCount,
+            'reviewCandidates=', current.reviewProposalCandidateReadyCount,
+            'shared=', current.sharedGlobalBlockers.join(',') || 'none',
+            'validationGlobal=', current.validationGlobalBlockers.join(',') || 'none');
           NODE
 
       - name: Upload diagnostic report
         uses: actions/upload-artifact@v4
         with:
           name: v7-proposal-readiness-${{ github.run_id }}
-          path: v7-proposal-readiness.json
+          path: |
+            v7-proposal-readiness.json
+            v7-proposal-readiness-main.json
           if-no-files-found: error
           retention-days: 14
