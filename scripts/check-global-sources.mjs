@@ -248,7 +248,8 @@ async function probeFinra(source) {
 async function probe(source) {
   if (source.id === "finra-fixed-income") return probeFinra(source);
 
-  const endpoints = endpointsFor(source);
+  const endpoints = source.id === "gdelt" ? endpointsFor(source).slice(0, 1) : endpointsFor(source);
+  const maxAttempts = source.id === "gdelt" ? 1 : 3;
   if (!endpoints.length) {
     return {
       id: source.id, name: source.name, category: source.category, authority: source.authority,
@@ -261,7 +262,7 @@ async function probe(source) {
   let best = null;
   let attempts = 0;
   for (const endpoint of endpoints) {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       attempts += 1;
       const result = await request(source, endpoint, attempt);
       if (!best || (result.ok && !best.ok) || result.bytes > best.bytes) best = { ...result, endpoint };
@@ -275,7 +276,7 @@ async function probe(source) {
           regions: source.regions, endpointUsed: redactString(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
-      if (attempt < 3 && isTransientFailure(source, result)) {
+      if (attempt < maxAttempts && isTransientFailure(source, result)) {
         const baseDelay = source.id === "sec" ? 2500 : 700;
         const backoff = baseDelay * (2 ** (attempt - 1));
         await sleep(Math.max(backoff, result.retryAfterMs || 0));
