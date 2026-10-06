@@ -65,8 +65,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Regression-test PAPER stager
-        run: node scripts/test-paper-validation-stager.mjs
+      - name: Regression-test PAPER stager and same-run publication contract
+        run: node scripts/test-paper-validation-stager.mjs && node scripts/test-paper-probe-publish-contract.mjs
 
       - name: Decide whether a probe cycle is still needed
         id: preflight
@@ -196,6 +196,9 @@ jobs:
             data/paper-fx-evidence.json
             data/execution-market-evidence.json
             data/execution-market-coverage.json
+            data/global-source-health.json
+            data/intelligence-quality.json
+            data/paper-market-session.json
           )
 
           generated_dir="$(mktemp -d)"
