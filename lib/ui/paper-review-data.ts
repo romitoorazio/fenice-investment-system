@@ -37,7 +37,8 @@ export type PaperReviewLoadOptions = {
 
 const REVIEW_REFRESH_ORDER_MAX_AGE_MS = 120_000;
 const REVIEW_LIVE_CONTEXT_REUSE_MS = 10_000;
-const liveContextReuseByLoader = new WeakMap<Function, Map<string, { expiresAt: number; promise: Promise<FreshPaperReviewContext> }>>();
+type LiveContextLoader = typeof fetchFreshPaperReviewContext;
+const liveContextReuseByLoader = new WeakMap<LiveContextLoader, Map<string, { expiresAt: number; promise: Promise<FreshPaperReviewContext> }>>();
 
 const object = (value: unknown) => value !== null && typeof value === "object" && !Array.isArray(value);
 async function readJson<T>(root: string, name: string): Promise<T | null> {
