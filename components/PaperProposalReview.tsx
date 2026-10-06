@@ -77,7 +77,8 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
   const proposal = proposals.find((item) => item.id === selectedId) ?? proposals[0] ?? null;
   const decision = history?.find((record) => record.proposalId === proposal?.id);
   const remaining = proposal ? Math.max(0, Math.ceil((Date.parse(proposal.expiresAt) - now) / 1000)) : 0;
-  const eligible = Boolean(proposal && proposal.blockers.length === 0 && remaining > 0 && !decision && history);
+  const liveReviewConfirmed = Boolean(proposal && (proposal.scope === "DEMO" || data.reviewDataSource === "LIVE_READONLY"));
+  const eligible = Boolean(proposal && proposal.blockers.length === 0 && remaining > 0 && !decision && history && liveReviewConfirmed);
 
   async function refreshMarket() {
     if (busy || demo) return;
@@ -115,10 +116,13 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
         const fresh = next.proposals.find((item) => item.id === proposal.id);
         if (!fresh) throw new Error("La proposta non è più disponibile dopo il controllo dei dati.");
         liveReviewUntil.current = Math.max(0, ...next.proposals.map(item => Date.parse(item.expiresAt)).filter(Number.isFinite));
-        if (next.reviewDataSource !== "LIVE_READONLY" || reviewTermsKey(fresh) !== reviewTermsKey(proposal)) {
-          throw new Error("Fenice ha aggiornato prezzi, sessione o cambio. Controlla i nuovi dettagli e premi Sì di nuovo se sei d'accordo.");
+        if (next.reviewDataSource !== "LIVE_READONLY") {
+          throw new Error("Il refresh live non è disponibile. Nessun Sì è stato registrato.");
         }
-        current = fresh;
+        const termsChanged = reviewTermsKey(fresh) !== reviewTermsKey(proposal);
+        throw new Error(termsChanged
+          ? "Fenice ha aggiornato prezzi, sessione o cambio. Controlla i nuovi dettagli e premi Sì di nuovo se sei d'accordo."
+          : "Dati mercato aggiornati in sola lettura. Controlla i dettagli mostrati e premi Sì di nuovo per confermare la simulazione.");
       }
       const saveDecision = () => {
         const latest = parsePaperReviewHistory(window.localStorage.getItem(storageKey));
