@@ -82,6 +82,24 @@ assert.equal(feasible.maturityApprovalBufferHours, -17.7);
 assert.equal(feasible.maturityWindowState, "MISALIGNED");
 assert.ok(Object.values(feasible.safety).every(Boolean));
 
+
+const afterWindowState = {
+  ...state,
+  executions: state.executions.filter((row) => !String(row?.clientOrderId || "").includes("2026-10-06")),
+};
+const afterWindow = diagnosePaperV7Runway({
+  campaign: {
+    ...campaign,
+    dailyEvidence: campaign.dailyEvidence.map((row, index) =>
+      index === campaign.dailyEvidence.length - 1 ? { ...row, cumulativePaperFilled: 2 } : row),
+  },
+  approval,
+  state: afterWindowState,
+  now: "2026-10-06T20:00:00.000Z",
+});
+assert.equal(afterWindow.usedToday, 0);
+assert.equal(afterWindow.weekdaySlotsRemaining, 13, "elapsed current-day window must not consume a future slot");
+
 const tight = diagnosePaperV7Runway({
   campaign,
   approval: { ...approval, targetPaperFills: 15 },
