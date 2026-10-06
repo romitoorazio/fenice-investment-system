@@ -197,6 +197,12 @@ const invalidEvidence = diagnosePaperV7Runway({ campaign: invalidCampaign, appro
 assert.equal(invalidEvidence.status, "SAFETY_FAILURE");
 assert.equal(invalidEvidence.safety.campaignEvidenceValid, false);
 
+const notStartedCampaign = { ...campaign, startedAt: null };
+assert.equal(evaluatePaperValidationCampaign(notStartedCampaign, Date.parse(now)).state, "NOT_STARTED");
+const notStarted = diagnosePaperV7Runway({ campaign: notStartedCampaign, approval, state, now });
+assert.equal(notStarted.status, "SAFETY_FAILURE");
+assert.equal(notStarted.safety.campaignEvidenceValid, false);
+
 const complete = diagnosePaperV7Runway({
   campaign: {
     ...campaign,
