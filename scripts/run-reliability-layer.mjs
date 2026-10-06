@@ -58,12 +58,13 @@ async function gdelt(query, mode = 'ArtList') {
   for (const url of endpoints) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
-        const { text } = await fetchText(url);
+        const { text } = await fetchText(url, 8000);
         const trimmed = text.trim();
         if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) throw new Error(`risposta non JSON: ${trimmed.slice(0, 100)}`);
         return JSON.parse(trimmed);
       } catch (error) {
         lastError = error;
+        if (/HTTP 429/i.test(String(error?.message || error))) throw error;
         await sleep(1800 * attempt);
       }
     }
