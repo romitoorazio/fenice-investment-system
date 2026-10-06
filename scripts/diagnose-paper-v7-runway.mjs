@@ -80,6 +80,12 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
       : maturityApprovalBufferHours < 24
         ? "TIGHT"
         : "SAFE";
+  const warnings = [];
+  if (maturityWindowState === "MISALIGNED") {
+    warnings.push("operator approval expires before the campaign can satisfy its minimum calendar age; all required PAPER fills must therefore be completed before approval expiry");
+  } else if (maturityWindowState === "TIGHT") {
+    warnings.push("operator approval expires less than 24 hours after the earliest possible calendar maturity");
+  }
 
   const safety = {
     clockValid: Number.isFinite(nowMs),
@@ -129,6 +135,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
     brokerConnectivityAllowed: false,
     status,
     reasons,
+    warnings,
     generatedFor: new Date(Number.isFinite(nowMs) ? nowMs : 0).toISOString(),
     approvalExpiresAt: approval?.expiresAt || null,
     campaignMaturityAt: maturityAt,
@@ -168,6 +175,7 @@ function summary(report) {
     `Probe attempts: ${report.historicalProbeAttempts}/${report.maxProbeAttemptsTotal} (remaining ${report.attemptsRemaining})`,
     `Weekday slots before approval expiry: ${report.weekdaySlotsRemaining} (upper bound; exchange holidays are not assumed)`,
     `Calendar maturity: ${report.campaignMaturityAt || "N/A"}; approval buffer: ${report.maturityApprovalBufferHours ?? "N/A"}h (${report.maturityWindowState})`,
+    ...(report.warnings || []).map((warning) => `Warning: ${warning}`),
     `Maximum additional fills: ${report.maxPossibleAdditionalFills}`,
     `Runway margin: ${report.runwayMargin}`,
     `Evidence days: ${report.evidenceDays}; remaining: ${report.evidenceDaysRemaining}`,
