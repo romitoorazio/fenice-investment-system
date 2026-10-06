@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 const checker = await readFile(new URL("./check-global-sources.mjs", import.meta.url), "utf8");
+const reliability = await readFile(new URL("./run-reliability-layer.mjs", import.meta.url), "utf8");
 const registry = JSON.parse(await readFile(new URL("../data/global-source-registry.json", import.meta.url), "utf8"));
 
 if (!checker.includes("function redactString") || !checker.includes("function sanitizeForStorage")) {
@@ -49,6 +50,13 @@ if (!/\/WS_CBPOL\/D\.US\/all\?/.test(bis.endpoint) || !/[?&]lastNObservations=1(
 }
 if (/\/WS_CBPOL\?/.test(bis.endpoint)) {
   throw new Error("BIS source-health probe must never regress to the unbounded WS_CBPOL bulk endpoint.");
+}
+
+if (!/source\.id === "gdelt" \? endpointsFor\(source\)\.slice\(0, 1\)/.test(checker) || !/source\.id === "gdelt" \? 1 : 3/.test(checker)) {
+  throw new Error("Optional GDELT health checks must fail fast instead of consuming the shared probe budget on repeated 429s.");
+}
+if (!/fetchText\(url, 8000\)/.test(reliability) || !/HTTP 429/i.test(reliability)) {
+  throw new Error("GDELT recovery must use a bounded timeout and stop immediately on provider throttling.");
 }
 
 console.log("Source checker security invariants PASS.");
