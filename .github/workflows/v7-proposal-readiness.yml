@@ -2,6 +2,11 @@ name: Fenice V7 Proposal Readiness
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Fenice World Terminal
+    types:
+      - completed
   pull_request:
     paths:
       - "lib/intelligence/proposal-readiness.mjs"
@@ -14,6 +19,7 @@ permissions:
 
 jobs:
   readiness:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
