@@ -24,6 +24,20 @@ export type PaperReviewProposal = {
   aiDecision?: FeniceAIDecision;
 };
 
+export type PaperReviewDiagnosticCandidate = {
+  symbol: string;
+  name: string;
+  committeeDecision: string | null;
+  terminalDecision: string | null;
+  committeeScore: number | null;
+  calibratedConfidence: number | null;
+  riskScore: number | null;
+  paperEligible: boolean;
+  independentSourceFamilies: number;
+  reviewProposalCandidateReady: boolean;
+  blockers: string[];
+};
+
 export type PaperReviewPayload = {
   generatedAt: string;
   mode: "PAPER_REVIEW";
@@ -31,6 +45,7 @@ export type PaperReviewPayload = {
   brokerOrderSubmissionAllowed: false;
   reviewDataSource?: "PERSISTED" | "LIVE_READONLY";
   proposals: PaperReviewProposal[];
+  diagnosticCandidates: PaperReviewDiagnosticCandidate[];
   notices: string[];
 };
 
