@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { diagnose } from './diagnose-paper-evidence-coherence-v7.mjs';
 
-function fixture({ drift = false } = {}) {
+function fixture({ drift = false, missingAge = false, invalidFingerprint = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fenice-v7-coherence-'));
   const data = path.join(root, 'data');
   fs.mkdirSync(data);
@@ -13,12 +13,20 @@ function fixture({ drift = false } = {}) {
   const fingerprint = 'f'.repeat(64);
   const campaign = {
     liveTradingAllowed: false,
-    baselineFingerprint: { digest: fingerprint, complete: true },
+    baselineFingerprint: { version: 1, algorithm: 'sha256', digest: fingerprint, complete: true },
     dailyEvidence: [{
       date: '2026-10-06',
       observedAt: evidenceObservedAt,
-      validationFingerprint: { digest: fingerprint },
-      decisionDataGate: { sourceAgeMinutes: 2.7, intelligenceAgeMinutes: 0 },
+      validationFingerprint: {
+        version: invalidFingerprint ? 2 : 1,
+        algorithm: 'sha256',
+        digest: fingerprint,
+        complete: !invalidFingerprint,
+      },
+      decisionDataGate: {
+        sourceAgeMinutes: missingAge ? null : 2.7,
+        intelligenceAgeMinutes: 0,
+      },
       marketSession: { generatedAt: '2026-10-06T15:15:47.400Z' },
       liveOrders: 0,
       liveTradingAllowed: false,
@@ -48,6 +56,8 @@ function fixture({ drift = false } = {}) {
 
 const coherentRoot = fixture();
 const driftRoot = fixture({ drift: true });
+const missingAgeRoot = fixture({ missingAge: true });
+const invalidFingerprintRoot = fixture({ invalidFingerprint: true });
 
 try {
   const coherent = diagnose(coherentRoot);
@@ -63,8 +73,18 @@ try {
   assert.equal(drift.safety.liveTradingLocked, true);
   assert.ok(drift.comparisons.some((row) => !row.coherent));
 
+  const missingAge = diagnose(missingAgeRoot);
+  assert.equal(missingAge.status, 'STANDALONE_DRIFT');
+  assert.equal(missingAge.comparisons.find((row) => row.name === 'source-health').coherent, false);
+
+  const invalidFingerprint = diagnose(invalidFingerprintRoot);
+  assert.equal(invalidFingerprint.status, 'SAFETY_FAILURE');
+  assert.equal(invalidFingerprint.safety.fingerprintMatchesLatestEvidence, false);
+
   console.log('PAPER V7 evidence coherence diagnostic: PASS');
 } finally {
   fs.rmSync(coherentRoot, { recursive: true, force: true });
   fs.rmSync(driftRoot, { recursive: true, force: true });
+  fs.rmSync(missingAgeRoot, { recursive: true, force: true });
+  fs.rmSync(invalidFingerprintRoot, { recursive: true, force: true });
 }
