@@ -20,7 +20,7 @@ assert.match(runner, /version:\s*11/);
 const defaultInterval = Number((runner.match(/FENICE_TWELVE_DATA_MIN_INTERVAL_MS \|\| ([\d_]+)/) || [])[1]?.replaceAll("_", ""));
 assert(Number.isFinite(defaultInterval) && defaultInterval >= 8_000, "default Twelve Data pacing must stay conservative on the zero-cost path");
 
-const batchLimit = Number((paperWorkflow.match(/FENICE_TWELVE_DATA_BATCH_PROBES:\\s*"([0-9]+)"/) || [])[1]);
+const batchLimit = Number((paperWorkflow.match(/FENICE_TWELVE_DATA_BATCH_PROBES:\s*"([0-9]+)"/) || [])[1]);
 const basicApiCreditsPerMinute = 8;
 const fxCreditsPerPaperCycle = 1;
 assert(Number.isFinite(batchLimit) && batchLimit > 0, "PAPER workflow must configure a positive Twelve Data batch limit");
