@@ -11,6 +11,8 @@ assert.match(workflowRun, /- Fenice Foundation\b/, "Foundation recovery hook is 
 const configuredUpstreams = [...workflowRun.matchAll(/^      - (Fenice .+)$/gm)].map((match) => match[1]);
 assert.deepEqual(configuredUpstreams, PAPER_PROBE_RECOVERY_UPSTREAMS, "workflow hooks must match the tested event allow-list");
 assert.match(workflowRun, /types:\n\s+- completed\b/, "recovery must only inspect completed upstream runs");
+assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository/,
+  "runner-level filter must reject non-scheduled/non-main/cross-repository workflow_run events before allocating a runner");
 
 const schedule = workflow.match(/  schedule:\n([\s\S]*?)\n  workflow_run:/)?.[1] ?? "";
 const recoveryTimes = [...schedule.matchAll(/cron: "(\d+) (\d+) \* \* 1-5"/g)]
