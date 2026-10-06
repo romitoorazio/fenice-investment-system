@@ -105,6 +105,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
 
   const safety = {
     clockValid: Number.isFinite(nowMs),
+    campaignEvidenceValid: campaignStatus?.state !== "INVALID",
     approvalWindowValid: expiresAtMs !== null,
     approvalActive: approval?.approved === true,
     approvalHumanConfirmed: approval?.humanConfirmation === true,
