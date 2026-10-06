@@ -1,9 +1,15 @@
 name: Fenice PAPER Candidate Diagnostics
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/diagnose-paper-v7-runway.mjs"
+      - "scripts/test-paper-v7-runway.mjs"
+      - ".github/workflows/paper-candidate-diagnostics.yml"
   workflow_run:
     workflows:
-      - Fenice PAPER Probe
+      - Fenice PAPER Validation Probe Cycle
     types:
       - completed
   workflow_dispatch:
@@ -15,16 +21,17 @@ jobs:
   explain-paper-candidates:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout main evidence snapshot
+      - name: Checkout diagnostic code and evidence snapshot
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
           persist-credentials: false
 
       - name: Set up Node.js
@@ -52,12 +59,22 @@ jobs:
           FENICE_PAPER_V6_COMMITTEE_SENSITIVITY: paper-v6-committee-sensitivity.json
         run: node scripts/analyze-paper-v6-committee-sensitivity.mjs
 
+      - name: Diagnose PAPER V7 runway without modifying V6
+        env:
+          FENICE_V7_RUNWAY_REPORT: paper-v7-runway.json
+        run: node scripts/diagnose-paper-v7-runway.mjs
+
+      - name: Regression-test PAPER V7 runway diagnostic
+        run: node scripts/test-paper-v7-runway.mjs
+
       - name: Upload PAPER diagnostics
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: paper-candidate-opportunities-${{ github.run_id }}
           path: |
             paper-candidate-opportunities.json
             paper-v6-committee-sensitivity.json
+            paper-v7-runway.json
           if-no-files-found: error
           retention-days: 14
