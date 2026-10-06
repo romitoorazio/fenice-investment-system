@@ -22,20 +22,37 @@ const campaign = {
   dailyEvidence: Array.from({ length: 12 }, (_, index) => ({
     date: new Date(Date.UTC(2026, 8, 25 + index)).toISOString().slice(0, 10),
     validationFingerprint: fingerprint,
-    cumulativePaperFilled: index === 11 ? 3 : Math.min(index, 2),
+    cumulativePaperFilled: index === 11 ? 3 : 0,
+    newPaperFills: index === 11 ? 3 : 0,
     liveOrders: 0,
     brokerConnectivityAllowed: false,
     liveTradingAllowed: false,
     reconciliationBalanced: true,
     reconciliationBreaks: 0,
     auditChainValid: true,
-    fillEvidenceProof: {
-      version: 2,
-      requiredFills: 0,
-      coveredFills: 0,
-      complete: true,
-      windows: [],
-    },
+    fillEvidenceProof: index === 11
+      ? {
+          version: 2,
+          requiredFills: 3,
+          coveredFills: 3,
+          complete: true,
+          windows: [{
+            observedAt: "2026-10-06T15:15:47Z",
+            fromCumulativePaperFilled: 0,
+            toCumulativePaperFilled: 3,
+            newPaperFills: 3,
+            decisionData: { ready: true },
+            executionMarket: { ready: true },
+            marketFx: { nonEuroFills: 0, matchedNonEuroFills: 0, proofs: [] },
+          }],
+        }
+      : {
+          version: 2,
+          requiredFills: 0,
+          coveredFills: 0,
+          complete: true,
+          windows: [],
+        },
   })),
 };
 const approval = {
