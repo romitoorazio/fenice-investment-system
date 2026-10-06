@@ -134,6 +134,9 @@ jobs:
       - name: PAPER dispatch correlation and duplicate suppression invariants
         run: npm run paper:dispatch:test
 
+      - name: PAPER probe same-run publication contract
+        run: node scripts/test-paper-probe-publish-contract.mjs
+
       - name: Build PAPER execution coverage from repository evidence
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
