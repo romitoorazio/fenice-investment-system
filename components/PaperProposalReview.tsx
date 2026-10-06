@@ -13,6 +13,21 @@ const loadingHistory = "__LOADING__";
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
 const number = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 6 });
 
+const diagnosticBlockerCopy: Record<string, string> = {
+  COMMITTEE_NOT_BUY: "Il Comitato non è ancora su COMPRA.",
+  TERMINAL_NOT_ACCUMULA: "Il Terminale non è ancora su ACCUMULA.",
+  COMMITTEE_SCORE_BELOW_REVIEW_MINIMUM: "Il punteggio del Comitato è sotto la soglia richiesta.",
+  CALIBRATED_CONFIDENCE_BELOW_REVIEW_MINIMUM: "La confidenza calibrata non ha ancora raggiunto 90/100.",
+  RISK_SCORE_ABOVE_REVIEW_MAXIMUM: "Il rischio supera il massimo ammesso.",
+  CURRENCY_NOT_SUPPORTED_BY_CURRENT_PAPER_FX: "La valuta non è coperta dal cambio PAPER verificato.",
+  PAPER_EXECUTION_COVERAGE_NOT_ELIGIBLE: "Manca la copertura prezzi PAPER richiesta.",
+  PAPER_SOURCE_QUORUM_NOT_MET: "Mancano due fonti PAPER indipendenti.",
+  ENTRY_PLAN_NOT_LIMIT: "Non esiste ancora un piano di ingresso LIMIT.",
+  ENTRY_LIMIT_PRICE_MISSING: "Manca il prezzo massimo di ingresso.",
+  ENTRY_TRANCHE_MISSING: "Manca la prima tranche verificata.",
+  COMMITTEE_EXECUTION_GATE_NOT_READY: "Il gate finale del Comitato non è ancora pronto.",
+};
+
 function euroOrUnknown(value: number) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? euro.format(value) : "Non disponibile";
 }
@@ -156,6 +171,31 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
             <p className="text-2xl font-black">Nessuna proposta da confermare</p>
             <p className="mt-3 text-sm leading-6 text-slate-400">{data.notices[0] ?? "Fenice mostrerà qui le proposte complete disponibili in simulazione."}</p>
             {data.notices.length > 1 ? <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-400">{data.notices.slice(1).map(item => <li key={item}>{item}</li>)}</ul> : null}
+            {data.diagnosticCandidates?.length ? (
+              <div className="mt-6 space-y-3">
+                <div>
+                  <p className="text-sm font-black text-slate-200">Più vicini a una proposta</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Solo diagnostica: questi titoli non sono proposte e qui non possono essere approvati.</p>
+                </div>
+                {data.diagnosticCandidates.slice(0, 3).map((candidate) => (
+                  <article key={candidate.symbol} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-black text-slate-100">{candidate.symbol} · {candidate.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">Comitato {candidate.committeeDecision ?? "n/d"} · Terminale {candidate.terminalDecision ?? "n/d"}</p>
+                      </div>
+                      <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-[10px] font-black text-amber-200">NON AZIONABILE</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-[9px] uppercase text-slate-500">Score</p><p className="mt-1 font-black">{candidate.committeeScore ?? "—"}</p></div>
+                      <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-[9px] uppercase text-slate-500">Confidence</p><p className="mt-1 font-black">{candidate.calibratedConfidence ?? "—"}</p></div>
+                      <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-[9px] uppercase text-slate-500">Fonti PAPER</p><p className="mt-1 font-black">{candidate.independentSourceFamilies}/2</p></div>
+                    </div>
+                    {candidate.blockers.length ? <ul className="mt-3 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-400">{candidate.blockers.slice(0, 4).map((code) => <li key={code}>{diagnosticBlockerCopy[code] ?? code}</li>)}</ul> : null}
+                  </article>
+                ))}
+              </div>
+            ) : null}
             <button onClick={() => { setDemo(createPaperReviewDemo()); setNow(Date.now()); setError(null); }} className="mt-6 rounded-xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950">Prova Sì / No con un esempio</button>
           </section>
         ) : (
