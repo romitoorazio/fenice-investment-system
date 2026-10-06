@@ -33,6 +33,8 @@ on:
       - ".github/workflows/paper-probe-operator-trigger.yml"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/paper-probe-cooldown.mjs"
+      - "scripts/paper-probe-deferred-recheck.mjs"
+      - "scripts/test-paper-probe-deferred-recheck.mjs"
 
 permissions:
   actions: write
@@ -45,7 +47,7 @@ concurrency:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25
     env:
       EVENT_NAME: ${{ github.event_name }}
       UPSTREAM_NAME: ${{ github.event.workflow_run.name }}
@@ -68,6 +70,9 @@ jobs:
       - name: Gate recovery trigger before repository API reads
         id: trigger_gate
         run: node scripts/paper-probe-recovery-trigger.mjs --github-output "$GITHUB_OUTPUT"
+
+      - name: Regression-test bounded deferred cooldown recheck
+        run: node scripts/test-paper-probe-deferred-recheck.mjs
 
       - name: Verify active fail-closed campaign, evidence age and intelligence quality
         if: steps.trigger_gate.outputs.allowed == 'true'
@@ -194,12 +199,16 @@ jobs:
           intelligence_age_valid="$(jq -r '.ageValid' <<<"$intelligence_metrics")"
           intelligence_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$intelligence_metrics")"
           cooldown_ready="$(jq -r '.ready' <<<"$cooldown_metrics")"
+          defer_metrics="$(EVENT_NAME="$EVENT_NAME" COOLDOWN_JSON="$cooldown_metrics" node scripts/paper-probe-deferred-recheck.mjs)"
+          defer_ready="$(jq -r '.defer' <<<"$defer_metrics")"
+          defer_wait_seconds="$(jq -r '.waitSeconds // 0' <<<"$defer_metrics")"
           quality_ready="$(jq -r '.qualityReady' <<<"$intelligence_metrics")"
           source_age_valid="$(jq -r '.ageValid' <<<"$source_metrics")"
           source_age_minutes="$(jq -r '.ageMinutes // "unknown"' <<<"$source_metrics")"
           sources_ready="$(jq -r '.sourcesReady' <<<"$source_metrics")"
 
           run_probe=false
+          defer_probe=false
           if [ "$active" = "true" ] \
             && [ "$attempted_today" != "true" ] \
             && [ "$active_probe_run" != "true" ] \
@@ -212,6 +221,21 @@ jobs:
             && [ "$quality_ready" = "true" ] \
             && [ "$sources_ready" = "true" ]; then
             run_probe=true
+          fi
+
+          if [ "$run_probe" != "true" ] \
+            && [ "$active" = "true" ] \
+            && [ "$attempted_today" != "true" ] \
+            && [ "$active_probe_run" != "true" ] \
+            && [ "$probe_cycle_budget_ready" = "true" ] \
+            && [ "$request_window_ready" = "true" ] \
+            && [ "$recovery_event_ready" = "true" ] \
+            && [ "$intelligence_age_valid" = "true" ] \
+            && [ "$source_age_valid" = "true" ] \
+            && [ "$quality_ready" = "true" ] \
+            && [ "$sources_ready" = "true" ] \
+            && [ "$defer_ready" = "true" ]; then
+            defer_probe=true
           fi
 
           echo "active=$active" >> "$GITHUB_OUTPUT"
@@ -227,11 +251,14 @@ jobs:
           echo "quality_ready=$quality_ready" >> "$GITHUB_OUTPUT"
           echo "sources_ready=$sources_ready" >> "$GITHUB_OUTPUT"
           echo "run_probe=$run_probe" >> "$GITHUB_OUTPUT"
+          echo "defer_probe=$defer_probe" >> "$GITHUB_OUTPUT"
+          echo "defer_wait_seconds=$defer_wait_seconds" >> "$GITHUB_OUTPUT"
 
-          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; request_window_ready=$request_window_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
+          echo "PAPER operator preflight: event=$EVENT_NAME; active=$active; attempted_today=$attempted_today; active_probe_run=$active_probe_run; probe_cycles_today=$probe_cycles_today; cycle_budget_ready=$probe_cycle_budget_ready; request_window_ready=$request_window_ready; recovery_event_ready=$recovery_event_ready; intelligence_age=${intelligence_age_minutes}m; source_health_age=${source_age_minutes}m; cooldown_ready=$cooldown_ready; defer_ready=$defer_ready; defer_probe=$defer_probe; defer_wait=${defer_wait_seconds}s; institutional_quality_ready=$quality_ready; critical_sources_ready=$sources_ready; dispatch=$run_probe."
           echo "Intelligence diagnostics: $(jq -c '.' <<<"$intelligence_metrics")"
           echo "Critical-source diagnostics: $(jq -c '.' <<<"$source_metrics")"
           echo "Provider-cooldown diagnostics: $(jq -c '.' <<<"$cooldown_metrics")"
+          echo "Deferred-recheck diagnostics: $(jq -c '.' <<<"$defer_metrics")"
 
       - name: Dispatch canonical PAPER probe cycle
         if: steps.preflight.outputs.run_probe == 'true'
@@ -244,8 +271,33 @@ jobs:
           gh workflow run paper-probe-staging.yml --repo "$GITHUB_REPOSITORY" --ref main -f dispatch_token="$dispatch_token"
           echo "Canonical PAPER probe cycle dispatched. All sizing, daily caps, data quorum, risk, audit, reconciliation, LIVE and broker-connectivity gates remain authoritative inside the canonical workflow."
 
+      - name: Wait only for remaining provider cooldown
+        if: steps.preflight.outputs.defer_probe == 'true'
+        env:
+          WAIT_SECONDS: ${{ steps.preflight.outputs.defer_wait_seconds }}
+        run: |
+          set -euo pipefail
+          case "$WAIT_SECONDS" in
+            ''|*[!0-9]*) echo "Invalid deferred wait"; exit 1 ;;
+          esac
+          if [ "$WAIT_SECONDS" -le 0 ] || [ "$WAIT_SECONDS" -gt 905 ]; then
+            echo "Deferred wait outside bounded policy: $WAIT_SECONDS"
+            exit 1
+          fi
+          echo "Waiting ${WAIT_SECONDS}s for provider cooldown before one fresh operator recheck."
+          sleep "$WAIT_SECONDS"
+
+      - name: Dispatch one deferred operator recheck
+        if: steps.preflight.outputs.defer_probe == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run paper-probe-operator-trigger.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Deferred operator recheck dispatched once. The new workflow_dispatch run cannot defer itself again and must re-evaluate all campaign, window, cooldown, quality, duplicate and LIVE/broker locks."
+
       - name: Confirm fail-closed skip
-        if: steps.preflight.outputs.run_probe != 'true'
+        if: steps.preflight.outputs.run_probe != 'true' && steps.preflight.outputs.defer_probe != 'true'
         run: |
           echo "No PAPER probe dispatched."
           echo "Reasons are intentionally fail-closed: inactive campaign, a probe already attempted today, an active canonical PAPER probe or validation cycle, two canonical probe cycles already launched today, any trigger delivered outside the conservative US market recovery window, an invalid event-driven recovery, persisted intelligence/source-health evidence older than 24 hours or future-dated, invalid provider/run timestamps or less than 15 minutes since the latest execution-provider evidence or canonical PAPER cycle, institutional intelligence quality below baseline standards, or critical source health not GREEN."
