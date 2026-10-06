@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { diagnosePaperV7Runway } from "./diagnose-paper-v7-runway.mjs";
 
 const fingerprint = {
@@ -150,5 +151,19 @@ const complete = diagnosePaperV7Runway({
   now,
 });
 assert.equal(complete.status, "FILL_TARGET_COMPLETE");
+
+const diagnosticWorkflow = await readFile(".github/workflows/paper-candidate-diagnostics.yml", "utf8");
+assert.match(
+  diagnosticWorkflow,
+  /workflow_run:\n[\s\S]*- Fenice PAPER Validation Probe Cycle\n[\s\S]*types:\n\s+- completed/,
+  "runway diagnostic must refresh after the canonical PAPER validation probe workflow completes",
+);
+assert.doesNotMatch(
+  diagnosticWorkflow,
+  /- Fenice PAPER Probe\n/,
+  "obsolete workflow name must not silently disable runway refresh",
+);
+assert.match(diagnosticWorkflow, /permissions:\n\s+contents: read/);
+assert.doesNotMatch(diagnosticWorkflow, /contents: write|actions: write|git push|gh workflow run/);
 
 console.log("PAPER V7 runway diagnostic tests: PASS");
