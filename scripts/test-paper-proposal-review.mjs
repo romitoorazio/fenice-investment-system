@@ -152,6 +152,14 @@ try {
   assert(livePayload.notices.some((item) => item.includes("sola lettura")));
   assert.equal(await readFile(path.join(root, "data", "execution-market-evidence.json"), "utf8"), JSON.stringify(evidenceBefore), "live review refresh must not persist provider evidence");
 
+  const partialPayload = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader: async (args) => ({ ...(await liveContextLoader(args)), errors: ["TWELVE_DATA_NOT_CONFIGURED"] }),
+  });
+  assert.equal(partialPayload.reviewDataSource, "PERSISTED", "partial provider refresh must never receive the live-ready marker");
+  assert(partialPayload.notices.some((item) => item.includes("incompleto")));
+
   await save("paper-order-queue.json", { mode: "PAPER", orders: [] });
   await loadPaperReviewPayload(root, refreshNow, { refreshLiveContext: true, credentials: {}, liveContextLoader });
   assert.equal(liveLoaderCalls, 1, "empty review queue must not consume provider refresh calls");
