@@ -35,6 +35,10 @@ export type PaperReviewLoadOptions = {
   liveContextLoader?: typeof fetchFreshPaperReviewContext;
 };
 
+const REVIEW_REFRESH_ORDER_MAX_AGE_MS = 120_000;
+const REVIEW_LIVE_CONTEXT_REUSE_MS = 10_000;
+const liveContextReuseByLoader = new WeakMap<Function, Map<string, { expiresAt: number; promise: Promise<FreshPaperReviewContext> }>>();
+
 const object = (value: unknown) => value !== null && typeof value === "object" && !Array.isArray(value);
 async function readJson<T>(root: string, name: string): Promise<T | null> {
   try {
@@ -45,6 +49,49 @@ async function readJson<T>(root: string, name: string): Promise<T | null> {
 const positive = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 const fresh = (timestamp: unknown, now: number, maxAgeMs: number) => typeof timestamp === "string"
   && Number.isFinite(Date.parse(timestamp)) && Date.parse(timestamp) <= now && now - Date.parse(timestamp) <= maxAgeMs;
+
+function refreshableQueuedOrder(order: ProposedOrder, now: number) {
+  const requestedAt = Date.parse(String(order?.requestedAt || ""));
+  return Number.isFinite(requestedAt)
+    && requestedAt <= now
+    && now - requestedAt < REVIEW_REFRESH_ORDER_MAX_AGE_MS;
+}
+
+function liveContextReuseKey(instruments: readonly ExecutionInstrument[], credentials: PaperReviewProviderCredentials) {
+  return JSON.stringify([
+    instruments.map(item => [
+      String(item.symbol || "").toUpperCase(),
+      String(item.currency || "").toUpperCase(),
+      String(item.assetClass || "").toLowerCase(),
+      String(item.exchangeMic || "").toUpperCase(),
+    ]),
+    Boolean(credentials.alpacaKeyId),
+    Boolean(credentials.alpacaSecretKey),
+    Boolean(credentials.twelveDataApiKey),
+  ]);
+}
+
+async function fetchLiveContextWithReuse(
+  loader: typeof fetchFreshPaperReviewContext,
+  args: Parameters<typeof fetchFreshPaperReviewContext>[0],
+  now: number,
+) {
+  let cache = liveContextReuseByLoader.get(loader);
+  if (!cache) {
+    cache = new Map();
+    liveContextReuseByLoader.set(loader, cache);
+  }
+  const key = liveContextReuseKey(args.instruments, args.credentials);
+  const existing = cache.get(key);
+  if (existing && existing.expiresAt > now) return existing.promise;
+  const promise = loader(args).catch((error) => {
+    const current = cache?.get(key);
+    if (current?.promise === promise) cache?.delete(key);
+    throw error;
+  });
+  cache.set(key, { expiresAt: now + REVIEW_LIVE_CONTEXT_REUSE_MS, promise });
+  return promise;
+}
 
 /** Read-only adapter: it never stages an order or writes certification data. */
 export async function loadPaperReviewPayload(
@@ -84,13 +131,17 @@ export async function loadPaperReviewPayload(
 
   const queuedReviewOrders = queue.orders.filter(order => object(order)
     && order.mode === "PAPER" && order.side === "BUY" && order.orderType === "LIMIT" && order.timeInForce === "DAY");
-  if (options.refreshLiveContext === true && queuedReviewOrders.length > 0) {
+  const refreshableReviewOrders = queuedReviewOrders.filter(order => refreshableQueuedOrder(order, now));
+  if (options.refreshLiveContext === true && queuedReviewOrders.length > 0 && refreshableReviewOrders.length === 0) {
+    payload.notices.push("Il refresh live non viene eseguito perché la proposta originale è già oltre la finestra di 120 secondi.");
+  }
+  if (options.refreshLiveContext === true && refreshableReviewOrders.length > 0) {
     const masterByTicker = new Map((instrumentMaster?.instruments ?? [])
       .filter(item => item?.status === "active" && typeof item?.ticker === "string")
       .map(item => [String(item.ticker).toUpperCase(), item]));
     const requestedInstruments: ExecutionInstrument[] = [];
     const seen = new Set<string>();
-    for (const order of queuedReviewOrders) {
+    for (const order of refreshableReviewOrders) {
       const symbol = String(order.symbol || "").toUpperCase();
       if (!symbol || seen.has(symbol)) continue;
       const master = masterByTicker.get(symbol);
@@ -111,11 +162,12 @@ export async function loadPaperReviewPayload(
     if (requestedInstruments.length > 0) {
       try {
         const loader = options.liveContextLoader ?? fetchFreshPaperReviewContext;
-        liveContext = await loader({
+        const credentials = options.credentials ?? paperReviewCredentialsFromEnvironment();
+        liveContext = await fetchLiveContextWithReuse(loader, {
           instruments: requestedInstruments,
-          credentials: options.credentials ?? paperReviewCredentialsFromEnvironment(),
+          credentials,
           now,
-        });
+        }, now);
         payload.reviewDataSource = liveContext.errors.length === 0 ? "LIVE_READONLY" : "PERSISTED";
         const refreshedSymbols = new Set(liveContext.requestedSymbols);
         evidence = {
