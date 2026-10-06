@@ -68,6 +68,7 @@ try {
       coverage: { sourceConcentrationPercent: 40, marketSources: 3, assetClasses: ["equity", "etf", "crypto"] },
       crossSourceValidation: { checked: 10, divergent: 0 }, policy: { unknownTimestampEvidenceExcluded: true, validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 } } }),
     save("global-source-health.json", { generatedAt: new Date(now).toISOString(), critical: { gate: "GREEN", ready: 9, total: 9 } }),
+    save("instrument-master.json", { version: 1, instruments: [{ ticker: "DEMO", assetClass: "equity", exchangeMic: "XNAS", country: "US", currency: "EUR", status: "active" }] }),
   ]);
   const snapshotBefore = await readFile(path.join(root, "data", "paper-oms-state.json"), "utf8");
   const payload = await loadPaperReviewPayload(root, now);
@@ -109,6 +110,53 @@ try {
   await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
   const stalePayload = await loadPaperReviewPayload(root, now + 121_000);
   assert(stalePayload.proposals[0].blockers.length > 0);
+
+  const refreshNow = now + 90_000;
+  let liveLoaderCalls = 0;
+  const liveContextLoader = async ({ instruments, now: requestedNow }) => {
+    liveLoaderCalls += 1;
+    assert.deepEqual(instruments.map((item) => item.symbol), ["DEMO"]);
+    const observedAt = new Date(requestedNow).toISOString();
+    return {
+      version: 1,
+      generatedAt: observedAt,
+      purpose: "fixture",
+      safety: { readOnly: true, writesAllowed: false, brokerSubmissionAllowed: false, liveTradingAllowed: false, certificationEvidenceMutationAllowed: false },
+      requestedSymbols: ["DEMO"],
+      observations: ["alpaca", "twelve-data"].map((family) => ({
+        symbol: "DEMO", currency: "EUR", assetClass: "equity", source: family, sourceFamily: family,
+        eligibility: "PAPER", price: 49.9, observedAt, provenanceVerified: true,
+      })),
+      marketSession: {
+        configured: true, liveTradingAllowed: false,
+        evidence: { venue: "US_EQUITIES", state: "OPEN", source: "Fixture live clock", observedAt, authoritative: true },
+        decision: { allowed: true, reasons: [], ageSeconds: 0, state: "OPEN" },
+      },
+      fx: {
+        provider: "twelve-data", baseCurrency: "EUR", generatedAt: observedAt, provenanceVerified: true,
+        liveTradingAllowed: false, brokerConnectivityAllowed: false,
+        ratesToEuro: { EUR: { rate: 1, observedAt, source: "identity" } },
+      },
+      errors: [],
+    };
+  };
+  const livePayload = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, 1);
+  assert.equal(livePayload.reviewDataSource, "LIVE_READONLY");
+  assert.equal(livePayload.proposals.length, 1);
+  assert.deepEqual(livePayload.proposals[0].blockers, []);
+  assert(livePayload.notices.some((item) => item.includes("sola lettura")));
+  assert.equal(await readFile(path.join(root, "data", "execution-market-evidence.json"), "utf8"), JSON.stringify(evidenceBefore), "live review refresh must not persist provider evidence");
+
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [] });
+  await loadPaperReviewPayload(root, refreshNow, { refreshLiveContext: true, credentials: {}, liveContextLoader });
+  assert.equal(liveLoaderCalls, 1, "empty review queue must not consume provider refresh calls");
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
+
   await save("paper-market-session.json", { configured: true, liveTradingAllowed: false, evidence: { venue: "US_EQUITIES", state: "CLOSED", source: "Fixture clock", observedAt: new Date(now).toISOString(), authoritative: true } });
   assert((await loadPaperReviewPayload(root, now)).proposals[0].blockers.some((item) => item.includes("sessione")));
   await save("paper-order-queue.json", { mode: "PAPER", orders: [{ ...demo.order, mode: "LIVE" }] });
