@@ -98,11 +98,28 @@ const sameDay = updateShadowCalibrationLedger(
 );
 assert.equal(sameDay.recordCount, 2, "must not oversample the same symbol more than once per UTC day");
 
-const day8 = updateShadowCalibrationLedger(
+const lateOnly = updateShadowCalibrationLedger(
   sameDay,
   [],
   new Map([["SPY", 800], ["QQQ", 750]]),
-  { cycleId: "cycle-3", now: new Date("2026-10-09T22:00:00Z") },
+  { cycleId: "cycle-late", now: new Date("2026-10-09T22:00:00Z") },
+);
+assert(lateOnly.records.every((record) => !record.checkpoints["1d"]), "a late price must never be mislabeled as a 1d checkpoint");
+assert(lateOnly.records.every((record) => record.checkpoints["7d"]), "7d checkpoint may be recorded inside its grace window");
+
+const day2 = updateShadowCalibrationLedger(
+  sameDay,
+  [],
+  new Map([["SPY", 790], ["QQQ", 755]]),
+  { cycleId: "cycle-2d", now: new Date("2026-10-03T22:00:00Z") },
+);
+assert(day2.records.every((record) => record.checkpoints["1d"]));
+
+const day8 = updateShadowCalibrationLedger(
+  day2,
+  [],
+  new Map([["SPY", 800], ["QQQ", 750]]),
+  { cycleId: "cycle-8d", now: new Date("2026-10-09T22:00:00Z") },
 );
 assert(day8.records.every((record) => record.checkpoints["1d"]));
 assert(day8.records.every((record) => record.checkpoints["7d"]));
