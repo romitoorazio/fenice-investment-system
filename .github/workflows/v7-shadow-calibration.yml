@@ -1,0 +1,152 @@
+name: Fenice V7 Shadow Calibration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 22 * * 1-5"
+  pull_request:
+    paths:
+      - "lib/intelligence/shadow-calibration.mjs"
+      - "scripts/run-shadow-calibration.mjs"
+      - "scripts/test-shadow-calibration.mjs"
+      - ".github/workflows/v7-shadow-calibration.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-shadow-calibration
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test fail-closed longitudinal shadow calibration
+        run: node scripts/test-shadow-calibration.mjs
+
+      - name: Dry-run historical shadow bootstrap
+        run: node scripts/run-shadow-calibration.mjs
+
+      - name: Validate dry-run isolation and summarize research samples
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/shadow-calibration.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/shadow-calibration-ledger.json', 'utf8'));
+          const requiredFalse = ['executionEligible','paperCertificationEligible','brokerSubmissionAllowed','liveTradingAllowed'];
+          for (const key of requiredFalse) {
+            if (report.isolation?.[key] !== false) throw new Error(`Unsafe shadow report flag: ${key}`);
+            if (ledger.isolation?.[key] !== false) throw new Error(`Unsafe shadow ledger flag: ${key}`);
+          }
+          if (report.isolation?.modifiesV6DecisionLedger !== false || ledger.isolation?.modifiesV6DecisionLedger !== false) {
+            throw new Error('Shadow calibration must not modify V6 decision ledger');
+          }
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) {
+            throw new Error('Shadow calibration must not feed V6 calibration policy');
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/shadow-calibration(?:-ledger)?\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Shadow dry-run touched unexpected data: ${unsafe.join(' | ')}`);
+          const h = report.researchCalibration || {};
+          console.log(
+            'V7 shadow dry-run:',
+            'bootstrapSnapshots=', report.historicalBootstrap?.sourceSnapshotCount || 0,
+            'seededRecords=', report.historicalBootstrap?.seededRecords || 0,
+            'ledgerRecords=', ledger.recordCount || 0,
+            '1d=', `${h['1d']?.state}/${h['1d']?.sampleSize}`,
+            '7d=', `${h['7d']?.state}/${h['7d']?.sampleSize}`,
+            '30d=', `${h['30d']?.state}/${h['30d']?.sampleSize}`,
+            '90d=', `${h['90d']?.state}/${h['90d']?.sampleSize}`,
+          );
+          NODE
+
+  collect:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build isolated V7 shadow calibration evidence
+        run: node scripts/run-shadow-calibration.mjs
+
+      - name: Validate isolation and output
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/shadow-calibration.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/shadow-calibration-ledger.json', 'utf8'));
+          const requiredFalse = ['executionEligible','paperCertificationEligible','brokerSubmissionAllowed','liveTradingAllowed'];
+          for (const key of requiredFalse) {
+            if (report.isolation?.[key] !== false) throw new Error(`Unsafe shadow report flag: ${key}`);
+            if (ledger.isolation?.[key] !== false) throw new Error(`Unsafe shadow ledger flag: ${key}`);
+          }
+          if (report.isolation?.modifiesV6DecisionLedger !== false || ledger.isolation?.modifiesV6DecisionLedger !== false) {
+            throw new Error('Shadow calibration must not modify V6 decision ledger');
+          }
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) {
+            throw new Error('Shadow calibration must not feed V6 calibration policy');
+          }
+          for (const candidate of report.candidates || []) {
+            if (candidate.executionEligible !== false || candidate.paperCertificationEligible !== false || candidate.brokerSubmissionAllowed !== false || candidate.liveTradingAllowed !== false) {
+              throw new Error(`Unsafe shadow candidate: ${candidate.symbol}`);
+            }
+          }
+          console.log('V7 shadow calibration valid:', report.candidateCount, 'candidates;', ledger.recordCount, 'ledger records');
+          NODE
+
+      - name: Publish only V7 shadow research evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-shadow-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/shadow-calibration.json "$generated_dir/shadow-calibration.json"
+          cp data/shadow-calibration-ledger.json "$generated_dir/shadow-calibration-ledger.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/shadow-calibration.json" data/shadow-calibration.json
+            cp "$generated_dir/shadow-calibration-ledger.json" data/shadow-calibration-ledger.json
+            git add data/shadow-calibration.json data/shadow-calibration-ledger.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 shadow evidence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 shadow calibration evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 shadow calibration evidence after 3 attempts"
+          exit 1
