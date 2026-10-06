@@ -1,0 +1,65 @@
+name: Fenice V7 Proposal Readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "lib/intelligence/proposal-readiness.mjs"
+      - "scripts/run-proposal-readiness.mjs"
+      - "scripts/test-proposal-readiness.mjs"
+      - ".github/workflows/v7-proposal-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test probe-vs-proposal separation and fail-closed locks
+        run: node scripts/test-proposal-readiness.mjs
+
+      - name: Dry-run proposal readiness on repository evidence
+        run: node scripts/run-proposal-readiness.mjs
+
+      - name: Validate diagnostic isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('v7-proposal-readiness.json', 'utf8'));
+          const s = r.safety || {};
+          if (s.diagnosticOnly !== true
+            || s.queueWritesAllowed !== false
+            || s.paperCertificationEvidenceMutationAllowed !== false
+            || s.brokerSubmissionAllowed !== false
+            || s.liveTradingAllowed !== false
+            || s.userApprovalStillRequired !== true) {
+            throw new Error('Unsafe V7 proposal readiness flags');
+          }
+          if (!Array.isArray(r.rows) || !Array.isArray(r.globalBlockers)) throw new Error('Malformed readiness report');
+          if (r.rows.some(row => row.reviewProposalEligible && !row.paperProbeEligible)) {
+            throw new Error('A user review proposal cannot outrun PAPER probe eligibility');
+          }
+          console.log('V7 proposal readiness valid:',
+            'candidates=', r.candidateCount,
+            'probeReady=', r.paperProbeReadyCount,
+            'reviewReady=', r.reviewProposalReadyCount,
+            'global=', r.globalBlockers.join(',') || 'none');
+          NODE
+
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v7-proposal-readiness-${{ github.run_id }}
+          path: v7-proposal-readiness.json
+          if-no-files-found: error
+          retention-days: 14
