@@ -31,21 +31,27 @@ function remainingWeekdaySlots({
   expiresAtMs,
   maxOrdersPerDay,
   usedToday,
-  latestRecoveryMinuteUtc = 1170,
+  recoveryWindowStartMinuteUtc = 875,
+  recoveryWindowEndMinuteUtc = 1170,
 }) {
   if (nowMs > expiresAtMs) return 0;
-  const start = Math.floor(nowMs / DAY_MS) * DAY_MS;
-  const end = Math.floor(expiresAtMs / DAY_MS) * DAY_MS;
-  const nowDate = new Date(nowMs);
-  const currentMinuteUtc = nowDate.getUTCHours() * 60 + nowDate.getUTCMinutes();
+  const startDay = Math.floor(nowMs / DAY_MS) * DAY_MS;
+  const endDay = Math.floor(expiresAtMs / DAY_MS) * DAY_MS;
   let slots = 0;
-  for (let day = start; day <= end; day += DAY_MS) {
+  for (let day = startDay; day <= endDay; day += DAY_MS) {
     const weekday = new Date(day).getUTCDay();
     if (weekday < 1 || weekday > 5) continue;
-    if (day === start && currentMinuteUtc > latestRecoveryMinuteUtc) continue;
-    slots += maxOrdersPerDay;
+
+    const windowStart = day + recoveryWindowStartMinuteUtc * 60_000;
+    const windowEnd = day + recoveryWindowEndMinuteUtc * 60_000;
+    const effectiveStart = Math.max(windowStart, nowMs);
+    const effectiveEnd = Math.min(windowEnd, expiresAtMs);
+    if (effectiveStart > effectiveEnd) continue;
+
+    const used = day === startDay ? Math.max(0, usedToday) : 0;
+    slots += Math.max(0, maxOrdersPerDay - used);
   }
-  return Math.max(0, slots - usedToday);
+  return slots;
 }
 
 export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.now() }) {
