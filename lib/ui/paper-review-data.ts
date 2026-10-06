@@ -116,7 +116,7 @@ export async function loadPaperReviewPayload(
           credentials: options.credentials ?? paperReviewCredentialsFromEnvironment(),
           now,
         });
-        payload.reviewDataSource = "LIVE_READONLY";
+        payload.reviewDataSource = liveContext.errors.length === 0 ? "LIVE_READONLY" : "PERSISTED";
         const refreshedSymbols = new Set(liveContext.requestedSymbols);
         evidence = {
           generatedAt: liveContext.generatedAt,
