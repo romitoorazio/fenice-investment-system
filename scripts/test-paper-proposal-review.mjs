@@ -152,6 +152,15 @@ try {
   assert(livePayload.notices.some((item) => item.includes("sola lettura")));
   assert.equal(await readFile(path.join(root, "data", "execution-market-evidence.json"), "utf8"), JSON.stringify(evidenceBefore), "live review refresh must not persist provider evidence");
 
+  const reusedLivePayload = await loadPaperReviewPayload(root, refreshNow + 1000, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, 1, "identical live review refreshes within 10 seconds must share one provider call");
+  assert.equal(reusedLivePayload.reviewDataSource, "LIVE_READONLY");
+  assert.deepEqual(reusedLivePayload.proposals[0].blockers, []);
+
   const partialPayload = await loadPaperReviewPayload(root, refreshNow, {
     refreshLiveContext: true,
     credentials: {},
@@ -159,6 +168,21 @@ try {
   });
   assert.equal(partialPayload.reviewDataSource, "PERSISTED", "partial provider refresh must never receive the live-ready marker");
   assert(partialPayload.notices.some((item) => item.includes("incompleto")));
+
+  const callsBeforeExpiredRefresh = liveLoaderCalls;
+  await save("paper-order-queue.json", {
+    mode: "PAPER",
+    orders: [{ ...fixtureOrder, requestedAt: new Date(refreshNow - 121_000).toISOString() }],
+  });
+  const expiredRefresh = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, callsBeforeExpiredRefresh, "expired review orders must not consume provider refresh calls");
+  assert.equal(expiredRefresh.reviewDataSource, "PERSISTED");
+  assert(expiredRefresh.notices.some((item) => item.includes("120 secondi")));
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
 
   const liveLoaderCallsBeforeEmptyQueue = liveLoaderCalls;
   await save("paper-order-queue.json", { mode: "PAPER", orders: [] });
