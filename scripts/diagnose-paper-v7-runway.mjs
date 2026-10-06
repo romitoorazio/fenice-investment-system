@@ -64,9 +64,22 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
   const campaignStatus = Number.isFinite(nowMs)
     ? evaluatePaperValidationCampaign(campaign, nowMs)
     : null;
-  const maturityAt = parseTime(campaign?.startedAt) === null
+  const requiredCalendarDays = boundedInteger(campaign?.requiredDays, 30, 1, 365);
+  const startedAtMs = parseTime(campaign?.startedAt);
+  const maturityAt = startedAtMs === null
     ? null
-    : new Date(parseTime(campaign.startedAt) + Number(campaign?.requiredDays || 30) * DAY_MS).toISOString();
+    : new Date(startedAtMs + (requiredCalendarDays - 1) * DAY_MS).toISOString();
+  const maturityAtMs = parseTime(maturityAt);
+  const maturityApprovalBufferHours = maturityAtMs !== null && expiresAtMs !== null
+    ? Math.round(((expiresAtMs - maturityAtMs) / 3_600_000) * 10) / 10
+    : null;
+  const maturityWindowState = maturityApprovalBufferHours === null
+    ? "UNKNOWN"
+    : maturityApprovalBufferHours < 0
+      ? "MISALIGNED"
+      : maturityApprovalBufferHours < 24
+        ? "TIGHT"
+        : "SAFE";
 
   const safety = {
     clockValid: Number.isFinite(nowMs),
@@ -116,6 +129,8 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
     generatedFor: new Date(Number.isFinite(nowMs) ? nowMs : 0).toISOString(),
     approvalExpiresAt: approval?.expiresAt || null,
     campaignMaturityAt: maturityAt,
+    maturityApprovalBufferHours,
+    maturityWindowState,
     marketWeekdaysAreUpperBound: true,
     targetFills,
     paperFills,
@@ -131,7 +146,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
     evidenceDays: campaignStatus?.evidenceDays ?? 0,
     evidenceDaysRemaining: Math.max(0, Number(campaign?.minEvidenceDays || 25) - Number(campaignStatus?.evidenceDays || 0)),
     elapsedCalendarDays: campaignStatus?.elapsedCalendarDays ?? 0,
-    requiredCalendarDays: Number(campaign?.requiredDays || 30),
+    requiredCalendarDays,
     safety,
   };
 }
@@ -149,6 +164,7 @@ function summary(report) {
     `Fills: ${report.paperFills}/${report.targetFills} (remaining ${report.fillsRemaining})`,
     `Probe attempts: ${report.historicalProbeAttempts}/${report.maxProbeAttemptsTotal} (remaining ${report.attemptsRemaining})`,
     `Weekday slots before approval expiry: ${report.weekdaySlotsRemaining} (upper bound; exchange holidays are not assumed)`,
+    `Calendar maturity: ${report.campaignMaturityAt || "N/A"}; approval buffer: ${report.maturityApprovalBufferHours ?? "N/A"}h (${report.maturityWindowState})`,
     `Maximum additional fills: ${report.maxPossibleAdditionalFills}`,
     `Runway margin: ${report.runwayMargin}`,
     `Evidence days: ${report.evidenceDays}; remaining: ${report.evidenceDaysRemaining}`,
