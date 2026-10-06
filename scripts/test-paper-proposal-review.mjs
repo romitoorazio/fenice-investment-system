@@ -68,6 +68,7 @@ try {
       coverage: { sourceConcentrationPercent: 40, marketSources: 3, assetClasses: ["equity", "etf", "crypto"] },
       crossSourceValidation: { checked: 10, divergent: 0 }, policy: { unknownTimestampEvidenceExcluded: true, validationEvidenceFreshnessHours: { crypto: 4, traditional: 96 } } }),
     save("global-source-health.json", { generatedAt: new Date(now).toISOString(), critical: { gate: "GREEN", ready: 9, total: 9 } }),
+    save("instrument-master.json", { version: 1, instruments: [{ ticker: "DEMO", assetClass: "equity", exchangeMic: "XNAS", country: "US", currency: "EUR", status: "active" }] }),
   ]);
   const snapshotBefore = await readFile(path.join(root, "data", "paper-oms-state.json"), "utf8");
   const payload = await loadPaperReviewPayload(root, now);
@@ -109,6 +110,86 @@ try {
   await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
   const stalePayload = await loadPaperReviewPayload(root, now + 121_000);
   assert(stalePayload.proposals[0].blockers.length > 0);
+
+  const refreshNow = now + 90_000;
+  let liveLoaderCalls = 0;
+  const liveContextLoader = async ({ instruments, now: requestedNow }) => {
+    liveLoaderCalls += 1;
+    assert.deepEqual(instruments.map((item) => item.symbol), ["DEMO"]);
+    const observedAt = new Date(requestedNow).toISOString();
+    return {
+      version: 1,
+      generatedAt: observedAt,
+      purpose: "fixture",
+      safety: { readOnly: true, writesAllowed: false, brokerSubmissionAllowed: false, liveTradingAllowed: false, certificationEvidenceMutationAllowed: false },
+      requestedSymbols: ["DEMO"],
+      observations: ["alpaca", "twelve-data"].map((family) => ({
+        symbol: "DEMO", currency: "EUR", assetClass: "equity", source: family, sourceFamily: family,
+        eligibility: "PAPER", price: 49.9, observedAt, provenanceVerified: true,
+      })),
+      marketSession: {
+        configured: true, liveTradingAllowed: false,
+        evidence: { venue: "US_EQUITIES", state: "OPEN", source: "Fixture live clock", observedAt, authoritative: true },
+        decision: { allowed: true, reasons: [], ageSeconds: 0, state: "OPEN" },
+      },
+      fx: {
+        provider: "twelve-data", baseCurrency: "EUR", generatedAt: observedAt, provenanceVerified: true,
+        liveTradingAllowed: false, brokerConnectivityAllowed: false,
+        ratesToEuro: { EUR: { rate: 1, observedAt, source: "identity" } },
+      },
+      errors: [],
+    };
+  };
+  const livePayload = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, 1);
+  assert.equal(livePayload.reviewDataSource, "LIVE_READONLY");
+  assert.equal(livePayload.proposals.length, 1);
+  assert.deepEqual(livePayload.proposals[0].blockers, []);
+  assert(livePayload.notices.some((item) => item.includes("sola lettura")));
+  assert.equal(await readFile(path.join(root, "data", "execution-market-evidence.json"), "utf8"), JSON.stringify(evidenceBefore), "live review refresh must not persist provider evidence");
+
+  const reusedLivePayload = await loadPaperReviewPayload(root, refreshNow + 1000, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, 1, "identical live review refreshes within 10 seconds must share one provider call");
+  assert.equal(reusedLivePayload.reviewDataSource, "LIVE_READONLY");
+  assert.deepEqual(reusedLivePayload.proposals[0].blockers, []);
+
+  const partialPayload = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader: async (args) => ({ ...(await liveContextLoader(args)), errors: ["TWELVE_DATA_NOT_CONFIGURED"] }),
+  });
+  assert.equal(partialPayload.reviewDataSource, "PERSISTED", "partial provider refresh must never receive the live-ready marker");
+  assert(partialPayload.notices.some((item) => item.includes("incompleto")));
+
+  const callsBeforeExpiredRefresh = liveLoaderCalls;
+  await save("paper-order-queue.json", {
+    mode: "PAPER",
+    orders: [{ ...fixtureOrder, requestedAt: new Date(refreshNow - 121_000).toISOString() }],
+  });
+  const expiredRefresh = await loadPaperReviewPayload(root, refreshNow, {
+    refreshLiveContext: true,
+    credentials: {},
+    liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, callsBeforeExpiredRefresh, "expired review orders must not consume provider refresh calls");
+  assert.equal(expiredRefresh.reviewDataSource, "PERSISTED");
+  assert(expiredRefresh.notices.some((item) => item.includes("120 secondi")));
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
+
+  const liveLoaderCallsBeforeEmptyQueue = liveLoaderCalls;
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [] });
+  await loadPaperReviewPayload(root, refreshNow, { refreshLiveContext: true, credentials: {}, liveContextLoader });
+  assert.equal(liveLoaderCalls, liveLoaderCallsBeforeEmptyQueue, "empty review queue must not consume provider refresh calls");
+  await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
+
   await save("paper-market-session.json", { configured: true, liveTradingAllowed: false, evidence: { venue: "US_EQUITIES", state: "CLOSED", source: "Fixture clock", observedAt: new Date(now).toISOString(), authoritative: true } });
   assert((await loadPaperReviewPayload(root, now)).proposals[0].blockers.some((item) => item.includes("sessione")));
   await save("paper-order-queue.json", { mode: "PAPER", orders: [{ ...demo.order, mode: "LIVE" }] });
@@ -126,6 +207,14 @@ assert.throws(() => decidePaperReview(createPaperReviewDemo(now + 4000), "YES", 
 const fullHistory = Array.from({ length: 100 }, (_, index) => decidePaperReview(createPaperReviewDemo(now + index), "NO", [], now + index));
 assert.equal(parsePaperReviewHistory(JSON.stringify({ version: 1, mode: "PAPER_REVIEW", records: fullHistory })).length, 100);
 assert.throws(() => decidePaperReview(createPaperReviewDemo(now + 101), "YES", fullHistory, now + 101), /100 risposte/, "do not evict old receipts and reopen duplicate IDs");
+
+const component = await readFile(new URL("../components/PaperProposalReview.tsx", import.meta.url), "utf8");
+assert.match(component, /proposal\.scope === "DEMO" \|\| data\.reviewDataSource === "LIVE_READONLY"/,
+  "PAPER Sì must stay disabled until a visible LIVE_READONLY refresh is present");
+assert.match(component, /Dati mercato aggiornati in sola lettura\. Controlla i dettagli mostrati e premi Sì di nuovo/,
+  "a persisted-data Sì attempt must stop after refresh and require a second explicit confirmation");
+assert.doesNotMatch(component, /current = fresh;/,
+  "a first-click refresh must never flow directly into the simulated YES decision");
 
 const route = await readFile(new URL("../app/api/trading/proposals/route.ts", import.meta.url), "utf8");
 assert.match(route, /export async function GET/);

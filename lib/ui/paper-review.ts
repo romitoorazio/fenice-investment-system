@@ -29,6 +29,7 @@ export type PaperReviewPayload = {
   mode: "PAPER_REVIEW";
   liveTradingAllowed: false;
   brokerOrderSubmissionAllowed: false;
+  reviewDataSource?: "PERSISTED" | "LIVE_READONLY";
   proposals: PaperReviewProposal[];
   notices: string[];
 };
