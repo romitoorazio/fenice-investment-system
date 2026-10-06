@@ -29,6 +29,7 @@ function sourceObservedAt(sourceHealth) {
 
 function inferredObservedAt(evidenceObservedAt, ageMinutes) {
   const observedAtMs = timestamp(evidenceObservedAt);
+  if (ageMinutes === null || ageMinutes === undefined || ageMinutes === '') return null;
   const age = Number(ageMinutes);
   if (observedAtMs === null || !Number.isFinite(age) || age < 0) return null;
   return new Date(observedAtMs - age * 60_000).toISOString();
@@ -69,9 +70,14 @@ export function diagnose(root = process.cwd()) {
 
   const fingerprint = campaign.baselineFingerprint?.digest ?? null;
   const evidenceFingerprint = evidence.validationFingerprint?.digest ?? null;
+  const fingerprintMetadataMatches = evidence.validationFingerprint?.complete === true
+    && evidence.validationFingerprint?.version === campaign.baselineFingerprint?.version
+    && evidence.validationFingerprint?.algorithm === campaign.baselineFingerprint?.algorithm;
   const safety = {
     fingerprintComplete: campaign.baselineFingerprint?.complete === true,
-    fingerprintMatchesLatestEvidence: Boolean(fingerprint) && fingerprint === evidenceFingerprint,
+    fingerprintMatchesLatestEvidence: Boolean(fingerprint)
+      && fingerprint === evidenceFingerprint
+      && fingerprintMetadataMatches,
     liveTradingLocked: campaign.liveTradingAllowed === false && evidence.liveTradingAllowed === false,
     brokerConnectivityLocked: evidence.brokerConnectivityAllowed === false,
     noLiveOrders: evidence.liveOrders === 0,
