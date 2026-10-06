@@ -225,7 +225,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| PAPER fills | ${cumulativePaperFills}/${minPaperFills} (${report.campaign.fillProgressPercent}%) |`,
     `| Fill runway | ${runway.fillRunwayState} · ${runway.remainingFills} remaining / ${runway.availableProbeSlotsBeforeExpiry} weekday slots max |`,
     `| Earliest 10/10 fill date | ${runway.earliestTargetFillDate || "N/A"} |`,
-    `| Calendar maturity | ${runway.calendarMaturityAt || "N/A"} · approval buffer ${runway.maturityApprovalBufferHours ?? "N/A"}h |`,
+    `| Calendar maturity | ${runway.calendarMaturityAt || "N/A"} · approval buffer ${runway.maturityApprovalBufferHours ?? "N/A"}h · ${runway.maturityWindowState} |`,
     `| Execution quality | ${latestQuality} |`,
     `| LIVE allowed | ${String(campaign?.liveTradingAllowed)} |`,
     `| Broker connectivity | ${String(oms?.brokerConnectivityAllowed)} |`,
