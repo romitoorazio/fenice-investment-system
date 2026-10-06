@@ -75,9 +75,9 @@ assert.equal(feasible.usedToday, 1);
 assert.equal(feasible.weekdaySlotsRemaining, 13);
 assert.equal(feasible.maxPossibleAdditionalFills, 13);
 assert.equal(feasible.runwayMargin, 6);
-assert.equal(feasible.campaignMaturityAt, "2026-10-24T15:40:35.178Z");
-assert.equal(feasible.maturityApprovalBufferHours, 6.3);
-assert.equal(feasible.maturityWindowState, "TIGHT");
+assert.equal(feasible.campaignMaturityAt, "2026-10-25T15:40:35.178Z");
+assert.equal(feasible.maturityApprovalBufferHours, -17.7);
+assert.equal(feasible.maturityWindowState, "MISALIGNED");
 assert.ok(Object.values(feasible.safety).every(Boolean));
 
 const tight = diagnosePaperV7Runway({
