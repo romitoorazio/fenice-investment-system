@@ -168,6 +168,18 @@ const mismatch = diagnosePaperV7Runway({ campaign: mismatchCampaign, approval, s
 assert.equal(mismatch.status, "SAFETY_FAILURE");
 assert.equal(mismatch.safety.fillCountersMatch, false);
 
+const invalidCampaign = {
+  ...campaign,
+  dailyEvidence: campaign.dailyEvidence.map((row, index) =>
+    index === 0
+      ? { ...row, validationFingerprint: { ...fingerprint, digest: "e".repeat(64) } }
+      : row),
+};
+assert.equal(evaluatePaperValidationCampaign(invalidCampaign, Date.parse(now)).state, "INVALID");
+const invalidEvidence = diagnosePaperV7Runway({ campaign: invalidCampaign, approval, state, now });
+assert.equal(invalidEvidence.status, "SAFETY_FAILURE");
+assert.equal(invalidEvidence.safety.campaignEvidenceValid, false);
+
 const complete = diagnosePaperV7Runway({
   campaign: {
     ...campaign,
