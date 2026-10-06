@@ -68,7 +68,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
   const startedAtMs = parseTime(campaign?.startedAt);
   const maturityAt = startedAtMs === null
     ? null
-    : new Date(startedAtMs + (requiredCalendarDays - 1) * DAY_MS).toISOString();
+    : new Date(startedAtMs + requiredCalendarDays * DAY_MS).toISOString();
   const maturityAtMs = parseTime(maturityAt);
   const maturityApprovalBufferHours = maturityAtMs !== null && expiresAtMs !== null
     ? Math.round(((expiresAtMs - maturityAtMs) / 3_600_000) * 10) / 10
