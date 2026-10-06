@@ -71,13 +71,23 @@ jobs:
             throw new Error('Malformed readiness report');
           }
           for (const row of r.rows) {
-            if (!Array.isArray(row.validationCandidateBlockers)
+            if (!Array.isArray(row.validationLocalBlockers)
+              || !Array.isArray(row.reviewProposalLocalBlockers)
+              || !Array.isArray(row.validationCandidateBlockers)
               || !Array.isArray(row.reviewProposalCandidateBlockers)) {
               throw new Error(`Malformed candidate readiness row: ${row.symbol}`);
+            }
+            if (row.validationCandidateReady && !row.validationStructurallyReady) {
+              throw new Error(`Current validation readiness cannot outrun structural readiness: ${row.symbol}`);
+            }
+            if (row.reviewProposalCandidateReady && !row.reviewProposalStructurallyReady) {
+              throw new Error(`Current review readiness cannot outrun structural readiness: ${row.symbol}`);
             }
           }
           console.log('V7 proposal readiness valid:',
             'candidates=', r.candidateCount,
+            'validationStructural=', r.validationStructurallyReadyCount,
+            'reviewStructural=', r.reviewProposalStructurallyReadyCount,
             'validationCandidates=', r.validationCandidateReadyCount,
             'reviewCandidates=', r.reviewProposalCandidateReadyCount,
             'shared=', r.sharedGlobalBlockers.join(',') || 'none',
@@ -96,6 +106,8 @@ jobs:
           }
           console.log('V7 latest-main readiness:',
             'candidates=', current.candidateCount,
+            'validationStructural=', current.validationStructurallyReadyCount,
+            'reviewStructural=', current.reviewProposalStructurallyReadyCount,
             'validationCandidates=', current.validationCandidateReadyCount,
             'reviewCandidates=', current.reviewProposalCandidateReadyCount,
             'shared=', current.sharedGlobalBlockers.join(',') || 'none',
