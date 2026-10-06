@@ -1,4 +1,5 @@
 import { evaluatePaperCampaignRunway } from "../lib/intelligence/paper-campaign-runway.mjs";
+import { evaluatePaperValidationCampaign } from "../lib/trading/paper-validation.mjs";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
@@ -54,9 +55,8 @@ const evidenceDays = uniqueEvidenceDates.length;
 const cumulativePaperFills = latest
   ? finite(latest.cumulativePaperFilled, validationExecutions.filter((row) => row?.status === "PAPER_FILLED").length)
   : validationExecutions.filter((row) => row?.status === "PAPER_FILLED").length;
-const elapsedDays = campaign.startedAt
-  ? Math.max(0, Math.floor((now - Date.parse(campaign.startedAt)) / 86_400_000) + 1)
-  : 0;
+const canonicalCampaignStatus = evaluatePaperValidationCampaign(campaign, now);
+const elapsedDays = finite(canonicalCampaignStatus?.elapsedCalendarDays, 0);
 
 const runway = evaluatePaperCampaignRunway({
   now,
