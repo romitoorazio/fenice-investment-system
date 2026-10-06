@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { diagnosePaperV7Runway } from "./diagnose-paper-v7-runway.mjs";
+import { evaluatePaperValidationCampaign } from "../lib/trading/paper-validation.mjs";
 
 const fingerprint = {
   version: 1,
@@ -90,6 +91,15 @@ const tight = diagnosePaperV7Runway({
 assert.equal(tight.status, "TIGHT");
 assert.equal(tight.fillsRemaining, 12);
 assert.equal(tight.runwayMargin, 1);
+
+const afterRecoveryWindow = diagnosePaperV7Runway({
+  campaign,
+  approval,
+  state: { ...state, executions: state.executions.slice(0, 2) },
+  now: "2026-10-06T19:31:00.000Z",
+});
+assert.equal(afterRecoveryWindow.usedToday, 0);
+assert.equal(afterRecoveryWindow.weekdaySlotsRemaining, 13, "elapsed current weekday must not be counted after the conservative recovery window");
 
 const calendarImpossible = diagnosePaperV7Runway({
   campaign,
