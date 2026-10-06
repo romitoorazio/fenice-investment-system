@@ -1,0 +1,74 @@
+name: Fenice V7 Proposal Readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "lib/intelligence/proposal-readiness.mjs"
+      - "scripts/run-proposal-readiness.mjs"
+      - "scripts/test-proposal-readiness.mjs"
+      - ".github/workflows/v7-proposal-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test V6-probe vs review-proposal separation and fail-closed locks
+        run: node scripts/test-proposal-readiness.mjs
+
+      - name: Dry-run proposal readiness on repository evidence
+        run: node scripts/run-proposal-readiness.mjs
+
+      - name: Validate diagnostic isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('v7-proposal-readiness.json', 'utf8'));
+          const s = r.safety || {};
+          if (s.diagnosticOnly !== true
+            || s.queueWritesAllowed !== false
+            || s.paperCertificationEvidenceMutationAllowed !== false
+            || s.brokerSubmissionAllowed !== false
+            || s.liveTradingAllowed !== false
+            || s.userApprovalStillRequired !== true
+            || s.finalProposalRecheckStillRequired !== true) {
+            throw new Error('Unsafe V7 proposal readiness flags');
+          }
+          if (!Array.isArray(r.rows)
+            || !Array.isArray(r.sharedGlobalBlockers)
+            || !Array.isArray(r.validationGlobalBlockers)) {
+            throw new Error('Malformed readiness report');
+          }
+          for (const row of r.rows) {
+            if (!Array.isArray(row.validationCandidateBlockers)
+              || !Array.isArray(row.reviewProposalCandidateBlockers)) {
+              throw new Error(`Malformed candidate readiness row: ${row.symbol}`);
+            }
+          }
+          console.log('V7 proposal readiness valid:',
+            'candidates=', r.candidateCount,
+            'validationCandidates=', r.validationCandidateReadyCount,
+            'reviewCandidates=', r.reviewProposalCandidateReadyCount,
+            'shared=', r.sharedGlobalBlockers.join(',') || 'none',
+            'validationGlobal=', r.validationGlobalBlockers.join(',') || 'none');
+          NODE
+
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v7-proposal-readiness-${{ github.run_id }}
+          path: v7-proposal-readiness.json
+          if-no-files-found: error
+          retention-days: 14
