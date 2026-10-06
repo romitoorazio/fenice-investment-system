@@ -160,9 +160,10 @@ try {
   assert.equal(partialPayload.reviewDataSource, "PERSISTED", "partial provider refresh must never receive the live-ready marker");
   assert(partialPayload.notices.some((item) => item.includes("incompleto")));
 
+  const liveLoaderCallsBeforeEmptyQueue = liveLoaderCalls;
   await save("paper-order-queue.json", { mode: "PAPER", orders: [] });
   await loadPaperReviewPayload(root, refreshNow, { refreshLiveContext: true, credentials: {}, liveContextLoader });
-  assert.equal(liveLoaderCalls, 1, "empty review queue must not consume provider refresh calls");
+  assert.equal(liveLoaderCalls, liveLoaderCallsBeforeEmptyQueue, "empty review queue must not consume provider refresh calls");
   await save("paper-order-queue.json", { mode: "PAPER", orders: [fixtureOrder] });
 
   await save("paper-market-session.json", { configured: true, liveTradingAllowed: false, evidence: { venue: "US_EQUITIES", state: "CLOSED", source: "Fixture clock", observedAt: new Date(now).toISOString(), authoritative: true } });
