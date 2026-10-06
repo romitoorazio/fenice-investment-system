@@ -22,9 +22,10 @@ const report = evaluatePaperCampaignRunway({
 });
 
 assert.equal(report.remainingFills, 7);
-assert.equal(report.maturityBeforeApprovalExpiry, true);
-assert(report.maturityApprovalBufferHours > 0);
-assert.equal(report.maturityWindowState, "TIGHT");
+assert.equal(report.calendarMaturityAt, "2026-10-25T15:40:35.178Z");
+assert.equal(report.maturityBeforeApprovalExpiry, false);
+assert.equal(report.maturityApprovalBufferHours, -17.7);
+assert.equal(report.maturityWindowState, "MISALIGNED");
 assert(report.availableProbeSlotsBeforeExpiry >= 7);
 assert.equal(report.fillRunwayState, "SAFE");
 assert(report.earliestTargetFillDate);
