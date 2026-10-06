@@ -36,6 +36,30 @@ assert.equal(
 );
 assert.equal(
   catalystMatchesAsset(
+    { symbol: "SPY", name: "S&P 500 ETF" },
+    { name: "Former German spy chief arrested", signal: "Political news" },
+  ),
+  false,
+  "lowercase common words must not be mistaken for uppercase tickers",
+);
+assert.equal(
+  catalystMatchesAsset(
+    { symbol: "SPY", name: "S&P 500 ETF" },
+    { name: "SPY ETF advances after market open", signal: "Market update" },
+  ),
+  true,
+  "explicit uppercase ticker mentions must still match",
+);
+assert.equal(
+  catalystMatchesAsset(
+    { symbol: "SPY", name: "S&P 500 ETF" },
+    { name: "$SPY breaks above resistance", signal: "Market update" },
+  ),
+  true,
+  "cash-tagged ticker mentions must still match",
+);
+assert.equal(
+  catalystMatchesAsset(
     { symbol: "TSM", name: "Taiwan Semiconductor Manufacturing Company Limited" },
     { name: "Unrelated semiconductor supplier update", signal: "Sector news" },
   ),
