@@ -14,6 +14,10 @@ on:
     branches:
       - main
     paths:
+      - "lib/intelligence/paper-campaign-runway.mjs"
+      - "scripts/test-paper-v6-campaign-runway.mjs"
+      - "lib/intelligence/paper-campaign-runway.mjs"
+      - "scripts/test-paper-v6-campaign-runway.mjs"
       - "scripts/report-paper-v6-progress.mjs"
       - ".github/workflows/paper-v6-campaign-observer.yml"
   push:
@@ -43,6 +47,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Test PAPER V6 campaign runway
+        run: node scripts/test-paper-v6-campaign-runway.mjs
 
       - name: Report PAPER V6 campaign and certification maturity
         env:
