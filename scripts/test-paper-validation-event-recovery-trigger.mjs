@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { evaluatePaperValidationEventRecovery } from "./paper-validation-event-recovery-trigger.mjs";
 
 const repository = "romitoorazio/fenice-investment-system";
@@ -35,5 +36,11 @@ assert.equal(evaluate({ upstream: { ...goodUpstream, conclusion: "failure" } }).
 assert.equal(evaluate({ upstream: { ...goodUpstream, headBranch: "feature/test" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, headRepository: "other/repo" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, name: "Unknown workflow" } }).allowed, false);
+
+const workflow = readFileSync(".github/workflows/paper-validation-early-trigger.yml", "utf8");
+assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository/,
+  "early trigger must reject cross-repository or non-main workflow_run events before runner work");
+assert.match(workflow, /github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Production CI'/,
+  "early trigger must preserve scheduled upstreams and trusted Production CI push recovery only");
 
 console.log("paper validation event recovery trigger tests: PASS");
