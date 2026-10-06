@@ -26,14 +26,24 @@ function isProbe(execution, prefix) {
   return execution?.validationProbe === true || String(execution?.clientOrderId || "").startsWith(prefix);
 }
 
-function remainingWeekdaySlots({ nowMs, expiresAtMs, maxOrdersPerDay, usedToday }) {
+function remainingWeekdaySlots({
+  nowMs,
+  expiresAtMs,
+  maxOrdersPerDay,
+  usedToday,
+  latestRecoveryMinuteUtc = 1170,
+}) {
   if (nowMs > expiresAtMs) return 0;
   const start = Math.floor(nowMs / DAY_MS) * DAY_MS;
   const end = Math.floor(expiresAtMs / DAY_MS) * DAY_MS;
+  const nowDate = new Date(nowMs);
+  const currentMinuteUtc = nowDate.getUTCHours() * 60 + nowDate.getUTCMinutes();
   let slots = 0;
   for (let day = start; day <= end; day += DAY_MS) {
     const weekday = new Date(day).getUTCDay();
-    if (weekday >= 1 && weekday <= 5) slots += maxOrdersPerDay;
+    if (weekday < 1 || weekday > 5) continue;
+    if (day === start && currentMinuteUtc > latestRecoveryMinuteUtc) continue;
+    slots += maxOrdersPerDay;
   }
   return Math.max(0, slots - usedToday);
 }
@@ -142,6 +152,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
     maturityApprovalBufferHours,
     maturityWindowState,
     marketWeekdaysAreUpperBound: true,
+    currentWeekdayExcludedAfterConservativeRecoveryWindow: true,
     targetFills,
     paperFills,
     fillsRemaining,
