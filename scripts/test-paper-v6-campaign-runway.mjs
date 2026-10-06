@@ -30,6 +30,16 @@ assert(report.availableProbeSlotsBeforeExpiry >= 7);
 assert.equal(report.fillRunwayState, "SAFE");
 assert(report.earliestTargetFillDate);
 
+
+const afterWindow = evaluatePaperCampaignRunway({
+  now: Date.parse("2026-10-06T20:00:00Z"),
+  campaign,
+  approval,
+  cumulativePaperFills: 2,
+  probesPerDay: new Map(),
+});
+assert.equal(afterWindow.availableProbeSlotsBeforeExpiry, 13, "elapsed current-day recovery window must not be counted");
+
 const impossible = evaluatePaperCampaignRunway({
   now: Date.parse("2026-10-23T18:00:00Z"),
   campaign,
