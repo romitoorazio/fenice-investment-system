@@ -205,5 +205,10 @@ assert.doesNotMatch(
 );
 assert.match(diagnosticWorkflow, /permissions:\n\s+contents: read/);
 assert.doesNotMatch(diagnosticWorkflow, /contents: write|actions: write|git push|gh workflow run/);
+assert.match(
+  diagnosticWorkflow,
+  /- name: Upload PAPER diagnostics\n\s+if: \$\{\{ always\(\) \}\}/,
+  "fail-closed runway reports must remain available as artifacts",
+);
 
 console.log("PAPER V7 runway diagnostic tests: PASS");
