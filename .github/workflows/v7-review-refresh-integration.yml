@@ -1,0 +1,49 @@
+name: Fenice V7 Review Refresh Integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "lib/ui/paper-review*.ts"
+      - "components/PaperProposalReview.tsx"
+      - "app/api/trading/proposals/**"
+      - "scripts/test-paper-proposal-review.mjs"
+      - ".github/workflows/v7-review-refresh-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Test PAPER review consent and live-refresh isolation
+        run: node --experimental-strip-types scripts/test-paper-proposal-review.mjs
+
+      - name: Test provider boundary fixtures
+        run: node --experimental-strip-types scripts/test-paper-review-live-context.mjs
+
+      - name: Build application
+        run: npm run build
+
+      - name: Assert proposals API remains GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -E -n 'export (async )?function (POST|PUT|PATCH|DELETE)' app/api/trading/proposals/route.ts; then
+            echo "Proposal review API must remain read-only"
+            exit 1
+          fi
+          echo "Proposal review API remains GET-only; provider refresh is read-only."

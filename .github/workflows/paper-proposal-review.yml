@@ -1,0 +1,44 @@
+name: PAPER proposal Sì-No regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-review*.ts"
+      - "components/PaperProposalReview.tsx"
+      - "app/proposte/**"
+      - "app/api/trading/proposals/**"
+      - "scripts/test-paper-proposal-review.mjs"
+      - "scripts/test-fenice-ai.mjs"
+      - "lib/ai-*.ts"
+      - "lib/trading/decision-data-gate.d.mts"
+      - ".github/workflows/paper-proposal-review.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-review*.ts"
+      - "components/PaperProposalReview.tsx"
+      - "app/proposte/**"
+      - "app/api/trading/proposals/**"
+      - "scripts/test-paper-proposal-review.mjs"
+      - "scripts/test-fenice-ai.mjs"
+      - "lib/ai-*.ts"
+      - "lib/trading/decision-data-gate.d.mts"
+      - ".github/workflows/paper-proposal-review.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Proposal consent and PAPER-only invariants
+        run: node --experimental-strip-types scripts/test-paper-proposal-review.mjs
+      - name: AI authority, provenance, ranking and thesis revision invariants
+        run: node --experimental-strip-types scripts/test-fenice-ai.mjs
