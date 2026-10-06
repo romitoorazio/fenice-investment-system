@@ -88,15 +88,16 @@ assert.equal(tight.status, "TIGHT");
 assert.equal(tight.fillsRemaining, 12);
 assert.equal(tight.runwayMargin, 1);
 
-const attemptImpossible = diagnosePaperV7Runway({
+const calendarImpossible = diagnosePaperV7Runway({
   campaign,
-  approval: { ...approval, maxProbeAttemptsTotal: 8 },
+  approval,
   state,
-  now,
+  now: "2026-10-20T12:00:00.000Z",
 });
-assert.equal(attemptImpossible.status, "IMPOSSIBLE");
-assert.equal(attemptImpossible.attemptsRemaining, 5);
-assert.equal(attemptImpossible.maxPossibleAdditionalFills, 5);
+assert.equal(calendarImpossible.status, "IMPOSSIBLE");
+assert.equal(calendarImpossible.attemptsRemaining, 17);
+assert.equal(calendarImpossible.weekdaySlotsRemaining, 4);
+assert.equal(calendarImpossible.maxPossibleAdditionalFills, 4);
 
 const expired = diagnosePaperV7Runway({
   campaign,
