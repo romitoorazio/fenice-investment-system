@@ -38,6 +38,8 @@ const campaign = {
 };
 const approval = {
   approved: true,
+  humanConfirmation: true,
+  mode: "PAPER",
   expiresAt: "2026-10-24T21:59:59.000Z",
   idPrefix: "fenice-paper-validation-v6-",
   targetPaperFills: 10,
@@ -116,6 +118,17 @@ const unsafe = diagnosePaperV7Runway({
 });
 assert.equal(unsafe.status, "SAFETY_FAILURE");
 assert.equal(unsafe.safety.stateBrokerLocked, false);
+
+const revoked = diagnosePaperV7Runway({
+  campaign,
+  approval: { ...approval, approved: false, humanConfirmation: false, mode: "LIVE" },
+  state,
+  now,
+});
+assert.equal(revoked.status, "SAFETY_FAILURE");
+assert.equal(revoked.safety.approvalActive, false);
+assert.equal(revoked.safety.approvalHumanConfirmed, false);
+assert.equal(revoked.safety.approvalPaperOnly, false);
 
 const mismatchCampaign = {
   ...campaign,
