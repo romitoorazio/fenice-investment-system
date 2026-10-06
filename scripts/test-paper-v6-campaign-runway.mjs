@@ -24,6 +24,7 @@ const report = evaluatePaperCampaignRunway({
 assert.equal(report.remainingFills, 7);
 assert.equal(report.maturityBeforeApprovalExpiry, true);
 assert(report.maturityApprovalBufferHours > 0);
+assert.equal(report.maturityWindowState, "TIGHT");
 assert(report.availableProbeSlotsBeforeExpiry >= 7);
 assert.equal(report.fillRunwayState, "SAFE");
 assert(report.earliestTargetFillDate);
