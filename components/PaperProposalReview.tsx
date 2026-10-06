@@ -108,7 +108,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
     setBusy(true);
     setError(null);
     try {
-      let current = proposal;
+      const current = proposal;
       if (choice === "YES" && proposal.scope === "PAPER_QUEUE" && data.reviewDataSource !== "LIVE_READONLY") {
         const next = await fetchProposals(AbortSignal.timeout(10_000), true);
         setData(next);
