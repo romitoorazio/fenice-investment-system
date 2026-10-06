@@ -1,6 +1,12 @@
 name: Fenice PAPER Candidate Diagnostics
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/diagnose-paper-v7-runway.mjs"
+      - "scripts/test-paper-v7-runway.mjs"
+      - ".github/workflows/paper-candidate-diagnostics.yml"
   workflow_run:
     workflows:
       - Fenice PAPER Probe
@@ -15,6 +21,7 @@ jobs:
   explain-paper-candidates:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.repository.full_name == github.repository)
@@ -52,6 +59,14 @@ jobs:
           FENICE_PAPER_V6_COMMITTEE_SENSITIVITY: paper-v6-committee-sensitivity.json
         run: node scripts/analyze-paper-v6-committee-sensitivity.mjs
 
+      - name: Diagnose PAPER V7 runway without modifying V6
+        env:
+          FENICE_V7_RUNWAY_REPORT: paper-v7-runway.json
+        run: node scripts/diagnose-paper-v7-runway.mjs
+
+      - name: Regression-test PAPER V7 runway diagnostic
+        run: node scripts/test-paper-v7-runway.mjs
+
       - name: Upload PAPER diagnostics
         uses: actions/upload-artifact@v4
         with:
@@ -59,5 +74,6 @@ jobs:
           path: |
             paper-candidate-opportunities.json
             paper-v6-committee-sensitivity.json
+            paper-v7-runway.json
           if-no-files-found: error
           retention-days: 14
