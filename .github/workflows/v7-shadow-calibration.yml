@@ -21,7 +21,7 @@ concurrency:
 jobs:
   regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout tested ref
         uses: actions/checkout@v5
@@ -33,6 +33,43 @@ jobs:
 
       - name: Test fail-closed longitudinal shadow calibration
         run: node scripts/test-shadow-calibration.mjs
+
+      - name: Dry-run historical shadow bootstrap
+        run: node scripts/run-shadow-calibration.mjs
+
+      - name: Validate dry-run isolation and summarize research samples
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/shadow-calibration.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/shadow-calibration-ledger.json', 'utf8'));
+          const requiredFalse = ['executionEligible','paperCertificationEligible','brokerSubmissionAllowed','liveTradingAllowed'];
+          for (const key of requiredFalse) {
+            if (report.isolation?.[key] !== false) throw new Error(`Unsafe shadow report flag: ${key}`);
+            if (ledger.isolation?.[key] !== false) throw new Error(`Unsafe shadow ledger flag: ${key}`);
+          }
+          if (report.isolation?.modifiesV6DecisionLedger !== false || ledger.isolation?.modifiesV6DecisionLedger !== false) {
+            throw new Error('Shadow calibration must not modify V6 decision ledger');
+          }
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) {
+            throw new Error('Shadow calibration must not feed V6 calibration policy');
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/shadow-calibration(?:-ledger)?\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Shadow dry-run touched unexpected data: ${unsafe.join(' | ')}`);
+          const h = report.researchCalibration || {};
+          console.log(
+            'V7 shadow dry-run:',
+            'bootstrapSnapshots=', report.historicalBootstrap?.sourceSnapshotCount || 0,
+            'seededRecords=', report.historicalBootstrap?.seededRecords || 0,
+            'ledgerRecords=', ledger.recordCount || 0,
+            '1d=', `${h['1d']?.state}/${h['1d']?.sampleSize}`,
+            '7d=', `${h['7d']?.state}/${h['7d']?.sampleSize}`,
+            '30d=', `${h['30d']?.state}/${h['30d']?.sampleSize}`,
+            '90d=', `${h['90d']?.state}/${h['90d']?.sampleSize}`,
+          );
+          NODE
 
   collect:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
