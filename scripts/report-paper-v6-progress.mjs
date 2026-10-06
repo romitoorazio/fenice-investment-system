@@ -1,3 +1,4 @@
+import { evaluatePaperCampaignRunway } from "../lib/intelligence/paper-campaign-runway.mjs";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
@@ -56,6 +57,14 @@ const cumulativePaperFills = latest
 const elapsedDays = campaign.startedAt
   ? Math.max(0, Math.floor((now - Date.parse(campaign.startedAt)) / 86_400_000) + 1)
   : 0;
+
+const runway = evaluatePaperCampaignRunway({
+  now,
+  campaign,
+  approval,
+  cumulativePaperFills,
+  probesPerDay,
+});
 
 // Keep these thresholds exactly aligned with check-certification-readiness.mjs.
 const historicalThresholds = {
@@ -139,6 +148,7 @@ const report = {
     minPaperFills,
     fillProgressPercent: pct(cumulativePaperFills, minPaperFills),
   },
+  runway,
   historicalCertification: {
     ready: historicalPaperEvidence,
     thresholds: historicalThresholds,
@@ -213,6 +223,9 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| Calendar | ${elapsedDays}/${requiredDays} days |`,
     `| Valid evidence | ${evidenceDays}/${minEvidenceDays} days (${report.campaign.evidenceProgressPercent}%) |`,
     `| PAPER fills | ${cumulativePaperFills}/${minPaperFills} (${report.campaign.fillProgressPercent}%) |`,
+    `| Fill runway | ${runway.fillRunwayState} · ${runway.remainingFills} remaining / ${runway.availableProbeSlotsBeforeExpiry} weekday slots max |`,
+    `| Earliest 10/10 fill date | ${runway.earliestTargetFillDate || "N/A"} |`,
+    `| Calendar maturity | ${runway.calendarMaturityAt || "N/A"} · approval buffer ${runway.maturityApprovalBufferHours ?? "N/A"}h |`,
     `| Execution quality | ${latestQuality} |`,
     `| LIVE allowed | ${String(campaign?.liveTradingAllowed)} |`,
     `| Broker connectivity | ${String(oms?.brokerConnectivityAllowed)} |`,
