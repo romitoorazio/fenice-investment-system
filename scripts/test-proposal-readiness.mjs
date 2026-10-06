@@ -77,6 +77,7 @@ assert.equal(ready.reviewProposalCandidateReady, true, "a true BUY with a LIMIT 
 assert.deepEqual(ready.reviewProposalCandidateBlockers, []);
 
 const probe = report.rows.find((row) => row.symbol === "PROBE");
+assert.equal(probe.validationStructurallyReady, true, "OSSERVA may pass candidate-specific V6 gates");
 assert.equal(probe.validationCandidateReady, true, "OSSERVA may be a V6 validation candidate when the approval permits it");
 assert.equal(probe.reviewProposalCandidateReady, false, "a V6 validation candidate must not become a user BUY proposal");
 assert(probe.reviewProposalCandidateBlockers.includes("COMMITTEE_NOT_BUY"));
@@ -108,5 +109,8 @@ const stale = buildV7ProposalReadiness({
 }, now);
 assert(stale.sharedGlobalBlockers.includes("EXECUTION_COVERAGE_STALE"));
 assert(stale.rows.every((row) => row.reviewProposalCandidateReady === false));
+const staleProbe = stale.rows.find((row) => row.symbol === "PROBE");
+assert.equal(staleProbe.validationStructurallyReady, true, "transient freshness blockers must not erase structural candidate readiness");
+assert.equal(staleProbe.validationCandidateReady, false, "current readiness must still fail closed while coverage is stale");
 
 console.log("Fenice V7 proposal readiness semantic-separation tests: PASS");
