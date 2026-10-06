@@ -1,3 +1,6 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 export const PAPER_DEFERRED_RECHECK_BUFFER_SECONDS = 5;
 export const PAPER_DEFERRED_RECHECK_MAX_WAIT_SECONDS = 15 * 60 + PAPER_DEFERRED_RECHECK_BUFFER_SECONDS;
 
@@ -47,7 +50,7 @@ export function evaluateDeferredProbeRecheck({
   };
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   let cooldown = null;
   try {
     cooldown = JSON.parse(process.env.COOLDOWN_JSON || "null");
