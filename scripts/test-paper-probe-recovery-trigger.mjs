@@ -18,6 +18,22 @@ const base = {
 for (const name of PAPER_PROBE_RECOVERY_UPSTREAMS) {
   assert.equal(evaluatePaperProbeRecoveryTrigger({ ...base, upstream: { ...base.upstream, name } }).allowed, true, name);
 }
+assert.equal(
+  evaluatePaperProbeRecoveryTrigger({
+    ...base,
+    upstream: { ...base.upstream, name: "Fenice Production CI", event: "push" },
+  }).allowed,
+  true,
+  "successful Production CI push on main is an approved recovery opportunity",
+);
+assert.equal(
+  evaluatePaperProbeRecoveryTrigger({
+    ...base,
+    upstream: { ...base.upstream, name: "Fenice World Terminal", event: "push" },
+  }).allowed,
+  false,
+  "non-Production-CI push workflow_run must remain blocked",
+);
 
 for (const [now, allowed, label] of [
   ["2026-10-05T14:34:59Z", false, "before recovery window"],
@@ -40,12 +56,12 @@ for (const [now, allowed, label] of [
 
 for (const [override, reason] of [
   [{ name: "Fenice Intelligence Quality" }, "unapproved-upstream"],
-  [{ event: "push" }, "upstream-not-successful-schedule"],
-  [{ event: "pull_request" }, "upstream-not-successful-schedule"],
-  [{ event: "workflow_dispatch" }, "upstream-not-successful-schedule"],
-  [{ conclusion: "failure" }, "upstream-not-successful-schedule"],
-  [{ conclusion: "cancelled" }, "upstream-not-successful-schedule"],
-  [{ conclusion: "skipped" }, "upstream-not-successful-schedule"],
+  [{ event: "push" }, "upstream-not-approved-success"],
+  [{ event: "pull_request" }, "upstream-not-approved-success"],
+  [{ event: "workflow_dispatch" }, "upstream-not-approved-success"],
+  [{ conclusion: "failure" }, "upstream-not-approved-success"],
+  [{ conclusion: "cancelled" }, "upstream-not-approved-success"],
+  [{ conclusion: "skipped" }, "upstream-not-approved-success"],
   [{ headBranch: "feature/test" }, "upstream-not-repository-main"],
   [{ headRepository: "someone-else/fenice" }, "upstream-not-repository-main"],
   [{ headRepository: undefined }, "upstream-not-repository-main"],
