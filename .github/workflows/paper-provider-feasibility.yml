@@ -2,6 +2,8 @@ name: Fenice PAPER Provider Feasibility Lab
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "12 15 * * 1-5"
   push:
     branches: [main]
     paths:
@@ -13,9 +15,19 @@ on:
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
+  pull_request:
+    paths:
+      - ".github/workflows/paper-provider-feasibility.yml"
+      - "lib/trading/paper-v7-probe-selection.mjs"
+      - "scripts/probe-paper-provider-feasibility.mjs"
+      - "scripts/plan-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/plan-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-universe.mjs"
+      - "scripts/test-paper-v7-probe-selection.mjs"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: paper-provider-feasibility
@@ -24,12 +36,12 @@ concurrency:
 jobs:
   provider-feasibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       FENICE_FEASIBILITY_SYMBOLS: "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN"
-      FENICE_PROVIDER_FEASIBILITY_REPORT: paper-provider-feasibility.json
-      FENICE_V7_PROBE_PLAN: paper-v7-probe-plan.json
-      FENICE_V7_PROBE_UNIVERSE_PLAN: paper-v7-probe-universe.json
+      FENICE_PROVIDER_FEASIBILITY_REPORT: data/v7-provider-feasibility.json
+      FENICE_V7_PROBE_PLAN: data/v7-probe-plan.json
+      FENICE_V7_PROBE_UNIVERSE_PLAN: data/v7-probe-universe.json
       APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
       APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
@@ -38,10 +50,10 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: main
-          persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 
@@ -63,13 +75,88 @@ jobs:
       - name: Build inactive V7 adaptive probe universe
         run: node scripts/plan-paper-v7-probe-universe.mjs
 
+      - name: Verify V6 isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const feasibility = JSON.parse(fs.readFileSync('data/v7-provider-feasibility.json', 'utf8'));
+          const plan = JSON.parse(fs.readFileSync('data/v7-probe-plan.json', 'utf8'));
+          const universe = JSON.parse(fs.readFileSync('data/v7-probe-universe.json', 'utf8'));
+
+          if (feasibility.diagnosticOnly !== true
+            || feasibility.paperStateModified !== false
+            || feasibility.campaignEvidenceModified !== false
+            || feasibility.brokerConnectivityAllowed !== false
+            || feasibility.liveTradingAllowed !== false) {
+            throw new Error('Provider feasibility lab is not safely isolated');
+          }
+          if (plan.plannedForVersion !== 7
+            || plan.activationAllowed !== false
+            || plan.currentV6Modified !== false
+            || plan.liveTradingAllowed !== false) {
+            throw new Error('V7 probe priority plan is not safely isolated');
+          }
+          if (universe.plannedForVersion !== 7
+            || universe.activationAllowed !== false
+            || universe.currentV6Modified !== false
+            || universe.liveTradingAllowed !== false
+            || universe.currentV6?.protectedBaseVerified !== true
+            || universe.currentV6?.protectedProbeLimitVerified !== true) {
+            throw new Error('V7 probe universe plan is not safely isolated');
+          }
+          console.log(
+            'V7 provider lab isolation valid:',
+            'compatible=', feasibility.quorumCompatibleSymbols?.join(',') || 'none',
+            'priority=', plan.recommendedExpansionOrder?.join(',') || 'none',
+            'planned=', universe.futureV7?.plannedTwelveDataSymbols?.join(',') || 'none',
+          );
+          NODE
+
       - name: Upload provider feasibility and V7 plans
         uses: actions/upload-artifact@v4
         with:
           name: paper-provider-feasibility-${{ github.run_id }}
           path: |
-            paper-provider-feasibility.json
-            paper-v7-probe-plan.json
-            paper-v7-probe-universe.json
+            data/v7-provider-feasibility.json
+            data/v7-probe-plan.json
+            data/v7-probe-universe.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish only V7 provider planning evidence
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-provider-lab-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/v7-provider-feasibility.json "$generated_dir/feasibility.json"
+          cp data/v7-probe-plan.json "$generated_dir/plan.json"
+          cp data/v7-probe-universe.json "$generated_dir/universe.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/feasibility.json" data/v7-provider-feasibility.json
+            cp "$generated_dir/plan.json" data/v7-probe-plan.json
+            cp "$generated_dir/universe.json" data/v7-probe-universe.json
+            git add data/v7-provider-feasibility.json data/v7-probe-plan.json data/v7-probe-universe.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 provider planning changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 provider feasibility planning"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 provider planning after retries"
+          exit 1
