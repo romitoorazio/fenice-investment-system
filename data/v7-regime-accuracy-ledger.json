@@ -1,0 +1,2396 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-07T16:38:33.449Z",
+  "purpose": "V7 research-only regime accuracy ledger using SPY/QQQ/IWM median forward return.",
+  "methodology": {
+    "regimes": [
+      "VALUTARE",
+      "ATTENDERE",
+      "PROTEGGERE CAPITALE"
+    ],
+    "benchmarkBasket": [
+      "SPY",
+      "QQQ",
+      "IWM"
+    ],
+    "composite": "median forward return of at least two available benchmark ETFs",
+    "neutralBandPercent": 1,
+    "observationFrequency": "latest valid committee snapshot per UTC weekday",
+    "horizons": {
+      "1session": 1,
+      "5sessions": 5,
+      "20sessions": 20,
+      "60sessions": 60
+    },
+    "feedsV6CalibrationPolicy": false
+  },
+  "isolation": {
+    "modifiesV6DecisionLedger": false,
+    "executionEligible": false,
+    "paperCertificationEligible": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false
+  },
+  "recordCount": 28,
+  "records": [
+    {
+      "id": "2026-08-31:ATTENDERE",
+      "observationDate": "2026-08-31",
+      "createdAt": "2026-08-31T20:54:07.559Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 767.05,
+        "QQQ": 716.76,
+        "IWM": 293.93
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-01T22:40:13.514Z",
+          "marketDate": "2026-09-01",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.14,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.05,
+              "endPrice": 761.78,
+              "returnPercent": -0.69
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.76,
+              "endPrice": 707.64,
+              "returnPercent": -1.27
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 293.93,
+              "endPrice": 290.57,
+              "returnPercent": -1.14
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_UTILE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.14
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-07T23:36:44.559Z",
+          "marketDate": "2026-09-07",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.41,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.05,
+              "endPrice": 770.19,
+              "returnPercent": 0.41
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.76,
+              "endPrice": 718.96,
+              "returnPercent": 0.31
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 293.93,
+              "endPrice": 296.01,
+              "returnPercent": 0.71
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-09-28T22:10:09.224Z",
+          "marketDate": "2026-09-28",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.19,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.05,
+              "endPrice": 765.61,
+              "returnPercent": -0.19
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.76,
+              "endPrice": 736.53,
+              "returnPercent": 2.76
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 293.93,
+              "endPrice": 280.02,
+              "returnPercent": -4.73
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-01:PROTEGGERE_CAPITALE",
+      "observationDate": "2026-09-01",
+      "createdAt": "2026-09-01T22:40:13.514Z",
+      "regime": "PROTEGGERE CAPITALE",
+      "referenceBenchmarks": {
+        "SPY": 761.78,
+        "QQQ": 707.64,
+        "IWM": 290.57
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-02T22:43:28.085Z",
+          "marketDate": "2026-09-02",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.44,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 761.78,
+              "endPrice": 765.16,
+              "returnPercent": 0.44
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 707.64,
+              "endPrice": 709.24,
+              "returnPercent": 0.23
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.57,
+              "endPrice": 294.01,
+              "returnPercent": 1.18
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-08T21:56:43.223Z",
+          "marketDate": "2026-09-08",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.41,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 761.78,
+              "endPrice": 765.96,
+              "returnPercent": 0.55
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 707.64,
+              "endPrice": 718.36,
+              "returnPercent": 1.51
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.57,
+              "endPrice": 294.67,
+              "returnPercent": 1.41
+            }
+          ],
+          "outcome": {
+            "class": "ECCESSO_PRUDENZA",
+            "utilityScore": 0,
+            "missedRallyPercent": 1.41,
+            "avoidedLossPercent": 0
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-09-29T20:56:32.365Z",
+          "marketDate": "2026-09-29",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.32,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 761.78,
+              "endPrice": 764.2,
+              "returnPercent": 0.32
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 707.64,
+              "endPrice": 737.93,
+              "returnPercent": 4.28
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.57,
+              "endPrice": 279.01,
+              "returnPercent": -3.98
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-02:ATTENDERE",
+      "observationDate": "2026-09-02",
+      "createdAt": "2026-09-02T22:43:28.085Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 765.16,
+        "QQQ": 709.24,
+        "IWM": 294.01
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-03T21:46:50.313Z",
+          "marketDate": "2026-09-03",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.05,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.16,
+              "endPrice": 773.17,
+              "returnPercent": 1.05
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 709.24,
+              "endPrice": 717.67,
+              "returnPercent": 1.19
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.01,
+              "endPrice": 295.19,
+              "returnPercent": 0.4
+            }
+          ],
+          "outcome": {
+            "class": "RIALZO_PERSO",
+            "utilityScore": 0,
+            "missedRallyPercent": 1.05,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-09T21:46:47.821Z",
+          "marketDate": "2026-09-09",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.36,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.16,
+              "endPrice": 762.4,
+              "returnPercent": -0.36
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 709.24,
+              "endPrice": 716.31,
+              "returnPercent": 1
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.01,
+              "endPrice": 290.64,
+              "returnPercent": -1.15
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-09-30T23:59:50.930Z",
+          "marketDate": "2026-09-30",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.33,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.16,
+              "endPrice": 762.63,
+              "returnPercent": -0.33
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 709.24,
+              "endPrice": 739.77,
+              "returnPercent": 4.3
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.01,
+              "endPrice": 277.89,
+              "returnPercent": -5.48
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-03:ATTENDERE",
+      "observationDate": "2026-09-03",
+      "createdAt": "2026-09-03T21:46:50.313Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 773.17,
+        "QQQ": 717.67,
+        "IWM": 295.19
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-04T23:06:37.943Z",
+          "marketDate": "2026-09-04",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.18,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.17,
+              "endPrice": 770.19,
+              "returnPercent": -0.39
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 717.67,
+              "endPrice": 718.96,
+              "returnPercent": 0.18
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 295.19,
+              "endPrice": 296.01,
+              "returnPercent": 0.28
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-10T21:43:28.255Z",
+          "marketDate": "2026-09-10",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.98,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.17,
+              "endPrice": 757.83,
+              "returnPercent": -1.98
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 717.67,
+              "endPrice": 708.69,
+              "returnPercent": -1.25
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 295.19,
+              "endPrice": 287.7,
+              "returnPercent": -2.54
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_UTILE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.98
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-10-01T23:59:39.442Z",
+          "marketDate": "2026-10-01",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.19,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.17,
+              "endPrice": 763.99,
+              "returnPercent": -1.19
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 717.67,
+              "endPrice": 742.03,
+              "returnPercent": 3.39
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 295.19,
+              "endPrice": 279.02,
+              "returnPercent": -5.48
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_UTILE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.19
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-04:PROTEGGERE_CAPITALE",
+      "observationDate": "2026-09-04",
+      "createdAt": "2026-09-04T23:06:37.943Z",
+      "regime": "PROTEGGERE CAPITALE",
+      "referenceBenchmarks": {
+        "SPY": 770.19,
+        "QQQ": 718.96,
+        "IWM": 296.01
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-07T23:36:44.559Z",
+          "marketDate": "2026-09-07",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 770.19,
+              "returnPercent": 0
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 718.96,
+              "returnPercent": 0
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 296.01,
+              "returnPercent": 0
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-11T21:48:06.499Z",
+          "marketDate": "2026-09-11",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.77,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 764.29,
+              "returnPercent": -0.77
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 714.88,
+              "returnPercent": -0.57
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 288.89,
+              "returnPercent": -2.41
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-10-02T23:06:11.622Z",
+          "marketDate": "2026-10-02",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.07,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 769.64,
+              "returnPercent": -0.07
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 749.58,
+              "returnPercent": 4.26
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 281.52,
+              "returnPercent": -4.9
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-07:PROTEGGERE_CAPITALE",
+      "observationDate": "2026-09-07",
+      "createdAt": "2026-09-07T23:36:44.559Z",
+      "regime": "PROTEGGERE CAPITALE",
+      "referenceBenchmarks": {
+        "SPY": 770.19,
+        "QQQ": 718.96,
+        "IWM": 296.01
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-08T21:56:43.223Z",
+          "marketDate": "2026-09-08",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.45,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 765.96,
+              "returnPercent": -0.55
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 718.36,
+              "returnPercent": -0.08
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 294.67,
+              "returnPercent": -0.45
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-14T23:14:20.244Z",
+          "marketDate": "2026-09-14",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.36,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 760.88,
+              "returnPercent": -1.21
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 709.18,
+              "returnPercent": -1.36
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 287.91,
+              "returnPercent": -2.74
+            }
+          ],
+          "outcome": {
+            "class": "PROTEZIONE_CONFERMATA",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.36
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-10-05T22:47:54.424Z",
+          "marketDate": "2026-10-05",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.6,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 770.19,
+              "endPrice": 774.83,
+              "returnPercent": 0.6
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.96,
+              "endPrice": 756.2,
+              "returnPercent": 5.18
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 296.01,
+              "endPrice": 283.38,
+              "returnPercent": -4.27
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-08:ATTENDERE",
+      "observationDate": "2026-09-08",
+      "createdAt": "2026-09-08T21:56:43.223Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 765.96,
+        "QQQ": 718.36,
+        "IWM": 294.67
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-09T21:46:47.821Z",
+          "marketDate": "2026-09-09",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.46,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.96,
+              "endPrice": 762.4,
+              "returnPercent": -0.46
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.36,
+              "endPrice": 716.31,
+              "returnPercent": -0.29
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.67,
+              "endPrice": 290.64,
+              "returnPercent": -1.37
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-15T21:32:58.786Z",
+          "marketDate": "2026-09-15",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.92,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.96,
+              "endPrice": 757.39,
+              "returnPercent": -1.12
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.36,
+              "endPrice": 704.54,
+              "returnPercent": -1.92
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.67,
+              "endPrice": 285.14,
+              "returnPercent": -3.23
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_UTILE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.92
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-10-06T23:54:31.818Z",
+          "marketDate": "2026-10-06",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.71,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.96,
+              "endPrice": 779.09,
+              "returnPercent": 1.71
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 718.36,
+              "endPrice": 759.66,
+              "returnPercent": 5.75
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 294.67,
+              "endPrice": 281.34,
+              "returnPercent": -4.52
+            }
+          ],
+          "outcome": {
+            "class": "RIALZO_PERSO",
+            "utilityScore": 0,
+            "missedRallyPercent": 1.71,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-09:PROTEGGERE_CAPITALE",
+      "observationDate": "2026-09-09",
+      "createdAt": "2026-09-09T21:46:47.821Z",
+      "regime": "PROTEGGERE CAPITALE",
+      "referenceBenchmarks": {
+        "SPY": 762.4,
+        "QQQ": 716.31,
+        "IWM": 290.64
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-10T21:43:28.255Z",
+          "marketDate": "2026-09-10",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.01,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.4,
+              "endPrice": 757.83,
+              "returnPercent": -0.6
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.31,
+              "endPrice": 708.69,
+              "returnPercent": -1.06
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.64,
+              "endPrice": 287.7,
+              "returnPercent": -1.01
+            }
+          ],
+          "outcome": {
+            "class": "PROTEZIONE_CONFERMATA",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.01
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-16T23:03:42.318Z",
+          "marketDate": "2026-09-16",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.62,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.4,
+              "endPrice": 754.05,
+              "returnPercent": -1.1
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.31,
+              "endPrice": 704.72,
+              "returnPercent": -1.62
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.64,
+              "endPrice": 283.92,
+              "returnPercent": -2.31
+            }
+          ],
+          "outcome": {
+            "class": "PROTEZIONE_CONFERMATA",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 1.62
+          }
+        },
+        "20sessions": {
+          "measuredAt": "2026-10-07T16:28:01.995Z",
+          "marketDate": "2026-10-07",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.88,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.4,
+              "endPrice": 776.73,
+              "returnPercent": 1.88
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.31,
+              "endPrice": 756.34,
+              "returnPercent": 5.59
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 290.64,
+              "endPrice": 277.77,
+              "returnPercent": -4.43
+            }
+          ],
+          "outcome": {
+            "class": "ECCESSO_PRUDENZA",
+            "utilityScore": 0,
+            "missedRallyPercent": 1.88,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-10:PROTEGGERE_CAPITALE",
+      "observationDate": "2026-09-10",
+      "createdAt": "2026-09-10T21:43:28.255Z",
+      "regime": "PROTEGGERE CAPITALE",
+      "referenceBenchmarks": {
+        "SPY": 757.83,
+        "QQQ": 708.69,
+        "IWM": 287.7
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-11T21:48:06.499Z",
+          "marketDate": "2026-09-11",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.85,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 757.83,
+              "endPrice": 764.29,
+              "returnPercent": 0.85
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 708.69,
+              "endPrice": 714.88,
+              "returnPercent": 0.87
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.7,
+              "endPrice": 288.89,
+              "returnPercent": 0.41
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-17T21:33:46.110Z",
+          "marketDate": "2026-09-17",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.63,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 757.83,
+              "endPrice": 762.6,
+              "returnPercent": 0.63
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 708.69,
+              "endPrice": 716.92,
+              "returnPercent": 1.16
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.7,
+              "endPrice": 285.43,
+              "returnPercent": -0.79
+            }
+          ],
+          "outcome": {
+            "class": "PRUDENZA_NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-11:VALUTARE",
+      "observationDate": "2026-09-11",
+      "createdAt": "2026-09-11T21:48:06.499Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 764.29,
+        "QQQ": 714.88,
+        "IWM": 288.89
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-14T23:14:20.244Z",
+          "marketDate": "2026-09-14",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.45,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 764.29,
+              "endPrice": 760.88,
+              "returnPercent": -0.45
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 714.88,
+              "endPrice": 709.18,
+              "returnPercent": -0.8
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 288.89,
+              "endPrice": 287.91,
+              "returnPercent": -0.34
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-18T22:41:38.071Z",
+          "marketDate": "2026-09-18",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.34,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 764.29,
+              "endPrice": 761.69,
+              "returnPercent": -0.34
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 714.88,
+              "endPrice": 721.45,
+              "returnPercent": 0.92
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 288.89,
+              "endPrice": 284.1,
+              "returnPercent": -1.66
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-14:VALUTARE",
+      "observationDate": "2026-09-14",
+      "createdAt": "2026-09-14T23:14:20.244Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 760.88,
+        "QQQ": 709.18,
+        "IWM": 287.91
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-15T21:32:58.786Z",
+          "marketDate": "2026-09-15",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.65,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 760.88,
+              "endPrice": 757.39,
+              "returnPercent": -0.46
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 709.18,
+              "endPrice": 704.54,
+              "returnPercent": -0.65
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.91,
+              "endPrice": 285.14,
+              "returnPercent": -0.96
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-21T23:24:10.304Z",
+          "marketDate": "2026-09-21",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.66,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 760.88,
+              "endPrice": 773.5,
+              "returnPercent": 1.66
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 709.18,
+              "endPrice": 741.47,
+              "returnPercent": 4.55
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.91,
+              "endPrice": 285.58,
+              "returnPercent": -0.81
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-15:ATTENDERE",
+      "observationDate": "2026-09-15",
+      "createdAt": "2026-09-15T21:32:58.786Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 757.39,
+        "QQQ": 704.54,
+        "IWM": 285.14
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-16T23:03:42.318Z",
+          "marketDate": "2026-09-16",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.43,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 757.39,
+              "endPrice": 754.05,
+              "returnPercent": -0.44
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 704.54,
+              "endPrice": 704.72,
+              "returnPercent": 0.03
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.14,
+              "endPrice": 283.92,
+              "returnPercent": -0.43
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-22T21:30:37.834Z",
+          "marketDate": "2026-09-22",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 2.11,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 757.39,
+              "endPrice": 773.38,
+              "returnPercent": 2.11
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 704.54,
+              "endPrice": 747.46,
+              "returnPercent": 6.09
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.14,
+              "endPrice": 287.21,
+              "returnPercent": 0.73
+            }
+          ],
+          "outcome": {
+            "class": "RIALZO_PERSO",
+            "utilityScore": 0,
+            "missedRallyPercent": 2.11,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-16:VALUTARE",
+      "observationDate": "2026-09-16",
+      "createdAt": "2026-09-16T23:03:42.318Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 754.05,
+        "QQQ": 704.72,
+        "IWM": 283.92
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-17T21:33:46.110Z",
+          "marketDate": "2026-09-17",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.13,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 754.05,
+              "endPrice": 762.6,
+              "returnPercent": 1.13
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 704.72,
+              "endPrice": 716.92,
+              "returnPercent": 1.73
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 283.92,
+              "endPrice": 285.43,
+              "returnPercent": 0.53
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-23T23:48:41.500Z",
+          "marketDate": "2026-09-23",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.82,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 754.05,
+              "endPrice": 767.81,
+              "returnPercent": 1.82
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 704.72,
+              "endPrice": 741.21,
+              "returnPercent": 5.18
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 283.92,
+              "endPrice": 281.92,
+              "returnPercent": -0.7
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-17:VALUTARE",
+      "observationDate": "2026-09-17",
+      "createdAt": "2026-09-17T21:33:46.110Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 762.6,
+        "QQQ": 716.92,
+        "IWM": 285.43
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-18T22:41:38.071Z",
+          "marketDate": "2026-09-18",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.12,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.6,
+              "endPrice": 761.69,
+              "returnPercent": -0.12
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.92,
+              "endPrice": 721.45,
+              "returnPercent": 0.63
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.43,
+              "endPrice": 284.1,
+              "returnPercent": -0.47
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-24T22:34:07.521Z",
+          "marketDate": "2026-09-24",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.6,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.6,
+              "endPrice": 767.18,
+              "returnPercent": 0.6
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 716.92,
+              "endPrice": 741.1,
+              "returnPercent": 3.37
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.43,
+              "endPrice": 281.66,
+              "returnPercent": -1.32
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-18:VALUTARE",
+      "observationDate": "2026-09-18",
+      "createdAt": "2026-09-18T22:41:38.071Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 761.69,
+        "QQQ": 721.45,
+        "IWM": 284.1
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-21T23:24:10.304Z",
+          "marketDate": "2026-09-21",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.55,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 761.69,
+              "endPrice": 773.5,
+              "returnPercent": 1.55
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 721.45,
+              "endPrice": 741.47,
+              "returnPercent": 2.77
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 284.1,
+              "endPrice": 285.58,
+              "returnPercent": 0.52
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-25T22:33:28.796Z",
+          "marketDate": "2026-09-25",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.27,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 761.69,
+              "endPrice": 771.35,
+              "returnPercent": 1.27
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 721.45,
+              "endPrice": 744.5,
+              "returnPercent": 3.19
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 284.1,
+              "endPrice": 281.97,
+              "returnPercent": -0.75
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-21:VALUTARE",
+      "observationDate": "2026-09-21",
+      "createdAt": "2026-09-21T23:24:10.304Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 773.5,
+        "QQQ": 741.47,
+        "IWM": 285.58
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-22T21:30:37.834Z",
+          "marketDate": "2026-09-22",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.57,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.5,
+              "endPrice": 773.38,
+              "returnPercent": -0.02
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.47,
+              "endPrice": 747.46,
+              "returnPercent": 0.81
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.58,
+              "endPrice": 287.21,
+              "returnPercent": 0.57
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-28T22:10:09.224Z",
+          "marketDate": "2026-09-28",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.02,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.5,
+              "endPrice": 765.61,
+              "returnPercent": -1.02
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.47,
+              "endPrice": 736.53,
+              "returnPercent": -0.67
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 285.58,
+              "endPrice": 280.02,
+              "returnPercent": -1.95
+            }
+          ],
+          "outcome": {
+            "class": "NON_CONFERMATO",
+            "utilityScore": 0,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-22:VALUTARE",
+      "observationDate": "2026-09-22",
+      "createdAt": "2026-09-22T21:30:37.834Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 773.38,
+        "QQQ": 747.46,
+        "IWM": 287.21
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-23T23:48:41.500Z",
+          "marketDate": "2026-09-23",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.84,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.38,
+              "endPrice": 767.81,
+              "returnPercent": -0.72
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 747.46,
+              "endPrice": 741.21,
+              "returnPercent": -0.84
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.21,
+              "endPrice": 281.92,
+              "returnPercent": -1.84
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-29T20:56:32.365Z",
+          "marketDate": "2026-09-29",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -1.27,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 773.38,
+              "endPrice": 764.2,
+              "returnPercent": -1.19
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 747.46,
+              "endPrice": 737.93,
+              "returnPercent": -1.27
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 287.21,
+              "endPrice": 279.01,
+              "returnPercent": -2.86
+            }
+          ],
+          "outcome": {
+            "class": "NON_CONFERMATO",
+            "utilityScore": 0,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-23:ATTENDERE",
+      "observationDate": "2026-09-23",
+      "createdAt": "2026-09-23T23:48:41.500Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 767.81,
+        "QQQ": 741.21,
+        "IWM": 281.92
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-24T22:34:07.521Z",
+          "marketDate": "2026-09-24",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.08,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.81,
+              "endPrice": 767.18,
+              "returnPercent": -0.08
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.21,
+              "endPrice": 741.1,
+              "returnPercent": -0.01
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.92,
+              "endPrice": 281.66,
+              "returnPercent": -0.09
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-09-30T23:59:50.930Z",
+          "marketDate": "2026-09-30",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.67,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.81,
+              "endPrice": 762.63,
+              "returnPercent": -0.67
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.21,
+              "endPrice": 739.77,
+              "returnPercent": -0.19
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.92,
+              "endPrice": 277.89,
+              "returnPercent": -1.43
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-24:VALUTARE",
+      "observationDate": "2026-09-24",
+      "createdAt": "2026-09-24T22:34:07.521Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 767.18,
+        "QQQ": 741.1,
+        "IWM": 281.66
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-25T22:33:28.796Z",
+          "marketDate": "2026-09-25",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.46,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.18,
+              "endPrice": 771.35,
+              "returnPercent": 0.54
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.1,
+              "endPrice": 744.5,
+              "returnPercent": 0.46
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.66,
+              "endPrice": 281.97,
+              "returnPercent": 0.11
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-10-01T23:59:39.442Z",
+          "marketDate": "2026-10-01",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.42,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 767.18,
+              "endPrice": 763.99,
+              "returnPercent": -0.42
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 741.1,
+              "endPrice": 742.03,
+              "returnPercent": 0.13
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.66,
+              "endPrice": 279.02,
+              "returnPercent": -0.94
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-25:VALUTARE",
+      "observationDate": "2026-09-25",
+      "createdAt": "2026-09-25T22:33:28.796Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 771.35,
+        "QQQ": 744.5,
+        "IWM": 281.97
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-28T22:10:09.224Z",
+          "marketDate": "2026-09-28",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.74,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 771.35,
+              "endPrice": 765.61,
+              "returnPercent": -0.74
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 744.5,
+              "endPrice": 736.53,
+              "returnPercent": -1.07
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.97,
+              "endPrice": 280.02,
+              "returnPercent": -0.69
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-10-02T23:06:11.622Z",
+          "marketDate": "2026-10-02",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.16,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 771.35,
+              "endPrice": 769.64,
+              "returnPercent": -0.22
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 744.5,
+              "endPrice": 749.58,
+              "returnPercent": 0.68
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.97,
+              "endPrice": 281.52,
+              "returnPercent": -0.16
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-28:ATTENDERE",
+      "observationDate": "2026-09-28",
+      "createdAt": "2026-09-28T22:10:09.224Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 765.61,
+        "QQQ": 736.53,
+        "IWM": 280.02
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-29T20:56:32.365Z",
+          "marketDate": "2026-09-29",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.18,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.61,
+              "endPrice": 764.2,
+              "returnPercent": -0.18
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 736.53,
+              "endPrice": 737.93,
+              "returnPercent": 0.19
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 280.02,
+              "endPrice": 279.01,
+              "returnPercent": -0.36
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-10-05T22:47:54.424Z",
+          "marketDate": "2026-10-05",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.2,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 765.61,
+              "endPrice": 774.83,
+              "returnPercent": 1.2
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 736.53,
+              "endPrice": 756.2,
+              "returnPercent": 2.67
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 280.02,
+              "endPrice": 283.38,
+              "returnPercent": 1.2
+            }
+          ],
+          "outcome": {
+            "class": "RIALZO_PERSO",
+            "utilityScore": 0,
+            "missedRallyPercent": 1.2,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-29:VALUTARE",
+      "observationDate": "2026-09-29",
+      "createdAt": "2026-09-29T20:56:32.365Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 764.2,
+        "QQQ": 737.93,
+        "IWM": 279.01
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-09-30T23:59:50.930Z",
+          "marketDate": "2026-09-30",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.21,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 764.2,
+              "endPrice": 762.63,
+              "returnPercent": -0.21
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 737.93,
+              "endPrice": 739.77,
+              "returnPercent": 0.25
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 279.01,
+              "endPrice": 277.89,
+              "returnPercent": -0.4
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-10-06T23:54:31.818Z",
+          "marketDate": "2026-10-06",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.95,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 764.2,
+              "endPrice": 779.09,
+              "returnPercent": 1.95
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 737.93,
+              "endPrice": 759.66,
+              "returnPercent": 2.94
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 279.01,
+              "endPrice": 281.34,
+              "returnPercent": 0.84
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-09-30:VALUTARE",
+      "observationDate": "2026-09-30",
+      "createdAt": "2026-09-30T23:59:50.930Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 762.63,
+        "QQQ": 739.77,
+        "IWM": 277.89
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-10-01T23:59:39.442Z",
+          "marketDate": "2026-10-01",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.31,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.63,
+              "endPrice": 763.99,
+              "returnPercent": 0.18
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 739.77,
+              "endPrice": 742.03,
+              "returnPercent": 0.31
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 277.89,
+              "endPrice": 279.02,
+              "returnPercent": 0.41
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        },
+        "5sessions": {
+          "measuredAt": "2026-10-07T16:28:01.995Z",
+          "marketDate": "2026-10-07",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 1.85,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 762.63,
+              "endPrice": 776.73,
+              "returnPercent": 1.85
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 739.77,
+              "endPrice": 756.34,
+              "returnPercent": 2.24
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 277.89,
+              "endPrice": 277.77,
+              "returnPercent": -0.04
+            }
+          ],
+          "outcome": {
+            "class": "CONFERMATO",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-01:ATTENDERE",
+      "observationDate": "2026-10-01",
+      "createdAt": "2026-10-01T23:59:39.442Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 763.99,
+        "QQQ": 742.03,
+        "IWM": 279.02
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-10-02T23:06:11.622Z",
+          "marketDate": "2026-10-02",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.9,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 763.99,
+              "endPrice": 769.64,
+              "returnPercent": 0.74
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 742.03,
+              "endPrice": 749.58,
+              "returnPercent": 1.02
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 279.02,
+              "endPrice": 281.52,
+              "returnPercent": 0.9
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-02:ATTENDERE",
+      "observationDate": "2026-10-02",
+      "createdAt": "2026-10-02T23:06:11.622Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 769.64,
+        "QQQ": 749.58,
+        "IWM": 281.52
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-10-05T22:47:54.424Z",
+          "marketDate": "2026-10-05",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.67,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 769.64,
+              "endPrice": 774.83,
+              "returnPercent": 0.67
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 749.58,
+              "endPrice": 756.2,
+              "returnPercent": 0.88
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.52,
+              "endPrice": 283.38,
+              "returnPercent": 0.66
+            }
+          ],
+          "outcome": {
+            "class": "ATTESA_COERENTE",
+            "utilityScore": 1,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-05:VALUTARE",
+      "observationDate": "2026-10-05",
+      "createdAt": "2026-10-05T22:47:54.424Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 774.83,
+        "QQQ": 756.2,
+        "IWM": 283.38
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-10-06T23:54:31.818Z",
+          "marketDate": "2026-10-06",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": 0.46,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 774.83,
+              "endPrice": 779.09,
+              "returnPercent": 0.55
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 756.2,
+              "endPrice": 759.66,
+              "returnPercent": 0.46
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 283.38,
+              "endPrice": 281.34,
+              "returnPercent": -0.72
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-06:VALUTARE",
+      "observationDate": "2026-10-06",
+      "createdAt": "2026-10-06T23:54:31.818Z",
+      "regime": "VALUTARE",
+      "referenceBenchmarks": {
+        "SPY": 779.09,
+        "QQQ": 759.66,
+        "IWM": 281.34
+      },
+      "checkpoints": {
+        "1session": {
+          "measuredAt": "2026-10-07T16:28:01.995Z",
+          "marketDate": "2026-10-07",
+          "benchmarkCount": 3,
+          "compositeReturnPercent": -0.44,
+          "components": [
+            {
+              "symbol": "SPY",
+              "startPrice": 779.09,
+              "endPrice": 776.73,
+              "returnPercent": -0.3
+            },
+            {
+              "symbol": "QQQ",
+              "startPrice": 759.66,
+              "endPrice": 756.34,
+              "returnPercent": -0.44
+            },
+            {
+              "symbol": "IWM",
+              "startPrice": 281.34,
+              "endPrice": 277.77,
+              "returnPercent": -1.27
+            }
+          ],
+          "outcome": {
+            "class": "NEUTRALE",
+            "utilityScore": 0.5,
+            "missedRallyPercent": 0,
+            "avoidedLossPercent": 0
+          }
+        }
+      },
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-07:ATTENDERE",
+      "observationDate": "2026-10-07",
+      "createdAt": "2026-10-07T16:28:01.995Z",
+      "regime": "ATTENDERE",
+      "referenceBenchmarks": {
+        "SPY": 776.73,
+        "QQQ": 756.34,
+        "IWM": 277.77
+      },
+      "checkpoints": {},
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    }
+  ]
+}
