@@ -1,0 +1,144 @@
+name: Fenice V7 Horizon Split
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/intelligence/horizon-split.mjs"
+      - "scripts/run-horizon-split.mjs"
+      - "scripts/test-horizon-split.mjs"
+      - ".github/workflows/v7-horizon-split.yml"
+  schedule:
+    - cron: "7 23 * * 1-5"
+  pull_request:
+    paths:
+      - "lib/intelligence/horizon-split.mjs"
+      - "scripts/run-horizon-split.mjs"
+      - "scripts/test-horizon-split.mjs"
+      - ".github/workflows/v7-horizon-split.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-horizon-split
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test isolated V7 horizon split engine
+        run: node scripts/test-horizon-split.mjs
+
+      - name: Dry-run horizon split evidence
+        run: node scripts/run-horizon-split.mjs
+
+      - name: Verify V6 isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-horizon-split.json', 'utf8'));
+          const s = report.safety || {};
+          if (s.diagnosticOnly !== true
+            || s.modifiesV6DecisionPolicy !== false
+            || s.queueWritesAllowed !== false
+            || s.paperCertificationEvidenceMutationAllowed !== false
+            || s.brokerSubmissionAllowed !== false
+            || s.liveTradingAllowed !== false
+            || s.feedsProposalReadiness !== false) {
+            throw new Error('Unsafe V7 horizon split flags');
+          }
+          for (const row of report.rows || []) {
+            if (row.safety?.liveTradingAllowed !== false
+              || row.safety?.brokerSubmissionAllowed !== false
+              || row.safety?.queueWritesAllowed !== false) {
+              throw new Error(`Unsafe candidate flags: ${row.symbol}`);
+            }
+            if (row.strategic?.researchTranchePlan?.orderCreationAllowed === true) {
+              throw new Error(`Shadow plan cannot create orders: ${row.symbol}`);
+            }
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/v7-horizon-split\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Unexpected data changes: ${unsafe.join(' | ')}`);
+          console.log('V7 horizon split isolation valid:', report.strategicShadowSymbols.join(',') || 'none');
+          NODE
+
+  collect:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build V7 horizon split evidence
+        run: node scripts/run-horizon-split.mjs
+
+      - name: Validate generated evidence
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-horizon-split.json', 'utf8'));
+          if (report.safety?.liveTradingAllowed !== false
+            || report.safety?.paperCertificationEvidenceMutationAllowed !== false
+            || report.safety?.feedsProposalReadiness !== false) {
+            throw new Error('Unsafe V7 horizon split output');
+          }
+          console.log('Horizon split evidence valid:', report.strategicShadowCount, report.strategicShadowSymbols.join(','));
+          NODE
+
+      - name: Publish only V7 horizon evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-horizon-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_file="$(mktemp)"
+          cp data/v7-horizon-split.json "$generated_file"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_file" data/v7-horizon-split.json
+            git add data/v7-horizon-split.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 horizon evidence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 horizon split evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 horizon split evidence after retries"
+          exit 1
