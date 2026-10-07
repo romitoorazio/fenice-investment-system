@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-07T17:51:29.352Z",
+  "purpose": "Forward-only V7 evaluation of ACCUMULA_A_TRANCHE_SHADOW versus WAIT. No historical backfill.",
+  "methodology": {
+    "forwardOnly": true,
+    "historicalBackfillAllowed": false,
+    "maximumConcurrentRecordsPerSymbol": 1,
+    "trancheOffsetsDays": [
+      0,
+      7,
+      14
+    ],
+    "trancheCount": 3,
+    "trancheSizing": "equal notional research tranches; no euro amount is assigned",
+    "laterTranchesRequireCurrentShadowEligibility": true,
+    "checkpoints": [
+      {
+        "label": "7d",
+        "targetOffsetDays": 7
+      },
+      {
+        "label": "30d",
+        "targetOffsetDays": 30
+      }
+    ],
+    "waitBaselineReturnPercent": 0,
+    "neutralBandPercent": 0.5,
+    "sourceFreshnessHours": 26
+  },
+  "isolation": {
+    "modifiesV6DecisionPolicy": false,
+    "queueWritesAllowed": false,
+    "paperCertificationEvidenceMutationAllowed": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false,
+    "feedsProposalReadiness": false
+  },
+  "sourceState": {
+    "sourceFresh": true,
+    "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+    "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+    "selectedNow": [
+      "ASML",
+      "SPY",
+      "QQQ",
+      "TSM"
+    ]
+  },
+  "recordCount": 4,
+  "records": [
+    {
+      "id": "2026-10-07:ASML",
+      "observationDate": "2026-10-07",
+      "createdAt": "2026-10-07T17:51:29.352Z",
+      "source": {
+        "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+        "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+        "marketRegime": "ATTENDERE"
+      },
+      "symbol": "ASML",
+      "name": "ASML HOLDING NV",
+      "currency": "USD",
+      "committeeScore": 71,
+      "rawConfidence": 98,
+      "riskScore": 58,
+      "currentDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "positionType": "CORE",
+      "referencePrice": 1806.82,
+      "lastPrice": 1806.82,
+      "lastMarkedAt": "2026-10-07T17:51:29.352Z",
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "bestObservedStagedReturnPercent": 0,
+      "worstObservedStagedReturnPercent": 0,
+      "tranches": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "executedAt": "2026-10-07T17:51:29.352Z",
+          "resolvedAt": "2026-10-07T17:51:29.352Z",
+          "price": 1806.82,
+          "reason": "Initial forward-only shadow tranche."
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        }
+      ],
+      "checkpoints": {},
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-07:SPY",
+      "observationDate": "2026-10-07",
+      "createdAt": "2026-10-07T17:51:29.352Z",
+      "source": {
+        "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+        "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+        "marketRegime": "ATTENDERE"
+      },
+      "symbol": "SPY",
+      "name": "S&P 500 ETF",
+      "currency": "USD",
+      "committeeScore": 70,
+      "rawConfidence": 98,
+      "riskScore": 30,
+      "currentDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "positionType": "CORE",
+      "referencePrice": 777.58,
+      "lastPrice": 777.58,
+      "lastMarkedAt": "2026-10-07T17:51:29.352Z",
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "bestObservedStagedReturnPercent": 0,
+      "worstObservedStagedReturnPercent": 0,
+      "tranches": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "executedAt": "2026-10-07T17:51:29.352Z",
+          "resolvedAt": "2026-10-07T17:51:29.352Z",
+          "price": 777.58,
+          "reason": "Initial forward-only shadow tranche."
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        }
+      ],
+      "checkpoints": {},
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-07:QQQ",
+      "observationDate": "2026-10-07",
+      "createdAt": "2026-10-07T17:51:29.352Z",
+      "source": {
+        "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+        "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+        "marketRegime": "ATTENDERE"
+      },
+      "symbol": "QQQ",
+      "name": "Nasdaq 100 ETF",
+      "currency": "USD",
+      "committeeScore": 70,
+      "rawConfidence": 98,
+      "riskScore": 33,
+      "currentDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "positionType": "CORE",
+      "referencePrice": 757.48,
+      "lastPrice": 757.48,
+      "lastMarkedAt": "2026-10-07T17:51:29.352Z",
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "bestObservedStagedReturnPercent": 0,
+      "worstObservedStagedReturnPercent": 0,
+      "tranches": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "executedAt": "2026-10-07T17:51:29.352Z",
+          "resolvedAt": "2026-10-07T17:51:29.352Z",
+          "price": 757.48,
+          "reason": "Initial forward-only shadow tranche."
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        }
+      ],
+      "checkpoints": {},
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "id": "2026-10-07:TSM",
+      "observationDate": "2026-10-07",
+      "createdAt": "2026-10-07T17:51:29.352Z",
+      "source": {
+        "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+        "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+        "marketRegime": "ATTENDERE"
+      },
+      "symbol": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "currency": "USD",
+      "committeeScore": 68,
+      "rawConfidence": 93,
+      "riskScore": 52,
+      "currentDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "positionType": "GROWTH",
+      "referencePrice": 474.07,
+      "lastPrice": 474.07,
+      "lastMarkedAt": "2026-10-07T17:51:29.352Z",
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "bestObservedStagedReturnPercent": 0,
+      "worstObservedStagedReturnPercent": 0,
+      "tranches": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "executedAt": "2026-10-07T17:51:29.352Z",
+          "resolvedAt": "2026-10-07T17:51:29.352Z",
+          "price": 474.07,
+          "reason": "Initial forward-only shadow tranche."
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "executedAt": null,
+          "resolvedAt": null,
+          "price": null,
+          "reason": null
+        }
+      ],
+      "checkpoints": {},
+      "researchOnly": true,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    }
+  ]
+}

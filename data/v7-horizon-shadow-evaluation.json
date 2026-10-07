@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-07T17:51:29.352Z",
+  "purpose": "Forward-only scorecard for V7 staged shadow accumulation versus remaining in cash/waiting.",
+  "safety": {
+    "diagnosticOnly": true,
+    "modifiesV6DecisionPolicy": false,
+    "queueWritesAllowed": false,
+    "paperCertificationEvidenceMutationAllowed": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false,
+    "feedsProposalReadiness": false
+  },
+  "methodology": {
+    "forwardOnly": true,
+    "historicalBackfillAllowed": false,
+    "maximumConcurrentRecordsPerSymbol": 1,
+    "trancheOffsetsDays": [
+      0,
+      7,
+      14
+    ],
+    "trancheCount": 3,
+    "trancheSizing": "equal notional research tranches; no euro amount is assigned",
+    "laterTranchesRequireCurrentShadowEligibility": true,
+    "checkpoints": [
+      {
+        "label": "7d",
+        "targetOffsetDays": 7
+      },
+      {
+        "label": "30d",
+        "targetOffsetDays": 30
+      }
+    ],
+    "waitBaselineReturnPercent": 0,
+    "neutralBandPercent": 0.5,
+    "sourceFreshnessHours": 26
+  },
+  "sourceState": {
+    "sourceFresh": true,
+    "horizonGeneratedAt": "2026-10-07T17:18:13.231Z",
+    "committeeGeneratedAt": "2026-10-07T17:23:04.779Z",
+    "selectedNow": [
+      "ASML",
+      "SPY",
+      "QQQ",
+      "TSM"
+    ]
+  },
+  "activeRecords": 4,
+  "totalRecords": 4,
+  "matured7d": {
+    "checkpoint": "7d",
+    "sampleSize": 0,
+    "averageStagedReturnPercent": null,
+    "medianStagedReturnPercent": null,
+    "beatWaitRatePercent": null,
+    "lagWaitRatePercent": null,
+    "neutralRatePercent": null,
+    "averageStagedVsLumpPercent": null,
+    "averageWorstObservedReturnPercent": null,
+    "maturity": "INSUFFICIENT"
+  },
+  "matured30d": {
+    "checkpoint": "30d",
+    "sampleSize": 0,
+    "averageStagedReturnPercent": null,
+    "medianStagedReturnPercent": null,
+    "beatWaitRatePercent": null,
+    "lagWaitRatePercent": null,
+    "neutralRatePercent": null,
+    "averageStagedVsLumpPercent": null,
+    "averageWorstObservedReturnPercent": null,
+    "maturity": "INSUFFICIENT"
+  },
+  "latestRecords": [
+    {
+      "id": "2026-10-07:ASML",
+      "symbol": "ASML",
+      "observationDate": "2026-10-07",
+      "referencePrice": 1806.82,
+      "lastPrice": 1806.82,
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "executedTrancheCount": 1,
+      "trancheStates": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "price": 1806.82
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "price": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "price": null
+        }
+      ],
+      "checkpoint7d": null,
+      "checkpoint30d": null
+    },
+    {
+      "id": "2026-10-07:SPY",
+      "symbol": "SPY",
+      "observationDate": "2026-10-07",
+      "referencePrice": 777.58,
+      "lastPrice": 777.58,
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "executedTrancheCount": 1,
+      "trancheStates": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "price": 777.58
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "price": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "price": null
+        }
+      ],
+      "checkpoint7d": null,
+      "checkpoint30d": null
+    },
+    {
+      "id": "2026-10-07:QQQ",
+      "symbol": "QQQ",
+      "observationDate": "2026-10-07",
+      "referencePrice": 757.48,
+      "lastPrice": 757.48,
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "executedTrancheCount": 1,
+      "trancheStates": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "price": 757.48
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "price": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "price": null
+        }
+      ],
+      "checkpoint7d": null,
+      "checkpoint30d": null
+    },
+    {
+      "id": "2026-10-07:TSM",
+      "symbol": "TSM",
+      "observationDate": "2026-10-07",
+      "referencePrice": 474.07,
+      "lastPrice": 474.07,
+      "stagedMarkToMarketPercent": 0,
+      "lumpSumMarkToMarketPercent": 0,
+      "executedTrancheCount": 1,
+      "trancheStates": [
+        {
+          "number": 1,
+          "targetOffsetDays": 0,
+          "status": "EXECUTED",
+          "price": 474.07
+        },
+        {
+          "number": 2,
+          "targetOffsetDays": 7,
+          "status": "PENDING",
+          "price": null
+        },
+        {
+          "number": 3,
+          "targetOffsetDays": 14,
+          "status": "PENDING",
+          "price": null
+        }
+      ],
+      "checkpoint7d": null,
+      "checkpoint30d": null
+    }
+  ]
+}
