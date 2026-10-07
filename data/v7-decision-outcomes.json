@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-07T16:38:32.091Z",
+  "purpose": "V7 decision outcome scorecard: measure realised consequences of COMPRA/OSSERVA/ATTENDI/EVITA without changing V6 execution.",
+  "methodology": {
+    "checkpoints": [
+      "1d",
+      "7d",
+      "30d",
+      "90d"
+    ],
+    "buyRule": "COMPRA is favorable when forward return is positive.",
+    "avoidRule": "EVITA is favorable when forward return is non-positive.",
+    "waitRule": "OSSERVA/ATTENDI are not forced into a binary verdict; missed upside and avoided loss are measured with a 1% neutral band.",
+    "deDuplication": "maximum one observation per symbol, decision and UTC day",
+    "historicalBootstrap": "latest persisted committee snapshot per UTC weekday",
+    "feedsV6CalibrationPolicy": false
+  },
+  "bootstrap": {
+    "applied": true,
+    "sourceSnapshotCount": 239,
+    "seededRecords": 532
+  },
+  "isolation": {
+    "modifiesV6DecisionLedger": false,
+    "executionEligible": false,
+    "paperCertificationEligible": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false
+  },
+  "current": {
+    "committeeGeneratedAt": "2026-10-07T16:28:01.995Z",
+    "marketRegime": "ATTENDERE",
+    "trackedDecisions": 19,
+    "counts": {
+      "OSSERVA": 5,
+      "ATTENDI": 8,
+      "EVITA": 6
+    }
+  },
+  "ledgerRecordCount": 532,
+  "horizons": {
+    "1d": {
+      "checkpoint": "1d",
+      "sampleSize": 494,
+      "decisions": {
+        "COMPRA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "OSSERVA": {
+          "sampleSize": 91,
+          "averageReturnPercent": 0.47,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 71.38,
+          "avoidedLossPercent": 29.61
+        },
+        "ATTENDI": {
+          "sampleSize": 247,
+          "averageReturnPercent": 0.09,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 140.62,
+          "avoidedLossPercent": 123.4
+        },
+        "EVITA": {
+          "sampleSize": 156,
+          "averageReturnPercent": 0.12,
+          "favorableRatePercent": 58.33,
+          "missedUpsidePercent": 252.69,
+          "avoidedLossPercent": 234.72
+        }
+      },
+      "restraintTradeoff": {
+        "sampleSize": 338,
+        "missedUpsidePercent": 212,
+        "avoidedLossPercent": 153.01,
+        "netProtectionMinusMissedPercent": -58.99
+      }
+    },
+    "7d": {
+      "checkpoint": "7d",
+      "sampleSize": 418,
+      "decisions": {
+        "COMPRA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "OSSERVA": {
+          "sampleSize": 72,
+          "averageReturnPercent": 1.18,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 145.59,
+          "avoidedLossPercent": 61.62
+        },
+        "ATTENDI": {
+          "sampleSize": 214,
+          "averageReturnPercent": 0.44,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 317.56,
+          "avoidedLossPercent": 220.23
+        },
+        "EVITA": {
+          "sampleSize": 132,
+          "averageReturnPercent": 0.48,
+          "favorableRatePercent": 52.27,
+          "missedUpsidePercent": 406.39,
+          "avoidedLossPercent": 343.53
+        }
+      },
+      "restraintTradeoff": {
+        "sampleSize": 286,
+        "missedUpsidePercent": 463.15,
+        "avoidedLossPercent": 281.85,
+        "netProtectionMinusMissedPercent": -181.3
+      }
+    },
+    "30d": {
+      "checkpoint": "30d",
+      "sampleSize": 95,
+      "decisions": {
+        "COMPRA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "OSSERVA": {
+          "sampleSize": 13,
+          "averageReturnPercent": 5.6,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 71.67,
+          "avoidedLossPercent": 0
+        },
+        "ATTENDI": {
+          "sampleSize": 52,
+          "averageReturnPercent": 2.84,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 241.08,
+          "avoidedLossPercent": 94.25
+        },
+        "EVITA": {
+          "sampleSize": 30,
+          "averageReturnPercent": 3.54,
+          "favorableRatePercent": 36.67,
+          "missedUpsidePercent": 232.17,
+          "avoidedLossPercent": 126.1
+        }
+      },
+      "restraintTradeoff": {
+        "sampleSize": 65,
+        "missedUpsidePercent": 312.75,
+        "avoidedLossPercent": 94.25,
+        "netProtectionMinusMissedPercent": -218.5
+      }
+    },
+    "90d": {
+      "checkpoint": "90d",
+      "sampleSize": 0,
+      "decisions": {
+        "COMPRA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "OSSERVA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "ATTENDI": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        },
+        "EVITA": {
+          "sampleSize": 0,
+          "averageReturnPercent": null,
+          "favorableRatePercent": null,
+          "missedUpsidePercent": 0,
+          "avoidedLossPercent": 0
+        }
+      },
+      "restraintTradeoff": {
+        "sampleSize": 0,
+        "missedUpsidePercent": 0,
+        "avoidedLossPercent": 0,
+        "netProtectionMinusMissedPercent": 0
+      }
+    }
+  }
+}
