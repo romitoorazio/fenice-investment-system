@@ -2,6 +2,14 @@ name: Fenice V7 Decision Outcomes
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/intelligence/decision-outcomes.mjs"
+      - "scripts/run-decision-outcomes.mjs"
+      - "scripts/test-decision-outcomes.mjs"
+      - ".github/workflows/v7-decision-outcomes.yml"
   schedule:
     - cron: "37 22 * * 1-5"
   pull_request:
