@@ -31,8 +31,10 @@ export function evaluatePaperProbeRecoveryTrigger({
 
   if (eventName === "workflow_run") {
     if (!PAPER_PROBE_RECOVERY_UPSTREAMS.includes(upstream.name)) return blocked("unapproved-upstream");
-    if (upstream.event !== "schedule" || upstream.conclusion !== "success") {
-      return blocked("upstream-not-successful-schedule");
+    const allowedUpstreamEvent = upstream.event === "schedule"
+      || (upstream.event === "push" && upstream.name === "Fenice Production CI");
+    if (!allowedUpstreamEvent || upstream.conclusion !== "success") {
+      return blocked("upstream-not-approved-success");
     }
     if (upstream.headBranch !== "main" || !repository || upstream.headRepository !== repository) {
       return blocked("upstream-not-repository-main");
