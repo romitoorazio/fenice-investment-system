@@ -26,23 +26,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout watchdog policy
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.repository.default_branch || github.sha }}
-
-      - name: Regression-test New York request window
-        run: node scripts/test-paper-probe-request-window.mjs
-
-      - name: Classify scheduled probe request
+      # Cancel first: a delayed schedule must not reach provider refresh while the
+      # versioned policy checkout and regression test are still starting.
+      - name: Classify scheduled probe request immediately
         if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule'
-        id: request_window
+        id: fast_request_window
         env:
           REQUESTED_AT: ${{ github.event.workflow_run.created_at }}
-        run: node scripts/paper-probe-request-window.mjs --requested-at "$REQUESTED_AT" --github-output "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const instant = new Date(process.env.REQUESTED_AT || '');
+          let weekday = null;
+          let minutes = null;
+          let allowed = false;
+          let reason = 'invalid-request-time';
+          if (Number.isFinite(instant.getTime())) {
+            const parts = Object.fromEntries(
+              new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23',
+              }).formatToParts(instant).map(({ type, value }) => [type, value]),
+            );
+            weekday = parts.weekday;
+            minutes = Number(parts.hour) * 60 + Number(parts.minute);
+            allowed = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday)
+              && minutes >= 9 * 60 + 30
+              && minutes < 16 * 60;
+            reason = allowed ? 'inside-regular-new-york-session' : 'outside-regular-new-york-session';
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `allowed=${allowed}\nreason=${reason}\n`);
+          console.log(`Fast PAPER probe request window: allowed=${allowed}; reason=${reason}; newYorkWeekday=${weekday}; newYorkMinutes=${minutes}.`);
+          NODE
 
       - name: Cancel delayed closed-market scheduled probe
-        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule' && steps.request_window.outputs.allowed != 'true'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule' && steps.fast_request_window.outputs.allowed != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -67,6 +89,35 @@ jobs:
               ;;
           esac
 
+      - name: Checkout watchdog policy
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.repository.default_branch || github.sha }}
+
+      - name: Regression-test New York request window
+        run: node scripts/test-paper-probe-request-window.mjs
+
+      - name: Verify fast classification with versioned policy
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule'
+        id: verified_request_window
+        env:
+          REQUESTED_AT: ${{ github.event.workflow_run.created_at }}
+        run: node scripts/paper-probe-request-window.mjs --requested-at "$REQUESTED_AT" --github-output "$GITHUB_OUTPUT"
+
+      - name: Assert fast and versioned classifications agree
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'schedule'
+        env:
+          FAST_ALLOWED: ${{ steps.fast_request_window.outputs.allowed }}
+          VERIFIED_ALLOWED: ${{ steps.verified_request_window.outputs.allowed }}
+          FAST_REASON: ${{ steps.fast_request_window.outputs.reason }}
+          VERIFIED_REASON: ${{ steps.verified_request_window.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$FAST_ALLOWED" = "$VERIFIED_ALLOWED"
+          test "$FAST_REASON" = "$VERIFIED_REASON"
+          echo "Fast cancellation classification matches the versioned, regression-tested policy."
+
       - name: Confirm allowed or non-scheduled request
-        if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'schedule' || steps.request_window.outputs.allowed == 'true'
+        if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'schedule' || steps.fast_request_window.outputs.allowed == 'true'
         run: echo "No scheduled PAPER probe cancellation required."
