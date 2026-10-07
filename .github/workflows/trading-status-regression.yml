@@ -1,0 +1,32 @@
+name: Fenice PAPER Runtime Status Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/api/trading/status/**"
+      - "lib/ui/trading-status-evidence.ts"
+      - "scripts/test-trading-status-evidence.mjs"
+      - ".github/workflows/trading-status-regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/trading/status/**"
+      - "lib/ui/trading-status-evidence.ts"
+      - "scripts/test-trading-status-evidence.mjs"
+      - ".github/workflows/trading-status-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Actual PAPER state, journal and reconciliation diagnostics
+        run: node --experimental-strip-types scripts/test-trading-status-evidence.mjs
