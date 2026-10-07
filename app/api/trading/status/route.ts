@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getDirectaBridgeStatus } from "@/lib/brokers/directa";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
-import { evaluateKillSwitch } from "@/lib/trading/kill-switch";
 import { DEFAULT_RISK_LIMITS } from "@/lib/trading/risk-engine";
+import { buildTradingStatusEvidence } from "@/lib/ui/trading-status-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -22,14 +22,6 @@ type IntelligenceDoc = {
   crossSourceValidation?: { checked?: number; divergent?: number };
 };
 
-type SourceDoc = {
-  sources?: Array<{
-    critical?: boolean;
-    stale?: boolean;
-    status?: string;
-  }>;
-};
-
 type LedgerDoc = { records?: unknown[] };
 
 async function readJson<T>(name: string): Promise<T | null> {
@@ -41,25 +33,14 @@ async function readJson<T>(name: string): Promise<T | null> {
 }
 
 export async function GET() {
-  const [governance, intelligence, sources, ledger] = await Promise.all([
+  const [governance, intelligence, sources, ledger, state] = await Promise.all([
     readJson<GovernanceDoc>("decision-governance.json"),
     readJson<IntelligenceDoc>("intelligence-quality.json"),
-    readJson<SourceDoc>("global-source-health.json"),
+    readJson<unknown>("global-source-health.json"),
     readJson<LedgerDoc>("decision-ledger.json"),
+    readJson<unknown>("paper-oms-state.json"),
   ]);
-
-  const criticalSources = Array.isArray(sources?.sources)
-    ? sources.sources.filter((source) => source.critical === true)
-    : [];
-  const staleCriticalSources = criticalSources.filter((source) => source.stale === true || source.status === "failed").length;
-  const killSwitch = evaluateKillSwitch({
-    manualEngaged: false,
-    reconciliationBreaks: 0,
-    consecutiveExecutionErrors: 0,
-    staleCriticalSources,
-    dailyLossPercent: 0,
-    dataConfidence: Number(intelligence?.intelligenceConfidence || 0),
-  });
+  const evidence = buildTradingStatusEvidence({ state, sources, intelligence });
 
   const directa = getDirectaBridgeStatus({
     requestedMode: "paper",
@@ -70,7 +51,8 @@ export async function GET() {
   return Response.json({
     generatedAt: new Date().toISOString(),
     operatingMode: "PAPER",
-    operational: true,
+    operational: evidence.operational,
+    readOnlyDiagnostic: evidence.readOnlyDiagnostic,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
     brokerNetworkAllowed: false,
@@ -87,7 +69,8 @@ export async function GET() {
       realOrderSubmission: false,
     },
     riskLimits: DEFAULT_RISK_LIMITS,
-    killSwitch,
+    killSwitch: evidence.killSwitch,
+    paperState: evidence.paperState,
     governance: {
       regime: governance?.regime ?? "UNKNOWN",
       stressScore: governance?.stressScore ?? null,
@@ -95,13 +78,15 @@ export async function GET() {
       blockAutonomousTrading: governance?.guardrails?.blockAutonomousTrading === true,
     },
     dataQuality: {
-      confidence: intelligence?.intelligenceConfidence ?? null,
+      ...evidence.dataQuality,
       sourceConcentrationPercent: intelligence?.coverage?.sourceConcentrationPercent ?? null,
       crossChecks: intelligence?.crossSourceValidation?.checked ?? null,
       divergent: intelligence?.crossSourceValidation?.divergent ?? null,
     },
     paperEvidence: {
       records: Array.isArray(ledger?.records) ? ledger.records.length : 0,
+      recordKind: "RESEARCH_DECISION_LEDGER",
+      paperFills: evidence.paperState.paperFillCount,
     },
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }
