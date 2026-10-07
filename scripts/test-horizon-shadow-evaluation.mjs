@@ -89,6 +89,7 @@ ledger = updateForwardShadowLedger(
   },
   { now: t7 },
 );
+assert.equal(ledger.recordCount, 1, "one active forward experiment per symbol");
 const r7 = ledger.records[0];
 assert.equal(r7.tranches[1].status, "EXECUTED");
 assert.equal(r7.tranches[1].price, 110);
