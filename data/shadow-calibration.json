@@ -1,0 +1,233 @@
+{
+  "version": 3,
+  "generatedAt": "2026-10-07T01:37:44.205Z",
+  "purpose": "V7 research-only shadow predictions and directional outcome calibration. Never grants execution permission.",
+  "methodology": {
+    "signal": "terminal ACCUMULA observed as committee OSSERVA/ATTENDI with strong raw data confidence",
+    "positiveOutcomeDefinition": "checkpoint returnPercent > 0",
+    "deDuplication": "maximum one observation per symbol per UTC day",
+    "historicalBootstrap": "persisted committee-history only; comparable raw-confidence snapshots only; weekends excluded",
+    "minimumCalibrationSamples": 30,
+    "feedsV6CalibrationPolicy": false
+  },
+  "historicalBootstrap": {
+    "applied": true,
+    "sourceSnapshotCount": 234,
+    "seededRecords": 29
+  },
+  "isolation": {
+    "modifiesV6DecisionLedger": false,
+    "executionEligible": false,
+    "paperCertificationEligible": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false
+  },
+  "candidateCount": 4,
+  "candidates": [
+    {
+      "symbol": "ASML",
+      "observedDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "committeeScore": 71,
+      "rawConfidence": 98,
+      "calibratedConfidence": 88,
+      "riskScore": 58,
+      "valuationScore": 50,
+      "referencePrice": 1834.1,
+      "currency": "USD",
+      "readiness": {
+        "committeeScore": false,
+        "rawConfidence": true,
+        "calibratedConfidence": true,
+        "risk": true,
+        "valuation": false,
+        "terminalAccumula": true,
+        "deepOvervaluation": true,
+        "scoreGap": 7,
+        "valuationGap": 5,
+        "calibrationPenaltyPoints": 10,
+        "blockedOnlyByCalibration": false,
+        "wouldMeetCommitteeBuyUsingRawConfidence": false
+      },
+      "researchOnly": true,
+      "calibrationOnly": false,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "symbol": "SPY",
+      "observedDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "committeeScore": 70,
+      "rawConfidence": 98,
+      "calibratedConfidence": 88,
+      "riskScore": 30,
+      "valuationScore": 50,
+      "referencePrice": 779.09,
+      "currency": "USD",
+      "readiness": {
+        "committeeScore": false,
+        "rawConfidence": true,
+        "calibratedConfidence": true,
+        "risk": true,
+        "valuation": false,
+        "terminalAccumula": true,
+        "deepOvervaluation": true,
+        "scoreGap": 8,
+        "valuationGap": 5,
+        "calibrationPenaltyPoints": 10,
+        "blockedOnlyByCalibration": false,
+        "wouldMeetCommitteeBuyUsingRawConfidence": false
+      },
+      "researchOnly": true,
+      "calibrationOnly": false,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "symbol": "QQQ",
+      "observedDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "committeeScore": 70,
+      "rawConfidence": 98,
+      "calibratedConfidence": 88,
+      "riskScore": 33,
+      "valuationScore": 50,
+      "referencePrice": 759.66,
+      "currency": "USD",
+      "readiness": {
+        "committeeScore": false,
+        "rawConfidence": true,
+        "calibratedConfidence": true,
+        "risk": true,
+        "valuation": false,
+        "terminalAccumula": true,
+        "deepOvervaluation": true,
+        "scoreGap": 8,
+        "valuationGap": 5,
+        "calibrationPenaltyPoints": 10,
+        "blockedOnlyByCalibration": false,
+        "wouldMeetCommitteeBuyUsingRawConfidence": false
+      },
+      "researchOnly": true,
+      "calibrationOnly": false,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    {
+      "symbol": "TSM",
+      "observedDecision": "OSSERVA",
+      "terminalDecision": "ACCUMULA",
+      "committeeScore": 68,
+      "rawConfidence": 92,
+      "calibratedConfidence": 83,
+      "riskScore": 52,
+      "valuationScore": 50,
+      "referencePrice": 482.3,
+      "currency": "USD",
+      "readiness": {
+        "committeeScore": false,
+        "rawConfidence": true,
+        "calibratedConfidence": true,
+        "risk": true,
+        "valuation": false,
+        "terminalAccumula": true,
+        "deepOvervaluation": true,
+        "scoreGap": 10,
+        "valuationGap": 5,
+        "calibrationPenaltyPoints": 9,
+        "blockedOnlyByCalibration": false,
+        "wouldMeetCommitteeBuyUsingRawConfidence": false
+      },
+      "researchOnly": true,
+      "calibrationOnly": false,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    }
+  ],
+  "ledgerRecordCount": 33,
+  "researchCalibration": {
+    "1d": {
+      "state": "INSUFFICIENT",
+      "sampleSize": 25,
+      "brierScore": 0.3396,
+      "expectedCalibrationError": 0.3224,
+      "averageConfidence": 0.9624,
+      "observedHitRate": 0.64,
+      "optimismBias": 0.3224,
+      "confidenceMultiplier": 0.9,
+      "bins": [
+        {
+          "lower": 0.9,
+          "upper": 1,
+          "count": 25,
+          "averageConfidence": 0.9624,
+          "observedHitRate": 0.64,
+          "gap": 0.3224
+        }
+      ],
+      "reasons": [
+        "calibration requires at least 30 samples; only 25 available"
+      ]
+    },
+    "7d": {
+      "state": "INSUFFICIENT",
+      "sampleSize": 13,
+      "brierScore": 0.2968,
+      "expectedCalibrationError": 0.2762,
+      "averageConfidence": 0.9685,
+      "observedHitRate": 0.6923,
+      "optimismBias": 0.2762,
+      "confidenceMultiplier": 0.9,
+      "bins": [
+        {
+          "lower": 0.9,
+          "upper": 1,
+          "count": 13,
+          "averageConfidence": 0.9685,
+          "observedHitRate": 0.6923,
+          "gap": 0.2762
+        }
+      ],
+      "reasons": [
+        "calibration requires at least 30 samples; only 13 available"
+      ]
+    },
+    "30d": {
+      "state": "INSUFFICIENT",
+      "sampleSize": 0,
+      "brierScore": null,
+      "expectedCalibrationError": null,
+      "averageConfidence": null,
+      "observedHitRate": null,
+      "optimismBias": null,
+      "confidenceMultiplier": 0.9,
+      "bins": [],
+      "reasons": [
+        "no calibration samples available"
+      ]
+    },
+    "90d": {
+      "state": "INSUFFICIENT",
+      "sampleSize": 0,
+      "brierScore": null,
+      "expectedCalibrationError": null,
+      "averageConfidence": null,
+      "observedHitRate": null,
+      "optimismBias": null,
+      "confidenceMultiplier": 0.9,
+      "bins": [],
+      "reasons": [
+        "no calibration samples available"
+      ]
+    }
+  }
+}
