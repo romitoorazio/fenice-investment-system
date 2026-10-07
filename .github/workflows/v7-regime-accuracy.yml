@@ -2,6 +2,14 @@ name: Fenice V7 Regime Accuracy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/intelligence/regime-accuracy.mjs"
+      - "scripts/run-regime-accuracy.mjs"
+      - "scripts/test-regime-accuracy.mjs"
+      - ".github/workflows/v7-regime-accuracy.yml"
   schedule:
     - cron: "52 22 * * 1-5"
   pull_request:
