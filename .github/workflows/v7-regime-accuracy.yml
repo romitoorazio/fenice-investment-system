@@ -1,0 +1,127 @@
+name: Fenice V7 Regime Accuracy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "52 22 * * 1-5"
+  pull_request:
+    paths:
+      - "lib/intelligence/regime-accuracy.mjs"
+      - "scripts/run-regime-accuracy.mjs"
+      - "scripts/test-regime-accuracy.mjs"
+      - ".github/workflows/v7-regime-accuracy.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-regime-accuracy
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test isolated V7 regime accuracy engine
+        run: node scripts/test-regime-accuracy.mjs
+
+      - name: Dry-run regime evidence
+        run: node scripts/run-regime-accuracy.mjs
+
+      - name: Verify V6 isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-regime-accuracy.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-regime-accuracy-ledger.json', 'utf8'));
+          const requiredFalse = ['executionEligible','paperCertificationEligible','brokerSubmissionAllowed','liveTradingAllowed'];
+          for (const key of requiredFalse) {
+            if (report.isolation?.[key] !== false) throw new Error(`Unsafe report flag: ${key}`);
+            if (ledger.isolation?.[key] !== false) throw new Error(`Unsafe ledger flag: ${key}`);
+          }
+          if (report.isolation?.modifiesV6DecisionLedger !== false || ledger.isolation?.modifiesV6DecisionLedger !== false) {
+            throw new Error('Regime accuracy must not modify V6 decision ledger');
+          }
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) throw new Error('Regime accuracy must not feed V6 calibration');
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/v7-regime-accuracy(?:-ledger)?\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Unexpected data changes: ${unsafe.join(' | ')}`);
+          console.log('V7 regime isolation valid:', ledger.recordCount, 'regime days');
+          NODE
+
+  collect:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build V7 regime accuracy evidence
+        run: node scripts/run-regime-accuracy.mjs
+
+      - name: Validate generated evidence
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-regime-accuracy.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-regime-accuracy-ledger.json', 'utf8'));
+          if (report.isolation?.liveTradingAllowed !== false || ledger.isolation?.liveTradingAllowed !== false) throw new Error('Unsafe live flag');
+          if (report.isolation?.paperCertificationEligible !== false || ledger.isolation?.paperCertificationEligible !== false) throw new Error('Unsafe PAPER flag');
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) throw new Error('Unsafe V6 calibration coupling');
+          console.log('Regime accuracy evidence valid:', ledger.recordCount);
+          NODE
+
+      - name: Publish only V7 regime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-regime-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/v7-regime-accuracy.json "$generated_dir/v7-regime-accuracy.json"
+          cp data/v7-regime-accuracy-ledger.json "$generated_dir/v7-regime-accuracy-ledger.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/v7-regime-accuracy.json" data/v7-regime-accuracy.json
+            cp "$generated_dir/v7-regime-accuracy-ledger.json" data/v7-regime-accuracy-ledger.json
+            git add data/v7-regime-accuracy.json data/v7-regime-accuracy-ledger.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 regime evidence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 regime accuracy evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 regime accuracy evidence after retries"
+          exit 1
