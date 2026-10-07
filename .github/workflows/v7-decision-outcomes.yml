@@ -1,0 +1,129 @@
+name: Fenice V7 Decision Outcomes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 22 * * 1-5"
+  pull_request:
+    paths:
+      - "lib/intelligence/decision-outcomes.mjs"
+      - "scripts/run-decision-outcomes.mjs"
+      - "scripts/test-decision-outcomes.mjs"
+      - ".github/workflows/v7-decision-outcomes.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-decision-outcomes
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test isolated V7 decision outcome engine
+        run: node scripts/test-decision-outcomes.mjs
+
+      - name: Dry-run outcome collection
+        run: node scripts/run-decision-outcomes.mjs
+
+      - name: Verify isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-decision-outcomes.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-decision-outcomes-ledger.json', 'utf8'));
+          const requiredFalse = ['executionEligible','paperCertificationEligible','brokerSubmissionAllowed','liveTradingAllowed'];
+          for (const key of requiredFalse) {
+            if (report.isolation?.[key] !== false) throw new Error(`Unsafe report flag: ${key}`);
+            if (ledger.isolation?.[key] !== false) throw new Error(`Unsafe ledger flag: ${key}`);
+          }
+          if (report.isolation?.modifiesV6DecisionLedger !== false || ledger.isolation?.modifiesV6DecisionLedger !== false) {
+            throw new Error('Decision outcomes must not modify V6 decision ledger');
+          }
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) {
+            throw new Error('V7 decision outcomes must not feed V6 calibration policy');
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/v7-decision-outcomes(?:-ledger)?\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Unexpected data changes: ${unsafe.join(' | ')}`);
+          console.log('V7 outcome isolation valid:', 'records=', ledger.recordCount, '1d=', report.horizons?.['1d']?.sampleSize || 0);
+          NODE
+
+  collect:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build isolated V7 decision outcome evidence
+        run: node scripts/run-decision-outcomes.mjs
+
+      - name: Validate generated evidence
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-decision-outcomes.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-decision-outcomes-ledger.json', 'utf8'));
+          if (report.isolation?.liveTradingAllowed !== false || ledger.isolation?.liveTradingAllowed !== false) throw new Error('Unsafe live flag');
+          if (report.isolation?.paperCertificationEligible !== false || ledger.isolation?.paperCertificationEligible !== false) throw new Error('Unsafe PAPER certification flag');
+          if (report.methodology?.feedsV6CalibrationPolicy !== false) throw new Error('Unsafe V6 calibration coupling');
+          console.log('Decision outcome evidence valid:', ledger.recordCount);
+          NODE
+
+      - name: Publish only V7 outcome evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-outcome-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/v7-decision-outcomes.json "$generated_dir/v7-decision-outcomes.json"
+          cp data/v7-decision-outcomes-ledger.json "$generated_dir/v7-decision-outcomes-ledger.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/v7-decision-outcomes.json" data/v7-decision-outcomes.json
+            cp "$generated_dir/v7-decision-outcomes-ledger.json" data/v7-decision-outcomes-ledger.json
+            git add data/v7-decision-outcomes.json data/v7-decision-outcomes-ledger.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 outcome evidence changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 decision outcome evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 decision outcome evidence after retries"
+          exit 1
