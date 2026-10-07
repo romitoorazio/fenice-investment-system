@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-07T18:11:44.617Z",
+  "purpose": "Fail-closed V7 research promotion gate for forward-only shadow evidence. Never grants PAPER or LIVE execution permission.",
+  "state": "LOCKED",
+  "eligibleForHumanResearchReview": false,
+  "blockers": [
+    "7D_SAMPLE_BELOW_30",
+    "7D_NOT_MATURE",
+    "7D_BEAT_RATE_MISSING",
+    "7D_AVERAGE_RETURN_MISSING",
+    "7D_DRAWDOWN_EVIDENCE_MISSING",
+    "30D_SAMPLE_BELOW_30",
+    "30D_NOT_MATURE",
+    "30D_BEAT_RATE_MISSING",
+    "30D_AVERAGE_RETURN_MISSING",
+    "30D_DRAWDOWN_EVIDENCE_MISSING"
+  ],
+  "evidence": {
+    "sourceGeneratedAt": "2026-10-07T17:51:29.352Z",
+    "sourceAgeHours": 0.34,
+    "sourceFresh": true,
+    "totalRecords": 4,
+    "activeRecords": 4,
+    "sevenDay": {
+      "label": "7D",
+      "sampleSize": 0,
+      "maturity": "INSUFFICIENT",
+      "beatWaitRatePercent": null,
+      "averageReturnPercent": null,
+      "averageWorstObservedReturnPercent": null,
+      "thresholds": {
+        "minSamples": 30,
+        "minBeatWaitRatePercent": 60,
+        "minAverageReturnPercent": 0.25,
+        "minAverageWorstObservedReturnPercent": -8
+      },
+      "passed": false,
+      "blockers": [
+        "7D_SAMPLE_BELOW_30",
+        "7D_NOT_MATURE",
+        "7D_BEAT_RATE_MISSING",
+        "7D_AVERAGE_RETURN_MISSING",
+        "7D_DRAWDOWN_EVIDENCE_MISSING"
+      ]
+    },
+    "thirtyDay": {
+      "label": "30D",
+      "sampleSize": 0,
+      "maturity": "INSUFFICIENT",
+      "beatWaitRatePercent": null,
+      "averageReturnPercent": null,
+      "averageWorstObservedReturnPercent": null,
+      "thresholds": {
+        "minSamples": 30,
+        "minBeatWaitRatePercent": 60,
+        "minAverageReturnPercent": 0.75,
+        "minAverageWorstObservedReturnPercent": -12
+      },
+      "passed": false,
+      "blockers": [
+        "30D_SAMPLE_BELOW_30",
+        "30D_NOT_MATURE",
+        "30D_BEAT_RATE_MISSING",
+        "30D_AVERAGE_RETURN_MISSING",
+        "30D_DRAWDOWN_EVIDENCE_MISSING"
+      ]
+    }
+  },
+  "promotionPolicy": {
+    "requiresBothHorizons": true,
+    "minimumIndependentSamplesPerHorizon": 30,
+    "minimumBeatWaitRatePercent": 60,
+    "sevenDayMinimumAverageReturnPercent": 0.25,
+    "thirtyDayMinimumAverageReturnPercent": 0.75,
+    "sevenDayAverageWorstReturnFloorPercent": -8,
+    "thirtyDayAverageWorstReturnFloorPercent": -12,
+    "humanReviewStillRequired": true,
+    "automaticPromotionAllowed": false
+  },
+  "safety": {
+    "diagnosticOnly": true,
+    "modifiesV6DecisionPolicy": false,
+    "queueWritesAllowed": false,
+    "paperCertificationEvidenceMutationAllowed": false,
+    "brokerSubmissionAllowed": false,
+    "liveTradingAllowed": false,
+    "feedsProposalReadiness": false,
+    "canEnablePaper": false,
+    "canEnableLive": false
+  }
+}
