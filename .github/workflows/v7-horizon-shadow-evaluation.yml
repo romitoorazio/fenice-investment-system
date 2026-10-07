@@ -1,0 +1,169 @@
+name: Fenice V7 Shadow Strategy Evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/intelligence/horizon-shadow-evaluator.mjs"
+      - "scripts/run-horizon-shadow-evaluation.mjs"
+      - "scripts/test-horizon-shadow-evaluation.mjs"
+      - ".github/workflows/v7-horizon-shadow-evaluation.yml"
+  schedule:
+    - cron: "22 23 * * 1-5"
+  workflow_run:
+    workflows:
+      - Fenice V7 Horizon Split
+    types:
+      - completed
+  pull_request:
+    paths:
+      - "lib/intelligence/horizon-shadow-evaluator.mjs"
+      - "scripts/run-horizon-shadow-evaluation.mjs"
+      - "scripts/test-horizon-shadow-evaluation.mjs"
+      - ".github/workflows/v7-horizon-shadow-evaluation.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-shadow-strategy-evaluation
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test forward-only shadow strategy evaluator
+        run: node scripts/test-horizon-shadow-evaluation.mjs
+
+      - name: Dry-run forward evaluation
+        run: node scripts/run-horizon-shadow-evaluation.mjs
+
+      - name: Verify V6 isolation and forward-only policy
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-horizon-shadow-evaluation.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-horizon-shadow-evaluation-ledger.json', 'utf8'));
+          const s = report.safety || {};
+          if (s.diagnosticOnly !== true
+            || s.modifiesV6DecisionPolicy !== false
+            || s.queueWritesAllowed !== false
+            || s.paperCertificationEvidenceMutationAllowed !== false
+            || s.brokerSubmissionAllowed !== false
+            || s.liveTradingAllowed !== false
+            || s.feedsProposalReadiness !== false) {
+            throw new Error('Unsafe V7 shadow evaluation flags');
+          }
+          if (ledger.methodology?.forwardOnly !== true || ledger.methodology?.historicalBackfillAllowed !== false) {
+            throw new Error('Shadow evaluation must remain forward-only');
+          }
+          for (const record of ledger.records || []) {
+            if (record.liveTradingAllowed !== false
+              || record.brokerSubmissionAllowed !== false
+              || record.paperCertificationEligible !== false
+              || record.executionEligible !== false) {
+              throw new Error(`Unsafe record: ${record.id}`);
+            }
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/v7-horizon-shadow-evaluation(?:-ledger)?\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Unexpected data changes: ${unsafe.join(' | ')}`);
+          console.log('Forward shadow evaluation isolation valid:',
+            'records=', ledger.recordCount,
+            'selected=', ledger.sourceState?.selectedNow?.join(',') || 'none',
+            '7d=', report.matured7d?.sampleSize || 0,
+            '30d=', report.matured30d?.sampleSize || 0);
+          NODE
+
+  collect:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.repository.full_name == github.repository))
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build forward-only shadow evaluation
+        run: node scripts/run-horizon-shadow-evaluation.mjs
+
+      - name: Validate generated evidence
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('data/v7-horizon-shadow-evaluation.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('data/v7-horizon-shadow-evaluation-ledger.json', 'utf8'));
+          if (report.safety?.liveTradingAllowed !== false
+            || report.safety?.paperCertificationEvidenceMutationAllowed !== false
+            || ledger.methodology?.forwardOnly !== true
+            || ledger.methodology?.historicalBackfillAllowed !== false) {
+            throw new Error('Unsafe forward shadow evaluation output');
+          }
+          console.log('Forward shadow evidence valid:', ledger.recordCount, ledger.sourceState?.selectedNow?.join(',') || 'none');
+          NODE
+
+      - name: Publish only forward shadow evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-shadow-eval-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_dir="$(mktemp -d)"
+          cp data/v7-horizon-shadow-evaluation.json "$generated_dir/report.json"
+          cp data/v7-horizon-shadow-evaluation-ledger.json "$generated_dir/ledger.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_dir/report.json" data/v7-horizon-shadow-evaluation.json
+            cp "$generated_dir/ledger.json" data/v7-horizon-shadow-evaluation-ledger.json
+            git add data/v7-horizon-shadow-evaluation.json data/v7-horizon-shadow-evaluation-ledger.json
+
+            if git diff --cached --quiet; then
+              echo "No forward shadow evaluation changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 forward shadow evaluation"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 forward shadow evaluation after retries"
+          exit 1
