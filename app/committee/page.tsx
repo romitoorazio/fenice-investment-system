@@ -1,5 +1,6 @@
 import Link from "next/link";
 import report from "@/data/investment-committee.json";
+import horizonReport from "@/data/v7-horizon-split.json";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -50,7 +51,31 @@ type CommitteeReport = {
   warnings: string[];
 };
 
+type HorizonRow = {
+  symbol: string;
+  name: string | null;
+  committeeScore: number | null;
+  riskScore: number | null;
+  tactical: { horizon: string; state: string; rationale: string };
+  strategic: { horizon: string; state: string; structurallyEligible: boolean; blockers: string[] };
+};
+
+type HorizonReport = {
+  generatedAt: string;
+  strategicShadowCount: number;
+  strategicShadowSymbols: string[];
+  evidence: {
+    marketRegime: string | null;
+    bias: {
+      sevenDay: { biasState: string; sampleSize: number; netPerDecisionPercent: number | null };
+      thirtyDay: { biasState: string; sampleSize: number; netPerDecisionPercent: number | null };
+    };
+  };
+  rows: HorizonRow[];
+};
+
 const data = report as CommitteeReport;
+const horizon = horizonReport as HorizonReport;
 
 function money(value: number | null | undefined, currency = "EUR") {
   if (!Number.isFinite(value)) return "—";
@@ -72,6 +97,18 @@ function gateClass(gate: string) {
   if (gate === "PRONTO_CON_CONFERMA") return "text-emerald-300";
   if (gate === "ATTENDERE") return "text-amber-300";
   return "text-rose-300";
+}
+
+function horizonTacticalClass(state: string) {
+  if (state === "ATTENDERE") return "border-amber-400/30 bg-amber-400/10 text-amber-200";
+  if (state === "EVITA") return "border-rose-400/30 bg-rose-400/10 text-rose-200";
+  return "border-cyan-400/30 bg-cyan-400/10 text-cyan-200";
+}
+
+function horizonStrategicClass(state: string) {
+  if (state === "ACCUMULA_A_TRANCHE_SHADOW") return "border-violet-400/30 bg-violet-400/10 text-violet-200";
+  if (state === "WATCHLIST_STRATEGICA") return "border-cyan-400/30 bg-cyan-400/10 text-cyan-200";
+  return "border-slate-500/30 bg-slate-500/10 text-slate-300";
 }
 
 export default function CommitteePage() {
@@ -100,6 +137,58 @@ export default function CommitteePage() {
           <Metric label="Qualità dati" value={`${data.dataQuality}/100`} />
           <Metric label="BUY verificati" value={String(data.buyCandidateCount)} />
           <Metric label="Prima tranche" value={money(data.proposedFirstTrancheEuro)} />
+        </section>
+
+        <section className="rounded-3xl border border-violet-400/20 bg-violet-400/[0.05] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Fenice V7 · Horizon Split</p>
+              <h2 className="mt-1 text-xl font-black">Tattico oggi, strategico 7–30 giorni</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Strato diagnostico separato dal Comitato: conserva la prudenza di breve ma segnala dove i dati storici indicano
+                che Fenice tende ad attendere troppo nel medio periodo. Non crea ordini e non modifica PAPER V6.
+              </p>
+            </div>
+            <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1 text-xs font-black text-violet-200">
+              SHADOW · READ ONLY
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            <Mini label="Regime" value={horizon.evidence.marketRegime || "—"} />
+            <Mini label="Bias 7 giorni" value={horizon.evidence.bias.sevenDay.biasState.replaceAll("_", " ")} />
+            <Mini label="Bias 30 giorni" value={horizon.evidence.bias.thirtyDay.biasState.replaceAll("_", " ")} />
+            <Mini label="Shadow strategici" value={String(horizon.strategicShadowCount)} />
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {horizon.rows.filter((row) => row.strategic.state === "ACCUMULA_A_TRANCHE_SHADOW").map((row) => (
+              <article key={row.symbol} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xl font-black">{row.symbol}</div>
+                    <div className="mt-1 text-xs text-slate-500">{row.name || row.symbol} · score {row.committeeScore ?? "—"} · rischio {row.riskScore ?? "—"}</div>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-wide text-violet-300">Ricerca strategica</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
+                  <span className={`rounded-lg border px-2 py-1 ${horizonTacticalClass(row.tactical.state)}`}>
+                    1–5 sedute: {row.tactical.state.replaceAll("_", " ")}
+                  </span>
+                  <span className={`rounded-lg border px-2 py-1 ${horizonStrategicClass(row.strategic.state)}`}>
+                    7–30 gg: {row.strategic.state.replaceAll("_", " ")}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-400">{row.tactical.rationale}</p>
+              </article>
+            ))}
+          </div>
+
+          {horizon.strategicShadowCount === 0 && (
+            <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-400">
+              Nessun candidato soddisfa oggi i gate dello split strategico.
+            </p>
+          )}
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
