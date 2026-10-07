@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   buildHistoricalDecisionOutcomeBackfill,
   classifyDecisionOutcome,
+  classifyRestraintBias,
   selectDecisionOutcomeCandidates,
   summarizeDecisionOutcomes,
   updateDecisionOutcomeLedger,
@@ -29,6 +30,10 @@ assert.equal(classifyDecisionOutcome("EVITA", 2).class, "SFAVOREVOLE");
 assert.equal(classifyDecisionOutcome("ATTENDI", 2).class, "OPPORTUNITA_PERSA");
 assert.equal(classifyDecisionOutcome("OSSERVA", -2).class, "PERDITA_EVITATA");
 assert.equal(classifyDecisionOutcome("OSSERVA", 0.5).class, "NEUTRALE");
+assert.equal(classifyRestraintBias({ sampleSize: 20, missedUpsidePercent: 20, avoidedLossPercent: 4 }), "TOO_CAUTIOUS");
+assert.equal(classifyRestraintBias({ sampleSize: 20, missedUpsidePercent: 4, avoidedLossPercent: 20 }), "PROTECTION_VALUE");
+assert.equal(classifyRestraintBias({ sampleSize: 20, missedUpsidePercent: 10, avoidedLossPercent: 12 }), "BALANCED");
+assert.equal(classifyRestraintBias({ sampleSize: 5, missedUpsidePercent: 10, avoidedLossPercent: 0 }), "INSUFFICIENT");
 
 const selected = selectDecisionOutcomeCandidates([
   decision("SPY", 100),
@@ -90,6 +95,8 @@ assert.equal(summary.sampleSize, 3);
 assert.equal(summary.decisions.COMPRA.favorableRatePercent, 100);
 assert.equal(summary.decisions.EVITA.favorableRatePercent, 0);
 assert(summary.restraintTradeoff.avoidedLossPercent > 0);
+assert.equal(summary.restraintTradeoff.biasState, "INSUFFICIENT");
+assert(Number.isFinite(summary.restraintTradeoff.netProtectionMinusMissedPerDecisionPercent));
 
 const late = updateDecisionOutcomeLedger(
   sameDay,
