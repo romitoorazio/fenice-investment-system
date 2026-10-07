@@ -1,6 +1,7 @@
 import Link from "next/link";
 import report from "@/data/investment-committee.json";
 import horizonReport from "@/data/v7-horizon-split.json";
+import shadowEvaluationReport from "@/data/v7-horizon-shadow-evaluation.json";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -74,8 +75,42 @@ type HorizonReport = {
   rows: HorizonRow[];
 };
 
+type ShadowEvaluationSummary = {
+  sampleSize: number;
+  averageStagedReturnPercent: number | null;
+  beatWaitRatePercent: number | null;
+  averageWorstObservedReturnPercent: number | null;
+  maturity: string;
+};
+
+type ShadowEvaluationRecord = {
+  id: string;
+  symbol: string;
+  observationDate: string;
+  referencePrice: number;
+  lastPrice: number;
+  stagedMarkToMarketPercent: number | null;
+  executedTrancheCount: number;
+  checkpoint7d: unknown | null;
+  checkpoint30d: unknown | null;
+};
+
+type ShadowEvaluationReport = {
+  generatedAt: string;
+  activeRecords: number;
+  totalRecords: number;
+  sourceState: {
+    sourceFresh: boolean;
+    selectedNow: string[];
+  };
+  matured7d: ShadowEvaluationSummary;
+  matured30d: ShadowEvaluationSummary;
+  latestRecords: ShadowEvaluationRecord[];
+};
+
 const data = report as CommitteeReport;
 const horizon = horizonReport as HorizonReport;
+const shadowEvaluation = shadowEvaluationReport as ShadowEvaluationReport;
 
 function money(value: number | null | undefined, currency = "EUR") {
   if (!Number.isFinite(value)) return "—";
@@ -189,6 +224,48 @@ export default function CommitteePage() {
               Nessun candidato soddisfa oggi i gate dello split strategico.
             </p>
           )}
+
+          <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">Validazione forward-only</p>
+                <p className="mt-1 text-sm leading-6 text-slate-300">
+                  Fenice misura da ora in avanti se la strategia shadow a tranche batte il semplice ATTENDERE. Nessun backfill storico:
+                  i risultati compaiono solo quando maturano davvero.
+                </p>
+              </div>
+              <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${shadowEvaluation.sourceState.sourceFresh ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
+                {shadowEvaluation.sourceState.sourceFresh ? "SOURCE FRESH" : "SOURCE STALE"}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+              <Mini label="Esperimenti attivi" value={String(shadowEvaluation.activeRecords)} />
+              <Mini label="Campioni 7 giorni" value={`${shadowEvaluation.matured7d.sampleSize} · ${shadowEvaluation.matured7d.maturity}`} />
+              <Mini label="Campioni 30 giorni" value={`${shadowEvaluation.matured30d.sampleSize} · ${shadowEvaluation.matured30d.maturity}`} />
+              <Mini label="Selezionati ora" value={shadowEvaluation.sourceState.selectedNow.join(", ") || "—"} />
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {shadowEvaluation.latestRecords.map((record) => (
+                <div key={record.id} className="rounded-xl border border-white/10 bg-slate-950/65 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="text-sm text-cyan-200">{record.symbol}</strong>
+                    <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">{record.executedTrancheCount}/3 tranche</span>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400">
+                    Base {money(record.referencePrice, "USD")} · ultimo {money(record.lastPrice, "USD")}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Shadow MTM {Number.isFinite(record.stagedMarkToMarketPercent) ? `${record.stagedMarkToMarketPercent}%` : "—"}
+                  </div>
+                  <div className="mt-2 text-[10px] uppercase tracking-wide text-slate-600">
+                    7d {record.checkpoint7d ? "misurato" : "in attesa"} · 30d {record.checkpoint30d ? "misurato" : "in attesa"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
