@@ -1,0 +1,156 @@
+name: Fenice V7 Shadow Promotion Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/intelligence/shadow-promotion-gate.mjs"
+      - "scripts/run-shadow-promotion-gate.mjs"
+      - "scripts/test-shadow-promotion-gate.mjs"
+      - ".github/workflows/v7-shadow-promotion-gate.yml"
+  schedule:
+    - cron: "37 23 * * 1-5"
+  workflow_run:
+    workflows:
+      - Fenice V7 Shadow Strategy Evaluation
+    types:
+      - completed
+  pull_request:
+    paths:
+      - "lib/intelligence/shadow-promotion-gate.mjs"
+      - "scripts/run-shadow-promotion-gate.mjs"
+      - "scripts/test-shadow-promotion-gate.mjs"
+      - ".github/workflows/v7-shadow-promotion-gate.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fenice-v7-shadow-promotion-gate
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test fail-closed shadow promotion gate
+        run: node scripts/test-shadow-promotion-gate.mjs
+
+      - name: Dry-run promotion gate
+        run: node scripts/run-shadow-promotion-gate.mjs
+
+      - name: Verify isolation
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const gate = JSON.parse(fs.readFileSync('data/v7-shadow-promotion-gate.json', 'utf8'));
+          const s = gate.safety || {};
+          if (s.diagnosticOnly !== true
+            || s.modifiesV6DecisionPolicy !== false
+            || s.queueWritesAllowed !== false
+            || s.paperCertificationEvidenceMutationAllowed !== false
+            || s.brokerSubmissionAllowed !== false
+            || s.liveTradingAllowed !== false
+            || s.feedsProposalReadiness !== false
+            || s.canEnablePaper !== false
+            || s.canEnableLive !== false) {
+            throw new Error('Unsafe V7 promotion gate flags');
+          }
+          if (gate.promotionPolicy?.automaticPromotionAllowed !== false
+            || gate.promotionPolicy?.humanReviewStillRequired !== true) {
+            throw new Error('Automatic V7 promotion must remain impossible');
+          }
+          const changed = require('child_process').execSync('git status --short -- data', { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean);
+          const unsafe = changed.filter((line) => !/data\/v7-shadow-promotion-gate\.json$/.test(line));
+          if (unsafe.length) throw new Error(`Unexpected data changes: ${unsafe.join(' | ')}`);
+          console.log('V7 promotion isolation valid:', gate.state, gate.blockers.length);
+          NODE
+
+  collect:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.repository.full_name == github.repository))
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Build V7 shadow promotion gate
+        run: node scripts/run-shadow-promotion-gate.mjs
+
+      - name: Validate generated gate
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const gate = JSON.parse(fs.readFileSync('data/v7-shadow-promotion-gate.json', 'utf8'));
+          if (gate.safety?.liveTradingAllowed !== false
+            || gate.safety?.canEnablePaper !== false
+            || gate.safety?.canEnableLive !== false
+            || gate.promotionPolicy?.automaticPromotionAllowed !== false) {
+            throw new Error('Unsafe promotion gate output');
+          }
+          console.log('Shadow promotion gate valid:', gate.state, gate.blockers.join(',') || 'none');
+          NODE
+
+      - name: Publish only V7 promotion gate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-v7-promotion-gate-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          generated_file="$(mktemp)"
+          cp data/v7-shadow-promotion-gate.json "$generated_file"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$generated_file" data/v7-shadow-promotion-gate.json
+            git add data/v7-shadow-promotion-gate.json
+
+            if git diff --cached --quiet; then
+              echo "No V7 shadow promotion gate changes to commit"
+              exit 0
+            fi
+
+            git commit -m "data: refresh V7 shadow promotion gate"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push race detected, retrying ($attempt/3)"
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to publish V7 shadow promotion gate after retries"
+          exit 1
