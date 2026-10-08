@@ -1,4 +1,5 @@
 import { evaluateFxExposure } from "../trading/fx-exposure.ts";
+import { verifyAuditChain, type AuditEvent } from "../trading/audit-chain.ts";
 
 type PaperMarketSession = {
   configured?: boolean;
@@ -47,6 +48,7 @@ type PaperEvidenceRow = {
   observedAt?: string;
   liveTradingAllowed?: boolean;
   brokerConnectivityAllowed?: boolean;
+  auditChainValid?: boolean;
   marketSession?: PaperMarketSession;
   marketFxEvidence?: PaperMarketFxEvidence;
   fillEvidenceProof?: {
@@ -64,6 +66,7 @@ type PaperCampaignLike = {
 type PaperOmsLike = {
   liveTradingAllowed?: boolean;
   brokerConnectivityAllowed?: boolean;
+  auditChain?: AuditEvent[];
   positions?: Array<{
     quantity?: number;
     averagePrice?: number;
@@ -232,6 +235,23 @@ export function derivePaperRuntimeEvidence(
     && fxDecision?.allowed === true,
   );
 
+  const auditChain = Array.isArray(oms?.auditChain) ? oms.auditChain : [];
+  const auditVerification = auditChain.length > 0
+    ? verifyAuditChain(auditChain)
+    : { valid: false, brokenAt: null };
+  const auditedExecutionIds = new Set(auditChain.map((event) => String(event?.entityId || "")));
+  const allExecutionsAudited = executions.length > 0
+    && executions.every((execution) => auditedExecutionIds.has(String(execution?.clientOrderId || "")));
+  const auditEvidenceDays = rows.filter((row) => safePaperLocks(row) && row?.auditChainValid === true).length;
+  const persistentAuditRuntimeVerified = Boolean(
+    oms?.liveTradingAllowed === false
+    && oms?.brokerConnectivityAllowed === false
+    && auditVerification.valid
+    && allExecutionsAudited
+    && rows.length > 0
+    && auditEvidenceDays === rows.length,
+  );
+
   return {
     marketSessionControlsVerified: Boolean(openSessionRow && blockedSessionRow),
     marketSessionEvidenceDate: latestSessionRow?.date || null,
@@ -246,6 +266,11 @@ export function derivePaperRuntimeEvidence(
     fxExposureReasons: fxDecision?.reasons ?? (capitalEuro ? [] : ["paper capital evidence unavailable"]),
     foreignPaperFills: foreignFills.length,
     certifiedForeignPaperFills: foreignFills.filter((execution) => certifiedForeignFillIds.has(String(execution?.clientOrderId || ""))).length,
+    persistentAuditRuntimeVerified,
+    auditChainEvents: auditChain.length,
+    auditEvidenceDays,
+    auditBrokenAt: auditVerification.brokenAt,
+    allExecutionsAudited,
     failClosed: true,
   };
 }

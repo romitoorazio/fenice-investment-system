@@ -4,12 +4,14 @@ import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperOms from "@/data/paper-oms-state.json";
+import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 import { classifyPaperEvidenceState } from "@/lib/ui/paper-evidence-state";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
+import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -133,10 +135,16 @@ function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.no
 export default function ReadinessPage() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
+  const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
+  const persistentAuditVerified = engineeringEvidence.persistentAuditImplementationVerified
+    && paperRuntimeEvidence.persistentAuditRuntimeVerified;
   const { report, metrics } = buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
+    recoveryVerified: engineeringEvidence.crashRecoveryVerified,
+    persistentAuditVerified,
     marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
     fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
+    chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
   });
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
@@ -221,7 +229,7 @@ export default function ReadinessPage() {
                 <p className="mt-2 text-xs leading-5 text-slate-500">Baseline fissata con intelligence <strong className="text-slate-300">{Number(baselineMetrics.intelligenceConfidence || 0)}/100</strong>, {Number(baselineMetrics.crossChecks || 0)} cross-check e copertura PAPER <strong className="text-slate-300">{Number(baselineMetrics.paperEligibleSymbols || 0)}/{Number(baselineMetrics.requestedExecutionSymbols || 0)} ({Number(baselineMetrics.paperEligiblePercent || 0)}%)</strong> su {Number(baselineMetrics.paperEligibleSourceFamilies || 0)} famiglie indipendenti.</p>
               )}
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Evidenza runtime V6 persistita: sessioni <strong className="text-slate-300">{paperRuntimeEvidence.marketSessionControlsVerified ? `PASS (OPEN ${paperRuntimeEvidence.marketSessionOpenEvidenceDate || "n/d"} + blocco ${paperRuntimeEvidence.marketSessionBlockedEvidenceDate || "n/d"})` : "da verificare"}</strong> · FX exposure <strong className="text-slate-300">{paperRuntimeEvidence.fxExposureVerified ? `PASS (${paperRuntimeEvidence.fxTotalForeignExposurePercent ?? "n/d"}%)` : "da verificare"}</strong>. Questi PASS aggiornano la completezza engineering senza aprire LIVE e senza modificare il fingerprint V6.
+                Evidenza runtime V6 persistita: sessioni <strong className="text-slate-300">{paperRuntimeEvidence.marketSessionControlsVerified ? `PASS (OPEN ${paperRuntimeEvidence.marketSessionOpenEvidenceDate || "n/d"} + blocco ${paperRuntimeEvidence.marketSessionBlockedEvidenceDate || "n/d"})` : "da verificare"}</strong> · FX exposure <strong className="text-slate-300">{paperRuntimeEvidence.fxExposureVerified ? `PASS (${paperRuntimeEvidence.fxTotalForeignExposurePercent ?? "n/d"}%)` : "da verificare"}</strong> · audit persistente <strong className="text-slate-300">{persistentAuditVerified ? `PASS (${paperRuntimeEvidence.auditChainEvents} eventi / ${paperRuntimeEvidence.auditEvidenceDays} giorni)` : "da verificare"}</strong>. Questi PASS aggiornano la completezza engineering senza aprire LIVE e senza modificare il fingerprint V6.
               </p>
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
@@ -285,6 +293,27 @@ export default function ReadinessPage() {
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Famiglie verificate</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligibleSourceFamilies}/{preferredSourceFamilies}</p><p className="mt-1 text-[9px] opacity-60">minimo {minimumSourceFamilies}</p></div>
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Fonti zero-cost</p><p className="mt-1 text-lg font-black">{executionMetrics.configuredZeroCostSourceFamilies}/{minimumSourceFamilies}</p></div>
               <div className="rounded-xl border border-current/15 bg-black/15 p-3"><p className="text-[9px] font-bold uppercase opacity-60">Copertura</p><p className="mt-1 text-lg font-black">{executionMetrics.paperEligiblePercent}%</p></div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.04] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">Engineering validation evidence</p>
+              <h2 className="mt-2 text-lg font-black">{engineeringEvidence.valid ? "CI MAIN CERTIFICATA" : "IN ATTESA DI PROVA CI PERSISTITA"}</h2>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Il registro accetta solo una Fenice Production CI conclusa con successo su <strong>main/push</strong>. La prova CI non può autorizzare LIVE né broker connectivity.
+              </p>
+              {engineeringEvidence.valid && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Run <strong className="text-slate-300">#{engineeringEvidence.workflowRunId}</strong> · commit <span className="font-mono text-slate-300">{String(engineeringEvidence.validatedCommit || "").slice(0, 12)}</span> · recovery <strong className="text-slate-300">{engineeringEvidence.crashRecoveryVerified ? "PASS" : "CHECK"}</strong> · chaos <strong className="text-slate-300">{engineeringEvidence.chaosTestsVerified ? "PASS" : "CHECK"}</strong>.
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-center">
+              <p className="text-[9px] font-bold uppercase text-slate-500">LIVE</p>
+              <p className="mt-1 text-sm font-black text-rose-200">BLOCCATO</p>
             </div>
           </div>
         </section>
