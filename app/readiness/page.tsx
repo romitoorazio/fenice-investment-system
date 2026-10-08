@@ -3,11 +3,13 @@ import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import paperCampaign from "@/data/paper-validation-campaign.json";
+import paperOms from "@/data/paper-oms-state.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 import { classifyPaperEvidenceState } from "@/lib/ui/paper-evidence-state";
+import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -130,8 +132,11 @@ function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.no
 
 export default function ReadinessPage() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const { report, metrics } = buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
+    marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
+    fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
   });
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
@@ -215,6 +220,9 @@ export default function ReadinessPage() {
               {baselineMetrics && (
                 <p className="mt-2 text-xs leading-5 text-slate-500">Baseline fissata con intelligence <strong className="text-slate-300">{Number(baselineMetrics.intelligenceConfidence || 0)}/100</strong>, {Number(baselineMetrics.crossChecks || 0)} cross-check e copertura PAPER <strong className="text-slate-300">{Number(baselineMetrics.paperEligibleSymbols || 0)}/{Number(baselineMetrics.requestedExecutionSymbols || 0)} ({Number(baselineMetrics.paperEligiblePercent || 0)}%)</strong> su {Number(baselineMetrics.paperEligibleSourceFamilies || 0)} famiglie indipendenti.</p>
               )}
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Evidenza runtime V6 persistita: sessioni <strong className="text-slate-300">{paperRuntimeEvidence.marketSessionControlsVerified ? `PASS (OPEN ${paperRuntimeEvidence.marketSessionOpenEvidenceDate || "n/d"} + blocco ${paperRuntimeEvidence.marketSessionBlockedEvidenceDate || "n/d"})` : "da verificare"}</strong> · FX exposure <strong className="text-slate-300">{paperRuntimeEvidence.fxExposureVerified ? `PASS (${paperRuntimeEvidence.fxTotalForeignExposurePercent ?? "n/d"}%)` : "da verificare"}</strong>. Questi PASS aggiornano la completezza engineering senza aprire LIVE e senza modificare il fingerprint V6.
+              </p>
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-bold uppercase text-slate-500">Giorni evidenza</p><p className="mt-1 text-lg font-black">{evidenceDays}/{minEvidenceDays}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet-300" style={{ width: `${boundedPercent(evidenceDays, minEvidenceDays)}%` }} /></div></div>
