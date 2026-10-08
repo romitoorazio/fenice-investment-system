@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { buildInstitutionalEvidence } from "../lib/trading/readiness-evidence.ts";
 import { evaluateExecutionReadiness } from "../lib/trading/execution-readiness.ts";
+import { derivePaperRuntimeEvidence } from "../lib/ui/paper-runtime-evidence.ts";
 
 const intelligence = {
   intelligenceConfidence: 96,
@@ -137,5 +138,95 @@ const legacyCoverage = evaluateExecutionReadiness(healthyEvidence, {
 assert.equal(legacyCoverage.verified, false);
 assert.equal(legacyCoverage.state, "BLOCKED");
 assert.ok(legacyCoverage.reasons.some((reason) => reason.includes("legacy or incomplete")));
+
+
+const paperRuntime = derivePaperRuntimeEvidence({
+  dailyEvidence: [
+    {
+      date: "2026-10-08",
+      observedAt: "2026-10-08T17:04:27.344Z",
+      liveTradingAllowed: false,
+      brokerConnectivityAllowed: false,
+      marketSession: {
+        configured: true,
+        evidence: {
+          state: "OPEN",
+          source: "Alpaca Paper Trading Clock",
+          observedAt: "2026-10-08T17:04:26.734Z",
+          authoritative: true,
+        },
+        decision: { allowed: true, state: "OPEN", reasons: [] },
+      },
+      marketFxEvidence: {
+        readyNow: true,
+        requiredForNonEuro: true,
+        provider: "twelve-data",
+        expectedProvider: "twelve-data",
+        baseCurrency: "EUR",
+        expectedBaseCurrency: "EUR",
+        usdPair: "USD/EUR",
+        usdRate: 0.8928,
+        usdObservedAt: "2026-10-08T17:03:00.000Z",
+        provenanceVerified: true,
+        liveTradingAllowed: false,
+        brokerConnectivityAllowed: false,
+      },
+      fillEvidenceProof: {
+        complete: true,
+        windows: [{
+          marketFx: {
+            ready: true,
+            requiredForAdditionalFills: true,
+            nonEuroFills: 1,
+            matchedNonEuroFills: 1,
+            proofs: [{ readyAtFill: true, matches: true }],
+          },
+        }],
+      },
+    },
+    {
+      date: "2026-10-09",
+      observedAt: "2026-10-09T18:00:00.000Z",
+      liveTradingAllowed: false,
+      brokerConnectivityAllowed: false,
+      marketSession: {
+        configured: true,
+        evidence: {
+          state: "CLOSED",
+          source: "Alpaca Paper Trading Clock",
+          observedAt: "2026-10-09T18:00:00.000Z",
+          authoritative: true,
+        },
+        decision: { allowed: false, state: "CLOSED", reasons: ["MARKET_CLOSED"] },
+      },
+    },
+  ],
+});
+assert.equal(paperRuntime.marketSessionControlsVerified, true);
+assert.equal(paperRuntime.marketSessionEvidenceDate, "2026-10-09");
+assert.equal(paperRuntime.fxExposureVerified, true);
+assert.equal(paperRuntime.fxEvidenceDate, "2026-10-08");
+
+const persistedPaperRuntime = buildInstitutionalEvidence(intelligence, {
+  marketSessionControlsVerified: paperRuntime.marketSessionControlsVerified,
+  fxExposureVerified: paperRuntime.fxExposureVerified,
+});
+assert.equal(persistedPaperRuntime["market-session-controls"], "PASS");
+assert.equal(persistedPaperRuntime["fx-exposure"], "PASS");
+
+const unsafePaperRuntime = derivePaperRuntimeEvidence({
+  dailyEvidence: [{
+    date: "2026-10-08",
+    liveTradingAllowed: true,
+    brokerConnectivityAllowed: false,
+    marketSession: {
+      configured: true,
+      evidence: { state: "OPEN", source: "clock", observedAt: "2026-10-08T17:00:00Z", authoritative: true },
+      decision: { allowed: true },
+    },
+  }],
+});
+assert.equal(unsafePaperRuntime.marketSessionControlsVerified, false);
+assert.equal(unsafePaperRuntime.fxExposureVerified, false);
 
 console.log("Fenice readiness evidence fail-closed tests: PASS");

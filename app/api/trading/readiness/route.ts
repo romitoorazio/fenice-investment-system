@@ -1,15 +1,18 @@
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
+import paperCampaign from "@/data/paper-validation-campaign.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
+import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign);
   const readiness = buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
     // These controls require runtime evidence from the local Directa bridge,
@@ -21,8 +24,8 @@ export async function GET() {
     recoveryVerified: false,
     persistentAuditVerified: false,
     heartbeatWatchdogVerified: false,
-    marketSessionControlsVerified: false,
-    fxExposureVerified: false,
+    marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
+    fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
     paper30dVerified: false,
     chaosTestsVerified: false,
   });
@@ -31,6 +34,7 @@ export async function GET() {
     generatedAt: new Date().toISOString(),
     ...readiness,
     executionReadiness,
+    paperRuntimeEvidence,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
     capitalReady: false,
