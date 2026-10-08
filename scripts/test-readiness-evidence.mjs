@@ -179,7 +179,7 @@ const paperRuntime = derivePaperRuntimeEvidence({
             requiredForAdditionalFills: true,
             nonEuroFills: 1,
             matchedNonEuroFills: 1,
-            proofs: [{ readyAtFill: true, matches: true }],
+            proofs: [{ clientOrderId: "probe-usd-1", readyAtFill: true, matches: true }],
           },
         }],
       },
@@ -201,11 +201,31 @@ const paperRuntime = derivePaperRuntimeEvidence({
       },
     },
   ],
+}, {
+  liveTradingAllowed: false,
+  brokerConnectivityAllowed: false,
+  positions: [
+    { quantity: 1, averagePrice: 500, currency: "USD", fxToEuro: 0.8928 },
+  ],
+  executions: [
+    {
+      clientOrderId: "probe-usd-1",
+      status: "PAPER_FILLED",
+      currency: "USD",
+      fxToEuro: 0.8928,
+      fxProvider: "twelve-data",
+      fxObservedAt: "2026-10-08T17:03:00.000Z",
+      risk: { checks: [{ code: "valid-capital", passed: true, observed: 10000 }] },
+    },
+  ],
 });
 assert.equal(paperRuntime.marketSessionControlsVerified, true);
 assert.equal(paperRuntime.marketSessionEvidenceDate, "2026-10-09");
 assert.equal(paperRuntime.fxExposureVerified, true);
 assert.equal(paperRuntime.fxEvidenceDate, "2026-10-08");
+assert.equal(paperRuntime.certifiedForeignPaperFills, 1);
+assert.equal(paperRuntime.foreignPaperFills, 1);
+assert.equal(paperRuntime.fxTotalForeignExposurePercent, 4.464);
 
 const persistedPaperRuntime = buildInstitutionalEvidence(intelligence, {
   marketSessionControlsVerified: paperRuntime.marketSessionControlsVerified,

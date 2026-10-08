@@ -2,6 +2,7 @@ import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import paperCampaign from "@/data/paper-validation-campaign.json";
+import paperOms from "@/data/paper-oms-state.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
@@ -12,7 +13,7 @@ export const revalidate = 0;
 
 export async function GET() {
   const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
-  const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign);
+  const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const readiness = buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
     // These controls require runtime evidence from the local Directa bridge,
