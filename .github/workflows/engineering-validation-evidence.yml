@@ -1,0 +1,82 @@
+name: Fenice Engineering Validation Evidence
+
+on:
+  workflow_run:
+    workflows: ["Fenice Production CI"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: fenice-engineering-validation-evidence
+  cancel-in-progress: false
+
+jobs:
+  persist:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'data: record engineering validation evidence')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Confirm tested code still matches main
+        id: applicability
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          if ! git merge-base --is-ancestor "$TESTED_SHA" HEAD; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "Tested revision is no longer an ancestor of main; a newer CI run must certify it."
+            exit 0
+          fi
+          if git diff --quiet "$TESTED_SHA"..HEAD -- . ':(exclude)data/**' ':(exclude)**/*.md'; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "Code changed after the tested revision; refusing to publish stale engineering evidence."
+          fi
+
+      - name: Write fail-closed engineering evidence
+        if: steps.applicability.outputs.eligible == 'true'
+        env:
+          CI_VALIDATED_AT: ${{ github.event.workflow_run.updated_at }}
+          CI_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          CI_WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          CI_TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CI_WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
+          CI_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: node --experimental-strip-types scripts/write-engineering-validation-evidence.mjs
+
+      - name: Persist evidence only
+        if: steps.applicability.outputs.eligible == 'true'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/engineering-validation-evidence.json; then
+            echo "Engineering evidence is already current."
+            exit 0
+          fi
+          git config user.name "fenice-engineering-evidence-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/engineering-validation-evidence.json
+          git commit -m "data: record engineering validation evidence"
+          git push origin HEAD:main

@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { buildInstitutionalEvidence } from "../lib/trading/readiness-evidence.ts";
 import { evaluateExecutionReadiness } from "../lib/trading/execution-readiness.ts";
 import { derivePaperRuntimeEvidence } from "../lib/ui/paper-runtime-evidence.ts";
+import {
+  buildEngineeringValidationRecord,
+  deriveEngineeringValidationEvidence,
+  validateEngineeringCiContract,
+} from "../lib/ui/engineering-validation-evidence.ts";
+import { appendAuditEvent } from "../lib/trading/audit-chain.ts";
 
 const intelligence = {
   intelligenceConfidence: 96,
@@ -140,6 +146,14 @@ assert.equal(legacyCoverage.state, "BLOCKED");
 assert.ok(legacyCoverage.reasons.some((reason) => reason.includes("legacy or incomplete")));
 
 
+let testAuditChain = [];
+testAuditChain = appendAuditEvent(testAuditChain, {
+  timestamp: "2026-10-08T17:04:27.344Z",
+  eventType: "PAPER_FILLED",
+  entityId: "probe-usd-1",
+  payload: { symbol: "SPY", mode: "PAPER" },
+});
+
 const paperRuntime = derivePaperRuntimeEvidence({
   dailyEvidence: [
     {
@@ -147,6 +161,7 @@ const paperRuntime = derivePaperRuntimeEvidence({
       observedAt: "2026-10-08T17:04:27.344Z",
       liveTradingAllowed: false,
       brokerConnectivityAllowed: false,
+      auditChainValid: true,
       marketSession: {
         configured: true,
         evidence: {
@@ -189,6 +204,7 @@ const paperRuntime = derivePaperRuntimeEvidence({
       observedAt: "2026-10-09T18:00:00.000Z",
       liveTradingAllowed: false,
       brokerConnectivityAllowed: false,
+      auditChainValid: true,
       marketSession: {
         configured: true,
         evidence: {
@@ -204,6 +220,7 @@ const paperRuntime = derivePaperRuntimeEvidence({
 }, {
   liveTradingAllowed: false,
   brokerConnectivityAllowed: false,
+  auditChain: testAuditChain,
   positions: [
     { quantity: 1, averagePrice: 500, currency: "USD", fxToEuro: 0.8928 },
   ],
@@ -226,6 +243,10 @@ assert.equal(paperRuntime.fxEvidenceDate, "2026-10-08");
 assert.equal(paperRuntime.certifiedForeignPaperFills, 1);
 assert.equal(paperRuntime.foreignPaperFills, 1);
 assert.equal(paperRuntime.fxTotalForeignExposurePercent, 4.464);
+assert.equal(paperRuntime.persistentAuditRuntimeVerified, true);
+assert.equal(paperRuntime.auditChainEvents, 1);
+assert.equal(paperRuntime.auditEvidenceDays, 2);
+assert.equal(paperRuntime.allExecutionsAudited, true);
 
 const persistedPaperRuntime = buildInstitutionalEvidence(intelligence, {
   marketSessionControlsVerified: paperRuntime.marketSessionControlsVerified,
@@ -248,5 +269,50 @@ const unsafePaperRuntime = derivePaperRuntimeEvidence({
 });
 assert.equal(unsafePaperRuntime.marketSessionControlsVerified, false);
 assert.equal(unsafePaperRuntime.fxExposureVerified, false);
+
+const ciContractText = `
+      - name: Institutional risk reconciliation shadow and recovery controls
+        run: npm run institutional:test
+      - name: Atomic state persistence and corruption handling
+        run: npm run state:test
+      - name: Adverse-condition chaos resilience
+        run: npm run chaos:test
+      - name: Institutional paper OMS safety
+        run: npm run trading:ops
+`;
+assert.equal(validateEngineeringCiContract(ciContractText).valid, true);
+
+const engineeringRecord = buildEngineeringValidationRecord({
+  generatedAt: "2026-10-08T20:00:00.000Z",
+  workflowRunId: 123456,
+  workflowUrl: "https://github.com/romitoorazio/fenice-investment-system/actions/runs/123456",
+  validatedCommit: "a".repeat(40),
+  branch: "main",
+  event: "push",
+  conclusion: "success",
+  contractDigest: "b".repeat(64),
+});
+const engineeringRuntime = deriveEngineeringValidationEvidence(engineeringRecord);
+assert.equal(engineeringRuntime.valid, true);
+assert.equal(engineeringRuntime.crashRecoveryVerified, true);
+assert.equal(engineeringRuntime.chaosTestsVerified, true);
+assert.equal(engineeringRuntime.persistentAuditImplementationVerified, true);
+
+const engineeringBackedReadiness = buildInstitutionalEvidence(intelligence, {
+  recoveryVerified: engineeringRuntime.crashRecoveryVerified,
+  persistentAuditVerified: engineeringRuntime.persistentAuditImplementationVerified && paperRuntime.persistentAuditRuntimeVerified,
+  chaosTestsVerified: engineeringRuntime.chaosTestsVerified,
+});
+assert.equal(engineeringBackedReadiness["crash-recovery"], "PASS");
+assert.equal(engineeringBackedReadiness["persistent-audit"], "PASS");
+assert.equal(engineeringBackedReadiness["chaos-tests"], "PASS");
+
+const unsafeEngineering = deriveEngineeringValidationEvidence({
+  ...engineeringRecord,
+  policy: { ...engineeringRecord.policy, liveTradingAllowed: true },
+});
+assert.equal(unsafeEngineering.valid, false);
+assert.equal(unsafeEngineering.crashRecoveryVerified, false);
+assert.equal(unsafeEngineering.chaosTestsVerified, false);
 
 console.log("Fenice readiness evidence fail-closed tests: PASS");
