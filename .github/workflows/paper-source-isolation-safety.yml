@@ -1,0 +1,35 @@
+name: Fenice PAPER Source Isolation Safety
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-source-isolation-safety.yml"
+      - "lib/trading/execution-readiness.ts"
+      - "scripts/test-paper-eligible-source-isolation.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-source-isolation-safety.yml"
+      - "lib/trading/execution-readiness.ts"
+      - "scripts/test-paper-eligible-source-isolation.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  paper-source-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout inspected commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Reject LIVE and unapproved quotes in PAPER readiness
+        run: node --experimental-strip-types scripts/test-paper-eligible-source-isolation.mjs

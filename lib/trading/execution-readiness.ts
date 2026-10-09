@@ -61,6 +61,7 @@ export type ExecutionReadinessResult = {
     paperEligibleSymbols: number;
     paperEligiblePercent: number;
     unverifiedPaperObservations: number;
+    rejectedLiveObservations: number;
     executionEvidenceVersion: number;
     executionCoverageVersion: number;
     directaPaidRealtimeRequired: boolean;
@@ -115,18 +116,25 @@ export function evaluateExecutionReadiness(
     && Math.abs(evidenceAt - coverageEvidenceAt) <= 1000;
 
   const observations = Array.isArray(evidence?.observations) ? evidence.observations : [];
+  // LIVE-tagged quotes must NEVER satisfy the PAPER source-family quorum.
+  // Merely having verified provenance is not enough: eligibility must match.
+  const rejectedLiveObservations = observations.filter((row) => row?.eligibility === "LIVE").length;
   const verifiedPaperObservations = observations.filter((row) =>
-    (row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
-      && row?.provenanceVerified === true,
+    row?.eligibility === "PAPER" && row?.provenanceVerified === true,
   );
   const unverifiedPaperObservations = observations.filter((row) =>
-    (row?.eligibility === "PAPER" || row?.eligibility === "LIVE")
-      && row?.provenanceVerified !== true,
+    row?.eligibility === "PAPER" && row?.provenanceVerified !== true,
   ).length;
+  const approvedFamilies = normalizedFamilies(coverage?.policy?.approvedIndependentPaperSourceFamilies);
   const paperFamilies = new Set(
     verifiedPaperObservations
       .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
-      .filter(Boolean),
+      // PAPER-only AND explicit policy approval AND a supported independent
+      // family are all required. Unknown/legacy sources must never count.
+      .filter((family) =>
+        ["alpaca", "twelve-data", "directa"].includes(family)
+          && approvedFamilies.includes(family),
+      ),
   );
 
   const configuredZeroCostSources = [
@@ -134,7 +142,6 @@ export function evaluateExecutionReadiness(
     evidence?.capabilities?.alpacaConfigured === true ? "alpaca" : null,
   ].filter((value): value is string => Boolean(value));
 
-  const approvedFamilies = normalizedFamilies(coverage?.policy?.approvedIndependentPaperSourceFamilies);
   const preferredZeroCostFamilies = normalizedFamilies(coverage?.policy?.preferredZeroCostPaperSourceFamilies);
   const evidenceSchemaReady = Number(evidence?.version || 0) >= 10;
   const coverageSchemaReady = Number(coverage?.version || 0) >= 6;
@@ -162,14 +169,15 @@ export function evaluateExecutionReadiness(
     && paperEligiblePercent >= MIN_PAPER_PERCENT;
   const freshnessReady = isFresh(evidenceAgeMinutes) && isFresh(coverageAgeMinutes);
   const sourceRedundancyReady = paperFamilies.size >= MIN_SOURCE_FAMILIES;
-  const provenanceReady = unverifiedPaperObservations === 0;
+  const provenanceReady = unverifiedPaperObservations === 0 && rejectedLiveObservations === 0;
 
   const reasons: string[] = [];
   if (!freshnessReady) reasons.push("execution evidence is missing or older than 30 minutes");
   if (!coverageMatchesEvidence) reasons.push("execution coverage does not match the evidence snapshot");
   if (!evidenceSchemaReady || !coverageSchemaReady) reasons.push("execution evidence schema is legacy or incomplete");
   if (!evidencePolicyReady || !coveragePolicyReady) reasons.push("provider-neutral PAPER safety policy is not fully enforced");
-  if (!provenanceReady) reasons.push(`${unverifiedPaperObservations} PAPER/LIVE observation(s) lack verified provenance`);
+  if (unverifiedPaperObservations > 0) reasons.push(`${unverifiedPaperObservations} PAPER observation(s) lack verified provenance`);
+  if (rejectedLiveObservations > 0) reasons.push(`${rejectedLiveObservations} LIVE-tagged observation(s) are forbidden in PAPER readiness`);
   if (!sourceRedundancyReady) reasons.push(`verified PAPER source redundancy is ${paperFamilies.size}/${MIN_SOURCE_FAMILIES}`);
   if (!broadCoverageReady) reasons.push(`PAPER symbol coverage is ${paperEligibleSymbols}/${requestedSymbols} (${paperEligiblePercent}%)`);
 
@@ -213,6 +221,7 @@ export function evaluateExecutionReadiness(
       paperEligibleSymbols,
       paperEligiblePercent,
       unverifiedPaperObservations,
+      rejectedLiveObservations,
       executionEvidenceVersion: Number(evidence?.version || 0),
       executionCoverageVersion: Number(coverage?.version || 0),
       directaPaidRealtimeRequired: coverage?.policy?.directaPaidRealtimeRequired === true,
