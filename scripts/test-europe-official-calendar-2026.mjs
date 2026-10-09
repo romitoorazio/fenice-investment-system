@@ -73,5 +73,5 @@ assert.equal(calendar("XPAR", "2026-03-29T01:30:00Z").localDate, "2026-03-29");
 assert.equal(calendar("XNYS", regular).state, "CALENDAR_NOT_VERIFIED", "Alpaca US PAPER clock is separate and authoritative");
 assert.equal(calendar("NONEXIST", regular).state, "CALENDAR_NOT_VERIFIED");
 assert.equal(getEuropeanOfficialCalendarStatus("XMIL", NaN).state, "CALENDAR_NOT_VERIFIED");
-assert.equal(indicativeVenuePhase("XNYS", regular), "REGULAR_WINDOW", "US venue schedule remains unaffected");
+assert.equal(indicativeVenuePhase("XNYS", instant("2026-10-09T14:30:00Z")), "REGULAR_WINDOW", "US venue schedule remains unaffected");
 console.log("Fenice 2026 official European closures/special-hours safety: PASS.");
