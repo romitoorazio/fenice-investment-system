@@ -2,6 +2,13 @@ import Link from "next/link";
 import terminal from "@/data/terminal-intelligence.json";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
+import executionMarket from "@/data/execution-market-evidence.json";
+import executionCoverage from "@/data/execution-market-coverage.json";
+import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
+import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
+import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
+import { describePersistedPaperQuoteHealth } from "@/lib/trading/paper-quote-diagnostics";
+import { assessDecisionEvidence } from "@/lib/ui/decision-market-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +20,7 @@ type Asset = {
 };
 const data = terminal as { generatedAt: string; mode: string; assets: Asset[]; capitalEuro?: number };
 const catalog = globalCoverage as { coverage: { matchedInstrumentReferences: number; providerMatchedCountries: number; targetCountries: number }; generatedAt: string };
-const instruments = master as { instruments: Array<{status: string; exchangeMic?: string | null }> };
+const instruments = master as { instruments: Array<{status: string; ticker?: string; currency?: string; assetClass?: string; exchangeMic?: string | null }> };
 const groups = [
   { key: "ACCUMULA", heading: "Studiare per possibile acquisto", explain: "Segnale di ricerca positivo, NON un ordine d'acquisto.", accent: "text-emerald-300" },
   { key: "MANTIENI", heading: "Mantenere / sorvegliare", explain: "Mantenere ha senso solo se il titolo è già in portafoglio.", accent: "text-sky-300" },
@@ -35,10 +42,35 @@ function isCurrent(now: number, timestamp?: string) {
 function serverRequestTime() {
   return Date.now();
 }
-export default function DecisioniPage() {
+export default async function DecisioniPage() {
   const now = serverRequestTime();
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
+  const clock = await getAlpacaPaperClock(now);
+  const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
+  const quoteHealth = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
+  const quoteBySymbol = new Map(quoteHealth.symbols.map((row) => [row.symbol, row]));
+  const venueByMic = new Map([...new Set(instruments.instruments
+    .map((item) => item.exchangeMic).filter((mic): mic is string => Boolean(mic)))]
+    .map((mic) => [mic, resolveVenueSession(mic, clock, now)]));
+  const evidenceBySymbol = new Map(assets.map((asset) => {
+    const matched = instruments.instruments.filter((item) => item.status === "active"
+      && item.ticker?.toUpperCase() === asset.symbol.toUpperCase());
+    const venue = matched.length === 1
+      ? venueByMic.get(matched[0].exchangeMic || "") : null;
+    return [asset.symbol, assessDecisionEvidence({
+      symbol: asset.symbol,
+      researchCurrency: asset.currency,
+      researchFresh: researchCurrent,
+      instruments: instruments.instruments,
+      quote: quoteBySymbol.get(asset.symbol) ?? null,
+      quoteSnapshotCurrent: quoteHealth.snapshotCurrent,
+      quoteGateReady: quoteGate.ready,
+      venue,
+    })] as const;
+  }));
+  const reviewCandidates = [...evidenceBySymbol.values()]
+    .filter((row) => row.paperReviewCandidate).length;
   const monitoredExchanges = new Set(instruments.instruments.filter(x => x.status === "active").map(x => x.exchangeMic).filter(Boolean)).size;
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-8 text-slate-100 sm:px-8">
@@ -56,7 +88,7 @@ export default function DecisioniPage() {
         </header>
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
           <p className="font-bold text-amber-200">{researchCurrent ? "Ricerca giornaliera disponibile · NON prezzi eseguibili" : "RICERCA SCADUTA · NON AGIRE SU QUESTI SEGNALI"}</p>
-          <p className="mt-1 text-sm text-slate-300">Ultimo calcolo: {data.generatedAt} · Prezzi PAPER con quorum indipendente e abilitazione LIVE da verificare separatamente. Ordini REALI: BLOCCATI.</p>
+          <p className="mt-1 text-sm text-slate-300">Ultimo calcolo ricerca: {data.generatedAt} · Ultimo archivio PAPER: {quoteHealth.snapshotObservedAt ?? "non disponibile"} · Controllo quorum: {quoteGate.ready ? "superato sul campione" : "NON verificato ora"} · Ordini REALI: BLOCCATI.</p>
         </section>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
@@ -65,6 +97,12 @@ export default function DecisioniPage() {
             ["Sedi di negoziazione censite", String(monitoredExchanges)],
             ["Riferimenti mondiali (NON realtime)", catalog.coverage.matchedInstrumentReferences.toLocaleString("it-IT")],
           ].map(([label, value]) => <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>)}
+        </section>
+        <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-4 text-sm text-slate-300">
+          <p className="font-bold text-cyan-200">Verifica operativa delle analisi</p>
+          <p className="mt-2">Titoli con requisiti minimi di verifica PAPER in questa schermata: <strong className="text-white">{reviewCandidates}/{assets.length}</strong>.
+            Questo non equivale a titoli acquistabili: serve anche una posizione broker verificata per valutare vendite, la verifica dell&apos;ordine e l&apos;autorizzazione umana.</p>
+          <p className="mt-2">La pagina usa soltanto quotazioni PAPER già archiviate e un orologio Alpaca autenticato per le sedi USA; non scarica prezzi in tempo reale. Sulle altre borse lo stato OPEN non è dimostrato.</p>
         </section>
         <div className="rounded-xl border border-white/10 p-4 text-sm text-slate-300">
           <p className="font-bold text-white">Significato delle categorie</p>
@@ -79,9 +117,16 @@ export default function DecisioniPage() {
               <div className="grid gap-3 md:grid-cols-2">{rows.map(asset => {
                 const quoteDate = asset.technical?.observedAt;
                 const fresh = researchCurrent && isCurrent(now, quoteDate);
+                const evidence = evidenceBySymbol.get(asset.symbol);
                 return <article key={asset.symbol} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold">{asset.symbol}</h3><p className="text-sm text-slate-400">{asset.name}</p></div><div className="text-right"><p className="text-lg font-bold">{formatMoney(asset.price,asset.currency)}</p><p className="text-xs text-slate-400">Prezzo campionato</p></div></div>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs"><span>Punteggio: {asset.unifiedScore ?? "—"}/100</span><span>Confidenza modello: {asset.confidence ?? "—"}%</span><span className={fresh ? "text-amber-300" : "text-rose-300"}>{fresh ? "Dati giornalieri, non eseguibili" : "Prezzo non verificato recente"}</span></div>
+                  <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs">
+                    <p className="font-bold text-white">{evidence?.paperReviewCandidate ? "PAPER: verifiche informative presenti" : "NESSUN INGRESSO OPERATIVO VERIFICATO"}</p>
+                    <p className="mt-1 text-slate-300">{evidence?.marketStatus ?? "Borsa non verificata"}</p>
+                    <p className="mt-1 text-slate-300">{evidence?.priceStatus ?? "Prezzi non verificati"}</p>
+                    <p className="mt-1 text-slate-500">Sede: {evidence?.exchangeMic ?? "non disponibile"} · Portafoglio reale: non verificato · Ordini: bloccati</p>
+                  </div>
                   <p className="mt-3 text-sm text-slate-300">{asset.reason || "Motivazione non disponibile."}</p>
                   {!!asset.warnings?.length && <p className="mt-2 text-xs text-amber-200">Avvertenza: {asset.warnings[0]}</p>}
                   <p className="mt-2 text-xs text-slate-500">Osservazione: {quoteDate || "non disponibile"} · Nessun ordine consentito.</p>
