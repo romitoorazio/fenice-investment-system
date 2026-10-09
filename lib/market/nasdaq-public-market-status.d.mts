@@ -19,3 +19,5 @@ export declare function fetchNasdaqPublicMarketStatus(
   options?: { fetcher?: typeof fetch; now?: number; signal?: AbortSignal },
 ): Promise<NasdaqPublicMarketStatus>;
 export declare function getNasdaqPublicMarketStatus(now?: number): Promise<NasdaqPublicMarketStatus>;
+
+export declare function ensureNasdaqObservationFresh(result: NasdaqPublicMarketStatus | null | undefined, now?: number): NasdaqPublicMarketStatus;
