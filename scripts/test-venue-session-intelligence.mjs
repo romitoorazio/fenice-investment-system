@@ -75,6 +75,8 @@ for (const file of ["../app/api/market/sessions/route.ts", "../app/mercati/page.
   assert.match(source, /resolveVenueSession/, "both public API and dashboard must use the same trusted venue resolver");
   assert.doesNotMatch(source, /submitOrder|sendOrder|executeTrade|liveTradingAllowed: true/, "market status must stay read-only");
 }
+const marketPage = await readFile(new URL("../app/mercati/page.tsx", import.meta.url), "utf8");
+assert.match(marketPage, /freshPaperSession && quoteGate\.ready/, "dashboard must not show verified PAPER data without a fresh authoritative open clock");
 const readinessApi = await readFile(new URL("../app/api/trading/readiness/route.ts", import.meta.url), "utf8");
 const readinessPage = await readFile(new URL("../app/readiness/page.tsx", import.meta.url), "utf8");
 for (const source of [readinessApi, readinessPage]) {
