@@ -6,6 +6,7 @@ import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
+import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
@@ -14,7 +15,15 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
-  const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
+  const executionReadiness = {
+    ...snapshotReadiness,
+    verified: snapshotReadiness.verified && runtimeQuoteGate.ready,
+    state: runtimeQuoteGate.ready ? snapshotReadiness.state : "STALE",
+    reasons: [...snapshotReadiness.reasons, ...runtimeQuoteGate.reasons],
+    runtimeQuoteGate,
+  };
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
   const readiness = buildInstitutionalReadiness(intelligence, {

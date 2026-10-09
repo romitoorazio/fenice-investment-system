@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
 import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
 import { assessPersistedPaperSession } from "../lib/intelligence/persisted-paper-session-gate.mjs";
+import { assessRuntimePaperQuoteGate } from "../lib/trading/runtime-paper-quote-gate.ts";
 
 const requireReadyIfOpen = process.argv.includes("--require-ready-if-open");
 const requireSession = process.argv.includes("--require-session");
@@ -38,6 +39,7 @@ const baseline = evaluatePaperBaselineEligibility({
 });
 
 const sessionGate = assessPersistedPaperSession(session);
+const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
 const state = sessionGate.state;
 const sessionAuthoritative = sessionGate.authoritative;
 const sessionAllowed = sessionGate.allowed;
@@ -52,7 +54,7 @@ const marketClosed = sessionGate.marketClosed;
 let status;
 if (!sessionReliable) status = "SESSION_UNCERTAIN";
 else if (marketClosed) status = "WAIT_MARKET_OPEN";
-else if (marketOpen && baseline.eligible) status = "PAPER_READY";
+else if (marketOpen && baseline.eligible && runtimeQuoteGate.ready) status = "PAPER_READY";
 else if (marketOpen) status = "OPEN_NOT_READY";
 else status = "SESSION_UNCERTAIN";
 
@@ -79,6 +81,7 @@ const report = {
     error: session?.error || null,
   },
   baseline,
+  runtimeQuoteGate,
   diagnostics: {
     executionErrors: executionErrors.length,
     paperProviderErrors,
@@ -93,6 +96,7 @@ const report = {
     staleClosedMarketFailsClosed: true,
     uncertainSessionFailsClosed: true,
     openMarketRequiresFullPaperBaseline: true,
+    openMarketRequiresFreshPerSymbol120SecondQuorum: true,
     validationOnlyProviderErrorsDoNotSatisfyOrBlockPaperQuorumByThemselves: true,
     liveTradingAllowed: false,
   },
@@ -105,6 +109,6 @@ if (status === "SESSION_UNCERTAIN" && requireSession) {
   console.error("PAPER_OPEN_READINESS_SESSION_UNCERTAIN: provider-driven market-session evidence is unavailable, stale, or non-authoritative.");
   process.exitCode = 3;
 } else if (status === "OPEN_NOT_READY" && requireReadyIfOpen) {
-  console.error(`PAPER_OPEN_READINESS_FAILED: ${baseline.reasons.join(" | ")}`);
+  console.error(`PAPER_OPEN_READINESS_FAILED: ${[...baseline.reasons, ...runtimeQuoteGate.reasons].join(" | ")}`);
   process.exitCode = 2;
 }
