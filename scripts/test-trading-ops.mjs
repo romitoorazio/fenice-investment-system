@@ -60,6 +60,18 @@ const staleRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObserve
 assert.equal(staleRisk.allowed, false);
 assert.ok(staleRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
 
+const futureRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: new Date(now + 1).toISOString() }, undefined, now);
+assert.equal(futureRisk.allowed, false);
+assert.ok(futureRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
+const invalidTimestampRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: "not-a-timestamp" }, undefined, now);
+assert.equal(invalidTimestampRisk.allowed, false);
+assert.ok(invalidTimestampRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
+const invalidClockRisk = evaluatePreTradeRisk(baseOrder, safeContext, undefined, Number.NaN);
+assert.equal(invalidClockRisk.allowed, false);
+assert.ok(invalidClockRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
 const freshOpenSession = evaluateMarketSession({
   venue: "US_EQUITIES",
   state: "OPEN",
