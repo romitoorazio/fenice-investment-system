@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assessPersistedPaperSession } from "../lib/intelligence/persisted-paper-session-gate.mjs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,4 +33,19 @@ for (const stepName of [
 assert.match(workflow, /data\/paper-fx-evidence\.json/, "readiness artifact must retain the canonical FX evidence used by the gate");
 assert.doesNotMatch(workflow, /paper-market-fx\.json/, "workflow must not retain or reference the obsolete/non-produced FX path");
 
+assert.match(checker, /assessPersistedPaperSession\\(session\\)/, "readiness script must re-evaluate persisted evidence using current time");
+assert.match(workflow, /assessPersistedPaperSession\\(session\\)\\.marketOpen/, "provider refresh must reject an old persisted OPEN snapshot");
+const observedNow = Date.parse("2026-10-09T13:40:10.000Z");
+const currentSession = {
+  version: 1, generatedAt: "2026-10-09T13:40:00.000Z", configured: true,
+  evidence: { venue: "US_EQUITIES", state: "OPEN", authoritative: true, observedAt: "2026-10-09T13:39:55.000Z" },
+  decision: { allowed: true, ageSeconds: 5, reasons: [] },
+};
+assert.equal(assessPersistedPaperSession(currentSession, observedNow).marketOpen, true);
+assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowed: true, ageSeconds: 0, reasons: [] } }, observedNow + 180000).marketOpen, false, "previously-fresh stored age must not hide a 3-minute-old clock");
+assert.equal(assessPersistedPaperSession({ ...currentSession, generatedAt: "2026-10-08T13:40:00.000Z" }, observedNow).marketOpen, false, "stale generated files must fail closed");
+assert.equal(assessPersistedPaperSession({ ...currentSession, evidence: { ...currentSession.evidence, observedAt: "2026-10-10T13:40:00Z" } }, observedNow).marketOpen, false, "future-dated provider evidence must fail closed");
+assert.equal(assessPersistedPaperSession({ ...currentSession, evidence: { ...currentSession.evidence, state: "CLOSED" }, decision: { allowed: false, ageSeconds: 5, reasons: ["market is closed"] } }, observedNow).marketClosed, true);
+assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowed: false, ageSeconds: 5, reasons: [] } }, observedNow).marketOpen, false, "contradictory OPEN/allowed flags must fail closed");
+assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowed: true, ageSeconds: "0", reasons: [] } }, observedNow).marketOpen, false, "untyped age metadata must fail closed");
 console.log("Fenice PAPER open-readiness orchestration regression: PASS.");
