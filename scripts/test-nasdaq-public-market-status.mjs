@@ -24,7 +24,7 @@ assert.equal(valid.liveTradingAllowed, false);
 assert.equal(valid.observedAt, new Date(now - 10_000).toISOString());
 assert.equal(ensureNasdaqObservationFresh(valid, now).state, "OPEN");
 assert.equal(ensureNasdaqObservationFresh(valid, now + 95_000).state, "UNKNOWN", "cache cannot keep old OPEN alive");
-assert.equal(ensureNasdaqObservationFresh(valid, now - 10_000).state, "UNKNOWN", "future-dated cached report must fail");
+assert.equal(ensureNasdaqObservationFresh(valid, now - 20_000).state, "UNKNOWN", "future-dated cached report must fail");
 assert.equal(ensureNasdaqObservationFresh(null, now).state, "UNKNOWN");
 
 const closed = structuredClone(opened);
