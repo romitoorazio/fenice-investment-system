@@ -10,8 +10,13 @@ import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-g
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Server-only request clock; this page is explicitly dynamic/no-store.
+function serverRequestTime() {
+  return Date.now();
+}
+
 export default function MercatiPage() {
-  const now = Date.now();
+  const now = serverRequestTime();
   const instruments = (masterData as InstrumentMaster).instruments.filter((row) => row.status === "active");
   const mics = [...new Set(instruments.map((row) => row.exchangeMic).filter((mic): mic is string => Boolean(mic)))];
   const sessions = mics.map((mic) => resolveVenueSession(mic, paperClock, now));
@@ -27,7 +32,7 @@ export default function MercatiPage() {
             <h1 className="mt-2 text-3xl font-black">Mercati e fonti</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
               Orari indicativi per borsa, con fuso corretto. OPEN è mostrato soltanto con prova autorevole
-              aggiornata. Festività, chiusure anticipate e sospensioni non sono dedotte dall'orologio.
+              aggiornata. Festività, chiusure anticipate e sospensioni non sono dedotte dall&apos;orologio.
             </p>
           </div>
           <Link href="/" className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold">Oggi</Link>
@@ -49,7 +54,7 @@ export default function MercatiPage() {
         </section>
 
         <div className="rounded-2xl border border-rose-400/30 bg-rose-400/5 p-4 text-sm text-rose-200">
-          LIVE e broker bloccati. Un orario compatibile con l'apertura non autorizza trading:
+          LIVE e broker bloccati. Un orario compatibile con l&apos;apertura non autorizza trading:
           servono prova della sessione, dati realtime verificati per simbolo e gate di rischio.
         </div>
 
