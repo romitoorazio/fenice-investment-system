@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/global-market-session-safety.yml"
       - "lib/market/venue-session-intelligence.ts"
+      - "lib/market/europe-official-calendar-2026.ts"
+      - "scripts/test-europe-official-calendar-2026.mjs"
       - "app/api/market/sessions/route.ts"
       - "app/api/trading/readiness/route.ts"
       - "app/mercati/page.tsx"
@@ -24,6 +26,8 @@ on:
     paths:
       - ".github/workflows/global-market-session-safety.yml"
       - "lib/market/venue-session-intelligence.ts"
+      - "lib/market/europe-official-calendar-2026.ts"
+      - "scripts/test-europe-official-calendar-2026.mjs"
       - "app/api/market/sessions/route.ts"
       - "app/api/trading/readiness/route.ts"
       - "app/mercati/page.tsx"
@@ -57,3 +61,5 @@ jobs:
         run: node scripts/test-nasdaq-public-market-status.mjs
       - name: Test server-only Alpaca PAPER clock and fail-closed readiness
         run: node --experimental-strip-types scripts/test-alpaca-paper-clock-runtime.mjs
+      - name: Test 2026 European published closures and special trading sessions
+        run: node --experimental-strip-types scripts/test-europe-official-calendar-2026.mjs
