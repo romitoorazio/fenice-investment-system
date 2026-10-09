@@ -42,6 +42,9 @@ export async function GET() {
 
   return Response.json({
     status: healthy ? "healthy" : "degraded",
+    analysisMode: "END_OF_DAY_RESEARCH",
+    pricesExecutionEligible: false,
+    liveTradingAllowed: false,
     generatedAt: report.generatedAt,
     validatedAt: report.validatedAt,
     coveragePercent: report.coveragePercent,
