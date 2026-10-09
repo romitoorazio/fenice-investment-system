@@ -92,15 +92,11 @@ jobs:
       - name: Gate provider refresh to authoritative open session
         id: session_gate
         run: |
-          node - <<'NODE'
-          const fs = require('fs');
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import { assessPersistedPaperSession } from './lib/intelligence/persisted-paper-session-gate.mjs';
           const session = JSON.parse(fs.readFileSync('data/paper-market-session.json', 'utf8'));
-          const open = session?.configured === true
-            && session?.evidence?.authoritative === true
-            && String(session?.evidence?.state || '').toUpperCase() === 'OPEN'
-            && session?.decision?.allowed === true
-            && Number(session?.decision?.ageSeconds) >= 0
-            && Number(session?.decision?.ageSeconds) <= 120;
+          const open = assessPersistedPaperSession(session).marketOpen;
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `market_open=${open}\n`);
           console.log(`PAPER readiness provider refresh: market_open=${open}.`);
           NODE
