@@ -140,7 +140,7 @@ export default async function MercatiPage() {
                   {market.calendarState === "OFFICIAL_CLOSED"
                     ? "Chiusura ufficiale programmata. Non è una lettura live."
                     : market.calendarState === "SPECIAL_HOURS_UNCONFIRMED"
-                      ? "Possibile seduta ridotta: controllare gli orari dell'asta prima di qualunque valutazione."
+                      ? "Possibile seduta ridotta: controllare gli orari dell&apos;asta prima di qualunque valutazione."
                       : market.indicativePhase === "REGULAR_WINDOW"
                     ? "Nella finestra oraria normale (non è prova di apertura)"
                     : market.indicativePhase === "OUTSIDE_REGULAR_WINDOW"
