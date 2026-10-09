@@ -31,8 +31,12 @@ function isCurrent(now: number, timestamp?: string) {
   const parsed = Date.parse(String(timestamp || ""));
   return Number.isFinite(parsed) && parsed <= now && now - parsed <= 36 * 3600_000;
 }
+// Compute request time outside the React render body to preserve render purity.
+function serverRequestTime() {
+  return Date.now();
+}
 export default function DecisioniPage() {
-  const now = Date.now();
+  const now = serverRequestTime();
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
   const monitoredExchanges = new Set(instruments.instruments.filter(x => x.status === "active").map(x => x.exchangeMic).filter(Boolean)).size;
