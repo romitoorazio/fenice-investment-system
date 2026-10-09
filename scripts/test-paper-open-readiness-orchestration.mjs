@@ -33,8 +33,8 @@ for (const stepName of [
 assert.match(workflow, /data\/paper-fx-evidence\.json/, "readiness artifact must retain the canonical FX evidence used by the gate");
 assert.doesNotMatch(workflow, /paper-market-fx\.json/, "workflow must not retain or reference the obsolete/non-produced FX path");
 
-assert.match(checker, /assessPersistedPaperSession\\(session\\)/, "readiness script must re-evaluate persisted evidence using current time");
-assert.match(workflow, /assessPersistedPaperSession\\(session\\)\\.marketOpen/, "provider refresh must reject an old persisted OPEN snapshot");
+assert.match(checker, /assessPersistedPaperSession\(session\)/, "readiness script must re-evaluate persisted evidence using current time");
+assert.match(workflow, /assessPersistedPaperSession\(session\)\.marketOpen/, "provider refresh must reject an old persisted OPEN snapshot");
 const observedNow = Date.parse("2026-10-09T13:40:10.000Z");
 const currentSession = {
   version: 1, generatedAt: "2026-10-09T13:40:00.000Z", configured: true,
