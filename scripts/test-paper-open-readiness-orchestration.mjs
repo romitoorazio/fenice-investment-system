@@ -51,4 +51,10 @@ assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowe
 assert(workflow.includes('- cron: "45 13 * * 1-5"'), "must sample US DST opening within 15 minutes");
 assert(workflow.includes('- cron: "45 14 * * 1-5"'), "must sample US standard-time opening within 15 minutes");
 assert(!workflow.includes('- cron: "5 15 * * 1-5"'), "must not delay the sole market-open diagnosis by more than 90 minutes");
+
+assert(workflow.includes('- cron: "15 16 * * 1-5"'), "must retain a DST-independent intraday recovery sampling window");
+assert.match(workflow, /id: schedule_guard[\s\S]*?continue-on-error: true[\s\S]*?run: node scripts\/verify-market-open-schedule\.mjs/, "workflow must audit schedule timeliness without skipping evidence upload");
+assert.match(workflow, /data\/paper-open-schedule-audit\.json/, "readiness artifact must retain scheduler audit evidence");
+assert.match(workflow, /if: always\(\) && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/, "late market-open checks must never finish green");
+
 console.log("Fenice PAPER open-readiness orchestration regression: PASS.");
