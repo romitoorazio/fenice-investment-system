@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
 import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
+import { assessPersistedPaperSession } from "../lib/intelligence/persisted-paper-session-gate.mjs";
 
 const requireReadyIfOpen = process.argv.includes("--require-ready-if-open");
 const requireSession = process.argv.includes("--require-session");
@@ -36,22 +37,17 @@ const baseline = evaluatePaperBaselineEligibility({
   fingerprint,
 });
 
-const state = String(session?.evidence?.state || "UNKNOWN").toUpperCase();
-const sessionAuthoritative = session?.evidence?.authoritative === true;
-const sessionAllowed = session?.decision?.allowed === true;
-const sessionConfigured = session?.configured === true;
-const sessionAgeSeconds = Number(session?.decision?.ageSeconds ?? Number.POSITIVE_INFINITY);
-const sessionReasons = Array.isArray(session?.decision?.reasons) ? session.decision.reasons : [];
-const sessionFresh = Number.isFinite(sessionAgeSeconds)
-  && sessionAgeSeconds >= 0
-  && sessionAgeSeconds <= 120
-  && !sessionReasons.includes("market-session evidence is stale");
-const sessionReliable = sessionConfigured
-  && sessionAuthoritative
-  && sessionFresh
-  && ["OPEN", "CLOSED"].includes(state);
-const marketOpen = sessionReliable && state === "OPEN" && sessionAllowed;
-const marketClosed = sessionReliable && state === "CLOSED" && sessionAllowed === false;
+const sessionGate = assessPersistedPaperSession(session);
+const state = sessionGate.state;
+const sessionAuthoritative = sessionGate.authoritative;
+const sessionAllowed = sessionGate.allowed;
+const sessionConfigured = sessionGate.configured;
+const sessionAgeSeconds = sessionGate.ageSeconds;
+const sessionReasons = sessionGate.reasons;
+const sessionFresh = sessionGate.fresh;
+const sessionReliable = sessionGate.reliable;
+const marketOpen = sessionGate.marketOpen;
+const marketClosed = sessionGate.marketClosed;
 
 let status;
 if (!sessionReliable) status = "SESSION_UNCERTAIN";
@@ -75,7 +71,8 @@ const report = {
     authoritative: sessionAuthoritative,
     fresh: sessionFresh,
     allowed: sessionAllowed,
-    ageSeconds: Number.isFinite(sessionAgeSeconds) ? sessionAgeSeconds : 999999,
+    ageSeconds: sessionAgeSeconds,
+    generationAgeSeconds: sessionGate.generationAgeSeconds,
     reasons: sessionReasons,
     nextOpen: session?.nextOpen || null,
     nextClose: session?.nextClose || null,
