@@ -5,6 +5,7 @@ import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
+import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +16,16 @@ function serverRequestTime() {
   return Date.now();
 }
 
-export default function MercatiPage() {
+export default async function MercatiPage() {
   const now = serverRequestTime();
+  const publicUsMarketStatus = await getNasdaqPublicMarketStatus(now);
   const instruments = (masterData as InstrumentMaster).instruments.filter((row) => row.status === "active");
   const mics = [...new Set(instruments.map((row) => row.exchangeMic).filter((mic): mic is string => Boolean(mic)))];
-  const sessions = mics.map((mic) => resolveVenueSession(mic, paperClock, now));
+  const sessions = mics.map((mic) => ({
+    ...resolveVenueSession(mic, paperClock, now),
+    publicUsMarketStatus: ["XNYS", "XNAS", "ARCX"].includes(mic)
+      ? publicUsMarketStatus : null,
+  }));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const authoritativeOpen = sessions.filter((row) => row.authoritative && row.state === "OPEN").length;
   const freshPaperSession = sessions.some((row) => row.mic === "XNAS" && row.authoritative && row.state === "OPEN");
@@ -55,6 +61,20 @@ export default function MercatiPage() {
           </div>
         </section>
 
+        <section className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-sm text-cyan-100">
+          <p className="font-bold">Segnale pubblico Nasdaq USA</p>
+          <p className="mt-1">
+            {publicUsMarketStatus.state === "OPEN" ? "Nasdaq segnala mercato aperto" :
+              publicUsMarketStatus.state === "CLOSED" ? "Nasdaq segnala mercato chiuso" :
+                "Stato pubblico non disponibile o non sufficientemente aggiornato"}.
+            {" "}Questo segnale è informativo e non certifica l&apos;apertura della singola borsa né autorizza ordini.
+          </p>
+          <a href={publicUsMarketStatus.sourceUrl} target="_blank" rel="noopener noreferrer"
+            className="mt-2 inline-block text-xs underline underline-offset-2">
+            Fonte Nasdaq
+          </a>
+        </section>
+
         <div className="rounded-2xl border border-rose-400/30 bg-rose-400/5 p-4 text-sm text-rose-200">
           LIVE e broker bloccati. Un orario compatibile con l&apos;apertura non autorizza trading:
           servono prova della sessione, dati realtime verificati per simbolo e gate di rischio.
@@ -66,7 +86,11 @@ export default function MercatiPage() {
               ? "APERTO · VERIFICATO"
               : market.state === "CLOSED" && market.authoritative
                 ? "CHIUSO · VERIFICATO"
-                : "NON VERIFICATO";
+                : market.publicUsMarketStatus?.state === "OPEN"
+                  ? "NASDAQ USA: APERTO · NON CERTIFICANTE"
+                  : market.publicUsMarketStatus?.state === "CLOSED"
+                    ? "NASDAQ USA: CHIUSO · NON CERTIFICANTE"
+                    : "NON VERIFICATO";
             return (
               <article key={market.mic} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-start justify-between gap-2">
