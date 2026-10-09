@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { indicativeVenuePhase, resolveVenueSession, verifyUsPaperClock, VENUE_SCHEDULES } from "../lib/market/venue-session-intelligence.ts";
 
 const now = Date.parse("2026-10-09T14:00:00.000Z"); // 10:00 New York, 16:00 Rome
@@ -63,4 +64,23 @@ assert.equal(resolveVenueSession("XMIL", freshClock, now).nextAction, "RESEARCH_
 assert.equal(resolveVenueSession("BVMF", freshClock, now).state, "UNKNOWN", "unmapped exchange remains unknown");
 assert.equal(resolveVenueSession("XMIL", freshClock, now).executionAuthorized, false);
 assert.deepEqual(resolveVenueSession("XMIL", freshClock, now).dataProviderCandidates, []);
+
+const instrumentMaster = JSON.parse(await readFile(new URL("../data/instrument-master.json", import.meta.url), "utf8"));
+const asmlAdr = instrumentMaster.instruments.find((row) => row.ticker === "ASML");
+assert.equal(asmlAdr.exchangeMic, "XNAS", "ADR trading venue is Nasdaq even when issuer country is Netherlands");
+assert.equal(resolveVenueSession(asmlAdr.exchangeMic, freshClock, now).state, "OPEN");
+
+for (const file of ["../app/api/market/sessions/route.ts", "../app/mercati/page.tsx"]) {
+  const source = await readFile(new URL(file, import.meta.url), "utf8");
+  assert.match(source, /resolveVenueSession/, "both public API and dashboard must use the same trusted venue resolver");
+  assert.doesNotMatch(source, /submitOrder|sendOrder|executeTrade|liveTradingAllowed: true/, "market status must stay read-only");
+}
+const readinessApi = await readFile(new URL("../app/api/trading/readiness/route.ts", import.meta.url), "utf8");
+const readinessPage = await readFile(new URL("../app/readiness/page.tsx", import.meta.url), "utf8");
+for (const source of [readinessApi, readinessPage]) {
+  assert.match(source, /assessRuntimePaperQuoteGate/, "readiness must check fresh independent quote quorum");
+  assert.match(source, /resolveVenueSession\("XNAS", paperClock\)/, "readiness must verify US opening session");
+  assert.match(source, /snapshotReadiness\.verified && runtimeQuoteGate\.ready && /, "all evidence gates are required");
+}
+
 console.log("Fenice global market-session intelligence fail-closed tests: PASS.");
