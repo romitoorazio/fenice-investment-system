@@ -12,6 +12,7 @@ type PaperObservation = {
   provenanceVerified?: boolean;
   observedAt?: string;
   price?: number;
+  currency?: string;
 };
 type PaperEvidence = {
   generatedAt?: string;
@@ -54,11 +55,21 @@ export function describePersistedPaperQuoteHealth(
     .map((family) => String(family).trim().toLowerCase())
     .filter((family) => KNOWN_PAPER_FAMILIES.has(family)));
   const samplesBySymbol = new Map<string, Map<string, { timestamp: string; age: number | null }>>();
+  const currenciesBySymbol = new Map<string, Set<string>>();
+  const invalidCurrencySymbols = new Set<string>();
   for (const item of evidence?.observations || []) {
     if (item?.eligibility !== "PAPER" || item?.provenanceVerified !== true) continue;
     const symbol = String(item.symbol || "").trim().toUpperCase();
     const family = String(item.sourceFamily || "").trim().toLowerCase();
     if (!symbol || !allowed.has(family) || !Number.isFinite(Number(item.price)) || Number(item.price) <= 0) continue;
+    const currency = String(item.currency || "").trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      invalidCurrencySymbols.add(symbol);
+      continue;
+    }
+    const currencies = currenciesBySymbol.get(symbol) || new Set<string>();
+    currencies.add(currency);
+    currenciesBySymbol.set(symbol, currencies);
     const age = elapsedSeconds(item.observedAt, now);
     if (age === null || age < -5) continue;
     const families = samplesBySymbol.get(symbol) || new Map();
@@ -81,7 +92,10 @@ export function describePersistedPaperQuoteHealth(
       .map(([family]) => family);
     // A once-valid persisted row cannot become "current" merely because
     // its historic coverage snapshot was marked eligible.
+    const currencies = currenciesBySymbol.get(symbol) || new Set<string>();
+    const currencyConflict = invalidCurrencySymbols.has(symbol) || currencies.size > 1;
     const state = !snapshotCurrent ? "SNAPSHOT_EXPIRED"
+      : currencyConflict ? "CURRENCY_NOT_VERIFIED"
       : currentFamilies.length >= 2 ? "SOURCE_CANDIDATE_ONLY"
       : families.size === 0 ? "NO_VERIFIED_PAPER_SOURCES"
       : currentFamilies.length === 0 ? "SOURCES_STALE"
@@ -93,6 +107,7 @@ export function describePersistedPaperQuoteHealth(
       historicalVerifiedFamilies: [...families.keys()].sort(),
       freshVerifiedFamilies: currentFamilies.sort(),
       newestQuoteAgeSeconds: last[0] ?? null,
+      quoteCurrencies: [...currencies].sort(),
       liveTradingAllowed: false,
       orderAuthorized: false,
     };
