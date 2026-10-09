@@ -6,9 +6,9 @@ const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
 const symbols = ["AAPL", "MSFT", "SPY"];
 const observations = symbols.flatMap((symbol) => [
   { symbol, sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: true,
-    provenanceMethod: "authenticated-alpaca-iex-latest-quote", price: 100, observedAt: at(20) },
+    provenanceMethod: "authenticated-alpaca-iex-latest-quote", price: 100, currency: "USD", observedAt: at(20) },
   { symbol, sourceFamily: "twelve-data", eligibility: "PAPER", provenanceVerified: true,
-    provenanceMethod: "provider-batch-quote-last_quote_at-us-realtime-venue", price: 100.1, observedAt: at(30) },
+    provenanceMethod: "provider-batch-quote-last_quote_at-us-realtime-venue", price: 100.1, currency: "USD", observedAt: at(30) },
 ]);
 const evidence = { generatedAt: at(15), observations };
 const coverage = { generatedAt: at(5), evidenceGeneratedAt: at(15), requestedSymbols: 10,
@@ -34,4 +34,21 @@ assert.equal(evaluate({ ...evidence, observations: observations.map((x) =>
 ) }).ready, false, "LIVE-labeled evidence never unlocks PAPER");
 assert.equal(evaluate(evidence, { ...coverage, policy: { ...coverage.policy, liveTradingAllowed: true } }).ready, false);
 assert.equal(evaluate(evidence, coverage, now - 300000).ready, false, "future-dated evidence is blocked");
+
+assert.equal(evaluate({ ...evidence, observations: observations.map((x) =>
+  x.sourceFamily === "twelve-data" ? { ...x, currency: "EUR" } : x,
+) }).ready, false, "numeric prices from different currencies can never establish quorum");
+assert.equal(evaluate({ ...evidence, observations: observations.map((x) =>
+  x.sourceFamily === "twelve-data" ? { ...x, currency: undefined } : x,
+) }).ready, false, "missing currency metadata must fail closed");
+assert.equal(evaluate({ ...evidence, observations: observations.map((x) =>
+  x.sourceFamily === "twelve-data" ? { ...x, currency: "EURO" } : x,
+) }).ready, false, "invalid currency metadata must fail closed");
+const newestQuoteDivergence = { ...evidence, observations: [
+  ...observations.filter((x) => x.symbol !== "AAPL" || x.sourceFamily !== "twelve-data"),
+  { ...observations.find((x) => x.symbol === "AAPL" && x.sourceFamily === "twelve-data"), price: 140, observedAt: at(15) },
+  { ...observations.find((x) => x.symbol === "AAPL" && x.sourceFamily === "twelve-data"), price: 100.1, observedAt: at(90) },
+]};
+assert.equal(evaluate(newestQuoteDivergence).ready, false, "older same-provider quote must never mask a newer divergent quote");
+
 console.log("Fenice runtime PAPER quote freshness/quorum regression: PASS.");

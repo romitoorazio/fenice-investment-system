@@ -12,6 +12,7 @@ type Observation = {
   provenanceVerified?: boolean;
   provenanceMethod?: string;
   price?: number;
+  currency?: string;
   observedAt?: string;
 };
 type Evidence = { generatedAt?: string; observations?: Observation[] };
@@ -58,7 +59,9 @@ export function assessRuntimePaperQuoteGate(
 
   const approved = new Set((coverage?.policy?.approvedIndependentPaperSourceFamilies || []).map(normalizeFamily));
   const permitted = new Set(["alpaca", "twelve-data", "directa"]);
-  const bySymbol = new Map<string, Map<string, number>>();
+  // A source-specific quote includes currency and observation time. Numeric price alone is unsafe.
+  const bySymbol = new Map<string, Map<string, { price: number; currency: string; observedMs: number }>>();
+  const currencyUnverifiedSymbols = new Set<string>();
   let paperObservationsStale = 0;
   let paperObservationsUnverified = 0;
 
@@ -70,8 +73,12 @@ export function assessRuntimePaperQuoteGate(
       && row.provenanceVerified === true
       && (family !== "directa" || row.provenanceMethod === DIRECTA_PROVENANCE)
       && row.eligibility === "PAPER";
-    if (!symbol || !trusted || !Number.isFinite(Number(row.price)) || Number(row.price) <= 0) {
+    const currency = String(row.currency || "").trim().toUpperCase();
+    const validCurrency = /^[A-Z]{3}$/.test(currency);
+    if (!symbol || !trusted || typeof row.price !== "number" || !Number.isFinite(row.price)
+      || row.price <= 0 || !validCurrency) {
       paperObservationsUnverified++;
+      if (symbol && trusted && !validCurrency) currencyUnverifiedSymbols.add(symbol);
       continue;
     }
     if (!isFresh(row.observedAt, now)) {
@@ -83,14 +90,25 @@ export function assessRuntimePaperQuoteGate(
       quotes = new Map();
       bySymbol.set(symbol, quotes);
     }
-    quotes.set(family, Number(row.price));
+    const observedMs = Date.parse(String(row.observedAt));
+    const previous = quotes.get(family);
+    // Duplicated provider records must not replace the newest quote with an older observation.
+    if (!previous || observedMs > previous.observedMs) {
+      quotes.set(family, { price: row.price, currency, observedMs });
+    }
   }
 
   let eligibleSymbols = 0;
   let spreadRejectedSymbols = 0;
+  const currencyRejectedSymbols = new Set<string>(currencyUnverifiedSymbols);
   const verified = new Set<string>();
   for (const [symbol, familyQuotes] of bySymbol) {
-    const prices = [...familyQuotes.values()].sort((a, b) => a - b);
+    const quotes = [...familyQuotes.values()];
+    if (currencyRejectedSymbols.has(symbol) || new Set(quotes.map((quote) => quote.currency)).size !== 1) {
+      currencyRejectedSymbols.add(symbol);
+      continue;
+    }
+    const prices = quotes.map((quote) => quote.price).sort((a, b) => a - b);
     if (prices.length < 2) continue;
     const middle = Math.floor(prices.length / 2);
     const median = prices.length % 2 ? prices[middle] : (prices[middle - 1] + prices[middle]) / 2;
@@ -114,6 +132,7 @@ export function assessRuntimePaperQuoteGate(
   }
   if (paperObservationsUnverified > 0) reasons.push("unverified or LIVE-eligible observations cannot establish PAPER quorum");
   if (spreadRejectedSymbols > 0) reasons.push("cross-source spread exceeds 0.75%");
+  if (currencyRejectedSymbols.size > 0) reasons.push("PAPER quote currency missing or inconsistent between sources");
   if (coverage?.policy?.liveTradingAllowed !== false) reasons.push("LIVE policy lock not proven");
 
   return {
@@ -128,6 +147,7 @@ export function assessRuntimePaperQuoteGate(
     paperObservationsStale,
     paperObservationsUnverified,
     spreadRejectedSymbols,
+    currencyRejectedSymbols: currencyRejectedSymbols.size,
     liveTradingAllowed: false,
   };
 }

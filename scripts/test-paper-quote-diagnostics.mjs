@@ -5,7 +5,7 @@ const now = Date.parse("2026-10-09T16:00:00Z");
 const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
 const quote = (symbol, sourceFamily, age, eligibility = "PAPER", verified = true) => ({
   symbol, sourceFamily, eligibility, provenanceVerified: verified,
-  price: 100, observedAt: at(age),
+  price: 100, currency: "USD", observedAt: at(age),
 });
 const evidence = {
   generatedAt: at(12),
@@ -64,4 +64,22 @@ assert.equal(noData.symbols.length, 0);
 assert.equal(noData.orderAuthorized, false);
 const badTimestamp = describePersistedPaperQuoteHealth({ ...evidence, generatedAt: "invalid" }, coverage, now);
 assert.equal(badTimestamp.snapshotCurrent, false);
+
+const mixedCurrency = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: evidence.observations.map((row) =>
+    row.symbol === "AAPL" && row.sourceFamily === "twelve-data" ? { ...row, currency: "EUR" } : row,
+  ),
+}, coverage, now);
+assert.equal(mixedCurrency.symbols.find((row) => row.symbol === "AAPL").state, "CURRENCY_NOT_VERIFIED");
+assert.equal(mixedCurrency.orderAuthorized, false);
+assert(mixedCurrency.blockingReasons.some((reason) => reason.includes("currency")));
+const missingCurrency = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: evidence.observations.map((row) =>
+    row.symbol === "AAPL" && row.sourceFamily === "twelve-data" ? { ...row, currency: undefined } : row,
+  ),
+}, coverage, now);
+assert.equal(missingCurrency.symbols.find((row) => row.symbol === "AAPL").state, "CURRENCY_NOT_VERIFIED");
+
 console.log("Fenice persisted PAPER quote age and per-symbol reason diagnostics: PASS.");

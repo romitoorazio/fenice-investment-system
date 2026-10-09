@@ -93,6 +93,7 @@ export default async function MercatiPage() {
                 <p className="mt-1 text-xs text-slate-300">
                   {row.state === "SNAPSHOT_EXPIRED" ? "Prezzi salvati scaduti"
                     : row.state === "FRESH_SOURCE_QUORUM_MISSING" ? "Serve una seconda fonte indipendente recente"
+                      : row.state === "CURRENCY_NOT_VERIFIED" ? "Valuta PAPER mancante o incoerente tra le fonti"
                       : row.state === "NO_VERIFIED_PAPER_SOURCES" ? "Nessuna fonte PAPER verificata"
                         : row.state === "SOURCES_STALE" ? "Fonti presenti, quotazioni scadute"
                           : "Fonti recenti candidate; serve il controllo globale"}
