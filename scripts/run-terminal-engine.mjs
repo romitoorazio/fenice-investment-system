@@ -593,7 +593,7 @@ const state = coveragePercent >= 85 ? 'operativo' : assets.length ? 'parziale' :
 const report = {
   version: Number(previous.version || 0) + 1,
   generatedAt: now.toISOString(),
-  mode: coveragePercent >= 85 && dataQuality >= 65 ? 'live' : assets.length ? 'partial' : 'bootstrap',
+  mode: coveragePercent >= 85 && dataQuality >= 65 ? 'research' : assets.length ? 'partial' : 'bootstrap',
   capitalEuro: CAPITAL_EURO,
   source: {
     name: 'Fenice Technical, Valuation and Strategy Engine',

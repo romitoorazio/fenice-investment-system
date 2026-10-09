@@ -130,7 +130,7 @@ export type TerminalReport = {
   version: number;
   generatedAt: string;
   validatedAt?: string;
-  mode: "live" | "partial" | "bootstrap";
+  mode: "live" | "research" | "partial" | "bootstrap"; // live retained only for legacy snapshots; runtime normalizes to research
   capitalEuro: number;
   source: {
     name: string;

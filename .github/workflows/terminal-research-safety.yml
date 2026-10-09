@@ -1,0 +1,22 @@
+name: Fenice Terminal Research Safety
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  terminal-research-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify daily quotes are research-only and stale signals cannot receive allocations
+        run: node --experimental-strip-types scripts/test-terminal-research-freshness.mjs
