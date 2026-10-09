@@ -1,5 +1,5 @@
 import masterData from "@/data/instrument-master.json";
-import paperClock from "@/data/paper-market-session.json";
+import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import { type InstrumentMaster } from "@/lib/market/instrument-master";
@@ -17,14 +17,17 @@ export const runtime = "nodejs";
  */
 export async function GET() {
   const now = Date.now();
-  const publicUsMarketStatus = await getNasdaqPublicMarketStatus(now);
+  const [publicUsMarketStatus, livePaperClock] = await Promise.all([
+    getNasdaqPublicMarketStatus(now),
+    getAlpacaPaperClock(now),
+  ]);
   const master = masterData as InstrumentMaster;
   const tracked = master.instruments.filter((row) => row.status === "active");
   const mics = [...new Set(tracked
     .map((row) => row.exchangeMic || "")
     .filter(Boolean))];
   const markets = mics.map((mic) => ({
-    ...resolveVenueSession(mic, paperClock, now),
+    ...resolveVenueSession(mic, livePaperClock, now),
     // Exchange website observation is supplemental and never upgrades state
     // to authoritative OPEN for PAPER or LIVE execution.
     publicUsMarketStatus: ["XNYS", "XNAS", "ARCX"].includes(mic)
@@ -87,6 +90,14 @@ export async function GET() {
     markets,
     instruments,
     publicUsMarketStatus,
+    alpacaPaperClock: {
+      configured: livePaperClock.configured,
+      authoritative: livePaperClock.evidence.authoritative,
+      state: livePaperClock.evidence.state,
+      observedAt: livePaperClock.evidence.authoritative ? livePaperClock.evidence.observedAt : null,
+      error: livePaperClock.error,
+      liveTradingAllowed: false,
+    },
     paperQuoteGate: quoteGate,
     policy: {
       regularHoursAreIndicativeOnly: true,
@@ -95,6 +106,7 @@ export async function GET() {
       PAPERDataRequiresFreshProvenanceAndIndependentSources: true,
       nonUsVenuesResearchOnlyUntilSeparatelyCertified: true,
       publicNasdaqObservationNeverAuthorizesExecution: true,
+      alpacaPaperClockUsesServerOnlyEncryptedCredentials: true,
       dataNotExecutionGradeUnlessExplicitlyVerified: true,
       orderSubmissionAllowed: false,
       brokerNetworkAllowed: false,

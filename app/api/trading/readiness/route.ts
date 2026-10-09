@@ -1,7 +1,7 @@
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
-import paperClock from "@/data/paper-market-session.json";
+import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
@@ -17,9 +17,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
+  const now = Date.now();
+  const livePaperClock = await getAlpacaPaperClock(now);
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
-  const usMarketSession = resolveVenueSession("XNAS", paperClock);
+  const usMarketSession = resolveVenueSession("XNAS", livePaperClock, now);
   const sessionReady = usMarketSession.authoritative && usMarketSession.state === "OPEN";
   const executionReadiness = {
     ...snapshotReadiness,

@@ -73,6 +73,7 @@ assert.equal(resolveVenueSession(asmlAdr.exchangeMic, freshClock, now).state, "O
 for (const file of ["../app/api/market/sessions/route.ts", "../app/mercati/page.tsx"]) {
   const source = await readFile(new URL(file, import.meta.url), "utf8");
   assert.match(source, /resolveVenueSession/, "both public API and dashboard must use the same trusted venue resolver");
+  assert.match(source, /getAlpacaPaperClock/, "market monitor must access the current Alpaca PAPER clock");
   assert.doesNotMatch(source, /submitOrder|sendOrder|executeTrade|liveTradingAllowed: true/, "market status must stay read-only");
 }
 const marketPage = await readFile(new URL("../app/mercati/page.tsx", import.meta.url), "utf8");
@@ -81,7 +82,8 @@ const readinessApi = await readFile(new URL("../app/api/trading/readiness/route.
 const readinessPage = await readFile(new URL("../app/readiness/page.tsx", import.meta.url), "utf8");
 for (const source of [readinessApi, readinessPage]) {
   assert.match(source, /assessRuntimePaperQuoteGate/, "readiness must check fresh independent quote quorum");
-  assert.match(source, /resolveVenueSession\("XNAS", paperClock\)/, "readiness must verify US opening session");
+  assert.match(source, /resolveVenueSession\("XNAS", livePaperClock/, "readiness must verify current US PAPER opening session");
+  assert.match(source, /getAlpacaPaperClock/, "readiness must use runtime Alpaca clock rather than frozen snapshot");
   assert.match(source, /snapshotReadiness\.verified && runtimeQuoteGate\.ready && /, "all evidence gates are required");
 }
 

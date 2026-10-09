@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
-import paperClock from "@/data/paper-market-session.json";
+
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
@@ -135,10 +136,11 @@ function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.no
   return Math.max(0, Math.floor((now - startedAtMs) / 86_400_000));
 }
 
-export default function ReadinessPage() {
+export default async function ReadinessPage() {
+  const livePaperClock = await getAlpacaPaperClock();
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
-  const usMarketSession = resolveVenueSession("XNAS", paperClock);
+  const usMarketSession = resolveVenueSession("XNAS", livePaperClock);
   const freshSessionOpen = usMarketSession.authoritative && usMarketSession.state === "OPEN";
   const executionState: ExecutionReadinessState = !runtimeQuoteGate.ready
     ? "STALE" : !freshSessionOpen ? "BLOCKED" : snapshotReadiness.state;
