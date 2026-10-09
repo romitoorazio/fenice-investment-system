@@ -16,23 +16,26 @@ function freshnessPenalty(status?: FreshnessStatus) {
 
 function currentFreshness(asset: UnifiedAsset) {
   const observed = new Date(asset.technical.observedAt || 0).getTime();
-  if (!Number.isFinite(observed) || observed <= 0) return { ageHours: 9999, status: "non disponibile" as FreshnessStatus, penalty: 25 };
-  const ageHours = Math.max(0, (Date.now() - observed) / 3_600_000);
+  const now = Date.now();
+  if (!Number.isFinite(observed) || observed <= 0 || observed > now) {
+    return { ageHours: 9999, status: "non disponibile" as FreshnessStatus, penalty: 25 };
+  }
+  const ageHours = (now - observed) / 3_600_000;
+  // Historical/daily Yahoo chart prices are RESEARCH DATA, never intraday execution quotes.
+  // Freshness of an end-of-day candle (even seconds after download) is not realtime.
   const crypto = asset.assetClass === "Criptovaluta";
-  const nearLimit = crypto ? 36 : 48;
-  const updatedLimit = crypto ? 72 : 96;
-  const delayedLimit = crypto ? 120 : 168;
-  if (ageHours <= nearLimit) return { ageHours: round(ageHours), status: "quasi in tempo reale" as FreshnessStatus, penalty: 0 };
+  const updatedLimit = crypto ? 36 : 96;
+  const delayedLimit = crypto ? 72 : 168;
   if (ageHours <= updatedLimit) return { ageHours: round(ageHours), status: "aggiornato" as FreshnessStatus, penalty: 2 };
   if (ageHours <= delayedLimit) return { ageHours: round(ageHours), status: "ritardato" as FreshnessStatus, penalty: 8 };
   return { ageHours: round(ageHours), status: "obsoleto" as FreshnessStatus, penalty: 20 };
 }
 
 function decisionFor(asset: UnifiedAsset): TerminalDecision {
-  if (asset.businessStage === "pre-commerciale") return "SPECULATIVA";
   const freshness = asset.technical.freshness?.status;
   const overvalued = asset.valuation.status === "disponibile" && Number(asset.valuation.upsideBasePercent) <= -20;
   if (freshness === "obsoleto" || freshness === "non disponibile") return asset.unifiedScore >= 48 ? "ATTENDI" : "EVITA";
+  if (asset.businessStage === "pre-commerciale") return "SPECULATIVA";
   if (["NEGATIVO", "DEBOLE"].includes(asset.technical.signal) || overvalued) return asset.unifiedScore >= 48 ? "ATTENDI" : "EVITA";
   const threshold = asset.assetClass === "ETF" ? 72 : 76;
   const valuationAcceptable = asset.valuation.status !== "disponibile" || Number(asset.valuation.upsideBasePercent) >= -10;
@@ -162,6 +165,8 @@ function guardrails(report: TerminalReport) {
 
 export function buildRuntimeTerminal(input: TerminalReport, alertsCount = 0): TerminalReport {
   const report = structuredClone(input);
+  // The Terminal is a daily research dashboard, not a broker market-data feed.
+  if (report.mode === "live") report.mode = "research";
   let fresh = 0;
   let delayed = 0;
   let obsolete = 0;
@@ -201,6 +206,7 @@ export function buildRuntimeTerminal(input: TerminalReport, alertsCount = 0): Te
     ...(report.guardrails?.violations || []),
     ...(delayed ? [`${delayed} strumenti hanno dati ritardati.`] : []),
     ...(obsolete ? [`${obsolete} strumenti hanno dati obsoleti o non disponibili.`] : []),
+    "Prezzi da storico giornaliero: non sono quotazioni execution-grade e non autorizzano acquisti.",
   ])];
   return report;
 }
