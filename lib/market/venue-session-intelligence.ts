@@ -6,7 +6,7 @@
  * US-equities aggregate session. Neither calendar inference nor this module
  * can authorize PAPER orders, broker access, or LIVE execution.
  */
-import { getEuropeanOfficialCalendarStatus } from "./europe-official-calendar-2026";
+import { getEuropeanOfficialCalendarStatus } from "./europe-official-calendar-2026.ts";
 
 export type MarketTruth = "OPEN" | "CLOSED" | "UNKNOWN";
 export type IndicativePhase = "REGULAR_WINDOW" | "OUTSIDE_REGULAR_WINDOW" | "UNMAPPED";
