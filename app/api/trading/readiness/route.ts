@@ -1,12 +1,14 @@
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
+import paperClock from "@/data/paper-market-session.json";
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
+import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
@@ -17,12 +19,16 @@ export const revalidate = 0;
 export async function GET() {
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
+  const usMarketSession = resolveVenueSession("XNAS", paperClock);
+  const sessionReady = usMarketSession.authoritative && usMarketSession.state === "OPEN";
   const executionReadiness = {
     ...snapshotReadiness,
-    verified: snapshotReadiness.verified && runtimeQuoteGate.ready,
-    state: runtimeQuoteGate.ready ? snapshotReadiness.state : "STALE",
-    reasons: [...snapshotReadiness.reasons, ...runtimeQuoteGate.reasons],
+    verified: snapshotReadiness.verified && runtimeQuoteGate.ready && sessionReady,
+    state: !runtimeQuoteGate.ready ? "STALE" : !sessionReady ? "BLOCKED" : snapshotReadiness.state,
+    reasons: [...snapshotReadiness.reasons, ...runtimeQuoteGate.reasons,
+      ...(!sessionReady ? ["Fresh authoritative US market-open evidence is unavailable"] : [])],
     runtimeQuoteGate,
+    usMarketSession,
   };
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);

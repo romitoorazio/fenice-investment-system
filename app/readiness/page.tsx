@@ -2,10 +2,13 @@ import Link from "next/link";
 import intelligence from "@/data/intelligence-quality.json";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
+import paperClock from "@/data/paper-market-session.json";
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
+import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
+import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
@@ -133,7 +136,22 @@ function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.no
 }
 
 export default function ReadinessPage() {
-  const executionReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
+  const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
+  const usMarketSession = resolveVenueSession("XNAS", paperClock);
+  const freshSessionOpen = usMarketSession.authoritative && usMarketSession.state === "OPEN";
+  const executionState: ExecutionReadinessState = !runtimeQuoteGate.ready
+    ? "STALE" : !freshSessionOpen ? "BLOCKED" : snapshotReadiness.state;
+  const executionReadiness = {
+    ...snapshotReadiness,
+    state: executionState,
+    verified: snapshotReadiness.verified && runtimeQuoteGate.ready && freshSessionOpen,
+    reasons: [
+      ...snapshotReadiness.reasons,
+      ...runtimeQuoteGate.reasons,
+      ...(!freshSessionOpen ? ["Apertura USA autorevole non disponibile o scaduta"] : []),
+    ],
+  };
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
   const persistentAuditVerified = engineeringEvidence.persistentAuditImplementationVerified
@@ -190,7 +208,10 @@ export default function ReadinessPage() {
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">Prontezza istituzionale</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Questa pagina usa i gate reali disponibili nel repository. Un controllo implementato ma non ancora provato resta in collaudo; Directa può aggiungere evidenza read-only/shadow, ma il suo feed realtime a pagamento non è un requisito della certificazione PAPER.</p>
           </div>
-          <Link href="/" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Oggi</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/mercati" className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-3 py-2 text-xs font-bold text-cyan-200">Mercati</Link>
+            <Link href="/" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Oggi</Link>
+          </div>
         </header>
 
         <section className="rounded-3xl border border-rose-400/25 bg-rose-400/[0.06] p-6">
