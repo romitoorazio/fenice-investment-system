@@ -4,6 +4,7 @@ import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
+import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +17,19 @@ export const runtime = "nodejs";
  */
 export async function GET() {
   const now = Date.now();
+  const publicUsMarketStatus = await getNasdaqPublicMarketStatus(now);
   const master = masterData as InstrumentMaster;
   const tracked = master.instruments.filter((row) => row.status === "active");
   const mics = [...new Set(tracked
     .map((row) => row.exchangeMic || "")
     .filter(Boolean))];
-  const markets = mics.map((mic) => resolveVenueSession(mic, paperClock, now));
+  const markets = mics.map((mic) => ({
+    ...resolveVenueSession(mic, paperClock, now),
+    // Exchange website observation is supplemental and never upgrades state
+    // to authoritative OPEN for PAPER or LIVE execution.
+    publicUsMarketStatus: ["XNYS", "XNAS", "ARCX"].includes(mic)
+      ? publicUsMarketStatus : null,
+  }));
   const marketByMic = new Map(markets.map((row) => [row.mic, row]));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const eligibleCoverage = new Set(
@@ -78,6 +86,7 @@ export async function GET() {
     },
     markets,
     instruments,
+    publicUsMarketStatus,
     paperQuoteGate: quoteGate,
     policy: {
       regularHoursAreIndicativeOnly: true,
@@ -85,6 +94,7 @@ export async function GET() {
       venueRequiresFreshAuthoritativeClockForPaper: true,
       PAPERDataRequiresFreshProvenanceAndIndependentSources: true,
       nonUsVenuesResearchOnlyUntilSeparatelyCertified: true,
+      publicNasdaqObservationNeverAuthorizesExecution: true,
       dataNotExecutionGradeUnlessExplicitlyVerified: true,
       orderSubmissionAllowed: false,
       brokerNetworkAllowed: false,
