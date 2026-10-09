@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { interpretNasdaqPublicMarketInfo, fetchNasdaqPublicMarketStatus, NASDAQ_PUBLIC_MARKET_INFO } from "../lib/market/nasdaq-public-market-status.mjs";
+import { interpretNasdaqPublicMarketInfo, fetchNasdaqPublicMarketStatus, ensureNasdaqObservationFresh, NASDAQ_PUBLIC_MARKET_INFO } from "../lib/market/nasdaq-public-market-status.mjs";
 
 const now = Date.parse("2026-10-09T17:24:10Z"); // 13:24 New York during regular session
 const date = new Date(now - 10_000).toUTCString();
@@ -22,6 +22,10 @@ assert.equal(valid.confidence, "ADVISORY_ONLY");
 assert.equal(valid.executionAuthoritative, false);
 assert.equal(valid.liveTradingAllowed, false);
 assert.equal(valid.observedAt, new Date(now - 10_000).toISOString());
+assert.equal(ensureNasdaqObservationFresh(valid, now).state, "OPEN");
+assert.equal(ensureNasdaqObservationFresh(valid, now + 95_000).state, "UNKNOWN", "cache cannot keep old OPEN alive");
+assert.equal(ensureNasdaqObservationFresh(valid, now - 10_000).state, "UNKNOWN", "future-dated cached report must fail");
+assert.equal(ensureNasdaqObservationFresh(null, now).state, "UNKNOWN");
 
 const closed = structuredClone(opened);
 closed.data.mrktStatus = "Closed";
