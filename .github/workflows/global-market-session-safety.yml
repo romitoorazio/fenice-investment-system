@@ -13,6 +13,9 @@ on:
       - "app/readiness/page.tsx"
       - "app/page.tsx"
       - "scripts/test-venue-session-intelligence.mjs"
+      - "scripts/test-nasdaq-public-market-status.mjs"
+      - "lib/market/nasdaq-public-market-status.mjs"
+      - "lib/market/nasdaq-public-market-status.d.mts"
   push:
     branches: [main]
     paths:
@@ -24,6 +27,9 @@ on:
       - "app/readiness/page.tsx"
       - "app/page.tsx"
       - "scripts/test-venue-session-intelligence.mjs"
+      - "scripts/test-nasdaq-public-market-status.mjs"
+      - "lib/market/nasdaq-public-market-status.mjs"
+      - "lib/market/nasdaq-public-market-status.d.mts"
 
 permissions:
   contents: read
@@ -41,3 +47,5 @@ jobs:
           node-version: 22
       - name: Test authoritative session and research-only routing
         run: node --experimental-strip-types scripts/test-venue-session-intelligence.mjs
+      - name: Test public Nasdaq status freshness and advisory safety
+        run: node scripts/test-nasdaq-public-market-status.mjs
