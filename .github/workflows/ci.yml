@@ -59,6 +59,9 @@ jobs:
       - name: Execution-quality pilot gate invariants
         run: npm run execution:quality:test
 
+      - name: PAPER provider eligibility and LIVE isolation regression
+        run: node --experimental-strip-types scripts/test-paper-eligible-source-isolation.mjs
+
       - name: Smart Order Router best-execution and live-lock invariants
         run: npm run routing:sor:test
 
