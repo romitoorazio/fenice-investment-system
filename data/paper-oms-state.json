@@ -1,7 +1,7 @@
 {
   "version": 1,
   "mode": "PAPER",
-  "generatedAt": "2026-10-08T17:04:27.081Z",
+  "generatedAt": "2026-10-09T15:24:44.836Z",
   "killSwitch": {
     "engaged": false,
     "reasons": [],
@@ -803,6 +803,165 @@
         ],
         "reasons": []
       }
+    },
+    {
+      "clientOrderId": "fenice-paper-validation-v6-2026-10-09-QQQ",
+      "symbol": "QQQ",
+      "side": "BUY",
+      "status": "PAPER_FILLED",
+      "requestedQuantity": 0.447602,
+      "filledQuantity": 0.447602,
+      "referencePrice": 750.0525,
+      "fillPrice": 750.427526,
+      "notionalEuro": 300,
+      "estimatedFeeEuro": 1.5,
+      "estimatedSlippageEuro": 0.15,
+      "currency": "USD",
+      "fxToEuro": 0.89314,
+      "fxProvider": "twelve-data",
+      "fxObservedAt": "2026-10-09T15:23:00.000Z",
+      "createdAt": "2026-10-09T15:24:44.836Z",
+      "filledAt": "2026-10-09T15:24:44.836Z",
+      "risk": {
+        "allowed": true,
+        "orderNotionalEuro": 299.85,
+        "resultingPositionWeightPercent": 9.06,
+        "resultingGrossExposurePercent": 18.13,
+        "resultingDailyTurnoverPercent": 3,
+        "checks": [
+          {
+            "code": "mode-paper-only",
+            "passed": true,
+            "message": "Only PAPER execution is permitted.",
+            "observed": "PAPER",
+            "limit": "PAPER"
+          },
+          {
+            "code": "human-confirmation",
+            "passed": true,
+            "message": "Human confirmation is mandatory.",
+            "observed": true,
+            "limit": true
+          },
+          {
+            "code": "live-release-closed",
+            "passed": true,
+            "message": "Live release lock must remain closed in paper operations.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "broker-network-disabled",
+            "passed": true,
+            "message": "Broker network connectivity must remain disabled.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "kill-switch",
+            "passed": true,
+            "message": "Kill switch must not be engaged.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "valid-capital",
+            "passed": true,
+            "message": "Capital must be positive.",
+            "observed": 10000
+          },
+          {
+            "code": "valid-order-size",
+            "passed": true,
+            "message": "Order quantity and reference price must be positive."
+          },
+          {
+            "code": "no-short-selling",
+            "passed": true,
+            "message": "Sell order exceeds the existing long position; short selling is disabled.",
+            "observed": 299.85,
+            "limit": 606.57
+          },
+          {
+            "code": "max-order-notional",
+            "passed": true,
+            "message": "Order notional exceeds configured limit.",
+            "observed": 3,
+            "limit": 5
+          },
+          {
+            "code": "max-single-asset",
+            "passed": true,
+            "message": "Resulting single-asset weight exceeds configured limit.",
+            "observed": 9.06,
+            "limit": 15
+          },
+          {
+            "code": "max-gross-exposure",
+            "passed": true,
+            "message": "Resulting gross exposure exceeds configured limit.",
+            "observed": 18.13,
+            "limit": 80
+          },
+          {
+            "code": "max-daily-turnover",
+            "passed": true,
+            "message": "Daily turnover exceeds configured limit.",
+            "observed": 3,
+            "limit": 20
+          },
+          {
+            "code": "max-open-orders",
+            "passed": true,
+            "message": "Too many open orders.",
+            "observed": 0,
+            "limit": 20
+          },
+          {
+            "code": "data-confidence",
+            "passed": true,
+            "message": "Data confidence is below the execution threshold.",
+            "observed": 92,
+            "limit": 90
+          },
+          {
+            "code": "independent-sources",
+            "passed": true,
+            "message": "Insufficient independent sources.",
+            "observed": 2,
+            "limit": 2
+          },
+          {
+            "code": "risk-score",
+            "passed": true,
+            "message": "Instrument risk score exceeds the paper execution limit.",
+            "observed": 33,
+            "limit": 75
+          },
+          {
+            "code": "quote-freshness",
+            "passed": true,
+            "message": "Market quote is stale.",
+            "observed": 17.4,
+            "limit": 120
+          },
+          {
+            "code": "no-divergence",
+            "passed": true,
+            "message": "Cross-source data divergence blocks execution.",
+            "observed": false,
+            "limit": false
+          },
+          {
+            "code": "source-freshness",
+            "passed": true,
+            "message": "Stale source data blocks execution.",
+            "observed": false,
+            "limit": false
+          }
+        ],
+        "reasons": []
+      }
     }
   ],
   "positions": [
@@ -815,10 +974,10 @@
     },
     {
       "symbol": "QQQ",
-      "quantity": 0.905647,
-      "averagePrice": 747.8164505608972,
+      "quantity": 1.353249,
+      "averagePrice": 748.6800924987027,
       "currency": "USD",
-      "fxToEuro": 0.89295
+      "fxToEuro": 0.89314
     }
   ],
   "reconciliation": {
@@ -1075,11 +1234,61 @@
       },
       "previousHash": "f8210e144238b55ee22c8b6019fa7aa0b91679d55d543a0bbfff8ef41dca1daf",
       "hash": "93407c0b80b42c2d6d8be7e28baeb2c2f9c08cea03e37ae09e0bb4af52a9b161"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-10-09T15:24:44.836Z",
+      "eventType": "PAPER_FILLED",
+      "entityId": "fenice-paper-validation-v6-2026-10-09-QQQ",
+      "payload": {
+        "symbol": "QQQ",
+        "side": "BUY",
+        "filledQuantity": 0.447602,
+        "fillPrice": 750.427526,
+        "currency": "USD",
+        "fxToEuro": 0.89314,
+        "fxProvider": "twelve-data",
+        "fxObservedAt": "2026-10-09T15:23:00.000Z",
+        "riskAllowed": true,
+        "reasons": [],
+        "operationalGate": {
+          "state": "CAUTION",
+          "riskMultiplier": 1,
+          "marketDataState": "CAUTION",
+          "marketDataSources": 2,
+          "marketDataSourceFamilies": [
+            "alpaca",
+            "twelve-data"
+          ],
+          "marketDataRequiredEligibility": "PAPER",
+          "marketDataIneligibleEvidence": 1,
+          "marketDataSpreadPercent": 0.002,
+          "eventRiskState": "NORMAL",
+          "reasons": [
+            "market-data: 1 evidence item(s) excluded because they are not paper-eligible",
+            "market-data: minimum quorum met, but preferred redundancy is 3 independent eligible source families"
+          ]
+        },
+        "portfolioRisk": {
+          "state": "CAUTION",
+          "riskMultiplier": 0.75,
+          "grossExposurePercent": 18.13,
+          "largestPositionPercent": 9.07,
+          "largestSectorPercent": 18.13,
+          "largestAssetClassPercent": 18.13,
+          "capitalHhi": 0.0164,
+          "weightedAbsCorrelation": null,
+          "maxCorrelatedClusterPercent": null,
+          "reasons": []
+        }
+      },
+      "previousHash": "93407c0b80b42c2d6d8be7e28baeb2c2f9c08cea03e37ae09e0bb4af52a9b161",
+      "hash": "29b2650cb17ef7f0912eb501fc331eba76e3bfcf8b4838a9701462c69fb0b128"
     }
   ],
   "operational": true,
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "executionDataGeneratedAt": "2026-10-08T17:04:26.354Z",
+  "executionDataGeneratedAt": "2026-10-09T15:24:28.818Z",
   "marketRiskEventsGeneratedAt": null
 }
