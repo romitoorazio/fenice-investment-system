@@ -1,0 +1,32 @@
+name: Fenice Decision Evidence Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/decision-market-evidence.ts"
+      - "scripts/test-decision-market-evidence.mjs"
+      - "app/decisioni/page.tsx"
+      - ".github/workflows/decision-evidence-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/decision-market-evidence.ts"
+      - "scripts/test-decision-market-evidence.mjs"
+      - "app/decisioni/page.tsx"
+      - ".github/workflows/decision-evidence-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  decision-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify per-title PAPER data labels never permit real orders
+        run: node --experimental-strip-types scripts/test-decision-market-evidence.mjs
