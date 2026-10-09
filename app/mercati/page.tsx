@@ -7,6 +7,7 @@ import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
+import { describePersistedPaperQuoteHealth } from "@/lib/trading/paper-quote-diagnostics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,6 +31,7 @@ export default async function MercatiPage() {
       ? publicUsMarketStatus : null,
   }));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
+  const quoteDiagnostics = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
   const europeanCalendarCount = sessions.filter((row) => ["XMIL", "XPAR", "XETR"].includes(row.mic)
     && row.calendarAnnualScheduleVerified).length;
   const officialClosedToday = sessions.filter((row) => row.calendarState === "OFFICIAL_CLOSED").length;
@@ -65,6 +67,46 @@ export default async function MercatiPage() {
             <p className="text-xs font-semibold uppercase text-slate-400">Quorum PAPER (120 s)</p>
             <p className="mt-1 text-lg font-black">{paperQuoteReadyNow ? "DATI PAPER VERIFICATI" : "NON VERIFICATI ORA"}</p>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+          <p className="font-bold text-white">Diagnosi quotazioni PAPER · limite 120 secondi</p>
+          <p className="mt-2">
+            {quoteDiagnostics.diagnosticState === "QUORUM_CURRENT"
+              ? "Il quorum delle quotazioni salvate supera attualmente i controlli di freschezza."
+              : quoteDiagnostics.diagnosticState === "SNAPSHOT_EXPIRED"
+                ? "Campione di prezzi scaduto: il quorum attuale non è dimostrato."
+                : "Campione recente, ma manca la verifica indipendente completa."}
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Ultimo campione salvato: {quoteDiagnostics.snapshotObservedAt ?? "non disponibile"} (UTC).
+            {" "}Età: {quoteDiagnostics.snapshotAgeSeconds !== null
+              ? `${Math.max(0, Math.round(quoteDiagnostics.snapshotAgeSeconds / 60))} minuti`
+              : "non determinabile"}.
+            {" "}Titoli verificati quando registrati: {quoteDiagnostics.snapshotPaperEligibleSymbols}/{quoteDiagnostics.requestedSymbols}.
+            {" "}Questi dati NON vengono aggiornati in streaming dal browser.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {quoteDiagnostics.symbols.slice(0, 8).map((row) => (
+              <div key={row.symbol} className="rounded-xl border border-white/10 bg-slate-950/60 p-3">
+                <p className="font-bold text-white">{row.symbol}</p>
+                <p className="mt-1 text-xs text-slate-300">
+                  {row.state === "SNAPSHOT_EXPIRED" ? "Prezzi salvati scaduti"
+                    : row.state === "FRESH_SOURCE_QUORUM_MISSING" ? "Serve una seconda fonte indipendente recente"
+                      : row.state === "NO_VERIFIED_PAPER_SOURCES" ? "Nessuna fonte PAPER verificata"
+                        : row.state === "SOURCES_STALE" ? "Fonti presenti, quotazioni scadute"
+                          : "Fonti recenti candidate; serve il controllo globale"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Fonti PAPER nell&apos;ultimo campione: {row.historicalVerifiedFamilies.join(", ") || "nessuna"}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">
+            L&apos;orologio Alpaca può essere aggiornato, ma non sostituisce prezzi recenti,
+            concordanti e con provenienza verificata. LIVE e ordini restano bloccati.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
