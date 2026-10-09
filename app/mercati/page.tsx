@@ -22,6 +22,8 @@ export default function MercatiPage() {
   const sessions = mics.map((mic) => resolveVenueSession(mic, paperClock, now));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const authoritativeOpen = sessions.filter((row) => row.authoritative && row.state === "OPEN").length;
+  const freshPaperSession = sessions.some((row) => row.mic === "XNAS" && row.authoritative && row.state === "OPEN");
+  const paperQuoteReadyNow = freshPaperSession && quoteGate.ready;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
@@ -49,7 +51,7 @@ export default function MercatiPage() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs font-semibold uppercase text-slate-400">Quorum PAPER (120 s)</p>
-            <p className="mt-1 text-lg font-black">{quoteGate.ready ? "DATI VALIDI" : "NON VALIDI ORA"}</p>
+            <p className="mt-1 text-lg font-black">{paperQuoteReadyNow ? "DATI PAPER VERIFICATI" : "NON VERIFICATI ORA"}</p>
           </div>
         </section>
 
