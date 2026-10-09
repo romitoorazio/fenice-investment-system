@@ -19,6 +19,7 @@ export default function Home() {
         aria-label="Navigazione principale Fenice"
       >
         <Link href="/" className="shrink-0 rounded-xl bg-amber-300 px-4 py-3 text-xs font-black text-slate-950">Oggi</Link>
+        <Link href="/decisioni" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-lime-300 transition hover:bg-white/5">Compra / Vendi</Link>
         <Link href="/proposte" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-emerald-300 transition hover:bg-white/5">Sì / No</Link>
         <Link href="/radar" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-cyan-300 transition hover:bg-white/5">Radar</Link>
         <Link href="/mercati" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-amber-200 transition hover:bg-white/5">Mercati</Link>
