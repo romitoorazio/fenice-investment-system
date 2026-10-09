@@ -1,6 +1,6 @@
 import Link from "next/link";
 import masterData from "@/data/instrument-master.json";
-import paperClock from "@/data/paper-market-session.json";
+import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 import { type InstrumentMaster } from "@/lib/market/instrument-master";
@@ -18,11 +18,14 @@ function serverRequestTime() {
 
 export default async function MercatiPage() {
   const now = serverRequestTime();
-  const publicUsMarketStatus = await getNasdaqPublicMarketStatus(now);
+  const [publicUsMarketStatus, livePaperClock] = await Promise.all([
+    getNasdaqPublicMarketStatus(now),
+    getAlpacaPaperClock(now),
+  ]);
   const instruments = (masterData as InstrumentMaster).instruments.filter((row) => row.status === "active");
   const mics = [...new Set(instruments.map((row) => row.exchangeMic).filter((mic): mic is string => Boolean(mic)))];
   const sessions = mics.map((mic) => ({
-    ...resolveVenueSession(mic, paperClock, now),
+    ...resolveVenueSession(mic, livePaperClock, now),
     publicUsMarketStatus: ["XNYS", "XNAS", "ARCX"].includes(mic)
       ? publicUsMarketStatus : null,
   }));
@@ -61,6 +64,24 @@ export default async function MercatiPage() {
           </div>
         </section>
 
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+          <p className="font-bold">Alpaca PAPER · orologio USA</p>
+          <p className="mt-1">
+            {livePaperClock.evidence.authoritative
+              ? (livePaperClock.evidence.state === "OPEN"
+                ? "Sessione americana APERTA, verificata da Alpaca"
+                : "Sessione americana CHIUSA, verificata da Alpaca")
+              : livePaperClock.configured
+                ? "Collegamento configurato, ma risposta non verificata"
+                : "Chiavi Alpaca PAPER non ancora inserite nelle variabili protette di Vercel"}.
+            {" "}Solo lettura; nessun ordine autorizzato.
+          </p>
+          {livePaperClock.evidence.authoritative && (
+            <p className="mt-2 text-xs text-slate-400">
+              Aggiornamento Alpaca: {livePaperClock.evidence.observedAt}
+            </p>
+          )}
+        </section>
         <section className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-sm text-cyan-100">
           <p className="font-bold">Segnale pubblico Nasdaq USA</p>
           <p className="mt-1">
