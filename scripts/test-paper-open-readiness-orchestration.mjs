@@ -48,4 +48,7 @@ assert.equal(assessPersistedPaperSession({ ...currentSession, evidence: { ...cur
 assert.equal(assessPersistedPaperSession({ ...currentSession, evidence: { ...currentSession.evidence, state: "CLOSED" }, decision: { allowed: false, ageSeconds: 5, reasons: ["market is closed"] } }, observedNow).marketClosed, true);
 assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowed: false, ageSeconds: 5, reasons: [] } }, observedNow).marketOpen, false, "contradictory OPEN/allowed flags must fail closed");
 assert.equal(assessPersistedPaperSession({ ...currentSession, decision: { allowed: true, ageSeconds: "0", reasons: [] } }, observedNow).marketOpen, false, "untyped age metadata must fail closed");
+assert.match(workflow, /cron: "45 13 \\* \\* 1-5"/, "must sample US DST opening within 15 minutes");
+assert.match(workflow, /cron: "45 14 \\* \\* 1-5"/, "must sample US standard-time opening within 15 minutes");
+assert.doesNotMatch(workflow, /cron: "5 15 \\* \\* 1-5"/, "must not delay the sole market-open diagnosis by more than 90 minutes");
 console.log("Fenice PAPER open-readiness orchestration regression: PASS.");
