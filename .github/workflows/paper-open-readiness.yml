@@ -22,6 +22,9 @@ on:
       - "scripts/check-paper-open-readiness.mjs"
       - "scripts/verify-market-open-schedule.mjs"
       - "scripts/test-market-open-schedule.mjs"
+      - "scripts/test-runtime-paper-quote-gate.mjs"
+      - "lib/trading/runtime-paper-quote-gate.ts"
+      - "app/api/trading/readiness/route.ts"
       - "scripts/test-paper-open-readiness-orchestration.mjs"
       - "scripts/run-execution-market-data.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
@@ -96,6 +99,9 @@ jobs:
 
       - name: Regression-test scheduler delay detection
         run: node scripts/test-market-open-schedule.mjs
+
+      - name: Regression-test execution quote freshness
+        run: node --experimental-strip-types scripts/test-runtime-paper-quote-gate.mjs
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
