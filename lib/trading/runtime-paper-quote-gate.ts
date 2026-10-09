@@ -70,7 +70,7 @@ export function assessRuntimePaperQuoteGate(
       && row.provenanceVerified === true
       && (family !== "directa" || row.provenanceMethod === DIRECTA_PROVENANCE)
       && row.eligibility === "PAPER";
-    if (!symbol || !trusted || !Number.isFinite(row.price) || Number(row.price) <= 0) {
+    if (!symbol || !trusted || !Number.isFinite(Number(row.price)) || Number(row.price) <= 0) {
       paperObservationsUnverified++;
       continue;
     }
