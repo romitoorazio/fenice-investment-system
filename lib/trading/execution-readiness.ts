@@ -125,10 +125,16 @@ export function evaluateExecutionReadiness(
   const unverifiedPaperObservations = observations.filter((row) =>
     row?.eligibility === "PAPER" && row?.provenanceVerified !== true,
   ).length;
+  const approvedFamilies = normalizedFamilies(coverage?.policy?.approvedIndependentPaperSourceFamilies);
   const paperFamilies = new Set(
     verifiedPaperObservations
       .map((row) => String(row?.sourceFamily || "").trim().toLowerCase())
-      .filter(Boolean),
+      // PAPER-only AND explicit policy approval AND a supported independent
+      // family are all required. Unknown/legacy sources must never count.
+      .filter((family) =>
+        ["alpaca", "twelve-data", "directa"].includes(family)
+          && approvedFamilies.includes(family),
+      ),
   );
 
   const configuredZeroCostSources = [
@@ -136,7 +142,6 @@ export function evaluateExecutionReadiness(
     evidence?.capabilities?.alpacaConfigured === true ? "alpaca" : null,
   ].filter((value): value is string => Boolean(value));
 
-  const approvedFamilies = normalizedFamilies(coverage?.policy?.approvedIndependentPaperSourceFamilies);
   const preferredZeroCostFamilies = normalizedFamilies(coverage?.policy?.preferredZeroCostPaperSourceFamilies);
   const evidenceSchemaReady = Number(evidence?.version || 0) >= 10;
   const coverageSchemaReady = Number(coverage?.version || 0) >= 6;
