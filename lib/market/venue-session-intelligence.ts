@@ -6,6 +6,8 @@
  * US-equities aggregate session. Neither calendar inference nor this module
  * can authorize PAPER orders, broker access, or LIVE execution.
  */
+import { getEuropeanOfficialCalendarStatus } from "./europe-official-calendar-2026";
+
 export type MarketTruth = "OPEN" | "CLOSED" | "UNKNOWN";
 export type IndicativePhase = "REGULAR_WINDOW" | "OUTSIDE_REGULAR_WINDOW" | "UNMAPPED";
 
@@ -145,7 +147,12 @@ export function resolveVenueSession(
 ) {
   const upperMic = String(mic || "").trim().toUpperCase();
   const spec = byMic.get(upperMic);
-  const indicativePhase = indicativeVenuePhase(upperMic, now);
+  const calendar = getEuropeanOfficialCalendarStatus(upperMic, now);
+  // Published annual closures can rule out the usual trading window, but an
+  // absence of a listed closure NEVER proves that the matching engine is OPEN.
+  const indicativePhase = calendar.state === "OFFICIAL_CLOSED"
+    ? "OUTSIDE_REGULAR_WINDOW"
+    : indicativeVenuePhase(upperMic, now);
   const usTruth = US_MIC.has(upperMic) ? verifyUsPaperClock(usClock, now) : null;
   const state: MarketTruth = usTruth?.truth || "UNKNOWN";
   const authoritative = usTruth?.authoritative === true;
@@ -160,15 +167,28 @@ export function resolveVenueSession(
     stateSource: usTruth?.source ?? null,
     stateObservedAt: usTruth?.observedAt ?? null,
     regularHoursSource: spec?.sourceUrl ?? null,
-    calendarHolidayVerified: false,
+    calendarHolidayVerified: calendar.state === "OFFICIAL_CLOSED"
+      && calendar.reason === "PUBLISHED_2026_FULL_DAY_CLOSURE",
+    calendarState: calendar.state,
+    calendarDate: calendar.localDate,
+    calendarReason: calendar.reason,
+    calendarSource: calendar.sourceUrl,
+    calendarAnnualScheduleVerified: calendar.verifiedAnnualCalendar,
     instrumentHaltVerified: false,
     researchAllowed: true,
     paperQuoteRefreshCandidate,
     dataProviderCandidates: paperQuoteRefreshCandidate ? [...quoteFamilies] : [],
-    nextAction: paperQuoteRefreshCandidate ? "REFRESH_AND_VERIFY_PAPER_QUOTES" :
-      indicativePhase === "REGULAR_WINDOW" ? "RESEARCH_ONLY_AWAIT_AUTHORITATIVE_CLOCK" : "RESEARCH_ONLY",
+    nextAction: paperQuoteRefreshCandidate ? "REFRESH_AND_VERIFY_PAPER_QUOTES"
+      : calendar.state === "OFFICIAL_CLOSED" ? "RESEARCH_ONLY_OFFICIAL_CALENDAR_CLOSED"
+      : calendar.state === "SPECIAL_HOURS_UNCONFIRMED" ? "RESEARCH_ONLY_SPECIAL_HOURS"
+      : indicativePhase === "REGULAR_WINDOW" ? "RESEARCH_ONLY_AWAIT_AUTHORITATIVE_CLOCK"
+      : "RESEARCH_ONLY",
     executionAuthorized: false,
     liveTradingAllowed: false,
-    reason: usTruth?.reason ?? "VENUE_CLOCK_NOT_CONNECTED",
+    reason: usTruth?.reason ?? (
+      calendar.state === "OFFICIAL_CLOSED" ? "OFFICIAL_ANNUAL_CALENDAR_CLOSED"
+      : calendar.state === "SPECIAL_HOURS_UNCONFIRMED" ? "SPECIAL_SESSION_HOURS_NOT_VERIFIED"
+      : "VENUE_CLOCK_NOT_CONNECTED"
+    ),
   };
 }
