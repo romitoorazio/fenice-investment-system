@@ -22,8 +22,10 @@ const finitePositive = (value: unknown) => Number.isFinite(Number(value)) && Num
 
 function quoteAgeSeconds(observedAt: string, now = Date.now()): number {
   const observed = Date.parse(observedAt);
-  if (!Number.isFinite(observed)) return Number.POSITIVE_INFINITY;
-  return Math.max(0, (now - observed) / 1000);
+  if (!Number.isFinite(observed) || !Number.isFinite(now)) return Number.POSITIVE_INFINITY;
+
+  const ageSeconds = (now - observed) / 1000;
+  return ageSeconds >= 0 ? ageSeconds : Number.POSITIVE_INFINITY;
 }
 
 export function evaluatePreTradeRisk(
