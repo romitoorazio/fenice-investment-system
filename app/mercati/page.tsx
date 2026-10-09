@@ -30,6 +30,9 @@ export default async function MercatiPage() {
       ? publicUsMarketStatus : null,
   }));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
+  const europeanCalendarCount = sessions.filter((row) => ["XMIL", "XPAR", "XETR"].includes(row.mic)
+    && row.calendarAnnualScheduleVerified).length;
+  const officialClosedToday = sessions.filter((row) => row.calendarState === "OFFICIAL_CLOSED").length;
   const authoritativeOpen = sessions.filter((row) => row.authoritative && row.state === "OPEN").length;
   const freshPaperSession = sessions.some((row) => row.mic === "XNAS" && row.authoritative && row.state === "OPEN");
   const paperQuoteReadyNow = freshPaperSession && quoteGate.ready;
@@ -101,13 +104,27 @@ export default async function MercatiPage() {
           servono prova della sessione, dati realtime verificati per simbolo e gate di rischio.
         </div>
 
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="font-bold text-white">Calendari ufficiali europei 2026</p>
+          <p className="mt-1">
+            {europeanCalendarCount} calendari annuali disponibili per Milano, Parigi e Xetra;
+            {" "}{officialClosedToday} piazze con chiusura da calendario oggi.
+            {" "}Le festività e le sedute speciali sono distinte dai dati live.
+            Una giornata non segnalata come festiva non equivale a mercato aperto.
+          </p>
+        </section>
+
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {sessions.map((market) => {
             const liveLabel = market.state === "OPEN" && market.authoritative
               ? "APERTO · VERIFICATO"
               : market.state === "CLOSED" && market.authoritative
                 ? "CHIUSO · VERIFICATO"
-                : market.publicUsMarketStatus?.state === "OPEN"
+                : market.calendarState === "OFFICIAL_CLOSED"
+                ? "CHIUSO · CALENDARIO 2026 (NON LIVE)"
+                : market.calendarState === "SPECIAL_HOURS_UNCONFIRMED"
+                  ? "SEDUTA SPECIALE · ORARIO NON CONFERMATO"
+                  : market.publicUsMarketStatus?.state === "OPEN"
                   ? "NASDAQ USA: APERTO · NON CERTIFICANTE"
                   : market.publicUsMarketStatus?.state === "CLOSED"
                     ? "NASDAQ USA: CHIUSO · NON CERTIFICANTE"
@@ -120,7 +137,11 @@ export default async function MercatiPage() {
                 </div>
                 <p className="mt-3 text-sm font-bold text-slate-200">{liveLabel}</p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {market.indicativePhase === "REGULAR_WINDOW"
+                  {market.calendarState === "OFFICIAL_CLOSED"
+                    ? "Chiusura ufficiale programmata. Non è una lettura live."
+                    : market.calendarState === "SPECIAL_HOURS_UNCONFIRMED"
+                      ? "Possibile seduta ridotta: controllare gli orari dell&apos;asta prima di qualunque valutazione."
+                      : market.indicativePhase === "REGULAR_WINDOW"
                     ? "Nella finestra oraria normale (non è prova di apertura)"
                     : market.indicativePhase === "OUTSIDE_REGULAR_WINDOW"
                       ? "Fuori dalla finestra oraria normale"
@@ -130,10 +151,10 @@ export default async function MercatiPage() {
                 <p className="mt-3 text-xs font-semibold text-cyan-200">
                   {market.paperQuoteRefreshCandidate ? "Controllare Alpaca + Twelve Data (PAPER)" : "Analisi e ricerca soltanto"}
                 </p>
-                {market.regularHoursSource && (
-                  <a href={market.regularHoursSource} target="_blank" rel="noopener noreferrer"
+                {(market.calendarSource || market.regularHoursSource) && (
+                  <a href={market.calendarSource || market.regularHoursSource || "#"} target="_blank" rel="noopener noreferrer"
                     className="mt-2 inline-block text-xs text-slate-400 underline underline-offset-2">
-                    Orari della borsa
+                    Orari e calendario della borsa
                   </a>
                 )}
               </article>
@@ -143,7 +164,8 @@ export default async function MercatiPage() {
         <p className="text-xs text-slate-500">
           Catalogo strumenti: {instruments.length} titoli attivi, copertura {masterData.coverage}.
           I dati in repository sono snapshot storici: anche una precedente prova valida diventa non valida
-          dopo 120 secondi. Le borse senza calendario/provider certificato restano NON VERIFICATE.
+          dopo 120 secondi. Il calendario annuale 2026 è valido soltanto per le date pubblicate;
+          non autorizza operazioni e non certifica l&apos;apertura reale.
         </p>
       </div>
     </main>
