@@ -6,6 +6,7 @@ import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
+import { describePersistedPaperQuoteHealth } from "@/lib/trading/paper-quote-diagnostics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,6 +36,7 @@ export async function GET() {
   }));
   const marketByMic = new Map(markets.map((row) => [row.mic, row]));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
+  const quoteDiagnostics = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
   const eligibleCoverage = new Set(
     executionCoverage.rows
       .filter((row) => row.paperEligible === true)
@@ -107,6 +109,7 @@ export async function GET() {
       liveTradingAllowed: false,
     },
     paperQuoteGate: quoteGate,
+    paperQuoteDiagnostics: quoteDiagnostics,
     policy: {
       regularHoursAreIndicativeOnly: true,
       holidaysEarlyClosesAndIndividualHaltsNotVerified: true,
@@ -119,6 +122,7 @@ export async function GET() {
       specialSessionHoursNeverAuthorizeOrders: true,
       alpacaPaperClockUsesServerOnlyEncryptedCredentials: true,
       dataNotExecutionGradeUnlessExplicitlyVerified: true,
+      stalePaperDiagnosticsNeverOverrideLiveLock: true,
       orderSubmissionAllowed: false,
       brokerNetworkAllowed: false,
       liveTradingAllowed: false,
