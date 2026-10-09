@@ -10,6 +10,8 @@ on:
     # diagnostic-only and obey the existing provider budget.
     - cron: "45 13 * * 1-5"
     - cron: "45 14 * * 1-5"
+    # Independent mid-session recovery if GitHub defers its opening jobs.
+    - cron: "15 16 * * 1-5"
   push:
     branches:
       - feature/professional-core-consolidation
@@ -18,6 +20,8 @@ on:
       - "package.json"
       - "scripts/check-paper-market-session.mjs"
       - "scripts/check-paper-open-readiness.mjs"
+      - "scripts/verify-market-open-schedule.mjs"
+      - "scripts/test-market-open-schedule.mjs"
       - "scripts/test-paper-open-readiness-orchestration.mjs"
       - "scripts/run-execution-market-data.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
@@ -83,6 +87,16 @@ jobs:
         with:
           node-version: 22
 
+      - name: Audit scheduled market-open sampling delay
+        id: schedule_guard
+        continue-on-error: true
+        env:
+          FENICE_SCHEDULE_CRON: ${{ github.event.schedule }}
+        run: node scripts/verify-market-open-schedule.mjs
+
+      - name: Regression-test scheduler delay detection
+        run: node scripts/test-market-open-schedule.mjs
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
@@ -139,9 +153,16 @@ jobs:
           retention-days: 7
           path: |
             data/paper-market-session.json
+            data/paper-open-schedule-audit.json
             data/paper-fx-evidence.json
             data/paper-open-readiness.json
             data/global-source-health.json
             data/intelligence-quality.json
             data/execution-market-evidence.json
             data/execution-market-coverage.json
+
+      - name: Reject missed scheduled market-open window
+        if: always() && steps.schedule_guard.outcome == 'failure'
+        run: |
+          echo "::error::Market-open readiness schedule missed its sampling window. A closed-market success cannot replace an opening-session audit."
+          exit 1
