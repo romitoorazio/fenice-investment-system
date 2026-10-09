@@ -12,6 +12,10 @@ on:
       - "scripts/test-market-open-schedule.mjs"
       - "scripts/test-paper-open-readiness-orchestration.mjs"
       - "lib/intelligence/persisted-paper-session-gate.mjs"
+      - "lib/trading/runtime-paper-quote-gate.ts"
+      - "scripts/test-runtime-paper-quote-gate.mjs"
+      - "scripts/check-paper-open-readiness.mjs"
+      - "app/api/trading/readiness/route.ts"
 
 permissions:
   contents: read
@@ -33,3 +37,5 @@ jobs:
         run: node scripts/test-market-open-schedule.mjs
       - name: Test readiness orchestration
         run: node scripts/test-paper-open-readiness-orchestration.mjs
+      - name: Test 120-second quote freshness and independent PAPER quorum
+        run: node --experimental-strip-types scripts/test-runtime-paper-quote-gate.mjs
