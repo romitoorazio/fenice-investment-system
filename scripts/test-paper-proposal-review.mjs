@@ -221,8 +221,10 @@ assert.throws(() => decidePaperReview(createPaperReviewDemo(now + 101), "YES", f
 const component = await readFile(new URL("../components/PaperProposalReview.tsx", import.meta.url), "utf8");
 assert.match(component, /proposal\.scope === "DEMO" \|\| data\.reviewDataSource === "LIVE_READONLY"/,
   "PAPER Sì must stay disabled until a visible LIVE_READONLY refresh is present");
-assert.match(component, /Dati mercato aggiornati in sola lettura\. Controlla i dettagli mostrati e premi Sì di nuovo/,
-  "a persisted-data Sì attempt must stop after refresh and require a second explicit confirmation");
+assert.match(component, /La verifica PAPER dal browser è sospesa: quote e costi API sono protetti\. Nessun Sì è stato registrato\./,
+  "without authenticated budget controls, PAPER Sì must stop without saving consent");
+assert.doesNotMatch(component, /\?fresh=1/,
+  "the public browser must not try to bypass the provider budget firewall");
 assert.doesNotMatch(component, /current = fresh;/,
   "a first-click refresh must never flow directly into the simulated YES decision");
 assert.match(component, /Più vicini a una proposta/);

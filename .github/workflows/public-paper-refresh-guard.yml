@@ -1,0 +1,34 @@
+name: Fenice Public PAPER Refresh Security
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/trading/proposals/**"
+      - "components/PaperProposalReview.tsx"
+      - "lib/ui/proposal-route-policy.ts"
+      - "scripts/test-public-paper-refresh-guard.mjs"
+      - ".github/workflows/public-paper-refresh-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/trading/proposals/**"
+      - "components/PaperProposalReview.tsx"
+      - "lib/ui/proposal-route-policy.ts"
+      - "scripts/test-public-paper-refresh-guard.mjs"
+      - ".github/workflows/public-paper-refresh-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  public-refresh-firewall:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Reject public provider refresh and preserve PAPER consent guard
+        run: node --experimental-strip-types scripts/test-public-paper-refresh-guard.mjs
