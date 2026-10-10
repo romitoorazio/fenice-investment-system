@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  createPaperReviewDemo, decidePaperReview, parsePaperReviewHistory, reviewTermsKey,
+  createPaperReviewDemo, decidePaperReview, parsePaperReviewHistory,
   type PaperReviewPayload, type PaperReviewProposal,
 } from "@/lib/ui/paper-review";
 
