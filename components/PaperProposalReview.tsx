@@ -43,8 +43,8 @@ function readHistory() {
   catch { return "__STORAGE_UNAVAILABLE__"; }
 }
 
-async function fetchProposals(signal?: AbortSignal, fresh = false): Promise<PaperReviewPayload> {
-  const response = await fetch(fresh ? "/api/trading/proposals?fresh=1" : "/api/trading/proposals", { cache: "no-store", signal });
+async function fetchProposals(signal?: AbortSignal): Promise<PaperReviewPayload> {
+  const response = await fetch("/api/trading/proposals", { cache: "no-store", signal });
   if (!response.ok) throw new Error("Le proposte non si possono aggiornare. Riprova tra poco.");
   const data = await response.json() as PaperReviewPayload;
   if (data.mode !== "PAPER_REVIEW" || data.liveTradingAllowed !== false || data.brokerOrderSubmissionAllowed !== false || !Array.isArray(data.proposals)) {
@@ -61,7 +61,6 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const actionPending = useRef(false);
-  const liveReviewUntil = useRef(0);
   const rawHistory = useSyncExternalStore(subscribeHistory, readHistory, () => loadingHistory);
   const history = useMemo(() => {
     if (rawHistory === loadingHistory) return null;
@@ -73,7 +72,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
     let refreshing = false;
     const controller = new AbortController();
     async function refresh() {
-      if (refreshing || Date.now() < liveReviewUntil.current) return;
+      if (refreshing) return;
       refreshing = true;
       try {
         const next = await fetchProposals(AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
@@ -95,28 +94,6 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
   const liveReviewConfirmed = Boolean(proposal && (proposal.scope === "DEMO" || data.reviewDataSource === "LIVE_READONLY"));
   const eligible = Boolean(proposal && proposal.blockers.length === 0 && remaining > 0 && !decision && history && liveReviewConfirmed);
 
-  async function refreshMarket() {
-    if (busy || demo) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await fetchProposals(AbortSignal.timeout(10_000), true);
-      setData(next);
-      setNow(Date.now());
-      const liveExpiry = next.reviewDataSource === "LIVE_READONLY"
-        ? Math.max(0, ...next.proposals.map(item => Date.parse(item.expiresAt)).filter(Number.isFinite))
-        : 0;
-      liveReviewUntil.current = liveExpiry;
-      if (next.reviewDataSource !== "LIVE_READONLY") {
-        throw new Error("Il refresh live non è disponibile. Le conferme restano bloccate finché i dati non sono verificati.");
-      }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Aggiornamento mercato non riuscito.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function answer(choice: "YES" | "NO") {
     if (!proposal || actionPending.current || history === null || decision) return;
     actionPending.current = true;
@@ -125,19 +102,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
     try {
       const current = proposal;
       if (choice === "YES" && proposal.scope === "PAPER_QUEUE" && data.reviewDataSource !== "LIVE_READONLY") {
-        const next = await fetchProposals(AbortSignal.timeout(10_000), true);
-        setData(next);
-        setNow(Date.now());
-        const fresh = next.proposals.find((item) => item.id === proposal.id);
-        if (!fresh) throw new Error("La proposta non è più disponibile dopo il controllo dei dati.");
-        liveReviewUntil.current = Math.max(0, ...next.proposals.map(item => Date.parse(item.expiresAt)).filter(Number.isFinite));
-        if (next.reviewDataSource !== "LIVE_READONLY") {
-          throw new Error("Il refresh live non è disponibile. Nessun Sì è stato registrato.");
-        }
-        const termsChanged = reviewTermsKey(fresh) !== reviewTermsKey(proposal);
-        throw new Error(termsChanged
-          ? "Fenice ha aggiornato prezzi, sessione o cambio. Controlla i nuovi dettagli e premi Sì di nuovo se sei d'accordo."
-          : "Dati mercato aggiornati in sola lettura. Controlla i dettagli mostrati e premi Sì di nuovo per confermare la simulazione.");
+        throw new Error("La verifica PAPER dal browser è sospesa: quote e costi API sono protetti. Nessun Sì è stato registrato.");
       }
       const saveDecision = () => {
         const latest = parsePaperReviewHistory(window.localStorage.getItem(storageKey));
@@ -230,7 +195,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
                 <ul className="mt-2 list-disc pl-5">{proposal.aiDecision.thesis.invalidation.map(item => <li key={item}>{item}</li>)}</ul>
               </div> : null}
               {!demo && proposal.scope === "PAPER_QUEUE" && !decision
-                ? <button type="button" disabled={busy} onClick={() => void refreshMarket()} className="w-full rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-3 text-sm font-black text-sky-100 disabled:opacity-40">Aggiorna dati mercato</button>
+                ? <p className="rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-3 text-sm text-sky-100">Il refresh diretto delle API dal browser è sospeso per proteggere sicurezza e quote gratuite. Il laboratorio usa dati PAPER archiviati; il Sì resta bloccato senza una verifica autorizzata. Nessun ordine reale viene inviato.</p>
                 : null}
               {proposal.blockers.length > 0 ? <div className="rounded-xl border border-rose-300/20 bg-rose-300/10 p-4"><p className="font-bold text-rose-200">Conferma sospesa</p><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-100">{proposal.blockers.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
               {decision ? (
