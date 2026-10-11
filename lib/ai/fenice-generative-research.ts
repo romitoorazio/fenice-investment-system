@@ -12,13 +12,13 @@ export const FENICE_AI_MAX_EXPLANATION_LENGTH = 3500;
 
 type Env = Record<string, string | undefined>;
 export type GenerativeAvailability =
-  | "READY" | "FEATURE_DISABLED" | "BUDGET_NOT_CONFIRMED" | "ACCESS_NOT_CONFIGURED" | "BRIDGE_NOT_CONFIGURED";
+  | "READY" | "FEATURE_DISABLED" | "BUDGET_NOT_CONFIRMED" | "ACCESS_NOT_CONFIGURED" | "OPENAI_NOT_CONFIGURED";
 
 export function generativeAvailability(env: Env): GenerativeAvailability {
   if (env.FENICE_GENERATIVE_AI_ENABLED !== "true") return "FEATURE_DISABLED";
   if (env.FENICE_AI_BUDGET_CONFIRMED !== "true") return "BUDGET_NOT_CONFIRMED";
   if (!env.FENICE_AI_OWNER_TOKEN || env.FENICE_AI_OWNER_TOKEN.length < 32) return "ACCESS_NOT_CONFIGURED";
-  if (!env.FENICE_BRIDGE_SECRET || env.FENICE_BRIDGE_SECRET.length < 32) return "BRIDGE_NOT_CONFIGURED";
+  if (!env.OPENAI_API_KEY || env.OPENAI_API_KEY.length < 25) return "OPENAI_NOT_CONFIGURED";
   return "READY";
 }
 
@@ -96,7 +96,7 @@ export type GenerativeResult = {
 export async function generateGroundedExplanation(args: {
   question: string;
   grounded: AnalystReply;
-  bridgeToken: string;
+  providerToken: string;
   now: number;
   fetchImpl?: typeof fetch;
 }): Promise<GenerativeResult> {
@@ -106,13 +106,13 @@ export async function generateGroundedExplanation(args: {
     sourceTimestamp: args.grounded.sourceTimestamp,
     note: "Dati di ricerca non freschi o non supportati; nessuna chiamata generativa effettuata.",
   };
-  if (!canGenerateResearch(args.grounded, args.now) || args.bridgeToken.length < 32) return denied;
+  if (!canGenerateResearch(args.grounded, args.now) || args.providerToken.length < 32) return denied;
   const fetcher = args.fetchImpl ?? fetch;
   try {
-    const response = await fetcher("https://your-app-controller.vercel.app/api/fenice-ai-bridge", {
+    const response = await fetcher("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": "Bearer " + args.bridgeToken,
+        "Authorization": "Bearer " + args.providerToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -120,6 +120,7 @@ export async function generateGroundedExplanation(args: {
         messages: buildGenerativeMessages(args.question, args.grounded),
         max_tokens: FENICE_AI_MAX_RESPONSE_TOKENS,
         temperature: 0.2,
+        store: false,
       }),
       signal: AbortSignal.timeout(18000),
       cache: "no-store",
