@@ -141,6 +141,11 @@ function italianInstant(iso: string | null) {
   }).format(new Date(iso));
 }
 
+// Resolve the request instant outside React render calculation (same convention as /decisioni).
+function serverRequestTime() {
+  return Date.now();
+}
+
 export default async function ReadinessPage() {
   const livePaperClock = await getAlpacaPaperClock();
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
@@ -178,7 +183,7 @@ export default async function ReadinessPage() {
 
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
-  const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, Date.now());
+  const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
   const evidenceDays = calendar.evidenceDays;
   const campaignAgeDays = calendar.elapsedDays;
   const requiredDays = calendar.requiredDays ?? 30;
