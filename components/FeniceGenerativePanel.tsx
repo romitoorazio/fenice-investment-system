@@ -36,7 +36,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         const json = await res.json() as Status;
         if (alive) setStatus(json);
       } catch {
-        if (alive) setStatus({ state: "SETUP_REQUIRED", explanation: "Stato Gateway non disponibile." });
+        if (alive) setStatus({ state: "SETUP_REQUIRED", explanation: "Stato servizio OpenAI non disponibile." });
       }
     }
     void check();
@@ -58,7 +58,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         cache: "no-store",
       });
       if (!res.ok) throw new Error(res.status === 401
-        ? "Codice proprietario non valido." : "Gateway, budget o dati non disponibili.");
+        ? "Codice proprietario non valido." : "OpenAI, credito o dati non disponibili.");
       const payload = await res.json() as Result;
       if (payload.brokerOrderAllowed !== false || payload.committeeVerdict !== payload.grounded.verdict
           || payload.committeeVerdict !== grounded.verdict) {
@@ -77,10 +77,10 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
     <section className="rounded-2xl border border-violet-300/25 bg-violet-300/[0.04] p-5 sm:p-6">
       <h2 className="text-lg font-black text-violet-200">IA generativa · Spiega le decisioni</h2>
       <p className="mt-2 text-sm leading-6 text-slate-300">
-        Quando attiva, il modello genera spiegazioni sulla base delle prove verificate qui sotto.
+        Quando attiva, OpenAI genera brevi spiegazioni sulla base delle prove verificate qui sotto.
         Non legge il conto Directa, non aggiorna prezzi e non decide gli ordini.
       </p>
-      <p className="mt-2 text-xs text-amber-200">Le richieste generative possono consumare crediti Vercel AI Gateway. Nessuna richiesta è automatica.</p>
+      <p className="mt-2 text-xs text-amber-200">Solo le richieste confermate da te possono consumare crediti OpenAI. Modello economico, testo breve, nessuna chiamata automatica.</p>
       {status?.state === "READY" ? (
         <div className="mt-4 space-y-3">
           <label className="block text-xs text-slate-300" htmlFor="fenice-ai-owner-key">
@@ -106,7 +106,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         <div className="mt-4 rounded-xl border border-amber-300/25 bg-black/20 p-4 text-sm text-amber-100">
           <p className="font-bold">Configurazione dell&apos;IA generativa non ancora completa.</p>
           <p className="mt-2 text-xs leading-5 text-slate-300">
-            Servono accesso proprietario riservato e budget AI Gateway autorizzato su Vercel.
+            Serve la configurazione privata delle API OpenAI e del codice proprietario nel progetto Fenice.
             L&apos;analista gratuito basato sui dati continua a funzionare.
           </p>
         </div>
