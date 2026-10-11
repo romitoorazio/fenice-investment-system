@@ -62,6 +62,7 @@ export type AnalystReply = {
   sourceTimestamp: string | null;
   generatedAt: string;
   providerCalls: 0;
+  evidenceQualityVerified: boolean;
   generativeModelConnected: false;
   brokerOrderAllowed: false;
 };
@@ -152,6 +153,7 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
     sourceTimestamp: current ? committee.generatedAt! : null,
     generatedAt: time,
     providerCalls: 0 as const,
+    evidenceQualityVerified: dataGuard,
     generativeModelConnected: false as const,
     brokerOrderAllowed: false as const,
   };
@@ -165,6 +167,7 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
     ...(!current ? ["Comitato non aggiornato o timestamp futuro/non valido."] : []),
     ...(!latestQuality ? ["Valutazione intelligence non aggiornata."] : []),
     ...(!latestHealth || !criticalReady ? ["Quorum delle fonti critiche non verificato ora."] : []),
+    ...(current && latestQuality && latestHealth && !dataGuard ? ["Qualità complessiva delle evidenze insufficiente per generare una nuova analisi IA."] : []),
     ...(!operationalStudyOnly ? ["Nessuna proposta di acquisto operativa verificata dal comitato."] : []),
     "Trading reale Directa bloccato: questo analista non invia ordini.",
   ];
