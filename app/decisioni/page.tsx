@@ -1,5 +1,6 @@
 import Link from "next/link";
 import terminal from "@/data/terminal-intelligence.json";
+import committee from "@/data/investment-committee.json";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
 import executionMarket from "@/data/execution-market-evidence.json";
@@ -18,16 +19,50 @@ type Asset = {
   confidence?: number; price?: number; currency?: string; reason?: string;
   warnings?: string[]; technical?: { observedAt?: string };
 };
+type CommitteeDecision = {
+  symbol: string;
+  decision?: string;
+  committeeScore?: number;
+  entryPlan?: { orderMode?: string; firstTrancheEuro?: number };
+};
 const data = terminal as { generatedAt: string; mode: string; assets: Asset[]; capitalEuro?: number };
+const committeeReport = committee as {
+  generatedAt: string;
+  executionGate: string;
+  buyCandidateCount: number;
+  allDecisions: CommitteeDecision[];
+};
 const catalog = globalCoverage as { coverage: { matchedInstrumentReferences: number; providerMatchedCountries: number; targetCountries: number }; generatedAt: string };
 const instruments = master as { instruments: Array<{status: string; ticker?: string; currency?: string; assetClass?: string; exchangeMic?: string | null }> };
 const groups = [
-  { key: "ACCUMULA", heading: "Studiare per possibile acquisto", explain: "Segnale di ricerca positivo, NON un ordine d'acquisto.", accent: "text-emerald-300" },
-  { key: "MANTIENI", heading: "Mantenere / sorvegliare", explain: "Mantenere ha senso solo se il titolo è già in portafoglio.", accent: "text-sky-300" },
-  { key: "ATTENDI", heading: "Attendere", explain: "Nessun nuovo ingresso proposto dal modello.", accent: "text-amber-300" },
-  { key: "EVITA", heading: "Evitare / valutare la vendita", explain: "Per vendere servono posizione reale, prezzo di carico, costi e situazione fiscale; EVITA non è un ordine di vendita.", accent: "text-rose-300" },
-  { key: "SPECULATIVA", heading: "Solo studio speculativo", explain: "Rischio elevato, mai da interpretare come acquisto approvato.", accent: "text-violet-300" },
+  { key: "CANDIDATO", heading: "Candidati all'acquisto da studiare", explain: "Solo proposte del comitato con piano; NON sono ordini.", accent: "text-emerald-300" },
+  { key: "OSSERVA", heading: "Osservare · non acquistare", explain: "Un segnale tecnico ACCUMULA non supera da solo il comitato.", accent: "text-sky-300" },
+  { key: "ATTENDI", heading: "Attendere · nessun ingresso", explain: "Include analisi prive di decisione finale recente.", accent: "text-amber-300" },
+  { key: "EVITA", heading: "Evitare · non equivale a vendere", explain: "Per una vendita serve la verifica della posizione presso il broker.", accent: "text-rose-300" },
 ];
+
+function decisionGroup(
+  decision: CommitteeDecision | undefined,
+  committeeFresh: boolean,
+  executionGate: string,
+  reportedBuyCandidates: number,
+): string {
+  if (!committeeFresh || !decision) return "ATTENDI";
+  if (decision.decision === "EVITA") return "EVITA";
+  if (decision.decision === "COMPRA") {
+    // The committee is authoritative; a terminal ACCUMULA alone never becomes a BUY.
+    const plan = decision.entryPlan;
+    return executionGate === "PRONTO_CON_CONFERMA"
+      && reportedBuyCandidates > 0
+      && plan?.orderMode === "LIMITE"
+      && typeof plan.firstTrancheEuro === "number"
+      && Number.isFinite(plan.firstTrancheEuro)
+      && plan.firstTrancheEuro > 0
+      ? "CANDIDATO" : "OSSERVA";
+  }
+  if (decision.decision === "OSSERVA" || decision.decision === "MANTIENI") return "OSSERVA";
+  return "ATTENDI";
+}
 
 function formatMoney(value?: number, currency?: string) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
@@ -46,6 +81,20 @@ export default async function DecisioniPage() {
   const now = serverRequestTime();
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
+  const committeeCurrent = isCurrent(now, committeeReport.generatedAt);
+  const committeeBySymbol = new Map(
+    (committeeReport.allDecisions || []).map((row) => [row.symbol.toUpperCase(), row] as const),
+  );
+  const decisionGroupBySymbol = new Map(assets.map((asset) => [
+    asset.symbol,
+    decisionGroup(
+      committeeBySymbol.get(asset.symbol.toUpperCase()),
+      committeeCurrent,
+      committeeReport.executionGate,
+      committeeReport.buyCandidateCount,
+    ),
+  ] as const));
+  const studyCandidates = [...decisionGroupBySymbol.values()].filter((group) => group === "CANDIDATO").length;
   const clock = await getAlpacaPaperClock(now);
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const quoteHealth = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
@@ -90,9 +139,24 @@ export default async function DecisioniPage() {
           <p className="font-bold text-amber-200">{researchCurrent ? "Ricerca giornaliera disponibile · NON prezzi eseguibili" : "RICERCA SCADUTA · NON AGIRE SU QUESTI SEGNALI"}</p>
           <p className="mt-1 text-sm text-slate-300">Ultimo calcolo ricerca: {data.generatedAt} · Ultimo archivio PAPER: {quoteHealth.snapshotObservedAt ?? "non disponibile"} · Controllo quorum: {quoteGate.ready ? "superato sul campione" : "NON verificato ora"} · Ordini REALI: BLOCCATI.</p>
         </section>
+        <section className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+          <p className="font-bold text-cyan-100">
+            {committeeCurrent ? "Decisione finale: Investment Committee" : "COMITATO NON AGGIORNATO · ATTENDERE"}
+          </p>
+          <p className="mt-1 text-sm text-slate-200">
+            Candidati all'acquisto da studiare: <strong>{studyCandidates}</strong> ·
+            Gate: <strong>{committeeCurrent ? committeeReport.executionGate : "DATI SCADUTI"}</strong> ·
+            Ordini reali: <strong>BLOCCATI</strong>.
+          </p>
+          <p className="mt-1 text-xs text-slate-300">
+            Le categorie sotto seguono la decisione del comitato, non la scritta ACCUMULA del motore tecnico.
+            Nessuna proposta qui autorizza da sola un ordine Directa.
+          </p>
+        </section>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             ["Titoli nel motore tecnico", String(assets.length)],
+            ["Candidati comitato (solo studio)", String(studyCandidates)],
             ["Nucleo censito", String(instruments.instruments.filter(x => x.status === "active").length)],
             ["Sedi di negoziazione censite", String(monitoredExchanges)],
             ["Riferimenti mondiali (NON realtime)", catalog.coverage.matchedInstrumentReferences.toLocaleString("it-IT")],
@@ -106,21 +170,31 @@ export default async function DecisioniPage() {
         </section>
         <div className="rounded-xl border border-white/10 p-4 text-sm text-slate-300">
           <p className="font-bold text-white">Significato delle categorie</p>
-          <p className="mt-2">Le etichette sotto derivano dal modello di ricerca, non da operazioni disponibili su Directa. Il numero di strumenti disponibili nel catalogo globale non rappresenta un controllo continuo di tutti i mercati. La vendita è valutabile solo per titoli effettivamente posseduti.</p>
+          <p className="mt-2">Le categorie sotto derivano dal comitato finale: i segnali tecnici sono mostrati solo come contesto, non come istruzioni di trading. Il numero di strumenti disponibili nel catalogo globale non rappresenta un controllo continuo di tutti i mercati. La vendita è valutabile solo per titoli effettivamente posseduti.</p>
           <div className="mt-3 flex flex-wrap gap-3"><Link className="text-cyan-300 underline" href="/mercati">Stato borse e quotazioni</Link><Link className="text-cyan-300 underline" href="/portfolio">Portafoglio</Link><Link className="text-cyan-300 underline" href="/readiness">Sicurezza</Link><Link className="text-cyan-300 underline" href="/global">Copertura globale</Link></div>
         </div>
         {groups.map(group => {
-          const rows = assets.filter(item => item.decision === group.key).sort((a,b)=>(b.unifiedScore || 0)-(a.unifiedScore || 0));
+          const rows = assets.filter(item => decisionGroupBySymbol.get(item.symbol) === group.key).sort((a,b)=>(b.unifiedScore || 0)-(a.unifiedScore || 0));
           return <section key={group.key} className="space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className={`text-xl font-black ${group.accent}`}>{group.heading} ({rows.length})</h2><p className="text-xs text-slate-400">{group.explain}</p></div>
             {rows.length === 0 ? <p className="text-sm text-slate-400">Nessun titolo in questa categoria.</p> :
               <div className="grid gap-3 md:grid-cols-2">{rows.map(asset => {
+                const committeeDecision = committeeBySymbol.get(asset.symbol.toUpperCase());
                 const quoteDate = asset.technical?.observedAt;
                 const fresh = researchCurrent && isCurrent(now, quoteDate);
                 const evidence = evidenceBySymbol.get(asset.symbol);
                 return <article key={asset.symbol} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold">{asset.symbol}</h3><p className="text-sm text-slate-400">{asset.name}</p></div><div className="text-right"><p className="text-lg font-bold">{formatMoney(asset.price,asset.currency)}</p><p className="text-xs text-slate-400">Prezzo campionato</p></div></div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-xs"><span>Punteggio: {asset.unifiedScore ?? "—"}/100</span><span>Confidenza modello: {asset.confidence ?? "—"}%</span><span className={fresh ? "text-amber-300" : "text-rose-300"}>{fresh ? "Dati giornalieri, non eseguibili" : "Prezzo non verificato recente"}</span></div>
+                  <div className="mt-3 rounded-lg border border-cyan-500/20 bg-slate-900 p-3 text-sm">
+                    <p className="font-bold text-cyan-200">
+                      {committeeCurrent && committeeDecision ? `Comitato: ${committeeDecision.decision}` : "Comitato: NON VERIFICATO · ATTENDI"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      Tecnico: {asset.decision} · Score comitato: {committeeCurrent ? committeeDecision?.committeeScore ?? "—" : "—"} ·
+                      {decisionGroupBySymbol.get(asset.symbol) === "CANDIDATO" ? " Solo proposta di studio; esecuzione LIVE vietata." : " Nessun ordine proposto."}
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs"><span>Punteggio tecnico: {asset.unifiedScore ?? "—"}/100</span><span>Confidenza modello: {asset.confidence ?? "—"}%</span><span className={fresh ? "text-amber-300" : "text-rose-300"}>{fresh ? "Dati giornalieri, non eseguibili" : "Prezzo non verificato recente"}</span></div>
                   <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs">
                     <p className="font-bold text-white">{evidence?.paperReviewCandidate ? "PAPER: verifiche informative presenti" : "NESSUN INGRESSO OPERATIVO VERIFICATO"}</p>
                     <p className="mt-1 text-slate-300">{evidence?.marketStatus ?? "Borsa non verificata"}</p>
