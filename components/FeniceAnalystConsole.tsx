@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AnalystReply } from "@/lib/ui/fenice-grounded-analyst";
+import FeniceGenerativePanel from "@/components/FeniceGenerativePanel";
 
 const quickQuestions = [
   "Stato Fenice oggi",
@@ -110,6 +111,8 @@ export default function FeniceAnalystConsole({ initialReply }: { initialReply: A
           </ul>
         </div>
       </section>
+
+      <FeniceGenerativePanel key={question + "|" + reply.generatedAt} question={question} grounded={reply} />
 
       <section className="rounded-2xl border border-white/10 p-5">
         <h2 className="text-sm font-black">Prove verificabili</h2>

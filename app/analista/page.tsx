@@ -35,8 +35,8 @@ export default function FeniceAnalystPage() {
         <FeniceAnalystConsole initialReply={initialReply} />
         <p className="text-xs text-slate-500">
           Il motore interpreta evidenze persistite, non osserva tutte le borse in realtime.
-          La futura integrazione di un LLM generativo richiede configurazione e autorizzazione
-          separata di accesso, costi e sicurezza. Nessun ordine eseguibile da questa pagina.
+          È stata aggiunta un’integrazione generativa AI Gateway opzionale: si attiva solo dopo configurazione
+          dell’accesso proprietario e del budget. Nessun ordine eseguibile da questa pagina.
         </p>
       </div>
     </main>
