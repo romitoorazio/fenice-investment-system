@@ -2,6 +2,7 @@ import Link from "next/link";
 import paper from "@/data/paper-oms-state.json";
 import v7 from "@/data/v7-decision-outcomes.json";
 import calibration from "@/data/calibration-analysis.json";
+import { reconcilePaperPositions, type PaperPositionSnapshot } from "@/lib/ui/paper-position-reconciliation";
 import {
   summarizePerformanceEvidence,
   type PaperOmsSnapshot,
@@ -32,12 +33,14 @@ function evidenceDate(value: string | null) {
 }
 
 export default function PerformancePage() {
+  const requestedAt = serverRequestTime();
   const report = summarizePerformanceEvidence(
     paper as PaperOmsSnapshot,
     v7 as V7OutcomesSnapshot,
     calibration as CalibrationSnapshot,
-    serverRequestTime(),
+    requestedAt,
   );
+  const holdings = reconcilePaperPositions(paper as PaperPositionSnapshot, requestedAt);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-24 pt-8 text-white sm:px-8">
@@ -96,6 +99,61 @@ export default function PerformancePage() {
                 : "Prove di costo insufficienti o incoerenti: nessuna stima aggregata viene mostrata come certa."}
             </p>
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-black">1B. Riconciliazione delle posizioni PAPER</h2>
+          <p className="text-xs text-slate-400">
+            Prove: data/paper-oms-state.json · {evidenceDate(holdings.snapshotAt)} ·
+            Controllo indipendente della corrispondenza fra fill e posizioni salvate
+          </p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className={holdings.status === "RECONCILED"
+              ? "text-sm font-bold text-emerald-200" : "text-sm font-bold text-rose-200"}>
+              {holdings.status === "RECONCILED"
+                ? "Posizioni simulate riconciliate con gli acquisti"
+                : "Riconciliazione non dimostrata — nessuna valorizzazione accettata"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-300">{holdings.reason}</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Posizioni riconciliate: {holdings.reconciledPositionCount ?? "N/D"} ·
+              Lotti BUY PAPER: {holdings.filledBuyLots ?? "N/D"} ·
+              Operazioni chiuse verificabili: {holdings.closedTradeCount ?? "N/D"}
+            </p>
+          </div>
+          {holdings.status === "RECONCILED" && (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/[0.07] text-xs text-slate-300">
+                  <tr>
+                    <th className="p-3">Titolo</th>
+                    <th className="p-3">Quote PAPER</th>
+                    <th className="p-3">Prezzo medio storico</th>
+                    <th className="p-3">Capitale ingresso EUR</th>
+                    <th className="p-3">Costi stimati ingresso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holdings.rows.map(row => (
+                    <tr key={row.symbol} className="border-t border-white/10">
+                      <td className="p-3 font-black">{row.symbol}<span className="ml-1 text-xs font-normal text-slate-400">({row.buyLots} fill)</span></td>
+                      <td className="p-3">{new Intl.NumberFormat("it-IT", { maximumFractionDigits: 6 }).format(row.quantity)}</td>
+                      <td className="p-3">{new Intl.NumberFormat("it-IT", { maximumFractionDigits: 4 }).format(row.weightedFillPrice)} {row.currency}</td>
+                      <td className="p-3">{amount(row.entryNotionalEuro)}</td>
+                      <td className="p-3">{amount(row.estimatedEntryCostsEuro)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-xs leading-5 text-amber-200">
+            Prezzi medi e cambi dei fill sono storici, non quotazioni correnti. La stima dei costi di
+            entrata non equivale ai costi realmente addebitati da Directa. Mancano la quotazione
+            indipendente aggiornata di ciascun titolo, il cambio EUR/USD coevo, la serie del NAV,
+            la riconciliazione di eventuali vendite e un benchmark comparabile. Perciò profitto,
+            perdita non realizzata e rendimento netto restano N/D anche se i lotti coincidono.
+          </p>
         </section>
 
         <section className="space-y-3">
