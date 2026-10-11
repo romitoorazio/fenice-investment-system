@@ -47,7 +47,7 @@ export function verifyFeniceExplanation(
   if (claimedExecution) return { accepted: false, reason: "CLAIMED_EXECUTION" };
 
   const imperative =
-    /\b(?:ti\s+(?:consiglio|suggerisco)|conviene|dovresti|devi|raccomando|sarebbe\s+opportuno|è\s+il\s+momento\s+di)\s+(?:di\s+)?(?:comprare|acquistare|vendere|investire|entrare|aprire\s+una\s+posizione)\b/iu.test(plain)
+    /(?<![\p{L}\p{N}])(?:ti\s+(?:consiglio|suggerisco)|conviene|dovresti|devi|raccomando|sarebbe\s+opportuno|è\s+il\s+momento\s+di)\s+(?:di\s+)?(?:comprare|acquistare|vendere|investire|entrare|aprire\s+una\s+posizione)\b/iu.test(plain)
     || /\b(?:compra|acquista|vendi|investi)\s+(?:subito|adesso|oggi|ora|[A-Z]{2,8})\b/iu.test(output)
     || /\b(?:buy|sell)\s+(?:now|today|[A-Z]{2,8})\b/iu.test(output);
   if (imperative) return { accepted: false, reason: "UNAUTHORIZED_TRADE" };
