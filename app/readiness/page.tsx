@@ -5,6 +5,8 @@ import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
 
 import paperCampaign from "@/data/paper-validation-campaign.json";
+import paperApproval from "@/data/paper-validation-approval.json";
+import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
@@ -130,10 +132,13 @@ function boundedPercent(value: number, target: number) {
   return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
 }
 
-function elapsedCalendarDays(startedAt: string | null | undefined, now = Date.now()) {
-  const startedAtMs = Date.parse(String(startedAt || ""));
-  if (!Number.isFinite(startedAtMs)) return 0;
-  return Math.max(0, Math.floor((now - startedAtMs) / 86_400_000));
+function italianInstant(iso: string | null) {
+  if (!iso) return "non verificabile";
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
 }
 
 export default async function ReadinessPage() {
@@ -173,12 +178,13 @@ export default async function ReadinessPage() {
 
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
-  const evidenceDays = new Set(paperEvidence.map((item) => item.date).filter(Boolean)).size;
-  const campaignAgeDays = elapsedCalendarDays(paperCampaignView.startedAt);
-  const requiredDays = Number(paperCampaignView.requiredDays || 30);
-  const minEvidenceDays = Number(paperCampaignView.minEvidenceDays || 25);
-  const minPaperFills = Number(paperCampaignView.minPaperFills || 10);
-  const paperFills = Number(latestPaperEvidence?.cumulativePaperFilled || 0);
+  const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, Date.now());
+  const evidenceDays = calendar.evidenceDays;
+  const campaignAgeDays = calendar.elapsedDays;
+  const requiredDays = calendar.requiredDays ?? 30;
+  const minEvidenceDays = calendar.requiredEvidenceDays ?? 25;
+  const minPaperFills = calendar.requiredFills ?? 10;
+  const paperFills = calendar.reportedFills;
   const riskRejected = Number(latestPaperEvidence?.cumulativeRiskRejected || 0);
   const preferredSourceFamilies = Number(paperCampaignView.evidencePolicy?.preferredIndependentPaperSourceFamilies || 3);
   const minimumSourceFamilies = Number(paperCampaignView.evidencePolicy?.minimumIndependentPaperSourceFamilies || 2);
@@ -229,6 +235,31 @@ export default async function ReadinessPage() {
               <p className="mt-1 text-xs text-slate-500">{pass}/{report.controls.length} controlli PASS</p>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4" aria-label="Autorizzazione e durata PAPER">
+          <p className="text-sm font-bold text-amber-200">
+            {calendar.ownerActionRequired ? "Autorizzazione PAPER: intervento necessario" : "Autorizzazione PAPER: finestra temporale controllata"}
+          </p>
+          <p className="mt-2 text-sm text-slate-200">
+            Scadenza autorizzazione: <strong>{italianInstant(calendar.authorizationExpiresAt)}</strong>.
+            Prima maturazione possibile dei 30 giorni: <strong>{italianInstant(calendar.earliestMaturityAt)}</strong>.
+          </p>
+          <p className="mt-2 text-sm text-slate-300">
+            {calendar.deadlineBeforeMaturity
+              ? "L'autorizzazione scade PRIMA dei 30 giorni richiesti: serve una decisione esplicita del proprietario per la continuità, conservando tutte le prove."
+              : calendar.authorizationExpired
+                ? "Autorizzazione scaduta: nessun proseguimento autorizzato senza nuova verifica."
+                : calendar.ownerActionRequired
+                  ? "Autorizzazione o calendario non verificabili: controllare i dati prima di procedere."
+                  : "Le prove devono ancora essere validate: rispettare tutte le soglie senza forzare esecuzioni."}
+          </p>
+          <p className="mt-2 text-xs text-amber-100/80">
+            Ultima evidenza registrata: {calendar.latestEvidenceDate ?? "non verificabile"} ·
+            Giorni {calendar.evidenceDays}/{minEvidenceDays} ·
+            Fill {calendar.reportedFills}/{minPaperFills} ·
+            Nessuna modifica automatica alla V6; trading reale sempre bloccato.
+          </p>
         </section>
 
         <section className="rounded-3xl border border-violet-400/20 bg-violet-400/[0.05] p-5">
