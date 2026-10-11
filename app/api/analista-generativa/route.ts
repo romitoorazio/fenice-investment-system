@@ -11,14 +11,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const context = { committee, quality, sources: sourceHealth, campaign, calibration };
-const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff" };
+const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
 const json = (payload: unknown, status = 200) => Response.json(payload, { status, headers });
 const environment = () => ({
   FENICE_GENERATIVE_AI_ENABLED: process.env.FENICE_GENERATIVE_AI_ENABLED,
-  FENICE_AI_BUDGET_CONFIRMED: process.env.FENICE_AI_BUDGET_CONFIRMED,
+  FENICE_AI_MANUAL_ONLY: process.env.FENICE_AI_MANUAL_ONLY,
   FENICE_AI_OWNER_TOKEN: process.env.FENICE_AI_OWNER_TOKEN,
-  AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
-  VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 });
 
 // Readiness is public; NEVER expose whether a particular token is valid or
@@ -33,7 +32,7 @@ export async function GET() {
     brokerOrderAllowed: false,
     explanation: available === "READY"
       ? "Il modello è pronto. Le domande generative richiedono il codice del proprietario."
-      : "Servono attivazione esplicita, budget AI Gateway, codice proprietario e credenziale Gateway/OIDC. Nessun costo è stato attivato da questa pagina.",
+      : "La IA richiede OPENAI_API_KEY, accesso proprietario e consenso all'uso esclusivamente manuale delle API. Nessuna richiesta avviene automaticamente.",
   });
 }
 
@@ -83,9 +82,9 @@ export async function POST(request: Request) {
   }
   const now = Date.now();
   const grounded = answerFeniceResearch(data.question, context, now);
-  const gatewayToken = env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN || "";
+  const openaiToken = env.OPENAI_API_KEY || "";
   const result = await generateGroundedExplanation({
-    question: data.question, grounded, gatewayToken, now,
+    question: data.question, grounded, openaiToken, now,
   });
   return json({ ...result, grounded });
 }
