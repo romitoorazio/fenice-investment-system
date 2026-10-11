@@ -1,4 +1,5 @@
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
+import { feniceSameOrigin, feniceSessionCookieFromRequest, verifyFeniceOwnerSession } from "@/lib/ai/fenice-owner-session";
 import { generateGroundedExplanation, generativeAvailability, isOwnerAuthorized, FENICE_GENERATIVE_MODEL, FENICE_AI_MAX_REQUEST_BYTES } from "@/lib/ai/fenice-generative-research";
 import committee from "@/data/investment-committee.json";
 import quality from "@/data/intelligence-quality.json";
@@ -60,14 +61,18 @@ export async function POST(request: Request) {
   if (generativeAvailability(env) !== "READY") {
     return json({ error: "AI_NOT_CONFIGURED", brokerOrderAllowed: false }, 503);
   }
-  // Explicit owner bearer token: a public Fenice page must never expose a
-  // metered LLM endpoint to anonymous requests.
-  if (!isOwnerAuthorized(request.headers.get("authorization")?.replace(/^Bearer /i, ""), env.FENICE_AI_OWNER_TOKEN)) {
-    return json({ error: "OWNER_AUTH_REQUIRED", brokerOrderAllowed: false }, 401);
-  }
+  // A browser session always needs a same-origin POST (CSRF guard).
+  // Existing bearer clients remain supported without a cookie.
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  if (origin && !feniceSameOrigin(request)) {
     return json({ error: "ORIGIN_DENIED", brokerOrderAllowed: false }, 403);
+  }
+  const bearer = isOwnerAuthorized(request.headers.get("authorization")?.replace(/^Bearer /i, ""), env.FENICE_AI_OWNER_TOKEN);
+  const session = feniceSameOrigin(request) && verifyFeniceOwnerSession(
+    feniceSessionCookieFromRequest(request), env.FENICE_AI_OWNER_TOKEN, Date.now(),
+  );
+  if (!bearer && !session) {
+    return json({ error: "OWNER_AUTH_REQUIRED", brokerOrderAllowed: false }, 401);
   }
   const declaredLength = Number(request.headers.get("content-length") || 0);
   if (!Number.isFinite(declaredLength) || declaredLength > FENICE_AI_MAX_REQUEST_BYTES
