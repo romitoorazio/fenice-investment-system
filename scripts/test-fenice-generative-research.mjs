@@ -42,10 +42,12 @@ const grounded = {
   sourceTimestamp: "2026-10-11T17:45:00.000Z",
   generatedAt: "2026-10-11T18:00:00.000Z",
   providerCalls: 0,
+  evidenceQualityVerified: true,
   generativeModelConnected: false,
   brokerOrderAllowed: false,
 };
 assert.equal(canGenerateResearch(grounded, now), true);
+assert.equal(canGenerateResearch({ ...grounded, evidenceQualityVerified: false }, now), false, "untrusted sources must cost zero");
 assert.equal(canGenerateResearch({ ...grounded, sourceTimestamp: null }, now), false);
 assert.equal(canGenerateResearch({ ...grounded, sourceTimestamp: "2026-10-12T17:45:00.000Z" }, now), false);
 assert.equal(canGenerateResearch({ ...grounded, sourceTimestamp: "2026-10-01T17:45:00.000Z" }, now), false);
@@ -87,6 +89,13 @@ assert.equal(body.store, false);
 assert.equal(body.messages.length, 2);
 assert.equal(body.tools, undefined);
 assert.equal(body.stream, undefined);
+
+const qualityBlocked = await generateGroundedExplanation({
+  question: "ASML", grounded: { ...grounded, evidenceQualityVerified: false },
+  openaiToken, now, fetchImpl: fakeFetch,
+});
+assert.equal(qualityBlocked.state, "UNAVAILABLE");
+assert.equal(calls, 1, "untrusted source data must not call paid provider");
 
 const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, openaiToken, now, fetchImpl: fakeFetch });
 assert.equal(blocked.state, "UNAVAILABLE");
