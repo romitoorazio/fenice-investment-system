@@ -32,6 +32,7 @@ export type QualitySnapshot = { generatedAt?: string; intelligenceConfidence?: n
 export type SourceSnapshot = {
   generatedAt?: string;
   gate?: string;
+  totalSources?: number;
   critical?: { gate?: string; ready?: number; total?: number };
   summary?: { healthy?: number; degraded?: number; failed?: number; unconfigured?: number };
 };
@@ -228,7 +229,7 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
   if (/risk|risch|sicurez|font|qualita|affidabil|concentraz|scadut/.test(lower)) {
     return go("RISK", "CONTROLLI ATTIVI", "Rischi e qualità dati",
       [
-        `Intelligence: ${showNumber(quality.intelligenceConfidence, "/100")}. Fonti sane: ${showNumber(sourceHealth.summary?.healthy)}/${typeof sourceHealth.critical?.total === "number" ? "21 censite in ultimo snapshot" : "totale N/D"}.`,
+        `Intelligence: ${showNumber(quality.intelligenceConfidence, "/100")}. Fonti sane: ${showNumber(sourceHealth.summary?.healthy)}/${showNumber(sourceHealth.totalSources)}.`,
         `Critiche ${showNumber(sourceHealth.critical?.ready)}/${showNumber(sourceHealth.critical?.total)}; stato ${latestHealth ? plain(sourceHealth.critical?.gate) : "non verificato ora"}.`,
         "La salute delle fonti non sostituisce prezzi eseguibili, cambio, sessione del mercato, riconciliazione e rischio. Un segnale di ricerca non autorizza BUY.",
       ], commonBlockers);
