@@ -6,7 +6,7 @@ import {
   feniceSessionCookieFromRequest,
   feniceSessionSetCookie,
   verifyFeniceOwnerSession,
-  FENICE_AI_SESSION_SECONDS,
+  FENICE_AI_SESSION_DAYS,
 } from "@/lib/ai/fenice-owner-session";
 
 export const runtime = "nodejs";
@@ -28,12 +28,25 @@ function enabled() {
 }
 
 export async function GET(request: Request) {
+  const now = Date.now();
   const authenticated = enabled() && verifyFeniceOwnerSession(
     feniceSessionCookieFromRequest(request),
     process.env.FENICE_AI_OWNER_TOKEN,
-    Date.now(),
+    now,
   );
-  return Response.json({ authenticated, sessionDurationHours: 8, brokerOrderAllowed: false }, { headers });
+  const response = Response.json({
+    authenticated,
+    sessionDurationDays: FENICE_AI_SESSION_DAYS,
+    renewsAutomatically: authenticated,
+    brokerOrderAllowed: false,
+  }, { headers });
+  // Renew only already-authenticated browser sessions. A public GET cannot
+  // log someone in and never makes an OpenAI request.
+  if (authenticated) {
+    const renewed = createFeniceOwnerSession(process.env.FENICE_AI_OWNER_TOKEN, now);
+    if (renewed) response.headers.set("Set-Cookie", feniceSessionSetCookie(renewed));
+  }
+  return response;
 }
 
 export async function POST(request: Request) {
@@ -50,7 +63,8 @@ export async function POST(request: Request) {
   if (!session) return Response.json({ error: "SESSION_NOT_AVAILABLE" }, { status: 503, headers });
   const response = Response.json({
     authenticated: true,
-    sessionDurationHours: FENICE_AI_SESSION_SECONDS / 3600,
+    sessionDurationDays: FENICE_AI_SESSION_DAYS,
+    renewsAutomatically: true,
     brokerOrderAllowed: false,
   }, { headers });
   response.headers.set("Set-Cookie", feniceSessionSetCookie(session));
