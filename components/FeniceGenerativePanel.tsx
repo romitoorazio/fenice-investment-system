@@ -58,7 +58,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         cache: "no-store",
       });
       if (!res.ok) throw new Error(res.status === 401
-        ? "Codice proprietario non valido." : "Gateway, budget o dati non disponibili.");
+        ? "Codice proprietario non valido." : "Collegamento OpenAI, crediti o dati non disponibili.");
       const payload = await res.json() as Result;
       if (payload.brokerOrderAllowed !== false || payload.committeeVerdict !== payload.grounded.verdict
           || payload.committeeVerdict !== grounded.verdict) {
@@ -80,7 +80,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         Quando attiva, il modello genera spiegazioni sulla base delle prove verificate qui sotto.
         Non legge il conto Directa, non aggiorna prezzi e non decide gli ordini.
       </p>
-      <p className="mt-2 text-xs text-amber-200">Le richieste generative possono consumare crediti Vercel AI Gateway. Nessuna richiesta è automatica.</p>
+      <p className="mt-2 text-xs text-amber-200">Ogni clic può consumare una piccola quantità di API OpenAI già usate dalla pizzeria. Nessuna richiesta è automatica; il modello è economico e la risposta è breve.</p>
       {status?.state === "READY" ? (
         <div className="mt-4 space-y-3">
           <label className="block text-xs text-slate-300" htmlFor="fenice-ai-owner-key">
@@ -106,7 +106,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
         <div className="mt-4 rounded-xl border border-amber-300/25 bg-black/20 p-4 text-sm text-amber-100">
           <p className="font-bold">Configurazione dell&apos;IA generativa non ancora completa.</p>
           <p className="mt-2 text-xs leading-5 text-slate-300">
-            Servono accesso proprietario riservato e budget AI Gateway autorizzato su Vercel.
+            Serve il collegamento protetto al servizio OpenAI già usato dalla pizzeria.
             L&apos;analista gratuito basato sui dati continua a funzionare.
           </p>
         </div>
