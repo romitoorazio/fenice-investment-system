@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { AnalystReply } from "../ui/fenice-grounded-analyst.ts";
+import { verifyFeniceExplanation } from "./fenice-output-verification.ts";
 
 /**
  * Narrow, read-only gateway to generative EXPLANATIONS. Deterministic committee
@@ -36,6 +37,7 @@ export function canGenerateResearch(reply: AnalystReply, now: number) {
     && snapshot <= now && now - snapshot <= 36 * 3_600_000
     && reply.brokerOrderAllowed === false
     && reply.providerCalls === 0
+    && reply.evidenceQualityVerified === true
     && reply.intent !== "UNSUPPORTED"
     && Array.isArray(reply.evidence) && reply.evidence.length > 0;
 }
@@ -129,11 +131,13 @@ export async function generateGroundedExplanation(args: {
     const data: unknown = await response.json();
     const explanation = cleanGenerativeExplanation(data);
     if (!explanation) return { ...denied, state: "BAD_RESPONSE", note: "Testo del modello non verificabile. Manteniamo il verdetto originale." };
+    const checked = verifyFeniceExplanation(explanation, args.grounded);
+    if (!checked.accepted) return { ...denied, state: "BAD_RESPONSE", note: "Risposta IA rifiutata dal controllo di coerenza (" + checked.reason + "). Resta valida solo la decisione del comitato." };
     return {
       state: "GENERATED", explanation, model: FENICE_GENERATIVE_MODEL,
       committeeVerdict: args.grounded.verdict, brokerOrderAllowed: false,
       sourceTimestamp: args.grounded.sourceTimestamp,
-      note: "Spiegazione generativa soggetta a errori. Solo il comitato deterministico decide i segnali di ricerca; nessuna autorizzazione al trading.",
+      note: "Testo verificato contro raccomandazioni operative, cifre e riferimenti non supportati. Restano possibili errori: solo il comitato decide i segnali di ricerca.",
     };
   } catch {
     return { ...denied, note: "Richiesta generativa interrotta o scaduta; nessun ordine è stato inviato." };
