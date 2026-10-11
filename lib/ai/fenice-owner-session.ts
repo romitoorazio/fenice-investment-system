@@ -4,9 +4,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * Persistent owner browser session, signed with the existing private owner credential.
  * The cookie contains ONLY an issue timestamp and a MAC. Neither the OpenAI
  * API key nor the original owner credential is stored or sent to the browser.
- * Rolling 400-day expiry is refreshed when the owner opens the analyst.\n * Rotation of FENICE_AI_OWNER_TOKEN revokes every issued cookie.
+ * Rolling 400-day expiry is refreshed when the owner opens the analyst.
+ * Rotation of FENICE_AI_OWNER_TOKEN revokes every issued cookie.
  */
-export const FENICE_AI_SESSION_DAYS = 400;\nexport const FENICE_AI_SESSION_SECONDS = FENICE_AI_SESSION_DAYS * 24 * 60 * 60;
+export const FENICE_AI_SESSION_DAYS = 400;
+export const FENICE_AI_SESSION_SECONDS = FENICE_AI_SESSION_DAYS * 24 * 60 * 60;
 export const FENICE_AI_SESSION_COOKIE = "__Host-fenice_ai_session";
 const SESSION_DOMAIN = "fenice-ai-owner-session-v2-persistent";
 
