@@ -11,18 +11,18 @@ import {
 } from "../lib/ai/fenice-generative-research.ts";
 
 const ownerToken = "Fenice-owner-token-test-only-NOT-PRODUCTION";
-const gatewayToken = "oidc-test-only-token-123456";
+const bridgeToken = "restaurant-bridge-test-token-12345678";
 const readyEnv = {
   FENICE_GENERATIVE_AI_ENABLED: "true",
   FENICE_AI_BUDGET_CONFIRMED: "true",
   FENICE_AI_OWNER_TOKEN: ownerToken,
-  VERCEL_OIDC_TOKEN: gatewayToken,
+  FENICE_BRIDGE_SECRET: bridgeToken,
 };
 assert.equal(generativeAvailability({}), "FEATURE_DISABLED");
 assert.equal(generativeAvailability({ ...readyEnv, FENICE_GENERATIVE_AI_ENABLED: "false" }), "FEATURE_DISABLED");
 assert.equal(generativeAvailability({ ...readyEnv, FENICE_AI_BUDGET_CONFIRMED: undefined }), "BUDGET_NOT_CONFIRMED");
 assert.equal(generativeAvailability({ ...readyEnv, FENICE_AI_OWNER_TOKEN: "short" }), "ACCESS_NOT_CONFIGURED");
-assert.equal(generativeAvailability({ ...readyEnv, VERCEL_OIDC_TOKEN: "" }), "GATEWAY_NOT_CONFIGURED");
+assert.equal(generativeAvailability({ ...readyEnv, FENICE_BRIDGE_SECRET: "" }), "BRIDGE_NOT_CONFIGURED");
 assert.equal(generativeAvailability(readyEnv), "READY");
 assert.equal(isOwnerAuthorized(ownerToken, readyEnv.FENICE_AI_OWNER_TOKEN), true);
 assert.equal(isOwnerAuthorized("wrong-but-long-token-not-the-same-xxxxxxx", ownerToken), false);
@@ -58,7 +58,7 @@ assert.match(messages[0].content, /non.*cambiare|Non cambiare/i);
 assert.match(messages[1].content, /investment-committee/);
 assert.match(messages[1].content, /ATTENDERE/);
 assert.doesNotMatch(messages[1].content, /FENICE_AI_OWNER_TOKEN/);
-assert.equal(FENICE_GENERATIVE_MODEL, "google/gemini-2.5-flash-lite");
+assert.equal(FENICE_GENERATIVE_MODEL, "gpt-4o-mini");
 assert.ok(FENICE_AI_MAX_RESPONSE_TOKENS <= 600);
 assert.equal(cleanGenerativeExplanation({ choices: [{ message: { content: "short" } }] }), null);
 assert.equal(cleanGenerativeExplanation({ choices: [{ message: { content: "Il comitato vede ASML come OSSERVA. Le due fonti confermano che i dati non bastano a comprare." } }] }).startsWith("Il comitato"), true);
@@ -72,29 +72,29 @@ const fakeFetch = async (url, init) => {
     choices: [{ message: { content: "Fenice mantiene ASML in OSSERVA e non lo compra. Le prove data/investment-committee.json e data/calibration-analysis.json sono insufficienti per il trading." } }],
   }) };
 };
-const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, gatewayToken, now, fetchImpl: fakeFetch });
+const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, bridgeToken, now, fetchImpl: fakeFetch });
 assert.equal(calls, 1);
 assert.equal(generated.state, "GENERATED");
 assert.equal(generated.committeeVerdict, "ATTENDERE");
 assert.equal(generated.brokerOrderAllowed, false);
 assert.equal(generated.model, FENICE_GENERATIVE_MODEL);
-assert.equal(outgoing.url, "https://ai-gateway.vercel.sh/v1/chat/completions");
+assert.equal(outgoing.url, "https://your-app-controller.vercel.app/api/fenice-ai-bridge");
 assert.equal(outgoing.init.method, "POST");
 const body = JSON.parse(outgoing.init.body);
 assert.equal(body.model, FENICE_GENERATIVE_MODEL);
-assert.equal(body.max_tokens, 500);
+assert.equal(body.max_tokens, 280);
 assert.equal(body.messages.length, 2);
 assert.equal(body.tools, undefined);
 assert.equal(body.stream, undefined);
 
-const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, gatewayToken, now, fetchImpl: fakeFetch });
+const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, bridgeToken, now, fetchImpl: fakeFetch });
 assert.equal(blocked.state, "UNAVAILABLE");
 assert.equal(calls, 1, "stale/invalid research must NEVER spend credits");
-const bad = await generateGroundedExplanation({ question: "ASML", grounded, gatewayToken, now,
+const bad = await generateGroundedExplanation({ question: "ASML", grounded, bridgeToken, now,
   fetchImpl: async () => ({ ok: false, status: 402 }) });
 assert.equal(bad.state, "UNAVAILABLE");
 assert.equal(bad.brokerOrderAllowed, false);
-const modelFailure = await generateGroundedExplanation({ question: "ASML", grounded, gatewayToken, now,
+const modelFailure = await generateGroundedExplanation({ question: "ASML", grounded, bridgeToken, now,
   fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [] }) }) });
 assert.equal(modelFailure.state, "BAD_RESPONSE");
 console.log("Fenice generative explanation, owner access and budget safety: PASS");
