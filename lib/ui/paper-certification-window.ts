@@ -27,7 +27,8 @@ const DAY_MS = 86_400_000;
 function utcTime(value: unknown): number | null {
   if (typeof value !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(value)) return null;
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) && new Date(parsed).toISOString() === new Date(value).toISOString()
+  const canonicalInput = value.includes(".") ? value : value.replace(/Z$/, ".000Z");
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === canonicalInput
     ? parsed : null;
 }
 function validDay(value: unknown): value is string {
