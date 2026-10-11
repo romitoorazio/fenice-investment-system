@@ -1,6 +1,7 @@
 import Link from "next/link";
 import terminal from "@/data/terminal-intelligence.json";
 import committee from "@/data/investment-committee.json";
+import { decisionGroup, type CommitteeDecision } from "@/lib/ui/committee-decision-display";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
 import executionMarket from "@/data/execution-market-evidence.json";
@@ -19,12 +20,6 @@ type Asset = {
   confidence?: number; price?: number; currency?: string; reason?: string;
   warnings?: string[]; technical?: { observedAt?: string };
 };
-type CommitteeDecision = {
-  symbol: string;
-  decision?: string;
-  committeeScore?: number;
-  entryPlan?: { orderMode?: string; firstTrancheEuro?: number };
-};
 const data = terminal as { generatedAt: string; mode: string; assets: Asset[]; capitalEuro?: number };
 const committeeReport = committee as {
   generatedAt: string;
@@ -40,29 +35,6 @@ const groups = [
   { key: "ATTENDI", heading: "Attendere · nessun ingresso", explain: "Include analisi prive di decisione finale recente.", accent: "text-amber-300" },
   { key: "EVITA", heading: "Evitare · non equivale a vendere", explain: "Per una vendita serve la verifica della posizione presso il broker.", accent: "text-rose-300" },
 ];
-
-function decisionGroup(
-  decision: CommitteeDecision | undefined,
-  committeeFresh: boolean,
-  executionGate: string,
-  reportedBuyCandidates: number,
-): string {
-  if (!committeeFresh || !decision) return "ATTENDI";
-  if (decision.decision === "EVITA") return "EVITA";
-  if (decision.decision === "COMPRA") {
-    // The committee is authoritative; a terminal ACCUMULA alone never becomes a BUY.
-    const plan = decision.entryPlan;
-    return executionGate === "PRONTO_CON_CONFERMA"
-      && reportedBuyCandidates > 0
-      && plan?.orderMode === "LIMITE"
-      && typeof plan.firstTrancheEuro === "number"
-      && Number.isFinite(plan.firstTrancheEuro)
-      && plan.firstTrancheEuro > 0
-      ? "CANDIDATO" : "OSSERVA";
-  }
-  if (decision.decision === "OSSERVA" || decision.decision === "MANTIENI") return "OSSERVA";
-  return "ATTENDI";
-}
 
 function formatMoney(value?: number, currency?: string) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
@@ -144,7 +116,7 @@ export default async function DecisioniPage() {
             {committeeCurrent ? "Decisione finale: Investment Committee" : "COMITATO NON AGGIORNATO · ATTENDERE"}
           </p>
           <p className="mt-1 text-sm text-slate-200">
-            Candidati all'acquisto da studiare: <strong>{studyCandidates}</strong> ·
+            Candidati all&apos;acquisto da studiare: <strong>{studyCandidates}</strong> ·
             Gate: <strong>{committeeCurrent ? committeeReport.executionGate : "DATI SCADUTI"}</strong> ·
             Ordini reali: <strong>BLOCCATI</strong>.
           </p>
