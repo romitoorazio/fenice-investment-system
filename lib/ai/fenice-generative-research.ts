@@ -5,20 +5,20 @@ import type { AnalystReply } from "../ui/fenice-grounded-analyst.ts";
  * Narrow, read-only gateway to generative EXPLANATIONS. Deterministic committee
  * verdict and broker lock cannot be changed by model output.
  */
-export const FENICE_GENERATIVE_MODEL = "google/gemini-2.5-flash-lite";
-export const FENICE_AI_MAX_RESPONSE_TOKENS = 500;
+export const FENICE_GENERATIVE_MODEL = "gpt-4o-mini";
+export const FENICE_AI_MAX_RESPONSE_TOKENS = 280;
 export const FENICE_AI_MAX_REQUEST_BYTES = 800;
 export const FENICE_AI_MAX_EXPLANATION_LENGTH = 3500;
 
 type Env = Record<string, string | undefined>;
 export type GenerativeAvailability =
-  | "READY" | "FEATURE_DISABLED" | "BUDGET_NOT_CONFIRMED" | "ACCESS_NOT_CONFIGURED" | "GATEWAY_NOT_CONFIGURED";
+  | "READY" | "FEATURE_DISABLED" | "BUDGET_NOT_CONFIRMED" | "ACCESS_NOT_CONFIGURED" | "BRIDGE_NOT_CONFIGURED";
 
 export function generativeAvailability(env: Env): GenerativeAvailability {
   if (env.FENICE_GENERATIVE_AI_ENABLED !== "true") return "FEATURE_DISABLED";
   if (env.FENICE_AI_BUDGET_CONFIRMED !== "true") return "BUDGET_NOT_CONFIRMED";
   if (!env.FENICE_AI_OWNER_TOKEN || env.FENICE_AI_OWNER_TOKEN.length < 32) return "ACCESS_NOT_CONFIGURED";
-  if (!env.AI_GATEWAY_API_KEY && !env.VERCEL_OIDC_TOKEN) return "GATEWAY_NOT_CONFIGURED";
+  if (!env.FENICE_BRIDGE_SECRET || env.FENICE_BRIDGE_SECRET.length < 32) return "BRIDGE_NOT_CONFIGURED";
   return "READY";
 }
 
@@ -96,7 +96,7 @@ export type GenerativeResult = {
 export async function generateGroundedExplanation(args: {
   question: string;
   grounded: AnalystReply;
-  gatewayToken: string;
+  bridgeToken: string;
   now: number;
   fetchImpl?: typeof fetch;
 }): Promise<GenerativeResult> {
@@ -106,13 +106,13 @@ export async function generateGroundedExplanation(args: {
     sourceTimestamp: args.grounded.sourceTimestamp,
     note: "Dati di ricerca non freschi o non supportati; nessuna chiamata generativa effettuata.",
   };
-  if (!canGenerateResearch(args.grounded, args.now) || args.gatewayToken.length < 20) return denied;
+  if (!canGenerateResearch(args.grounded, args.now) || args.bridgeToken.length < 32) return denied;
   const fetcher = args.fetchImpl ?? fetch;
   try {
-    const response = await fetcher("https://ai-gateway.vercel.sh/v1/chat/completions", {
+    const response = await fetcher("https://your-app-controller.vercel.app/api/fenice-ai-bridge", {
       method: "POST",
       headers: {
-        "Authorization": "Bearer " + args.gatewayToken,
+        "Authorization": "Bearer " + args.bridgeToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
