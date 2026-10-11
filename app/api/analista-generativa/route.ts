@@ -17,8 +17,7 @@ const environment = () => ({
   FENICE_GENERATIVE_AI_ENABLED: process.env.FENICE_GENERATIVE_AI_ENABLED,
   FENICE_AI_BUDGET_CONFIRMED: process.env.FENICE_AI_BUDGET_CONFIRMED,
   FENICE_AI_OWNER_TOKEN: process.env.FENICE_AI_OWNER_TOKEN,
-  AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
-  VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+  FENICE_BRIDGE_SECRET: process.env.FENICE_BRIDGE_SECRET,
 });
 
 // Readiness is public; NEVER expose whether a particular token is valid or
@@ -33,7 +32,7 @@ export async function GET() {
     brokerOrderAllowed: false,
     explanation: available === "READY"
       ? "Il modello è pronto. Le domande generative richiedono il codice del proprietario."
-      : "Servono attivazione esplicita, budget AI Gateway, codice proprietario e credenziale Gateway/OIDC. Nessun costo è stato attivato da questa pagina.",
+      : "Servono configurazione del collegamento OpenAI della pizzeria, accesso proprietario e abilitazione esplicita. Nessun costo viene generato in automatico.",
   });
 }
 
@@ -83,9 +82,9 @@ export async function POST(request: Request) {
   }
   const now = Date.now();
   const grounded = answerFeniceResearch(data.question, context, now);
-  const gatewayToken = env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN || "";
+  const bridgeToken = env.FENICE_BRIDGE_SECRET || "";
   const result = await generateGroundedExplanation({
-    question: data.question, grounded, gatewayToken, now,
+    question: data.question, grounded, bridgeToken, now,
   });
   return json({ ...result, grounded });
 }
