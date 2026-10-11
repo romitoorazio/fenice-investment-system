@@ -102,7 +102,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
       if (!res.ok) {
         if (res.status === 401) setAuthenticated(false);
         throw new Error(res.status === 401
-          ? "Sessione scaduta: inserisci di nuovo il codice."
+          ? "Accesso non più valido: autorizza nuovamente questo browser."
           : "OpenAI, credito o dati non disponibili.");
       }
       const payload = await res.json() as Result;
@@ -133,7 +133,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
           ) : authenticated ? (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold text-emerald-200">
-                Accesso autorizzato su questo browser per 8 ore dalla conferma.
+                Accesso memorizzato su questo browser, con rinnovo automatico a ogni visita.
               </p>
               <button type="button" onClick={() => void logout()}
                 className="rounded-lg border border-white/20 px-3 py-2 text-xs text-slate-300">
@@ -143,7 +143,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
           ) : (
             <>
               <label className="block text-xs text-slate-300" htmlFor="fenice-ai-owner-key">
-                Inserisci il codice una volta ogni 8 ore (accesso temporaneo protetto)
+                Inserisci il codice una sola volta per autorizzare questo browser
               </label>
               <input id="fenice-ai-owner-key" type="password" autoComplete="off"
                 value={accessToken}
@@ -154,7 +154,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
               <button type="button" onClick={() => void login()}
                 disabled={generating || accessToken.length < 32}
                 className="rounded-xl border border-violet-300/40 bg-violet-300 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">
-                {generating ? "Verifica..." : "Accedi per 8 ore"}
+                {generating ? "Verifica..." : "Autorizza questo browser"}
               </button>
             </>
           )}
