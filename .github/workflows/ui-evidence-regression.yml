@@ -49,5 +49,8 @@ jobs:
       - name: Verify optional generative analyst authorization, budget and no broker access
         run: node --experimental-strip-types scripts/test-fenice-generative-research.mjs
 
+      - name: Verify generative responses cannot invent trades, performance or sources
+        run: node --experimental-strip-types scripts/test-fenice-output-verification.mjs
+
       - name: Verify persistent AI owner login cookie safety and browser renewal
         run: node --experimental-strip-types scripts/test-fenice-owner-session.mjs
