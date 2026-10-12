@@ -12,9 +12,12 @@ const quickQuestions = [
   "Guadagni e performance",
 ];
 
-export default function FeniceAnalystConsole({ initialReply }: { initialReply: AnalystReply }) {
+export default function FeniceAnalystConsole({ initialReply, initialQuestion = "Stato Fenice oggi" }: {
+  initialReply: AnalystReply;
+  initialQuestion?: string;
+}) {
   const [draft, setDraft] = useState("");
-  const [question, setQuestion] = useState("Stato Fenice oggi");
+  const [question, setQuestion] = useState(initialQuestion);
   const [reply, setReply] = useState<AnalystReply>(initialReply);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
