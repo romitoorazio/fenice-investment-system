@@ -159,6 +159,10 @@ const malformedSummary = summarizeDecisionOutcomes([
     checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: null } },
   },
   {
+    symbol: "SPY-FAKE", decision: "COMPRA", referencePrice: 100,
+    checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: 9999 } },
+  },
+  {
     symbol: "TSM", decision: "COMPRA", referencePrice: 100,
     checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: 20 } },
   },
