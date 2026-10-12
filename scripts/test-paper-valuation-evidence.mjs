@@ -12,7 +12,8 @@ const paper = { generatedAt: at(85), mode: "PAPER", liveTradingAllowed: false, b
   reconciliation: { balanced: true, breaks: [] }, auditChain: appendAuditEvent([], {
     timestamp: fill.filledAt, eventType: "PAPER_FILLED", entityId: fill.clientOrderId,
     payload: { symbol: "TEST", side: "BUY", filledQuantity: 1, fillPrice: 100, currency: "USD",
-      fxToEuro: 0.9, fxProvider: "twelve-data", fxObservedAt: fill.fxObservedAt, riskAllowed: true } }) };
+      fxToEuro: 0.9, fxProvider: "twelve-data", fxObservedAt: fill.fxObservedAt,
+      estimatedFeeEuro: fill.estimatedFeeEuro, riskAllowed: true } }) };
 const input = { paper, quotes: { generatedAt: at(0), policy: { liveTradingAllowed: false }, observations: [
   { symbol: "TEST", currency: "USD", sourceFamily: "alpaca", eligibility: "PAPER", provenanceVerified: true,
     provenanceMethod: "authenticated-alpaca-iex-latest-quote", price: 110, observedAt: at(10) },
@@ -36,6 +37,13 @@ assert.equal(JSON.stringify(input), before);
 assert.equal(value(input, now + 3600_000).sampleCurrentWithin120Seconds, false, "a replayed sample is never labelled current");
 const blocked = mutate => { const copy = structuredClone(input); mutate(copy); const r = value(copy, now);
   assert.equal(r.state, "INSUFFICIENT"); assert.equal(r.estimatedRecordedQuantityValueEuro, null); assert.equal(r.rows.length, 0); };
+// The observation timestamp must never exceed the timestamp of its own source artifact.
+blocked(x => { x.quotes.generatedAt = at(40); x.quotes.observations[1].observedAt = at(35); });
+blocked(x => { x.fx.generatedAt = at(40); x.fx.ratesToEuro.USD.observedAt = at(35); });
+blocked(x => { x.session.generatedAt = at(40); x.session.evidence.observedAt = at(35); });
+blocked(x => { x.session.generatedAt = at(200); });
+blocked(x => { x.paper.executions[0].estimatedFeeEuro = 999999; });
+blocked(x => { x.paper.auditChain[0].payload.estimatedFeeEuro = 999999; });
 blocked(x => { x.fx.ratesToEuro.USD.observedAt = at(121); });
 blocked(x => { x.fx.ratesToEuro.USD.rate = 0; });
 blocked(x => { x.fx.brokerConnectivityAllowed = true; });
@@ -52,4 +60,17 @@ blocked(x => { x.paper.positions[0].quantity = 2; });
 blocked(x => { x.paper.mode = "LIVE"; });
 blocked(x => { x.quotes.generatedAt = at(-1); });
 blocked(x => { x.paper.generatedAt = "2026-02-30T13:00:00.000Z"; });
-console.log("PAPER recorded quantities: coeval quote/FX/audit valuation and honest historic status PASS");
+// Frozen V6 audit payloads do not carry fee proofs: valuation is permitted, after-fee PnL is not.
+const noFee = structuredClone(input);
+const feeLessPayload = { ...noFee.paper.auditChain[0].payload };
+delete feeLessPayload.estimatedFeeEuro;
+noFee.paper.auditChain = appendAuditEvent([], {
+  timestamp: fill.filledAt, eventType: "PAPER_FILLED", entityId: fill.clientOrderId,
+  payload: feeLessPayload,
+});
+const noFeeReport = value(noFee, now);
+assert.equal(noFeeReport.state, "VALUED_SAMPLE");
+assert.equal(noFeeReport.estimatedEntryFeesEuro, null);
+assert.equal(noFeeReport.changeAfterEstimatedEntryFeesEuro, null);
+assert.equal(noFeeReport.profitabilityProven, false);
+console.log("PAPER recorded quantities: strict source chronology and audited-fee reporting PASS");
