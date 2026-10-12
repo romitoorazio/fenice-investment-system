@@ -2,6 +2,7 @@ import Link from "next/link";
 import terminal from "@/data/terminal-intelligence.json";
 import committee from "@/data/investment-committee.json";
 import { decisionGroup, type CommitteeDecision } from "@/lib/ui/committee-decision-display";
+import { explainBuyConstraints, type BuyBarrierRow } from "@/lib/intelligence/buy-blocker-diagnostics.mjs";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
 import executionMarket from "@/data/execution-market-evidence.json";
@@ -25,7 +26,7 @@ const committeeReport = committee as {
   generatedAt: string;
   executionGate: string;
   buyCandidateCount: number;
-  allDecisions: CommitteeDecision[];
+  allDecisions: (CommitteeDecision & BuyBarrierRow)[];
 };
 const catalog = globalCoverage as { coverage: { matchedInstrumentReferences: number; providerMatchedCountries: number; targetCountries: number }; generatedAt: string };
 const instruments = master as { instruments: Array<{status: string; ticker?: string; currency?: string; assetClass?: string; exchangeMic?: string | null }> };
@@ -54,6 +55,14 @@ export default async function DecisioniPage() {
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
   const committeeCurrent = isCurrent(now, committeeReport.generatedAt);
+  const buyBarrierRows = committeeCurrent
+    ? (committeeReport.allDecisions || []).slice(0, 6).map(row => ({
+        symbol: row.symbol,
+        committeeScore: row.committeeScore,
+        decision: row.decision,
+        diagnostic: explainBuyConstraints(row, committeeCurrent),
+      }))
+    : [];
   const committeeBySymbol = new Map(
     (committeeReport.allDecisions || []).map((row) => [row.symbol.toUpperCase(), row] as const),
   );
@@ -123,6 +132,46 @@ export default async function DecisioniPage() {
           <p className="mt-1 text-xs text-slate-300">
             Le categorie sotto seguono la decisione del comitato, non la scritta ACCUMULA del motore tecnico.
             Nessuna proposta qui autorizza da sola un ordine Directa.
+          </p>
+        </section>
+        <section aria-label="Diagnostica ostacoli al COMPRA" className="rounded-2xl border border-violet-400/25 bg-violet-400/[0.04] p-4">
+          <h2 className="text-lg font-black text-violet-200">Perché Fenice non compra? · FENICE100K</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Analisi delle regole già in vigore, senza cambiare soglie né suggerire ordini.
+            Mostra dove manca una condizione per COMPRA, non quanti profitti potresti ottenere.
+            Le differenze di punteggio NON rappresentano probabilità di guadagno.
+          </p>
+          {committeeCurrent ? (
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {buyBarrierRows.map(row => (
+                <article key={row.symbol} className="rounded-xl border border-white/10 bg-slate-950/60 p-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-black text-white">{row.symbol}</p>
+                    <p className="text-xs text-slate-400">Comitato: {row.decision} · Score {row.committeeScore ?? "N/D"}/100</p>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-amber-200">Nessun ordine autorizzato</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-slate-300">
+                    {(row.diagnostic.reasons.length
+                      ? row.diagnostic.reasons
+                      : ["Soglie di ricerca soddisfatte: servono comunque verifica prezzo, rischio e autorizzazioni separate."]
+                    ).map(reason => <li key={reason}>{reason}</li>)}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm font-bold text-amber-200">
+              Comitato scaduto: nessuna diagnosi su cui agire. Aggiornare i dati prima di esaminare opportunità.
+            </p>
+          )}
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Soglie mostrate: score ≥78, confidenza ≥72, rischio ≤58, valutazione ≥55,
+            segnale tecnico ACCUMULA e DCF non profondamente negativo.
+            Gate Comitato: {committeeCurrent ? committeeReport.executionGate : "SCADUTO"}.
+            Non sono previsioni di rendimento né prove di disponibilità sul conto Directa.
+            <Link href="/performance" className="ml-2 font-semibold text-violet-200 underline">
+              Verifica gli esiti storici e i costi →
+            </Link>
           </p>
         </section>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
