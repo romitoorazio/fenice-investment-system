@@ -21,8 +21,11 @@ export const DEFAULT_RISK_LIMITS: RiskLimits = {
 const finitePositive = (value: unknown) => Number.isFinite(Number(value)) && Number(value) > 0;
 
 function quoteAgeSeconds(observedAt: string, now = Date.now()): number {
+  if (typeof observedAt !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(observedAt)
+    || !Number.isSafeInteger(now) || now < 0 || now > 8.64e15) return Number.POSITIVE_INFINITY;
   const observed = Date.parse(observedAt);
-  if (!Number.isFinite(observed) || !Number.isFinite(now)) return Number.POSITIVE_INFINITY;
+  const canonical = observedAt.includes(".") ? observedAt : observedAt.replace(/Z$/, ".000Z");
+  if (!Number.isFinite(observed) || observed < 0 || new Date(observed).toISOString() !== canonical) return Number.POSITIVE_INFINITY;
 
   const ageSeconds = (now - observed) / 1000;
   return ageSeconds >= 0 ? ageSeconds : Number.POSITIVE_INFINITY;
@@ -72,7 +75,9 @@ export function evaluatePreTradeRisk(
     { code: "data-confidence", passed: context.dataConfidence >= limits.minDataConfidence, message: "Data confidence is below the execution threshold.", observed: context.dataConfidence, limit: limits.minDataConfidence },
     { code: "independent-sources", passed: context.independentSources >= limits.minIndependentSources, message: "Insufficient independent sources.", observed: context.independentSources, limit: limits.minIndependentSources },
     { code: "risk-score", passed: context.riskScore <= limits.maxRiskScore, message: "Instrument risk score exceeds the paper execution limit.", observed: context.riskScore, limit: limits.maxRiskScore },
-    { code: "quote-freshness", passed: quoteAge <= limits.maxQuoteAgeSeconds, message: "Market quote is stale.", observed: Number(quoteAge.toFixed(1)), limit: limits.maxQuoteAgeSeconds },
+    { code: "quote-freshness", passed: typeof limits.maxQuoteAgeSeconds === "number"
+      && Number.isFinite(limits.maxQuoteAgeSeconds) && limits.maxQuoteAgeSeconds > 0
+      && quoteAge <= limits.maxQuoteAgeSeconds, message: "Market quote time or freshness limit is invalid, future or stale.", observed: Number(quoteAge.toFixed(1)), limit: limits.maxQuoteAgeSeconds },
     { code: "no-divergence", passed: context.dataDivergent === false, message: "Cross-source data divergence blocks execution.", observed: context.dataDivergent, limit: false },
     { code: "source-freshness", passed: context.sourceStale === false, message: "Stale source data blocks execution.", observed: context.sourceStale, limit: false },
   ];
