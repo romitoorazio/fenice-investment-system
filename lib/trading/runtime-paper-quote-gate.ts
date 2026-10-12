@@ -57,9 +57,10 @@ export function assessRuntimePaperQuoteGate(
   const structureValid = typeof requested === "number" && Number.isSafeInteger(requested) && requested >= 3
     && typeof reportedEligible === "number" && Number.isSafeInteger(reportedEligible)
     && reportedEligible >= 0 && reportedEligible <= requested
-    && coverageRows.length > 0 && coverageRows.length <= requested
+    && coverageRows.length > 0 && coverageRows.length === requested
     && requestedSet.size === coverageRows.length && !requestedSet.has("")
-    && coverageRows.every(row => typeof row.paperEligible === "boolean")
+    && coverageRows.every(row => typeof row.paperEligible === "boolean"
+      && /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(String(row.symbol || "").trim().toUpperCase()))
     && Array.isArray(evidence?.observations)
     && Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies);
   if (!structureValid) reasons.push("PAPER coverage symbol identities or counters are invalid");

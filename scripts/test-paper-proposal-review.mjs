@@ -46,6 +46,22 @@ for (const unsafe of [
   assert.throws(() => decidePaperReview(checked, "YES", [], now), /non è più valida/);
 }
 assert.deepEqual(parsePaperReviewHistory(null), []);
+const proofNow = Date.parse("2026-03-02T13:00:00.000Z");
+const proofDemo = createPaperReviewDemo(proofNow);
+const proofProposal = { ...proofDemo, scope: "PAPER_QUEUE", expiresAt: new Date(proofNow + 30_000).toISOString(),
+  evidence: { quotes: ["alpaca", "twelve-data"].map(sourceFamily => ({ sourceFamily, price: 49.9, observedAt: new Date(proofNow).toISOString() })),
+    sessionObservedAt: new Date(proofNow).toISOString(), fxObservedAt: new Date(proofNow).toISOString() } };
+assert.deepEqual(buildPaperReviewProposal(proofProposal, proofNow).blockers, []);
+for (const field of ["quote", "session", "fx"]) {
+  const invalid = structuredClone(proofProposal);
+  const impossible = "2026-02-30T13:00:00.000Z";
+  if (field === "quote") invalid.evidence.quotes[0].observedAt = impossible;
+  if (field === "session") invalid.evidence.sessionObservedAt = impossible;
+  if (field === "fx") invalid.evidence.fxObservedAt = impossible;
+  const blocked = buildPaperReviewProposal(invalid, proofNow);
+  assert(blocked.blockers.length > 0, `${field} proof cannot normalize an impossible date`);
+  assert.throws(() => decidePaperReview(blocked, "YES", [], proofNow), /non è più valida/);
+}
 const history = JSON.stringify({ version: 1, mode: "PAPER_REVIEW", records: [yes] });
 assert.equal(parsePaperReviewHistory(history)[0].termsKey, reviewTermsKey(demo));
 assert.throws(() => parsePaperReviewHistory("broken-json"));

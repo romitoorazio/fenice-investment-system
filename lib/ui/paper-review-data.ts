@@ -8,7 +8,7 @@ import { evaluateMarketSession, type MarketSessionEvidence } from "../trading/ma
 import { verifyAuditChain } from "../trading/audit-chain.ts";
 import { evaluateFeniceAIThesis, validateFeniceAIThesis, type FeniceAIThesis } from "../ai-intelligence-core.ts";
 import { DEFAULT_RISK_LIMITS } from "../trading/risk-engine.ts";
-import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk } from "./paper-temporal-risk.ts";
+import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk, paperTimestamp } from "./paper-temporal-risk.ts";
 import { deduplicateExecutionEvidence, type ExecutionInstrument, type ExecutionMarketEvidence } from "../trading/execution-market-data.ts";
 import type { ProposedOrder, RiskContext } from "../trading/types.ts";
 import { buildPaperReviewProposal, type PaperReviewPayload } from "./paper-review.ts";
@@ -51,11 +51,13 @@ async function readJson<T>(root: string, name: string): Promise<T | null> {
   } catch { return null; }
 }
 const positive = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
-const fresh = (timestamp: unknown, now: number, maxAgeMs: number) => typeof timestamp === "string"
-  && Number.isFinite(Date.parse(timestamp)) && Date.parse(timestamp) <= now && now - Date.parse(timestamp) <= maxAgeMs;
+const fresh = (timestamp: unknown, now: number, maxAgeMs: number) => {
+  const at = paperTimestamp(timestamp);
+  return at !== null && at <= now && now - at <= maxAgeMs;
+};
 
 function refreshableQueuedOrder(order: ProposedOrder, now: number) {
-  const requestedAt = Date.parse(String(order?.requestedAt || ""));
+  const requestedAt = paperTimestamp(order?.requestedAt) ?? NaN;
   return Number.isFinite(requestedAt)
     && requestedAt <= now
     && now - requestedAt < REVIEW_REFRESH_ORDER_MAX_AGE_MS;

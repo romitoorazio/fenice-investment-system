@@ -9,6 +9,7 @@ import {
   type ExecutionMarketEvidence,
 } from "../trading/execution-market-data.ts";
 import { evaluateMarketSession, type MarketSessionDecision, type MarketSessionEvidence } from "../trading/market-session.ts";
+import { normalizePaperProviderTimestamp, paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
 
 export type PaperReviewProviderCredentials = {
   alpacaKeyId?: string;
@@ -98,11 +99,11 @@ function providerTimestamp(value: unknown): string | null {
 }
 
 function freshTimestamp(value: unknown, now: number, maxAgeSeconds: number): string | null {
-  const raw = clean(value);
-  const parsed = Date.parse(raw);
-  const ageSeconds = Number.isFinite(parsed) ? (now - parsed) / 1000 : Number.POSITIVE_INFINITY;
-  return Number.isFinite(parsed) && ageSeconds >= 0 && ageSeconds <= maxAgeSeconds
-    ? new Date(parsed).toISOString()
+  const normalized = normalizePaperProviderTimestamp(value);
+  const parsed = paperTimestamp(normalized);
+  const ageSeconds = parsed !== null ? (now - parsed) / 1000 : Number.POSITIVE_INFINITY;
+  return parsed !== null && ageSeconds >= 0 && ageSeconds <= maxAgeSeconds
+    ? normalized
     : null;
 }
 
@@ -309,7 +310,7 @@ export async function fetchFreshPaperReviewContext({
   now?: number;
   fetchImpl?: FetchLike;
 }): Promise<FreshPaperReviewContext> {
-  if (!Number.isFinite(now)) throw new Error("INVALID_REVIEW_CONTEXT_CLOCK");
+  if (!Number.isSafeInteger(now) || now < 0 || now > 8.64e15) throw new Error("INVALID_REVIEW_CONTEXT_CLOCK");
   const requested = uniqueInstruments(instruments);
   const errors: string[] = [];
   const observations: ExecutionMarketEvidence[] = [];

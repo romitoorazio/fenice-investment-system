@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { evaluateStrictPaperPreTradeRisk as assess, paperTimestamp,
   assessCoreTemporalRiskSafety, applyTemporalRiskReadiness } from "../lib/ui/paper-temporal-risk.ts";
 import { buildInstitutionalReadiness } from "../lib/trading/readiness-evidence.ts";
+import { normalizePaperProviderTimestamp } from "../lib/trading/paper-timestamp-integrity.ts";
 
 const now = Date.parse("2026-10-12T13:00:00.000Z");
 const order = { clientOrderId: "offline-fixture", symbol: "TEST", side: "BUY", orderType: "LIMIT",
@@ -25,6 +26,11 @@ for (const requestedAt of [new Date(now + 1).toISOString(), new Date(now - 120_0
 }
 assert.equal(paperTimestamp("2026-02-30T13:00:00Z"), null);
 assert.equal(paperTimestamp("2026-10-12T13:00:00Z"), now);
+assert.equal(normalizePaperProviderTimestamp("2026-10-12T09:00:00.123456-04:00"), "2026-10-12T13:00:00.123Z");
+assert.equal(normalizePaperProviderTimestamp("2026-10-12T13:00:00.123456789Z"), "2026-10-12T13:00:00.123Z");
+assert.equal(normalizePaperProviderTimestamp("2026-02-30T09:00:00.123456-04:00"), null);
+assert.equal(normalizePaperProviderTimestamp("2026-10-12T13:00:00"), null);
+assert.equal(normalizePaperProviderTimestamp("2026-10-12T24:00:00Z"), null);
 assert.equal(assess({ ...order, mode: "LIVE" }, context, undefined, now).allowed, false);
 assert.equal(assess(order, { ...context, brokerConnectivityAllowed: true }, undefined, now).allowed, false);
 const state = assessCoreTemporalRiskSafety();

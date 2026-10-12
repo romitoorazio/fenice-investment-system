@@ -83,6 +83,21 @@ const shortExpired = assess(campaign, approval, Date.parse("2026-10-26T12:00:00.
 assert.equal(shortExpired.approvalRenewalRequiredForMissingFills, true);
 assert.equal(shortExpired.ownerActionRequired, true);
 assert.equal(shortExpired.reportedFills, 6, "maturation cannot manufacture the missing fills");
+const lateFill = { ...campaign, dailyEvidence: [...campaign.dailyEvidence,
+  { date: "2026-10-25", observedAt: "2026-10-25T10:00:00.000Z", cumulativePaperFilled: 10 }] };
+const late = assess(lateFill, approval, Date.parse("2026-10-26T12:00:00.000Z"));
+assert.equal(late.reportedFills, 10);
+assert.equal(late.authorizedReportedFills, 6);
+assert.equal(late.postExpiryFillIncreaseDetected, true);
+assert.equal(late.ownerActionRequired, true);
+assert.equal(late.numericalTargetsMet, false);
+assert.equal(late.state, "POST_EXPIRY_FILL_INCREASE_REVIEW_REQUIRED");
+const regressed = { ...complete, dailyEvidence: [...complete.dailyEvidence,
+  { date: "2026-10-25", observedAt: "2026-10-25T10:00:00.000Z", cumulativePaperFilled: 9 }] };
+const regression = assess(regressed, approval, Date.parse("2026-10-26T12:00:00.000Z"));
+assert.equal(regression.fillCounterRegressionDetected, true);
+assert.equal(regression.ownerActionRequired, true);
+assert.equal(regression.numericalTargetsMet, false);
 assert.equal(assess({ ...campaign, startedAt: "2026-10-27T15:40:35.178Z" }, approval, current).state, "INVALID_POLICY");
 
 console.log("Fenice PAPER authorization calendar: PASS");
