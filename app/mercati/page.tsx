@@ -3,6 +3,8 @@ import masterData from "@/data/instrument-master.json";
 import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import executionMarket from "@/data/execution-market-evidence.json";
 import executionCoverage from "@/data/execution-market-coverage.json";
+import europeCoverage from "@/data/europe-market-coverage.json";
+import { buildMarketCoveragePlan } from "@/lib/ui/market-coverage-plan";
 import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
@@ -32,6 +34,7 @@ export default async function MercatiPage() {
   }));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const quoteDiagnostics = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
+  const coveragePlan = buildMarketCoveragePlan(executionCoverage, instruments, now);
   const europeanCalendarCount = sessions.filter((row) => ["XMIL", "XPAR", "XETR"].includes(row.mic)
     && row.calendarAnnualScheduleVerified).length;
   const officialClosedToday = sessions.filter((row) => row.calendarState === "OFFICIAL_CLOSED").length;
@@ -107,6 +110,46 @@ export default async function MercatiPage() {
           <p className="mt-3 text-xs text-slate-400">
             L&apos;orologio Alpaca può essere aggiornato, ma non sostituisce prezzi recenti,
             concordanti e con provenienza verificata. LIVE e ordini restano bloccati.
+          </p>
+        </section>
+
+        <section aria-label="Piano copertura titoli e fonti" className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
+          <h2 className="text-lg font-black text-cyan-100">Copertura mondiale: cosa possiamo davvero verificare</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Catalogo europeo: {europeCoverage.activePrimaryMarkets} mercati primari in {europeCoverage.coveredCountries} paesi;
+            sono riferimenti di ricerca, non connessioni realtime certificate.
+            Nucleo di quotazioni PAPER campionate: {coveragePlan.sampleEligibleAtCapture}/{coveragePlan.requestedSymbols}.
+            In questo istante campioni ancora recenti: {coveragePlan.sampleEligibleNow}.
+          </p>
+          <p className="mt-2 text-xs text-amber-200">
+            Ultima raccolta prezzi: {coveragePlan.snapshotGeneratedAt ?? "non verificabile"} UTC.
+            {coveragePlan.snapshotCurrent ? " Campione recente, soltanto informativo." : " Campione scaduto: non mostra prezzi negoziabili adesso."}
+            Nessuna richiesta aggiuntiva ai provider viene avviata aprendo questa pagina.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {coveragePlan.rows.map((row, index) => (
+              <article key={row.symbol + index} className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div><p className="font-bold text-white">{row.symbol} <span className="text-xs font-normal text-slate-400">{row.exchangeMic ?? "MIC da verificare"}</span></p>
+                    <p className="text-xs text-slate-400">{row.exchangeName ?? row.name ?? "Identità da verificare"} · {row.currency ?? "Valuta da verificare"}</p>
+                  </div>
+                  <span className={row.status === "RECENT_SAMPLE_ONLY" ? "text-xs font-bold text-emerald-300" : "text-xs font-bold text-amber-200"}>
+                    {row.status === "RECENT_SAMPLE_ONLY" ? "CAMPIONE RECENTE"
+                      : row.status === "EXPIRED_SAMPLE" ? "CAMPIONE SCADUTO"
+                      : row.status === "IDENTITY_REVIEW" ? "IDENTITÀ DA VALIDARE" : "SOLO RICERCA"}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-300">{row.action}</p>
+                <p className="mt-1 text-xs text-slate-500">Fonti autorizzate al momento del campione: {row.verifiedFamiliesAtCapture.join(", ") || "nessuna"}
+                  {row.reasons.length ? " · " + row.reasons[0] : ""}</p>
+                <Link href={`/analista?symbol=${encodeURIComponent(row.symbol)}`}
+                  className="mt-2 inline-block text-xs font-semibold text-cyan-300 underline">Analisi titolo, senza ordine →</Link>
+              </article>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">
+            Per ampliare la copertura servono prove di licenza, MIC, valuta, freschezza e almeno due fonti indipendenti per ogni titolo candidato.
+            Alcune borse sono coperte soltanto a livello di identità; nessun feed a pagamento viene attivato automaticamente.
           </p>
         </section>
 
