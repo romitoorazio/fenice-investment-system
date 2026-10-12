@@ -2,6 +2,13 @@
 
 Software di supporto decisionale e validazione PAPER per il **Progetto 100.000 €** di Orazio.
 
+## Parola di continuità: **FENICE100K**
+
+Il protocollo operativo stabile è [**docs/FENICE100K.md**](docs/FENICE100K.md). Scrivendo **FENICE100K** in chat si chiede di riprendere lo sviluppo del progetto verso l'obiettivo **EUR 10.000 → EUR 100.000 in 10 anni**, selezionando il prossimo miglioramento economico verificabile in base allo stato reale di GitHub/Vercel.
+
+**Prima release obiettivo: 31 ottobre 2026, come piattaforma di ricerca e supporto decisionale; non è una promessa di profitto e non autorizza ordini reali.** L'autorizzazione PAPER V6 scade il 24 ottobre, prima della minima maturazione temporale del 25: vedere [issue #226](https://github.com/romitoorazio/fenice-investment-system/issues/226). Non cambiare automaticamente approvazioni o fingerprint.
+
+
 Fenice analizza autonomamente mercati, macroeconomia, geopolitica, fondamentali, aziende innovative e strumenti emergenti con un orizzonte di lungo periodo. Il capitale reale resta separato dalla campagna di validazione.
 
 ## Regola fondamentale
