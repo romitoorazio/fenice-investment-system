@@ -182,7 +182,7 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-black/20 p-3">
-              <p className="text-xs text-slate-400">Profitto netto dimostrato rispetto all'obiettivo</p>
+              <p className="text-xs text-slate-400">Profitto netto dimostrato rispetto all&apos;obiettivo</p>
               <p className="mt-1 text-lg font-black text-amber-200">NON VERIFICATO</p>
             </div>
             <div className="rounded-xl bg-black/20 p-3">
