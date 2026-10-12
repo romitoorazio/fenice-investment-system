@@ -43,6 +43,9 @@ jobs:
       - name: Verify optional research fallback cannot substitute stale prices or bypass provenance
         run: node scripts/test-research-fallback-safety.mjs
 
+      - name: Verify GDELT rate limits and news provenance cannot bypass research safety
+        run: node scripts/test-gdelt-recovery-policy.mjs
+
       - name: Verify PAPER authorization expiry and minimum campaign duration
         run: node --experimental-strip-types scripts/test-paper-certification-window.mjs
 
