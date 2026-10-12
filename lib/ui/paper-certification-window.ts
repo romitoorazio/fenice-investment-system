@@ -154,10 +154,10 @@ export function summarizePaperCertificationWindow(
     || postExpiryFillIncreaseDetected || fillCounterRegressionDetected || fillCounterHistoryInvalid;
   const state = !calendarValid || !earliestValid || !approvalValid
     ? "INVALID_POLICY"
-    : evidenceIntegrityReviewRequired ? "EVIDENCE_INTEGRITY_REVIEW_REQUIRED"
     : fillCounterHistoryInvalid ? "FILL_COUNTER_HISTORY_REVIEW_REQUIRED"
     : fillCounterRegressionDetected ? "FILL_COUNTER_REGRESSION_REVIEW_REQUIRED"
     : postExpiryFillIncreaseDetected ? "POST_EXPIRY_FILL_INCREASE_REVIEW_REQUIRED"
+    : evidenceIntegrityReviewRequired ? "EVIDENCE_INTEGRITY_REVIEW_REQUIRED"
       : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY"
       : authorizationExpired
         ? fillTargetReportedMet ? "POST_APPROVAL_OBSERVATION" : "AUTHORIZATION_EXPIRED"
