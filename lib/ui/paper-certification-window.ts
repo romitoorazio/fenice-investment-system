@@ -24,7 +24,7 @@ type Campaign = {
   minEvidenceDays?: number;
   minPaperFills?: number;
   dailyEvidence?: EvidenceRow[];
-  baselineFingerprint?: { complete?: boolean; digest?: string };
+  baselineFingerprint?: { complete?: boolean; digest?: string } | null;
 };
 type Approval = {
   approved?: boolean;
