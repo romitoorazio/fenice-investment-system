@@ -7,6 +7,7 @@ import {
   summarizeDecisionOutcomes,
   updateDecisionOutcomeLedger,
 } from "../lib/intelligence/decision-outcomes.mjs";
+import { evaluateDecisionBenchmarkEdge } from "../lib/intelligence/decision-edge-research.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
@@ -96,6 +97,7 @@ const report = {
   },
   ledgerRecordCount: ledger.recordCount,
   horizons,
+  researchEdge: evaluateDecisionBenchmarkEdge(ledger.records, { now }),
 };
 
 await writeFile(path.join(dataDir, "v7-decision-outcomes-ledger.json"), `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
