@@ -254,6 +254,8 @@ export default async function ReadinessPage() {
           <p className="mt-2 text-sm text-slate-300">
             {calendar.state === "INVALID_POLICY"
               ? "Autorizzazione o calendario non verificabili: nessun nuovo probe consentito."
+              : calendar.fillCounterHistoryInvalid
+                ? "Lo storico dei conteggi contiene valori invalidi o prove discordanti: verificare il registro prima di considerare completa la campagna."
               : calendar.fillCounterRegressionDetected
                 ? "Il conteggio dei fill diminuisce rispetto alle prove precedenti: verificare il registro prima di considerare completa la campagna."
               : calendar.postExpiryFillIncreaseDetected

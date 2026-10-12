@@ -98,6 +98,18 @@ const regression = assess(regressed, approval, Date.parse("2026-10-26T12:00:00.0
 assert.equal(regression.fillCounterRegressionDetected, true);
 assert.equal(regression.ownerActionRequired, true);
 assert.equal(regression.numericalTargetsMet, false);
+const earlierRegression = structuredClone(complete);
+earlierRegression.dailyEvidence[23].cumulativePaperFilled = 12;
+const earlier = assess(earlierRegression, approval, Date.parse("2026-10-26T12:00:00.000Z"));
+assert.equal(earlier.authorizedReportedFills, 10);
+assert.equal(earlier.fillCounterRegressionDetected, true);
+assert.equal(earlier.numericalTargetsMet, false);
+const renewal = { ...approval, approvedAt: "2026-10-26T09:00:00.000Z", expiresAt: "2026-11-03T22:59:59.000Z" };
+const renewed = assess(campaign, renewal, Date.parse("2026-10-26T12:00:00.000Z"));
+assert.equal(renewed.approvalValid, true, "a later approval may cover an existing campaign without resetting its start");
+assert.equal(renewed.newProbeWindowOpen, true);
+assert.equal(renewed.earliestMaturityAt, "2026-10-25T15:40:35.178Z");
+assert.equal(renewed.reportedFills, 6);
 assert.equal(assess({ ...campaign, startedAt: "2026-10-27T15:40:35.178Z" }, approval, current).state, "INVALID_POLICY");
 
 console.log("Fenice PAPER authorization calendar: PASS");

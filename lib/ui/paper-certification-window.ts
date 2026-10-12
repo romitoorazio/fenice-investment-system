@@ -69,7 +69,6 @@ export function summarizePaperCertificationWindow(
   const authorizationExpiresAt = expires !== null ? new Date(expires).toISOString() : null;
   const approvalValid = approval?.approved === true && expires !== null && nowValid
     && approvedAt !== null && approvedAt <= now && expires > approvedAt
-    && started !== null && started >= approvedAt && started < expires
     && approval?.mode === "PAPER" && approval?.humanConfirmation === true
     && approval?.liveTradingAllowed === false && approval?.brokerConnectivityAllowed === false;
   const authorizationExpired = expires !== null && nowValid && now >= expires;
@@ -95,20 +94,28 @@ export function summarizePaperCertificationWindow(
   const postExpiryFillIncreaseDetected = expires !== null && eligibleRows.some(row =>
     utcTime(row.observedAt)! > expires && Number.isSafeInteger(row.cumulativePaperFilled)
     && row.cumulativePaperFilled! > authorizedReportedFills);
-  const fillCounterRegressionDetected = reportedFills < authorizedReportedFills;
+  const orderedRows = [...eligibleRows].sort((a, b) => utcTime(a.observedAt)! - utcTime(b.observedAt)!);
+  const counterValid = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  const fillCounterHistoryInvalid = orderedRows.some(row => !counterValid(row.cumulativePaperFilled))
+    || orderedRows.some((row, i) => i > 0 && utcTime(row.observedAt) === utcTime(orderedRows[i - 1].observedAt)
+      && row.cumulativePaperFilled !== orderedRows[i - 1].cumulativePaperFilled);
+  const fillCounterRegressionDetected = orderedRows.some((row, i) => i > 0
+    && counterValid(row.cumulativePaperFilled) && counterValid(orderedRows[i - 1].cumulativePaperFilled)
+    && row.cumulativePaperFilled < orderedRows[i - 1].cumulativePaperFilled!);
   const elapsedDays = calendarValid ? Math.max(0, Math.floor((now - started) / DAY_MS)) : 0;
   const daysToMinMaturity = earliestValid ? Math.max(0, Math.ceil((earliestTime - now) / DAY_MS)) : null;
   const numericalTargetsMet = calendarValid && earliestValid
     && now >= earliestTime && evidenceDays >= requiredEvidenceDays
     && authorizedReportedFills >= requiredFills && reportedFills >= authorizedReportedFills
-    && !postExpiryFillIncreaseDetected;
+    && !postExpiryFillIncreaseDetected && !fillCounterRegressionDetected && !fillCounterHistoryInvalid;
   const fillTargetReportedMet = requiredFills !== null && authorizedReportedFills >= requiredFills;
   const newProbeWindowOpen = calendarValid && earliestValid && approvalValid && !authorizationExpired;
   const approvalRenewalRequiredForMissingFills = authorizationExpired && !fillTargetReportedMet;
   const ownerActionRequired = !calendarValid || !earliestValid || !approvalValid
-    || approvalRenewalRequiredForMissingFills || postExpiryFillIncreaseDetected || fillCounterRegressionDetected;
+    || approvalRenewalRequiredForMissingFills || postExpiryFillIncreaseDetected || fillCounterRegressionDetected || fillCounterHistoryInvalid;
   const state = !calendarValid || !earliestValid || !approvalValid
     ? "INVALID_POLICY"
+    : fillCounterHistoryInvalid ? "FILL_COUNTER_HISTORY_REVIEW_REQUIRED"
     : fillCounterRegressionDetected ? "FILL_COUNTER_REGRESSION_REVIEW_REQUIRED"
     : postExpiryFillIncreaseDetected ? "POST_EXPIRY_FILL_INCREASE_REVIEW_REQUIRED"
       : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY"
@@ -130,6 +137,7 @@ export function summarizePaperCertificationWindow(
     authorizedReportedFills,
     postExpiryFillIncreaseDetected,
     fillCounterRegressionDetected,
+    fillCounterHistoryInvalid,
     approvalRenewalRequiredForMissingFills,
     campaignMaturityRequiresActiveApproval: false as const,
     postExpiryObservationAllowed: calendarValid && earliestValid && approvalValid,
