@@ -164,6 +164,39 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
           </Link>
         </header>
 
+        <section aria-label="Obiettivo economico Fenice" className="rounded-3xl border border-emerald-400/30 bg-emerald-400/[0.06] p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-emerald-300">Obiettivo prioritario · Crescita del capitale</p>
+              <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">
+                Da {euro.format(data.capital)} a {euro.format(data.stretchGoal)}
+              </h2>
+              <p className="mt-1 text-sm text-slate-300">
+                Entro {data.horizonYears} anni · rendimento composto richiesto {data.requiredAnnualReturn.toFixed(2)}% annuo,
+                senza versamenti aggiuntivi.
+              </p>
+            </div>
+            <Link href="/performance" className="rounded-xl border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-200 underline">
+              Verifica i risultati netti →
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-xs text-slate-400">Profitto netto dimostrato rispetto all'obiettivo</p>
+              <p className="mt-1 text-lg font-black text-amber-200">NON VERIFICATO</p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-xs text-slate-400">Capitale reale Directa verificato</p>
+              <p className="mt-1 text-lg font-black">N/D</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Traguardo di studio altamente ambizioso, non rendimento promesso. I {euro.format(data.capital)} sono capitale
+            del modello, non saldo confermato del broker. Servono prezzi verificati, performance dopo commissioni e imposte,
+            confronto con un benchmark e controlli sulle perdite: nessuna scorciatoia sblocca gli ordini reali.
+          </p>
+        </section>
+
         <section className="rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-300/[0.10] to-white/[0.02] p-6 shadow-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Stato attuale</p>
           <h2 className="mt-3 text-3xl font-black text-amber-300 sm:text-5xl">NON INVESTIRE ANCORA</h2>
