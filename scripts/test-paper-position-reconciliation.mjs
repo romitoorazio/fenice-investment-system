@@ -3,21 +3,33 @@ import { readFileSync } from "node:fs";
 import { reconcilePaperPositions as reconcile } from "../lib/ui/paper-position-reconciliation.ts";
 
 const paper = JSON.parse(readFileSync(new URL("../data/paper-oms-state.json", import.meta.url), "utf8"));
-const now = Date.parse("2026-10-11T21:59:00Z");
+// The canonical PAPER ledger grows during certification; assertions must follow the
+// observed signed-in repository snapshot, not a stale hard-coded six-fill cutoff.
+const now = Date.now();
 const checked = reconcile(paper, now);
+const recordedFills = paper.executions.filter(fill => fill.status === "PAPER_FILLED");
+const roundEuro = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const recordedSymbols = [...new Set(recordedFills.map(fill => fill.symbol))].sort();
 assert.equal(checked.status, "RECONCILED", checked.reason);
-assert.equal(checked.positionCount, 2);
-assert.equal(checked.reconciledPositionCount, 2);
-assert.equal(checked.filledBuyLots, 6);
+assert.equal(checked.positionCount, recordedSymbols.length);
+assert.equal(checked.reconciledPositionCount, recordedSymbols.length);
+assert.ok(recordedFills.length >= 6, "V6 historical fill evidence must not regress");
+assert.equal(checked.filledBuyLots, recordedFills.length);
 assert.equal(checked.closedTradeCount, 0);
-assert.equal(checked.entryNotionalEuro, 1800);
-assert.equal(checked.estimatedEntryCostsEuro, 9.9);
-assert.deepEqual(checked.rows.map(row => row.symbol), ["QQQ", "SPY"]);
-assert.deepEqual(checked.rows.map(row => row.buyLots), [3, 3]);
-assert.deepEqual(checked.rows.map(row => row.entryNotionalEuro), [900, 900]);
-assert.deepEqual(checked.rows.map(row => row.estimatedEntryCostsEuro), [4.95, 4.95]);
-assert.equal(checked.rows.find(row => row.symbol === "SPY").quantity, 1.31003);
-assert.equal(checked.rows.find(row => row.symbol === "QQQ").quantity, 1.353249);
+assert.equal(checked.entryNotionalEuro, roundEuro(recordedFills.reduce((sum, fill) => sum + fill.notionalEuro, 0)));
+assert.equal(checked.estimatedEntryCostsEuro, roundEuro(recordedFills.reduce((sum, fill) =>
+  sum + fill.estimatedFeeEuro + fill.estimatedSlippageEuro, 0)));
+assert.deepEqual(checked.rows.map(row => row.symbol), recordedSymbols);
+for (const row of checked.rows) {
+  const lots = recordedFills.filter(fill => fill.symbol === row.symbol);
+  const stored = paper.positions.find(position => position.symbol === row.symbol);
+  assert.ok(stored, "every reconciled row must correspond to a stored position");
+  assert.equal(row.buyLots, lots.length);
+  assert.equal(row.entryNotionalEuro, roundEuro(lots.reduce((sum, fill) => sum + fill.notionalEuro, 0)));
+  assert.equal(row.estimatedEntryCostsEuro, roundEuro(lots.reduce((sum, fill) =>
+    sum + fill.estimatedFeeEuro + fill.estimatedSlippageEuro, 0)));
+  assert.ok(Math.abs(row.quantity - stored.quantity) <= 1e-6);
+}
 assert.equal(checked.markedValueEuro, null);
 assert.equal(checked.unrealizedProfitEuro, null);
 assert.equal(checked.realizedProfitEuro, null);
@@ -35,7 +47,7 @@ const fail = (fn, msg) => {
 fail(x => { x.mode = "LIVE"; }, "never reconcile LIVE");
 fail(x => { x.brokerConnectivityAllowed = true; }, "never access broker");
 fail(x => { x.liveTradingAllowed = true; }, "never accept LIVE");
-fail(x => { x.generatedAt = "2026-11-11T12:00:00Z"; }, "future snapshot");
+fail(x => { x.generatedAt = new Date(now + 24 * 3600_000).toISOString(); }, "future snapshot");
 fail(x => { x.reconciliation.balanced = false; }, "OMS reconciliation must be confirmed");
 fail(x => { x.reconciliation.breaks.push("UNKNOWN_BREAK"); }, "OMS breaks must be empty");
 fail(x => { x.executions[1].clientOrderId = x.executions[0].clientOrderId; }, "duplicate order");
@@ -45,7 +57,7 @@ fail(x => { x.executions[0].fxObservedAt = "2026-09-25T19:23:00.000Z"; }, "futur
 fail(x => { x.executions[0].fxObservedAt = "2026-09-23T17:23:00.000Z"; }, "stale fill FX");
 fail(x => { x.executions[0].fillPrice = Number.NaN; }, "nonfinite price");
 fail(x => { x.executions[0].filledQuantity = -1; }, "negative filled quantity");
-fail(x => { x.executions[0].filledAt = "2026-11-09T17:00:00.000Z"; }, "future fill");
+fail(x => { x.executions[0].filledAt = new Date(now + 24 * 3600_000).toISOString(); }, "future fill");
 fail(x => { x.executions[0].estimatedFeeEuro = -1; }, "negative fee");
 fail(x => { x.executions[0].estimatedSlippageEuro = Number.NaN; }, "invalid slippage");
 fail(x => { x.executions[0].currency = "EUR"; }, "inconsistent currency");

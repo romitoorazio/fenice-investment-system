@@ -3,6 +3,10 @@ import paper from "@/data/paper-oms-state.json";
 import v7 from "@/data/v7-decision-outcomes.json";
 import calibration from "@/data/calibration-analysis.json";
 import { reconcilePaperPositions, type PaperPositionSnapshot } from "@/lib/ui/paper-position-reconciliation";
+import quotes from "@/data/execution-market-evidence.json";
+import fx from "@/data/paper-fx-evidence.json";
+import session from "@/data/paper-market-session.json";
+import { valuePaperRecordedQuantities, type PaperValuationInputs } from "@/lib/ui/paper-valuation-evidence";
 import {
   summarizePerformanceEvidence,
   type PaperOmsSnapshot,
@@ -15,6 +19,7 @@ export const revalidate = 0;
 
 const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
 const decimal = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
+const fxDecimal = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 6 });
 
 function serverRequestTime() {
   return Date.now();
@@ -41,6 +46,7 @@ export default function PerformancePage() {
     requestedAt,
   );
   const holdings = reconcilePaperPositions(paper as PaperPositionSnapshot, requestedAt);
+  const valuation = valuePaperRecordedQuantities({ paper, quotes, fx, session } as unknown as PaperValuationInputs, requestedAt);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-24 pt-8 text-white sm:px-8">
@@ -153,6 +159,57 @@ export default function PerformancePage() {
             indipendente aggiornata di ciascun titolo, il cambio EUR/USD coevo, la serie del NAV,
             la riconciliazione di eventuali vendite e un benchmark comparabile. Perciò profitto,
             perdita non realizzata e rendimento netto restano N/D anche se i lotti coincidono.
+          </p>
+        </section>
+
+        <section className="space-y-3" aria-label="Valorizzazione del campione PAPER">
+          <h2 className="text-xl font-black">1C. Valore delle quantità PAPER registrate</h2>
+          <p className="text-xs leading-5 text-slate-400">
+            Campione con due fonti indipendenti, cambio e sessione coevi. Questa misura non è il saldo Directa,
+            il valore complessivo del portafoglio o un rendimento netto dimostrato.
+          </p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm font-bold text-amber-200">
+              {valuation.state === "VALUED_SAMPLE" ? `Campione del ${evidenceDate(valuation.asOf)}` : "Valorizzazione N/D: prove coeve insufficienti"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-300">{valuation.reason}</p>
+            {valuation.state === "VALUED_SAMPLE" ? (
+              <p className="mt-2 text-xs text-slate-400">
+                {valuation.sampleCurrentWithin120Seconds ? "Campione recente" : "Campione storico: prezzi scaduti per nuove esecuzioni"} ·
+                Ordini reali sempre bloccati.
+              </p>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              ["Valore indicativo delle quantità", amount(valuation.estimatedRecordedQuantityValueEuro)],
+              ["Controvalore storico ingresso", amount(valuation.recordedEntryEuro)],
+              ["Variazione prezzi e cambio", amount(valuation.priceFxChangeEuro)],
+              ["Dopo commissioni ingresso stimate", amount(valuation.changeAfterEstimatedEntryFeesEuro)],
+            ].map(([label, value]) => <div key={label} className="rounded-xl border border-white/10 p-4">
+              <p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-xl font-black">{value}</p>
+            </div>)}
+          </div>
+          {valuation.state === "VALUED_SAMPLE" ? (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <caption className="p-3 text-left text-xs text-slate-400">Prove del campione: prezzi mediani, cambio e quantità del registro PAPER</caption>
+                <thead className="bg-white/[0.07] text-xs text-slate-300"><tr>
+                  <th scope="col" className="p-3">Titolo</th><th scope="col" className="p-3">Prezzo campionato</th>
+                  <th scope="col" className="p-3">Cambio in EUR</th><th scope="col" className="p-3">Valore indicativo</th>
+                </tr></thead>
+                <tbody>{valuation.rows.map(row => <tr key={row.symbol} className="border-t border-white/10">
+                  <th scope="row" className="p-3">{row.symbol}</th><td className="p-3">{decimal.format(row.medianPrice)} {row.currency}</td>
+                  <td className="p-3">{fxDecimal.format(row.fxToEuro)}</td>
+                  <td className="p-3">{amount(row.estimatedValueEuro)}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          ) : null}
+          <p className="text-xs leading-5 text-amber-200">
+            Lo slippage simulato è già incluso nel prezzo dei fill e non viene sottratto due volte.
+            La variazione dopo le commissioni stimate d’ingresso esclude costi d’uscita, imposte,
+            dividendi e azioni societarie non riconciliati. Utile realizzato, NAV e confronto con il benchmark restano N/D.
           </p>
         </section>
 
