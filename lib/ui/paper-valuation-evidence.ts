@@ -44,6 +44,7 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
     if (!Array.isArray(paper?.auditChain) || !paper.auditChain.length || !verifyAuditChain(paper.auditChain).valid)
       return insufficient("Catena di audit PAPER non verificata.");
     const filled = paper.executions!.filter(fill => fill.status === "PAPER_FILLED");
+    let entryFeesAudited = true;
     for (const fill of filled) {
       if (paperTimestamp(fill.filledAt) === null || paperTimestamp(fill.fxObservedAt) === null)
         return insufficient("Le date originali dei fill o del cambio d'ingresso non sono valide.");
@@ -59,6 +60,10 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
         || event.payload.fxProvider !== fill.fxProvider
         || event.payload.fxObservedAt !== fill.fxObservedAt)
         return insufficient("I fill non corrispondono alle prove di audit.");
+      // Older frozen V6 events omit estimated fees. Do not present them as verified.
+      if (event.payload.estimatedFeeEuro === undefined) entryFeesAudited = false;
+      else if (event.payload.estimatedFeeEuro !== fill.estimatedFeeEuro)
+        return insufficient("Commissioni d'ingresso non corrispondenti alla catena di audit.");
     }
     const times = [paper.generatedAt, quotes?.generatedAt, fx?.generatedAt, session?.generatedAt,
       session?.evidence?.observedAt].map(paperTimestamp);
@@ -70,6 +75,11 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       const at = paperTimestamp(value);
       return at !== null && at <= asOfMs && asOfMs - at <= maxAgeMs;
     };
+    const observedBeforeSnapshot = (observed: unknown, snapshot: unknown) => {
+      const observationTime = paperTimestamp(observed);
+      const captureTime = paperTimestamp(snapshot);
+      return observationTime !== null && captureTime !== null && observationTime <= captureTime;
+    };
     if (!coeval(quotes?.generatedAt)) return insufficient("Il campione prezzi non è coevo alla valorizzazione.");
     if (quotes?.policy?.liveTradingAllowed !== false || !Array.isArray(quotes.observations))
       return insufficient("Provenienza o blocco LIVE del campione prezzi non verificati.");
@@ -78,7 +88,8 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       return insufficient("Il cambio in euro non è verificato alla stessa data dei prezzi.");
     if (session?.configured !== true || session.liveTradingAllowed !== false || session.evidence?.state !== "OPEN"
       || session.evidence.venue !== "US_EQUITIES" || session.evidence.authoritative !== true
-      || !coeval(session.evidence.observedAt, 60_000))
+      || !coeval(session.generatedAt) || !coeval(session.evidence.observedAt, 60_000)
+      || !observedBeforeSnapshot(session.evidence.observedAt, session.generatedAt))
       return insufficient("Sessione USA aperta e coeva non verificata per questo campione.");
     const rows: ValueRow[] = [];
     for (const holding of positions.rows) {
@@ -86,7 +97,8 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       for (const quote of quotes.observations.filter(q => q?.symbol === holding.symbol && q.eligibility === "PAPER")) {
         const family = quote.sourceFamily || "";
         if (!quoteMethods[family]?.has(quote.provenanceMethod || "") || quote.provenanceVerified !== true) continue;
-        if (quote.currency !== holding.currency || !positive(quote.price) || !coeval(quote.observedAt))
+        if (quote.currency !== holding.currency || !positive(quote.price) || !coeval(quote.observedAt)
+          || !observedBeforeSnapshot(quote.observedAt, quotes.generatedAt))
           return insufficient(`Prezzo, valuta o data non validi per ${holding.symbol}.`);
         const previous = familyQuotes.get(family);
         if (previous && previous.observedAt === quote.observedAt && previous.price !== quote.price)
@@ -101,6 +113,7 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
         return insufficient(`Le fonti divergono sul prezzo di ${holding.symbol}.`);
       const rate = fx.ratesToEuro?.[holding.currency];
       if (!rate || !positive(rate.rate) || rate.rate > 5 || !coeval(rate.observedAt)
+        || !observedBeforeSnapshot(rate.observedAt, fx.generatedAt)
         || (holding.currency === "EUR" && rate.rate !== 1) || !["EUR", "USD"].includes(holding.currency))
         return insufficient(`Cambio ${holding.currency}/EUR coevo non verificato.`);
       const value = holding.storedQuantity * median * rate.rate;
@@ -111,14 +124,16 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
     }
     const value = round(rows.reduce((sum, row) => sum + row.estimatedValueEuro, 0));
     const entry = positions.entryNotionalEuro!;
-    const fees = round(filled.reduce((sum, fill) => sum + fill.estimatedFeeEuro!, 0));
+    const fees = entryFeesAudited ? round(filled.reduce((sum, fill) => sum + fill.estimatedFeeEuro!, 0)) : null;
     // Fill price already includes simulated slippage. Do not deduct it twice.
     const delta = round(value - entry);
     return { ...insufficient(""), state: "VALUED_SAMPLE" as const,
-      reason: "Campione storico delle quantità PAPER registrate; prezzi mediani e cambio coevi. Costi d'uscita, imposte, dividendi e azioni societarie non riconciliati.",
+      reason: entryFeesAudited
+        ? "Campione storico delle quantità PAPER registrate; prezzi mediani e cambio coevi. Costi d'uscita, imposte, dividendi e azioni societarie non riconciliati."
+        : "Campione storico delle quantità PAPER registrate; prezzi mediani e cambio coevi. Commissioni d'ingresso N/D: assenti dalla catena di audit congelata V6. Costi d'uscita, imposte, dividendi e azioni societarie non riconciliati.",
       asOf: new Date(asOfMs).toISOString(), ageSeconds: Math.round((now - asOfMs) / 1000),
       sampleCurrentWithin120Seconds: now - asOfMs <= 120_000,
       estimatedRecordedQuantityValueEuro: value, recordedEntryEuro: entry, priceFxChangeEuro: delta,
-      estimatedEntryFeesEuro: fees, changeAfterEstimatedEntryFeesEuro: round(delta - fees), rows };
+      estimatedEntryFeesEuro: fees, changeAfterEstimatedEntryFeesEuro: fees === null ? null : round(delta - fees), rows };
   } catch { return insufficient("Struttura delle prove di valorizzazione non valida."); }
 }
