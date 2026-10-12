@@ -89,7 +89,7 @@ const performancePage = await readFile(new URL("../app/performance/page.tsx", im
 assert.match(performancePage, /Opportunità ipotetiche rispetto al mercato/);
 assert.match(performancePage, /extra-rendimento positivo/i);
 assert.match(performancePage, /NON è un profitto di Fenice/);
-assert.match(performancePage, /include.*ATTENDI, OSSERVA/s);
+assert.match(performancePage, /comprende anche ATTENDI, OSSERVA/);
 assert.match(performancePage, /serie netta del portafoglio/);
 
 console.log("V7 SPY same-window cost-aware opportunity research, evidence checks, no fake profits: PASS");
