@@ -7,7 +7,8 @@ import { buildV7ProposalReadiness } from "../intelligence/proposal-readiness.mjs
 import { evaluateMarketSession, type MarketSessionEvidence } from "../trading/market-session.ts";
 import { verifyAuditChain } from "../trading/audit-chain.ts";
 import { evaluateFeniceAIThesis, validateFeniceAIThesis, type FeniceAIThesis } from "../ai-intelligence-core.ts";
-import { evaluatePreTradeRisk, DEFAULT_RISK_LIMITS } from "../trading/risk-engine.ts";
+import { DEFAULT_RISK_LIMITS } from "../trading/risk-engine.ts";
+import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk } from "./paper-temporal-risk.ts";
 import { deduplicateExecutionEvidence, type ExecutionInstrument, type ExecutionMarketEvidence } from "../trading/execution-market-data.ts";
 import type { ProposedOrder, RiskContext } from "../trading/types.ts";
 import { buildPaperReviewProposal, type PaperReviewPayload } from "./paper-review.ts";

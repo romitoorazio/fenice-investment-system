@@ -1,5 +1,6 @@
 import { PaperOms } from "../trading/paper-oms.ts";
-import { DEFAULT_RISK_LIMITS, evaluatePreTradeRisk } from "../trading/risk-engine.ts";
+import { DEFAULT_RISK_LIMITS } from "../trading/risk-engine.ts";
+import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk } from "./paper-temporal-risk.ts";
 import type { PaperExecution, ProposedOrder, RiskContext } from "../trading/types.ts";
 import { guardFeniceAIProposal } from "../ai-proposal-guard.ts";
 import type { FeniceAIDecision } from "../ai-intelligence-core.ts";
@@ -73,6 +74,9 @@ const riskCopy: Record<string, string> = {
   "independent-sources": "Mancano due fonti indipendenti verificate.",
   "risk-score": "Il rischio del titolo supera il limite.",
   "quote-freshness": "Il prezzo deve essere aggiornato.",
+  "temporal-clock": "L'orologio di verifica non è valido.",
+  "quote-temporal-integrity": "La data del prezzo è futura, invalida o scaduta.",
+  "request-temporal-integrity": "La data della proposta è futura, invalida o scaduta.",
   "no-divergence": "Le fonti non concordano sul prezzo.",
   "source-freshness": "Le evidenze devono essere aggiornate.",
 };

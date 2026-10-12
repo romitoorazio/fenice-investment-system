@@ -14,6 +14,7 @@ import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
+import { applyTemporalRiskReadiness } from "@/lib/ui/paper-temporal-risk";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,7 +38,7 @@ export async function GET() {
   const paperCertificationWindow = summarizePaperCertificationWindow(paperCampaign, paperApproval, now);
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
-  const readiness = buildInstitutionalReadiness(intelligence, {
+  const readiness = applyTemporalRiskReadiness(buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
     // These controls require runtime evidence from the local Directa bridge,
     // reconciliation/recovery proofs or time-matured validation. Cloud code
@@ -53,7 +54,7 @@ export async function GET() {
     fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
     paper30dVerified: false,
     chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
-  });
+  }));
 
   return Response.json({
     generatedAt: new Date().toISOString(),

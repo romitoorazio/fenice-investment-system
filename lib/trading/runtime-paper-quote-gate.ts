@@ -1,3 +1,5 @@
+import { paperTimestamp } from "./paper-timestamp-integrity.ts";
+
 /**
  * Runtime-only gate. V6 baseline files remain frozen; this additional barrier
  * stops a historic, once-valid 30-minute snapshot being called execution-grade
@@ -30,8 +32,8 @@ const MAX_CROSS_SOURCE_SPREAD_PERCENT = 0.75;
 const DIRECTA_PROVENANCE = "directa-readonly-entitlement-isin-topbook";
 
 function ageSeconds(timestamp: unknown, now: number): number {
-  const parsed = Date.parse(String(timestamp ?? ""));
-  return Number.isFinite(parsed) ? (now - parsed) / 1000 : Number.POSITIVE_INFINITY;
+  const parsed = paperTimestamp(timestamp);
+  return parsed !== null ? (now - parsed) / 1000 : Number.POSITIVE_INFINITY;
 }
 function isFresh(timestamp: unknown, now: number): boolean {
   const seconds = ageSeconds(timestamp, now);
@@ -47,17 +49,32 @@ export function assessRuntimePaperQuoteGate(
   now = Date.now(),
 ) {
   const reasons: string[] = [];
+  if (!Number.isSafeInteger(now) || now < 0 || now > 8.64e15) reasons.push("PAPER verification clock is invalid");
+  const requested = coverage?.requestedSymbols;
+  const reportedEligible = coverage?.paperEligibleSymbols;
+  const coverageRows = Array.isArray(coverage?.rows) ? coverage.rows : [];
+  const requestedSet = new Set(coverageRows.map(row => String(row?.symbol || "").trim().toUpperCase()));
+  const structureValid = typeof requested === "number" && Number.isSafeInteger(requested) && requested >= 3
+    && typeof reportedEligible === "number" && Number.isSafeInteger(reportedEligible)
+    && reportedEligible >= 0 && reportedEligible <= requested
+    && coverageRows.length > 0 && coverageRows.length <= requested
+    && requestedSet.size === coverageRows.length && !requestedSet.has("")
+    && coverageRows.every(row => typeof row.paperEligible === "boolean")
+    && Array.isArray(evidence?.observations)
+    && Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies);
+  if (!structureValid) reasons.push("PAPER coverage symbol identities or counters are invalid");
   const evidenceFresh = isFresh(evidence?.generatedAt, now);
   const coverageFresh = isFresh(coverage?.generatedAt, now);
-  const evidenceTimestamp = Date.parse(String(evidence?.generatedAt || ""));
-  const linkedTimestamp = Date.parse(String(coverage?.evidenceGeneratedAt || ""));
-  const snapshotsMatch = Number.isFinite(evidenceTimestamp) && Number.isFinite(linkedTimestamp)
+  const evidenceTimestamp = paperTimestamp(evidence?.generatedAt);
+  const linkedTimestamp = paperTimestamp(coverage?.evidenceGeneratedAt);
+  const snapshotsMatch = evidenceTimestamp !== null && linkedTimestamp !== null
     && Math.abs(linkedTimestamp - evidenceTimestamp) <= 1000;
 
   if (!evidenceFresh || !coverageFresh) reasons.push("PAPER execution snapshot is older than 120 seconds");
   if (!snapshotsMatch) reasons.push("PAPER execution coverage is not linked to the quoted evidence");
 
-  const approved = new Set((coverage?.policy?.approvedIndependentPaperSourceFamilies || []).map(normalizeFamily));
+  const approved = new Set((Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies)
+    ? coverage.policy.approvedIndependentPaperSourceFamilies : []).map(normalizeFamily));
   const permitted = new Set(["alpaca", "twelve-data", "directa"]);
   // A source-specific quote includes currency and observation time. Numeric price alone is unsafe.
   const bySymbol = new Map<string, Map<string, { price: number; currency: string; observedMs: number }>>();
@@ -65,9 +82,11 @@ export function assessRuntimePaperQuoteGate(
   let paperObservationsStale = 0;
   let paperObservationsUnverified = 0;
 
-  for (const row of evidence?.observations || []) {
+  for (const row of Array.isArray(evidence?.observations) ? evidence.observations : []) {
     if (row?.eligibility !== "PAPER" && row?.eligibility !== "LIVE") continue;
     const symbol = String(row.symbol || "").trim().toUpperCase();
+    // Fresh unrelated symbols cannot satisfy coverage of the requested universe.
+    if (!structureValid || !requestedSet.has(symbol)) continue;
     const family = normalizeFamily(row.sourceFamily);
     const trusted = approved.has(family) && permitted.has(family)
       && row.provenanceVerified === true
@@ -120,14 +139,13 @@ export function assessRuntimePaperQuoteGate(
     verified.add(symbol);
     eligibleSymbols++;
   }
-  const requested = Number(coverage?.requestedSymbols || 0);
-  const percent = requested > 0 ? 100 * eligibleSymbols / requested : 0;
+  const requestedCount = structureValid ? requested! : 0;
+  const percent = requestedCount > 0 ? 100 * eligibleSymbols / requestedCount : 0;
   if (eligibleSymbols < 3 || percent < 25) {
-    reasons.push(`fresh independent PAPER price quorum is ${eligibleSymbols}/${requested} symbols (${percent.toFixed(1)}%)`);
+    reasons.push(`fresh independent PAPER price quorum is ${eligibleSymbols}/${requestedCount} symbols (${percent.toFixed(1)}%)`);
   }
-  const reportedEligible = Number(coverage?.paperEligibleSymbols || 0);
-  if (eligibleSymbols < reportedEligible
-    || (coverage?.rows || []).some((row) => row.paperEligible && !verified.has(String(row.symbol || "").toUpperCase()))) {
+  if (eligibleSymbols < Number(reportedEligible || 0)
+    || coverageRows.some((row) => row.paperEligible && !verified.has(String(row.symbol || "").toUpperCase()))) {
     reasons.push("persisted PAPER coverage exceeds current quote-valid coverage");
   }
   if (paperObservationsUnverified > 0) reasons.push("unverified or LIVE-eligible observations cannot establish PAPER quorum");
@@ -143,7 +161,7 @@ export function assessRuntimePaperQuoteGate(
     coverageFresh,
     snapshotsMatch,
     eligibleSymbols,
-    requestedSymbols: requested,
+    requestedSymbols: requestedCount,
     paperObservationsStale,
     paperObservationsUnverified,
     spreadRejectedSymbols,
