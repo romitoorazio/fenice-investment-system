@@ -254,6 +254,12 @@ export default async function ReadinessPage() {
           <p className="mt-2 text-sm text-slate-300">
             {calendar.state === "INVALID_POLICY"
               ? "Autorizzazione o calendario non verificabili: nessun nuovo probe consentito."
+              : calendar.fillCounterHistoryInvalid
+                ? "Lo storico dei conteggi contiene valori invalidi o prove discordanti: verificare il registro prima di considerare completa la campagna."
+              : calendar.fillCounterRegressionDetected
+                ? "Il conteggio dei fill diminuisce rispetto alle prove precedenti: verificare il registro prima di considerare completa la campagna."
+              : calendar.postExpiryFillIncreaseDetected
+                ? "Il conteggio dei fill aumenta in una prova successiva alla scadenza: serve una verifica dell'autorizzazione e dei tempi effettivi. La maturazione non viene dichiarata completa."
               : calendar.approvalRenewalRequiredForMissingFills
                 ? "La finestra dei nuovi probe è scaduta e il campione di fill è incompleto: per aggiungere fill serve una nuova approvazione verificata. Le prove storiche restano conservate."
                 : calendar.authorizationExpired

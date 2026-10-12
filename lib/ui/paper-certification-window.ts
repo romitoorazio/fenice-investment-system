@@ -80,24 +80,45 @@ export function summarizePaperCertificationWindow(
     validDay(row?.date) && row.date >= startedDay && row.date <= currentDay
     && utcTime(row?.observedAt) !== null
     && (utcTime(row.observedAt) as number) >= started
-    && (utcTime(row.observedAt) as number) <= now) : [];
+    && (utcTime(row.observedAt) as number) <= now
+    && row.date === new Date(utcTime(row.observedAt)!).toISOString().slice(0, 10)) : [];
   const evidenceDays = new Set(eligibleRows.map((row) => row.date)).size;
   const lastRow = [...eligibleRows].sort((a, b) =>
     (utcTime(b.observedAt) || 0) - (utcTime(a.observedAt) || 0))[0];
   const reportedFills = Number.isSafeInteger(lastRow?.cumulativePaperFilled)
     && (lastRow?.cumulativePaperFilled ?? 0) >= 0 ? lastRow!.cumulativePaperFilled! : 0;
+  const authorizedRows = expires === null ? [] : eligibleRows.filter(row => utcTime(row.observedAt)! <= expires);
+  const lastAuthorizedRow = [...authorizedRows].sort((a, b) => utcTime(b.observedAt)! - utcTime(a.observedAt)!)[0];
+  const authorizedReportedFills = Number.isSafeInteger(lastAuthorizedRow?.cumulativePaperFilled)
+    && (lastAuthorizedRow?.cumulativePaperFilled ?? 0) >= 0 ? lastAuthorizedRow!.cumulativePaperFilled! : 0;
+  const postExpiryFillIncreaseDetected = expires !== null && eligibleRows.some(row =>
+    utcTime(row.observedAt)! > expires && Number.isSafeInteger(row.cumulativePaperFilled)
+    && row.cumulativePaperFilled! > authorizedReportedFills);
+  const orderedRows = [...eligibleRows].sort((a, b) => utcTime(a.observedAt)! - utcTime(b.observedAt)!);
+  const counterValid = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  const fillCounterHistoryInvalid = orderedRows.some(row => !counterValid(row.cumulativePaperFilled))
+    || orderedRows.some((row, i) => i > 0 && utcTime(row.observedAt) === utcTime(orderedRows[i - 1].observedAt)
+      && row.cumulativePaperFilled !== orderedRows[i - 1].cumulativePaperFilled);
+  const fillCounterRegressionDetected = orderedRows.some((row, i) => i > 0
+    && counterValid(row.cumulativePaperFilled) && counterValid(orderedRows[i - 1].cumulativePaperFilled)
+    && row.cumulativePaperFilled < orderedRows[i - 1].cumulativePaperFilled!);
   const elapsedDays = calendarValid ? Math.max(0, Math.floor((now - started) / DAY_MS)) : 0;
   const daysToMinMaturity = earliestValid ? Math.max(0, Math.ceil((earliestTime - now) / DAY_MS)) : null;
   const numericalTargetsMet = calendarValid && earliestValid
-    && now >= earliestTime && evidenceDays >= requiredEvidenceDays && reportedFills >= requiredFills;
-  const fillTargetReportedMet = requiredFills !== null && reportedFills >= requiredFills;
+    && now >= earliestTime && evidenceDays >= requiredEvidenceDays
+    && authorizedReportedFills >= requiredFills && reportedFills >= authorizedReportedFills
+    && !postExpiryFillIncreaseDetected && !fillCounterRegressionDetected && !fillCounterHistoryInvalid;
+  const fillTargetReportedMet = requiredFills !== null && authorizedReportedFills >= requiredFills;
   const newProbeWindowOpen = calendarValid && earliestValid && approvalValid && !authorizationExpired;
   const approvalRenewalRequiredForMissingFills = authorizationExpired && !fillTargetReportedMet;
   const ownerActionRequired = !calendarValid || !earliestValid || !approvalValid
-    || approvalRenewalRequiredForMissingFills;
+    || approvalRenewalRequiredForMissingFills || postExpiryFillIncreaseDetected || fillCounterRegressionDetected || fillCounterHistoryInvalid;
   const state = !calendarValid || !earliestValid || !approvalValid
     ? "INVALID_POLICY"
-    : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY"
+    : fillCounterHistoryInvalid ? "FILL_COUNTER_HISTORY_REVIEW_REQUIRED"
+    : fillCounterRegressionDetected ? "FILL_COUNTER_REGRESSION_REVIEW_REQUIRED"
+    : postExpiryFillIncreaseDetected ? "POST_EXPIRY_FILL_INCREASE_REVIEW_REQUIRED"
+      : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY"
       : authorizationExpired
         ? fillTargetReportedMet ? "POST_APPROVAL_OBSERVATION" : "AUTHORIZATION_EXPIRED"
         : deadlineBeforeMaturity ? "POST_APPROVAL_OBSERVATION_PLANNED" : "IN_PROGRESS";
@@ -113,6 +134,10 @@ export function summarizePaperCertificationWindow(
     approvalScope: "NEW_PAPER_PROBES_ONLY" as const,
     newProbeWindowOpen,
     fillTargetReportedMet,
+    authorizedReportedFills,
+    postExpiryFillIncreaseDetected,
+    fillCounterRegressionDetected,
+    fillCounterHistoryInvalid,
     approvalRenewalRequiredForMissingFills,
     campaignMaturityRequiresActiveApproval: false as const,
     postExpiryObservationAllowed: calendarValid && earliestValid && approvalValid,

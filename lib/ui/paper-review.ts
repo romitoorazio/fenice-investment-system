@@ -1,6 +1,6 @@
 import { PaperOms } from "../trading/paper-oms.ts";
 import { DEFAULT_RISK_LIMITS } from "../trading/risk-engine.ts";
-import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk } from "./paper-temporal-risk.ts";
+import { evaluateStrictPaperPreTradeRisk as evaluatePreTradeRisk, paperTimestamp } from "./paper-temporal-risk.ts";
 import type { PaperExecution, ProposedOrder, RiskContext } from "../trading/types.ts";
 import { guardFeniceAIProposal } from "../ai-proposal-guard.ts";
 import type { FeniceAIDecision } from "../ai-intelligence-core.ts";
@@ -128,23 +128,24 @@ export function buildPaperReviewProposal(
       if (!check.passed && check.code !== "human-confirmation") blockers.push(riskCopy[check.code] ?? "Un controllo di sicurezza non è superato.");
     }
   }
-  const requested = Date.parse(order.requestedAt);
-  const observed = Date.parse(input.context.quoteObservedAt);
-  const expiry = Date.parse(input.expiresAt);
+  const requested = paperTimestamp(order.requestedAt) ?? NaN;
+  const observed = paperTimestamp(input.context.quoteObservedAt) ?? NaN;
+  const expiry = paperTimestamp(input.expiresAt) ?? NaN;
   if (![now, requested, observed, expiry].every(Number.isFinite) || requested > now || observed > now || expiry <= now
     || expiry > requested + 120_000 || expiry > observed + 120_000) {
     blockers.push("La proposta è scaduta o i suoi orari non sono verificati.");
   }
   if (input.scope === "PAPER_QUEUE") {
     const proof = input.evidence;
-    const quotesValid = Array.isArray(proof?.quotes) && proof.quotes.length >= 2 && proof.quotes.every(quote =>
-      typeof quote?.sourceFamily === "string" && quote.sourceFamily.trim()
+    const quotesValid = Array.isArray(proof?.quotes) && proof.quotes.length >= 2 && proof.quotes.every(quote => {
+      const at = paperTimestamp(quote?.observedAt);
+      return typeof quote?.sourceFamily === "string" && quote.sourceFamily.trim()
       && typeof quote.price === "number" && Number.isFinite(quote.price) && quote.price > 0
-      && Number.isFinite(Date.parse(quote.observedAt)) && Date.parse(quote.observedAt) <= now
-      && expiry <= Date.parse(quote.observedAt) + 120_000);
+      && at !== null && at <= now && expiry <= at + 120_000;
+    });
     const families = quotesValid ? new Set(proof!.quotes.map(quote => quote.sourceFamily.trim().toLowerCase())) : new Set();
-    const sessionAt = Date.parse(proof?.sessionObservedAt ?? "");
-    const fxAt = Date.parse(proof?.fxObservedAt ?? "");
+    const sessionAt = paperTimestamp(proof?.sessionObservedAt) ?? NaN;
+    const fxAt = paperTimestamp(proof?.fxObservedAt) ?? NaN;
     if (!quotesValid || families.size < 2 || families.size !== input.context.independentSources
       || !Number.isFinite(sessionAt) || sessionAt > now || expiry > sessionAt + 60_000
       || !Number.isFinite(fxAt) || fxAt > now || expiry > fxAt + 120_000) {

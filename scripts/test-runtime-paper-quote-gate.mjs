@@ -12,7 +12,8 @@ const observations = symbols.flatMap((symbol) => [
 ]);
 const evidence = { generatedAt: at(15), observations };
 const coverage = { generatedAt: at(5), evidenceGeneratedAt: at(15), requestedSymbols: 10,
-  paperEligibleSymbols: 3, rows: symbols.map((symbol) => ({ symbol, paperEligible: true })),
+  paperEligibleSymbols: 3, rows: [...symbols.map((symbol) => ({ symbol, paperEligible: true })),
+    ...Array.from({ length: 7 }, (_, i) => ({ symbol: `UNQUOTED${i}`, paperEligible: false }))],
   policy: { approvedIndependentPaperSourceFamilies: ["alpaca", "twelve-data"], liveTradingAllowed: false },
 };
 const evaluate = (ev = evidence, cv = coverage, atNow = now) => assessRuntimePaperQuoteGate(ev, cv, atNow);
@@ -57,6 +58,7 @@ for (const requestedSymbols of [0, -1, 2, 3.5, "10", Number.NaN]) {
 assert.equal(evaluate(evidence, { ...coverage, paperEligibleSymbols: 11 }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, rows: [...coverage.rows, coverage.rows[0]] }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, rows: [] }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, rows: coverage.rows.slice(0, 3) }).ready, false, "truncated requested universe fails closed");
 assert.equal(evaluate({ ...evidence, observations: "malformed" }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, policy: { ...coverage.policy, approvedIndependentPaperSourceFamilies: "malformed" } }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, rows: symbols.map(symbol => ({ symbol: "OTHER_" + symbol, paperEligible: false })) }).ready, false,
