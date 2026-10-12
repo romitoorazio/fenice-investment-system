@@ -172,14 +172,15 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">Investito realmente</p>
-              <p className="mt-2 text-2xl font-black">{euro.format(0)}</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500">Conto Directa verificato</p>
+              <p className="mt-2 text-2xl font-black">N/D</p>
             </div>
             <div className="rounded-2xl bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">Capitale disponibile</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500">Liquidità nel piano di studio</p>
               <p className="mt-2 text-2xl font-black">{euro.format(cashAmount)}</p>
             </div>
           </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">Gli importi del piano sono simulati. Saldo e posizioni reali Directa non sono verificati da questa pagina.</p>
         </section>
 
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">

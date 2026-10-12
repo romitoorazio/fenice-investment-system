@@ -1,0 +1,47 @@
+name: Fenice PAPER Valuation Evidence
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-valuation-evidence.ts"
+      - "scripts/*paper-valuation-evidence.mjs"
+      - "app/performance/page.tsx"
+      - ".github/workflows/paper-valuation-evidence.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-valuation-evidence.ts"
+      - "scripts/*paper-valuation-evidence.mjs"
+      - "app/performance/page.tsx"
+      - ".github/workflows/paper-valuation-evidence.yml"
+  workflow_run:
+    workflows: ["Fenice Paper Validation", "Fenice PAPER Validation Probe Cycle"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  valuation:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Test price FX audit and historical-sample valuation
+        run: node --experimental-strip-types scripts/test-paper-valuation-evidence.mjs
+      - name: Diagnose committed PAPER sample without provider or broker calls
+        env:
+          FENICE_VALUATION_REPORT_PATH: ${{ runner.temp }}/fenice-paper-valuation.json
+        run: node --experimental-strip-types scripts/check-paper-valuation-evidence.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fenice-paper-valuation-${{ github.run_id }}
+          path: ${{ runner.temp }}/fenice-paper-valuation.json
+          retention-days: 35
+      - name: Confirm sources remain unchanged
+        run: test -z "$(git status --porcelain)"
