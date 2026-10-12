@@ -35,4 +35,14 @@ assert(!preferMarketObservation(primary, { ...primary, observedAt: "2026-10-12T1
 assert(!preferMarketObservation(primary, { score: 100, observedAt: "2026-10-12T16:00:00Z" }), "unknown provenance does not override a known source");
 assert(preferMarketObservation(null, fallback));
 
+// Guard wiring as well as the pure helpers: regression tests must fail if the
+// production pipeline stops calling the proof gates.
+const { readFile } = await import("node:fs/promises");
+const runner = await readFile(new URL("./run-reliability-layer.mjs", import.meta.url), "utf8");
+assert.match(runner, /validateStooqResearchQuote\(parseStooq\(text\), Date\.now\(\)\)/);
+assert.match(runner, /isStooqProviderAccessFailure\(error\)/);
+assert.match(runner, /consecutiveFailures\s*>=\s*3/);
+assert.match(runner, /preferMarketObservation\(existing, normalized\)/);
+assert.match(runner, /source: 'Stooq public fallback', observedAt,/);
+
 console.log("Fenice research fallback freshness, throttling and provenance invariants: PASS");
