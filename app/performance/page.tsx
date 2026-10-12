@@ -21,6 +21,28 @@ const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR
 const decimal = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
 const fxDecimal = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 6 });
 
+type EdgeRow = {
+  horizon: string;
+  pairedSamples: number;
+  uniqueDays: number;
+  buySignalSamples: number;
+  waitOrAvoidSamples: number;
+  historicalBackfillSamples: number;
+  forwardObservedSamples: number;
+  hypotheticalMeanReturnAfterCostPercent: number | null;
+  hypotheticalMeanExcessVsBenchmarkPercent: number | null;
+  hypotheticalBeatBenchmarkRatePercent: number | null;
+};
+
+type EdgeResearch = {
+  version: number;
+  benchmark: string;
+  currency: string;
+  assumedRoundTripCostPercent: number;
+  hasVerifiedProfit: boolean;
+  horizons: Record<string, EdgeRow>;
+};
+
 function serverRequestTime() {
   return Date.now();
 }
@@ -39,6 +61,8 @@ function evidenceDate(value: string | null) {
 
 export default function PerformancePage() {
   const requestedAt = serverRequestTime();
+  const edge = (v7 as unknown as { researchEdge?: EdgeResearch }).researchEdge;
+  const edgeRows = ["1d", "7d", "30d", "90d"].map(horizon => edge?.horizons?.[horizon]).filter((row): row is EdgeRow => Boolean(row));
   const report = summarizePerformanceEvidence(
     paper as PaperOmsSnapshot,
     v7 as V7OutcomesSnapshot,
@@ -240,6 +264,51 @@ export default function PerformancePage() {
             {report.v7.hasValidatedBuyOutcomes
               ? "Esistono campioni COMPRA da analizzare; servono ancora rendimenti netti, costi e benchmark verificati."
               : "Non ci sono campioni COMPRA sufficienti a dimostrare che Fenice selezioni acquisti redditizi. Le centinaia di osservazioni ATTENDI/EVITA non sono profitti."}
+          </p>
+        </section>
+
+        <section className="space-y-3" aria-label="Ricerca del vantaggio netto rispetto al benchmark">
+          <h2 className="text-xl font-black">2B. Opportunità ipotetiche rispetto al mercato</h2>
+          <p className="text-sm leading-6 text-slate-300">
+            Ricerca retrospettiva sulle decisioni V7: confronto fra variazione del prezzo di ciascun titolo
+            in USD e variazione di SPY nelle stesse date di ingresso e uscita.
+            Il modello sottrae il costo ipotetico di andata e ritorno del {edge?.assumedRoundTripCostPercent ?? 0.3}% alle
+            opportunità, non al benchmark. Non sono operazioni realmente eseguite.
+          </p>
+          {edge && edgeRows.length ? (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/[0.07] text-xs text-slate-300">
+                  <tr>
+                    <th scope="col" className="p-3">Orizzonte</th>
+                    <th scope="col" className="p-3">Confronti validi</th>
+                    <th scope="col" className="p-3">Giorni distinti</th>
+                    <th scope="col" className="p-3">Segnali COMPRA</th>
+                    <th scope="col" className="p-3">Extra-rendimento ipotetico medio</th>
+                    <th scope="col" className="p-3">Superano SPY dopo costo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {edgeRows.map(row => (
+                    <tr key={row.horizon} className="border-t border-white/10">
+                      <th scope="row" className="p-3 font-bold">{row.horizon}</th>
+                      <td className="p-3">{row.pairedSamples}</td>
+                      <td className="p-3">{row.uniqueDays}</td>
+                      <td className="p-3">{row.buySignalSamples}</td>
+                      <td className="p-3">{row.pairedSamples ? percent(row.hypotheticalMeanExcessVsBenchmarkPercent) : "N/D"}</td>
+                      <td className="p-3">{row.pairedSamples ? percent(row.hypotheticalBeatBenchmarkRatePercent) : "N/D"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="rounded-xl border border-white/10 p-4 text-sm text-amber-200">Ricerca comparativa non ancora calcolata: N/D.</p>}
+          <p className="text-xs leading-5 text-amber-200">
+            Un extra-rendimento positivo in questa tabella NON è un profitto di Fenice: comprende anche ATTENDI, OSSERVA
+            ed EVITA, cioè acquisti ipotetici che il sistema non ha consigliato. I campioni ripetuti sono correlati e le
+            osservazioni storiche non costituiscono una prova fuori campione. Il confronto esclude azioni societarie,
+            dividendi, cambi EUR/USD e imposte, e usa costi stimati, non addebiti Directa. Per dimostrare redditività
+            servono segnali COMPRA verificabili e una serie netta del portafoglio; il saldo reale resta N/D.
           </p>
         </section>
 
