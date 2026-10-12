@@ -2,6 +2,11 @@ import { spawn } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  validateStooqResearchQuote,
+  isStooqProviderAccessFailure,
+  preferMarketObservation,
+} from '../lib/intelligence/research-fallback-safety.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const snapshotPath = path.join(root, 'data', 'latest-snapshot.json');
@@ -93,22 +98,28 @@ const traditionalUniverse = [
 
 async function traditionalFallback() {
   const out = [];
+  let consecutiveFailures = 0;
   for (const [code, symbol, name, assetClass] of traditionalUniverse) {
     try {
       const { text } = await fetchText(`https://stooq.com/q/l/?s=${code}&f=sd2t2ohlcv&h&e=csv`);
-      const row = parseStooq(text);
-      const price = Number(row?.Close);
-      const open = Number(row?.Open);
-      if (!Number.isFinite(price)) continue;
+      const quote = validateStooqResearchQuote(parseStooq(text), Date.now());
+      if (!quote) {
+        if (++consecutiveFailures >= 3) break;
+        continue;
+      }
+      consecutiveFailures = 0;
+      const { price, open, observedAt } = quote;
       const changePercent = Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : 0;
       const thematicBonus = ['Semiconduttori', 'AI Biotech', 'Biotech'].includes(assetClass) ? 4 : 0;
       const riskBase = assetClass === 'Biotech' || assetClass === 'AI Biotech' ? 68 : assetClass === 'Azioni' || assetClass === 'Semiconduttori' ? 54 : 45;
       out.push({ symbol, name, assetClass, market: 'USA', price, currency: 'USD', changePercent: Math.round(changePercent * 100) / 100,
-        source: 'Stooq public fallback', observedAt: row.Date,
+        source: 'Stooq public fallback', observedAt,
         score: Math.round(clamp(54 + changePercent * 2.2 + thematicBonus, 25, 78)),
         risk: Math.round(clamp(riskBase + Math.abs(changePercent) * 2.5, 30, 88)) });
-    } catch {
-      // Un singolo simbolo non deve interrompere l'intera raccolta.
+    } catch (error) {
+      // Stop provider-wide access failures instead of hammering a free endpoint.
+      // Three consecutive independent failures also end this optional fallback.
+      if (isStooqProviderAccessFailure(error) || ++consecutiveFailures >= 3) break;
     }
   }
   return out;
@@ -127,7 +138,7 @@ function normalizeRanking(markets) {
       ? { ...item, classification: 'stablecoin', score: 20, risk: Math.max(40, Number(item.risk) || 40) }
       : { ...item, score: Math.round(clamp(item.score)), risk: Math.round(clamp(item.risk)) };
     const existing = bySymbol.get(symbol);
-    const preferred = !existing || (existing.source === 'Stooq public fallback' && normalized.source !== 'Stooq public fallback') || normalized.score > existing.score;
+    const preferred = preferMarketObservation(existing, normalized);
     if (preferred) bySymbol.set(symbol, normalized);
   }
   return [...bySymbol.values()].sort((a, b) => {
