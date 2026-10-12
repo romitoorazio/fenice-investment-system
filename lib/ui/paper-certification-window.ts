@@ -9,6 +9,14 @@ type EvidenceRow = {
   date?: string;
   observedAt?: string;
   cumulativePaperFilled?: number;
+  newPaperFills?: number;
+  liveTradingAllowed?: boolean;
+  brokerConnectivityAllowed?: boolean;
+  auditChainValid?: boolean;
+  reconciliationBalanced?: boolean;
+  reconciliationBreaks?: number;
+  validationFingerprint?: { complete?: boolean; digest?: string };
+  fillEvidenceProof?: { complete?: boolean; requiredFills?: number; coveredFills?: number };
 };
 type Campaign = {
   startedAt?: string | null;
@@ -16,6 +24,7 @@ type Campaign = {
   minEvidenceDays?: number;
   minPaperFills?: number;
   dailyEvidence?: EvidenceRow[];
+  baselineFingerprint?: { complete?: boolean; digest?: string };
 };
 type Approval = {
   approved?: boolean;
@@ -83,6 +92,34 @@ export function summarizePaperCertificationWindow(
     && (utcTime(row.observedAt) as number) <= now
     && row.date === new Date(utcTime(row.observedAt)!).toISOString().slice(0, 10)) : [];
   const evidenceDays = new Set(eligibleRows.map((row) => row.date)).size;
+  const baselineDigest = campaign?.baselineFingerprint?.complete === true
+    && /^[a-f0-9]{64}$/i.test(campaign.baselineFingerprint.digest ?? "")
+    ? campaign.baselineFingerprint.digest!.toLowerCase() : null;
+  // Fail closed when a day is merely recorded but its immutable-V6 proof claims
+  // are missing or inconsistent. These are reported integrity checks, never
+  // signatures or permission to execute an order.
+  const hasDailyProof = (row: EvidenceRow) =>
+    baselineDigest !== null
+    && row.validationFingerprint?.complete === true
+    && row.validationFingerprint?.digest?.toLowerCase() === baselineDigest
+    && row.liveTradingAllowed === false && row.brokerConnectivityAllowed === false
+    && row.auditChainValid === true && row.reconciliationBalanced === true
+    && row.reconciliationBreaks === 0 && row.fillEvidenceProof?.complete === true
+    && Number.isSafeInteger(row.newPaperFills) && (row.newPaperFills ?? -1) >= 0
+    && Number.isSafeInteger(row.fillEvidenceProof.requiredFills)
+    && row.fillEvidenceProof.requiredFills === row.newPaperFills
+    && row.fillEvidenceProof.coveredFills === row.fillEvidenceProof.requiredFills;
+  const orderedEligibleRows = [...eligibleRows].sort((a, b) =>
+    utcTime(a.observedAt)! - utcTime(b.observedAt)!);
+  const fillDeltaValid = orderedEligibleRows.every((row, i) => {
+    const prev = i ? orderedEligibleRows[i - 1] : null;
+    return Number.isSafeInteger(row.cumulativePaperFilled) && (row.cumulativePaperFilled ?? -1) >= 0
+      && Number.isSafeInteger(row.newPaperFills) && (row.newPaperFills ?? -1) >= 0
+      && row.cumulativePaperFilled === (prev ? (prev.cumulativePaperFilled ?? NaN) : 0) + row.newPaperFills!;
+  });
+  const verifiedEvidenceDays = new Set(eligibleRows.filter(hasDailyProof).map(row => row.date)).size;
+  const evidenceIntegrityReviewRequired = verifiedEvidenceDays !== evidenceDays
+    || eligibleRows.some(row => !hasDailyProof(row)) || !fillDeltaValid;
   const lastRow = [...eligibleRows].sort((a, b) =>
     (utcTime(b.observedAt) || 0) - (utcTime(a.observedAt) || 0))[0];
   const reportedFills = Number.isSafeInteger(lastRow?.cumulativePaperFilled)
@@ -105,16 +142,19 @@ export function summarizePaperCertificationWindow(
   const elapsedDays = calendarValid ? Math.max(0, Math.floor((now - started) / DAY_MS)) : 0;
   const daysToMinMaturity = earliestValid ? Math.max(0, Math.ceil((earliestTime - now) / DAY_MS)) : null;
   const numericalTargetsMet = calendarValid && earliestValid
-    && now >= earliestTime && evidenceDays >= requiredEvidenceDays
+    && now >= earliestTime && verifiedEvidenceDays >= requiredEvidenceDays
+    && !evidenceIntegrityReviewRequired
     && authorizedReportedFills >= requiredFills && reportedFills >= authorizedReportedFills
     && !postExpiryFillIncreaseDetected && !fillCounterRegressionDetected && !fillCounterHistoryInvalid;
   const fillTargetReportedMet = requiredFills !== null && authorizedReportedFills >= requiredFills;
   const newProbeWindowOpen = calendarValid && earliestValid && approvalValid && !authorizationExpired;
   const approvalRenewalRequiredForMissingFills = authorizationExpired && !fillTargetReportedMet;
   const ownerActionRequired = !calendarValid || !earliestValid || !approvalValid
-    || approvalRenewalRequiredForMissingFills || postExpiryFillIncreaseDetected || fillCounterRegressionDetected || fillCounterHistoryInvalid;
+    || approvalRenewalRequiredForMissingFills || evidenceIntegrityReviewRequired
+    || postExpiryFillIncreaseDetected || fillCounterRegressionDetected || fillCounterHistoryInvalid;
   const state = !calendarValid || !earliestValid || !approvalValid
     ? "INVALID_POLICY"
+    : evidenceIntegrityReviewRequired ? "EVIDENCE_INTEGRITY_REVIEW_REQUIRED"
     : fillCounterHistoryInvalid ? "FILL_COUNTER_HISTORY_REVIEW_REQUIRED"
     : fillCounterRegressionDetected ? "FILL_COUNTER_REGRESSION_REVIEW_REQUIRED"
     : postExpiryFillIncreaseDetected ? "POST_EXPIRY_FILL_INCREASE_REVIEW_REQUIRED"
@@ -144,6 +184,8 @@ export function summarizePaperCertificationWindow(
     elapsedDays,
     requiredDays: durationDays,
     evidenceDays,
+    verifiedEvidenceDays,
+    evidenceIntegrityReviewRequired,
     requiredEvidenceDays,
     reportedFills,
     requiredFills,
