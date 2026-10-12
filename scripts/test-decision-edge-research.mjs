@@ -91,5 +91,8 @@ assert.match(performancePage, /extra-rendimento positivo/i);
 assert.match(performancePage, /NON è un profitto di Fenice/);
 assert.match(performancePage, /comprende anche ATTENDI, OSSERVA/);
 assert.match(performancePage, /serie netta del portafoglio/);
+assert.match(performancePage, /In avanti \/ retrospettivi/);
+assert.match(performancePage, /row\.forwardObservedSamples\} \/ \{row\.historicalBackfillSamples/);
+assert.match(performancePage, /Più titoli nella stessa giornata non sono osservazioni indipendenti/);
 
 console.log("V7 SPY same-window cost-aware opportunity research, evidence checks, no fake profits: PASS");
