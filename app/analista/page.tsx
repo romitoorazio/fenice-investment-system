@@ -13,8 +13,20 @@ export const revalidate = 0;
 // Capture request time outside the rendering expression for React purity.
 function serverRequestTime() { return Date.now(); }
 
-export default function FeniceAnalystPage() {
-  const initialReply = answerFeniceResearch("Stato Fenice oggi",
+export default async function FeniceAnalystPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ symbol?: string | string[] }>;
+}) {
+  const requested = (await searchParams).symbol;
+  const symbol = typeof requested === "string" ? requested.trim().toUpperCase() : "";
+  // Deep links may select only a uniquely matched symbol already reviewed by
+  // the committee. Unknown input never becomes an autonomous or paid AI request.
+  const tracked = Array.isArray(committee.allDecisions)
+    && committee.allDecisions.filter(item => item.symbol.toUpperCase() === symbol).length === 1;
+  const initialQuestion = /^[A-Z0-9][A-Z0-9._-]{0,24}$/.test(symbol) && tracked
+    ? `Analizza ${symbol}` : "Stato Fenice oggi";
+  const initialReply = answerFeniceResearch(initialQuestion,
     { committee, quality, sources: sourceHealth, campaign, calibration },
     serverRequestTime());
 
@@ -32,7 +44,7 @@ export default function FeniceAnalystPage() {
           </div>
           <Link href="/" className="rounded-xl border border-white/20 px-4 py-2 text-sm">← Oggi</Link>
         </header>
-        <FeniceAnalystConsole initialReply={initialReply} />
+        <FeniceAnalystConsole initialReply={initialReply} initialQuestion={initialQuestion} />
         <p className="text-xs text-slate-500">
           Il motore interpreta evidenze persistite, non osserva tutte le borse in realtime.
           È stata aggiunta un’integrazione generativa AI Gateway opzionale: si attiva solo dopo configurazione
