@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareDiscoveryEvidence } from "../lib/intelligence/catalyst-evidence-policy.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const snapshotPath = path.resolve(__dirname, "..", "data", "latest-snapshot.json");
@@ -151,7 +152,7 @@ for (const query of clinicalQueries) {
 const existing = snapshot.discoveries ?? [];
 const seen = new Set();
 const discoveries = [...events, ...existing]
-  .sort((a, b) => (b.sourceTier ?? 3) - (a.sourceTier ?? 3) || (b.score ?? 0) - (a.score ?? 0))
+  .sort(compareDiscoveryEvidence)
   .filter((item) => {
     const urlKey = item.url ? String(item.url).replace(/\?.*$/, "") : "";
     const titleKey = clean(item.name).toLowerCase().replace(/[^a-z0-9]+/g, " ");

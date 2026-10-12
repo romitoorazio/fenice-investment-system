@@ -46,6 +46,9 @@ jobs:
       - name: Verify GDELT rate limits and news provenance cannot bypass research safety
         run: node scripts/test-gdelt-recovery-policy.mjs
 
+      - name: Verify investment catalysts require recent primary issuer evidence
+        run: node scripts/test-investment-committee-catalysts.mjs
+
       - name: Verify PAPER authorization expiry and minimum campaign duration
         run: node --experimental-strip-types scripts/test-paper-certification-window.mjs
 

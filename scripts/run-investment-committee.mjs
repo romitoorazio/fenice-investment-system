@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
-import { catalystMatchesAsset } from '../lib/intelligence/catalyst-matching.mjs';
+import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -49,15 +49,7 @@ function valuationScore(asset, dcf) {
 }
 
 function catalystFor(asset, discoveries) {
-  const matches = discoveries.filter((item) => catalystMatchesAsset(asset, item));
-  const recent = matches.filter((item) => freshnessScore(item.date) >= 65);
-  const score = Math.round(clamp(48 + Math.min(28, recent.length * 7) + Math.min(10, matches.length * 2)));
-  return {
-    score,
-    count: matches.length,
-    recentCount: recent.length,
-    evidence: recent.slice(0, 4).map((item) => `${item.name} · ${item.source}`),
-  };
+  return evaluateCatalystEvidence(asset, discoveries, now.getTime());
 }
 
 function positionClass(asset, fundamental) {
@@ -210,6 +202,11 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
       matchedEvents: catalyst.count,
       recentEvents: catalyst.recentCount,
       evidence: catalyst.evidence,
+      sourceUrls: catalyst.sourceUrls,
+      researchMentions: catalyst.researchMentions,
+      unverifiedMentions: catalyst.unverifiedMentions,
+      policy: catalyst.policy,
+      executionEligible: false,
     },
     entryPlan: entry,
     bullCase,
