@@ -1,14 +1,23 @@
 import assert from "node:assert/strict";
 import { summarizePaperCertificationWindow as assess } from "../lib/ui/paper-certification-window.ts";
 
+const fingerprint = "a".repeat(64);
+const proofDay = (date, observedAt, cumulativePaperFilled, newPaperFills = 0) => ({
+  date, observedAt, cumulativePaperFilled, newPaperFills,
+  liveTradingAllowed: false, brokerConnectivityAllowed: false,
+  auditChainValid: true, reconciliationBalanced: true, reconciliationBreaks: 0,
+  validationFingerprint: { complete: true, digest: fingerprint },
+  fillEvidenceProof: { complete: true, requiredFills: newPaperFills, coveredFills: newPaperFills },
+});
 const campaign = {
+  baselineFingerprint: { complete: true, digest: fingerprint },
   startedAt: "2026-09-25T15:40:35.178Z",
   requiredDays: 30,
   minEvidenceDays: 25,
   minPaperFills: 10,
   dailyEvidence: [
-    { date: "2026-09-25", observedAt: "2026-09-25T17:24:41.625Z", cumulativePaperFilled: 1 },
-    { date: "2026-10-10", observedAt: "2026-10-10T20:21:34.173Z", cumulativePaperFilled: 6 },
+    proofDay("2026-09-25", "2026-09-25T17:24:41.625Z", 1, 1),
+    proofDay("2026-10-10", "2026-10-10T20:21:34.173Z", 6, 5),
   ],
 };
 const approval = {
@@ -35,6 +44,8 @@ assert.equal(outcome.elapsedDays, 16);
 assert.equal(outcome.daysToMinMaturity, 14);
 assert.equal(outcome.reportedFills, 6);
 assert.equal(outcome.evidenceDays, 2);
+assert.equal(outcome.verifiedEvidenceDays, 2);
+assert.equal(outcome.evidenceIntegrityReviewRequired, false);
 assert.equal(outcome.numericalTargetsMet, false);
 assert.equal(outcome.liveTradingAllowed, false);
 assert.equal(outcome.certified, false);
@@ -61,11 +72,33 @@ assert.equal(assess(campaign, approval, current).reportedFills, assess(campaign,
 const extended = { ...approval, expiresAt: "2026-11-03T22:59:59.000Z" };
 const complete = { ...campaign, dailyEvidence: Array.from({ length: 25 }, (_, i) => {
   const date = new Date(Date.parse("2026-09-25T00:00:00.000Z") + i * 86400000).toISOString().slice(0, 10);
-  return { date, observedAt: date + "T18:00:00.000Z", cumulativePaperFilled: 10 };
+  return proofDay(date, date + "T18:00:00.000Z", 10, i === 0 ? 10 : 0);
 }) };
 const matured = assess(complete, extended, Date.parse("2026-10-26T12:00:00.000Z"));
 assert.equal(matured.state, "NUMERICAL_TARGETS_MET_REVIEW_ONLY");
 assert.equal(matured.numericalTargetsMet, true);
+assert.equal(matured.verifiedEvidenceDays, 25);
+assert.equal(matured.evidenceIntegrityReviewRequired, false);
+const requireIntegrity = mutate => {
+  const data = structuredClone(complete);
+  mutate(data);
+  const state = assess(data, extended, Date.parse("2026-10-26T12:00:00.000Z"));
+  assert.equal(state.evidenceDays, 25, "reported evidence is not the same as verified evidence");
+  assert.equal(state.evidenceIntegrityReviewRequired, true);
+  assert.equal(state.ownerActionRequired, true);
+  assert.equal(state.numericalTargetsMet, false);
+  assert.equal(state.certified, false);
+  assert.equal(state.liveTradingAllowed, false);
+  return state;
+};
+assert.equal(requireIntegrity(x => { x.dailyEvidence[3].auditChainValid = false; }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[4].reconciliationBalanced = false; }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[5].liveTradingAllowed = true; }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[6].validationFingerprint.digest = "b".repeat(64); }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[7].fillEvidenceProof.complete = false; }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[8].fillEvidenceProof.coveredFills = 2; }).verifiedEvidenceDays, 24);
+assert.equal(requireIntegrity(x => { x.dailyEvidence[9].newPaperFills = 1; x.dailyEvidence[9].fillEvidenceProof.requiredFills = 1; x.dailyEvidence[9].fillEvidenceProof.coveredFills = 1; }).verifiedEvidenceDays, 25);
+assert.equal(requireIntegrity(x => { x.baselineFingerprint.digest = "b".repeat(64); }).verifiedEvidenceDays, 0);
 assert.equal(matured.certified, false);
 assert.equal(matured.liveTradingAllowed, false);
 

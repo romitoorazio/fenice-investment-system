@@ -28,6 +28,8 @@ type PaperEvidenceView = {
   paperCycles?: number;
   cumulativePaperFilled?: number;
   newPaperFills?: number;
+  reconciliationBreaks?: number;
+  fillEvidenceProof?: { complete?: boolean; requiredFills?: number; coveredFills?: number };
   cumulativeRiskRejected?: number;
   openPositions?: number;
   killSwitchEngaged?: boolean;
@@ -254,6 +256,8 @@ export default async function ReadinessPage() {
           <p className="mt-2 text-sm text-slate-300">
             {calendar.state === "INVALID_POLICY"
               ? "Autorizzazione o calendario non verificabili: nessun nuovo probe consentito."
+              : calendar.evidenceIntegrityReviewRequired
+                ? "Almeno una giornata registrata non presenta tutte le prove di integrità richieste, o il conteggio dei fill non è coerente. Non viene conteggiata come giornata verificata; controllare l'audit V6."
               : calendar.fillCounterHistoryInvalid
                 ? "Lo storico dei conteggi contiene valori invalidi o prove discordanti: verificare il registro prima di considerare completa la campagna."
               : calendar.fillCounterRegressionDetected
@@ -268,8 +272,9 @@ export default async function ReadinessPage() {
           </p>
           <p className="mt-2 text-xs text-amber-100/80">
             Ultima evidenza registrata: {calendar.latestEvidenceDate ?? "non verificabile"} ·
-            Giorni {calendar.evidenceDays}/{minEvidenceDays} ·
-            Fill {calendar.reportedFills}/{minPaperFills} ·
+            Giornate registrate {calendar.evidenceDays}/{minEvidenceDays} ·
+            Con prova di integrità {calendar.verifiedEvidenceDays}/{minEvidenceDays} ·
+            Fill dichiarati {calendar.reportedFills}/{minPaperFills} ·
             Nessuna modifica automatica alla V6; trading reale sempre bloccato.
           </p>
         </section>
