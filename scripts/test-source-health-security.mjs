@@ -52,8 +52,11 @@ if (/\/WS_CBPOL\?/.test(bis.endpoint)) {
   throw new Error("BIS source-health probe must never regress to the unbounded WS_CBPOL bulk endpoint.");
 }
 
-if (!/fetchText\(url, 8000\)/.test(reliability) || !/HTTP 429/i.test(reliability)) {
-  throw new Error("GDELT recovery must use a bounded timeout and stop immediately on provider throttling.");
+if (!/fetchText\(url, 8000\)/.test(reliability) || !/isGdeltProviderBlock\(error\)/.test(reliability)) {
+  throw new Error("GDELT recovery must use a bounded timeout and fail closed on provider throttling.");
+}
+if (!/shouldAttemptGdeltRecovery\(upstreamHealth, Date\.now\(\)\)/.test(reliability)) {
+  throw new Error("GDELT recovery must reuse recently checked upstream status rather than duplicate requests.");
 }
 
 console.log("Source checker security invariants PASS.");
