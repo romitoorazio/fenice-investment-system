@@ -85,4 +85,11 @@ assert.throws(() => evaluateDecisionBenchmarkEdge([spy, nvidia], { now: new Date
 const runner = await readFile(new URL("./run-decision-outcomes.mjs", import.meta.url), "utf8");
 assert.match(runner, /researchEdge: evaluateDecisionBenchmarkEdge\(ledger\.records, \{ now \}\)/);
 assert.match(runner, /modifiesV6DecisionLedger: false/);
+const performancePage = await readFile(new URL("../app/performance/page.tsx", import.meta.url), "utf8");
+assert.match(performancePage, /Opportunità ipotetiche rispetto al mercato/);
+assert.match(performancePage, /extra-rendimento positivo/i);
+assert.match(performancePage, /NON è un profitto di Fenice/);
+assert.match(performancePage, /include.*ATTENDI, OSSERVA/s);
+assert.match(performancePage, /serie netta del portafoglio/);
+
 console.log("V7 SPY same-window cost-aware opportunity research, evidence checks, no fake profits: PASS");
