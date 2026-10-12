@@ -19,7 +19,7 @@ for (const state of ["healthy", "degraded", "failed"]) {
 assert.equal(shouldAttemptGdeltRecovery(recentCheck("failed"), now + 16 * 60_000), true, "permit a later hourly research recovery");
 assert.equal(shouldAttemptGdeltRecovery({ sources: [] }, now), true);
 assert.equal(shouldAttemptGdeltRecovery(recentCheck("unknown"), now), true);
-assert.equal(shouldAttemptGdeltRecovery({ sources: [{ id: "gdelt", status: "failed", checkedAt: "invalid" }] }, now), true);
+assert.equal(shouldAttemptGdeltRecovery({ sources: [{ id: "gdelt", status: "failed", checkedAt: "invalid" }] }, now), false, "unverifiable upstream timestamps cannot authorize an immediate extra call");
 assert.equal(shouldAttemptGdeltRecovery({ sources: [{ id: "gdelt", status: "failed", checkedAt: "2026-10-12T19:21:00Z" }] }, now), false, "clock skew must not trigger network retry");
 assert.equal(shouldAttemptGdeltRecovery(null, Number.NaN), false);
 assert(isGdeltProviderBlock(new Error("HTTP 429")));
