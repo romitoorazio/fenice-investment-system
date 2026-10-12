@@ -37,6 +37,9 @@ jobs:
       - name: Verify committee-first Compra/Vendi classification
         run: node --experimental-strip-types scripts/test-committee-decision-display.mjs
 
+      - name: Verify Fenice100K BUY blocker diagnostics do not create orders or profits
+        run: node scripts/test-buy-blocker-diagnostics.mjs
+
       - name: Verify worldwide pilot coverage never grants PAPER or Directa orders
         run: node --experimental-strip-types scripts/test-market-coverage-plan.mjs
 
