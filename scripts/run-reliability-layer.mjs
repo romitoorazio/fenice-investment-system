@@ -2,18 +2,23 @@ import { spawn } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import {
   validateStooqResearchQuote,
   isStooqProviderAccessFailure,
   preferMarketObservation,
 } from '../lib/intelligence/research-fallback-safety.mjs';
+import {
+  shouldAttemptGdeltRecovery,
+  isGdeltProviderBlock,
+  normalizeGdeltResearchArticles,
+} from '../lib/intelligence/gdelt-recovery-policy.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const snapshotPath = path.join(root, 'data', 'latest-snapshot.json');
 const sourceHealthPath = path.join(root, 'data', 'global-source-health.json');
 const now = new Date();
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Number(value) || 0));
-const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 function run(file) {
   return new Promise((resolve, reject) => {
@@ -55,26 +60,13 @@ async function fetchText(url, timeoutMs = 25000) {
 }
 
 async function gdelt(query, mode = 'ArtList') {
-  const endpoints = [
-    `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&maxrecords=50&format=json&sort=HybridRel`,
-    `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&maxrecords=30&format=json`,
-  ];
-  let lastError;
-  for (const url of endpoints) {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        const { text } = await fetchText(url, 8000);
-        const trimmed = text.trim();
-        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) throw new Error(`risposta non JSON: ${trimmed.slice(0, 100)}`);
-        return JSON.parse(trimmed);
-      } catch (error) {
-        lastError = error;
-        if (/HTTP 429/i.test(String(error?.message || error))) throw error;
-        await sleep(1800 * attempt);
-      }
-    }
-  }
-  throw lastError;
+  // One bounded, research-only recovery request. The primary collection
+  // already ran upstream; repeated same-cycle retries amplify HTTP 429.
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&maxrecords=30&format=json`;
+  const { text } = await fetchText(url, 8000);
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) throw new Error('GDELT: payload JSON non verificabile');
+  return JSON.parse(trimmed);
 }
 
 function parseStooq(csv) {
@@ -192,22 +184,46 @@ snapshot.markets = Array.isArray(snapshot.markets) ? snapshot.markets : [];
 snapshot.discoveries = Array.isArray(snapshot.discoveries) ? snapshot.discoveries : [];
 snapshot.warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings : [];
 
-try {
-  const data = await gdelt('(IPO OR funding OR acquisition OR "FDA approval" OR quantum OR fusion OR CRISPR OR sanctions OR tariffs OR cyberattack)');
-  const articles = Array.isArray(data?.articles) ? data.articles.slice(0, 40) : [];
-  for (const [index, article] of articles.entries()) {
-    snapshot.discoveries.unshift({ id: `gdelt-recovery-${index}-${article.seendate || Date.now()}`, name: article.title, category: 'NEWS',
-      signal: `Evento globale rilevato da ${article.domain || 'GDELT'}.`, score: 60, risk: 65, date: article.seendate,
-      source: `GDELT · ${article.domain || 'global'}`, url: article.url });
+const upstreamHealth = await readJsonSafe(path.join(root, 'data', 'source-health.json'), null);
+if (shouldAttemptGdeltRecovery(upstreamHealth, Date.now())) {
+  try {
+    const data = await gdelt('(IPO OR funding OR acquisition OR "FDA approval" OR quantum OR fusion OR CRISPR OR sanctions OR tariffs OR cyberattack)');
+    const articles = normalizeGdeltResearchArticles(data, { nowMs: Date.now() });
+    for (const article of articles) {
+      const articleId = createHash('sha256').update(article.url).digest('hex').slice(0, 16);
+      snapshot.discoveries.unshift({
+        id: `gdelt-recovery-${articleId}`,
+        name: article.title,
+        category: 'NEWS',
+        signal: `Evento globale rilevato da ${article.domain} (ricerca, non prova per operare).`,
+        score: 60,
+        risk: 65,
+        date: article.seendate,
+        source: `GDELT · ${article.domain}`,
+        url: article.url,
+      });
+    }
+    const existing = snapshot.providers.find(item => item.id === 'gdelt');
+    const value = {
+      id: 'gdelt', name: 'GDELT', state: articles.length ? 'operativo' : 'parziale',
+      coverage: ['notizie globali', 'geopolitica', 'società emergenti'],
+      detail: `Recovery layer: ${articles.length} articoli recenti verificabili (sola ricerca).`,
+      ...(articles.length ? { lastSuccessAt: new Date().toISOString() } : {}),
+    };
+    if (existing) Object.assign(existing, value); else snapshot.providers.push(value);
+    if (articles.length) snapshot.warnings = snapshot.warnings.filter(item =>
+      !String(item).startsWith('GDELT recovery'));
+    else snapshot.warnings.push('GDELT recovery: nessun articolo verificabile; fonte non certificata come operativa.');
+  } catch (error) {
+    // Respect provider blocking/throttling; no second endpoint or immediate
+    // retry and no promotion of failed research data into an active provider.
+    const blocked = isGdeltProviderBlock(error);
+    snapshot.warnings.push(`GDELT recovery ${blocked ? 'limitato dal fornitore' : 'fallito'}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const existing = snapshot.providers.find(item => item.name === 'GDELT');
-  const value = { id: 'gdelt', name: 'GDELT', state: articles.length ? 'operativo' : 'parziale',
-    coverage: ['notizie globali', 'geopolitica', 'società emergenti'], detail: `Recovery layer: ${articles.length} articoli acquisiti.`,
-    ...(articles.length ? { lastSuccessAt: now.toISOString() } : {}) };
-  if (existing) Object.assign(existing, value); else snapshot.providers.push(value);
-  snapshot.warnings = snapshot.warnings.filter(item => !String(item).startsWith('GDELT'));
-} catch (error) {
-  snapshot.warnings.push(`GDELT recovery fallito: ${error instanceof Error ? error.message : String(error)}`);
+} else {
+  // An upstream collection has already checked GDELT very recently.
+  // Preserve its actual success/failure status rather than fabricating a new one.
+  snapshot.warnings.push('GDELT recovery non ripetuto: fonte gia verificata nel ciclo corrente.');
 }
 
 const fallback = await traditionalFallback();
