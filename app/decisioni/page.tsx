@@ -140,6 +140,23 @@ export default async function DecisioniPage() {
             Questo non equivale a titoli acquistabili: serve anche una posizione broker verificata per valutare vendite, la verifica dell&apos;ordine e l&apos;autorizzazione umana.</p>
           <p className="mt-2">La pagina usa soltanto quotazioni PAPER già archiviate e un orologio Alpaca autenticato per le sedi USA; non scarica prezzi in tempo reale. Sulle altre borse lo stato OPEN non è dimostrato.</p>
         </section>
+        <section aria-label="Directa stato portafoglio in sola lettura" className="rounded-xl border border-violet-400/25 bg-violet-400/[0.04] p-4 text-sm text-slate-200">
+          <h2 className="font-black text-violet-200">Directa · prima si verificano le posizioni, poi si valuta</h2>
+          <p className="mt-2">
+            La connessione locale read-only è predisposta, ma il server cloud NON ha una prova autenticata
+            del collegamento al tuo PC o della liquidità reale. Non posso confermare né il saldo,
+            né i titoli posseduti, né se un segnale EVITA corrisponda a una vendita possibile.
+          </p>
+          <p className="mt-2 text-xs text-amber-100">
+            Collegamento broker: NON VERIFICATO · Riconciliazione reale: NON VERIFICATA ·
+            Nessun codice API o conto esposto sul browser · Ordini reali: BLOCCATI.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold">
+            <Link href="/api/broker/status" className="text-violet-200 underline">Diagnostica integrazione broker (non verifica il conto)</Link>
+            <Link href="/portfolio" className="text-violet-200 underline">Vai al portafoglio modello</Link>
+            <Link href="/analista" className="text-violet-200 underline">Chiedi all'analista</Link>
+          </div>
+        </section>
         <div className="rounded-xl border border-white/10 p-4 text-sm text-slate-300">
           <p className="font-bold text-white">Significato delle categorie</p>
           <p className="mt-2">Le categorie sotto derivano dal comitato finale: i segnali tecnici sono mostrati solo come contesto, non come istruzioni di trading. Il numero di strumenti disponibili nel catalogo globale non rappresenta un controllo continuo di tutti i mercati. La vendita è valutabile solo per titoli effettivamente posseduti.</p>
@@ -176,6 +193,12 @@ export default async function DecisioniPage() {
                   <p className="mt-3 text-sm text-slate-300">{asset.reason || "Motivazione non disponibile."}</p>
                   {!!asset.warnings?.length && <p className="mt-2 text-xs text-amber-200">Avvertenza: {asset.warnings[0]}</p>}
                   <p className="mt-2 text-xs text-slate-500">Osservazione: {quoteDate || "non disponibile"} · Nessun ordine consentito.</p>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold">
+                    <Link href={`/analista?symbol=${encodeURIComponent(asset.symbol)}`} className="text-cyan-300 underline">
+                      Perché questa decisione? Analizza {asset.symbol} con Fenice IA →
+                    </Link>
+                    <Link href="/mercati" className="text-slate-300 underline">Verifica copertura dati</Link>
+                  </div>
                 </article>;
               })}</div>}
           </section>;
