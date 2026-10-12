@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-12T19:48:38.636Z",
+  "generatedAt": "2026-10-12T22:33:10.318Z",
   "purpose": "V7 decision outcome scorecard: measure realised consequences of COMPRA/OSSERVA/ATTENDI/EVITA without changing V6 execution.",
   "methodology": {
     "checkpoints": [
@@ -29,7 +29,7 @@
     "liveTradingAllowed": false
   },
   "current": {
-    "committeeGeneratedAt": "2026-10-12T19:38:09.765Z",
+    "committeeGeneratedAt": "2026-10-12T22:08:18.741Z",
     "marketRegime": "ATTENDERE",
     "trackedDecisions": 19,
     "counts": {
@@ -214,6 +214,94 @@
         "avoidedLossPerDecisionPercent": null,
         "netProtectionMinusMissedPerDecisionPercent": null,
         "biasState": "INSUFFICIENT"
+      }
+    }
+  },
+  "researchEdge": {
+    "version": 1,
+    "label": "Research-only benchmark edge / hypothetical USD price returns",
+    "benchmark": "SPY",
+    "currency": "USD",
+    "assumedRoundTripCostPercent": 0.3,
+    "costAssumption": "Illustrative single round-trip cost; not actual Directa commission, spread, slippage, FX, taxes or dividends.",
+    "methodology": "Same UTC entry day and checkpoint exit day as a valid SPY price observation; recompute both forward returns from positive prices; deduplicate one observation per ticker/day; historical bootstrap and forward observations separated.",
+    "selectionBiasWarning": "Historical committee snapshots and repeated correlated market days are NOT out-of-sample validation. Hypothetical trades are not executed and cannot establish portfolio profitability.",
+    "scope": "Excludes SPY itself, non-USD assets, missing/stale/badly timed quotes, mismatched end dates and unverified checkpoints. Benchmark SPY is gross; candidate nets a conservative illustrative cost.",
+    "isolation": {
+      "researchOnly": true,
+      "feedsV6CalibrationPolicy": false,
+      "modifiesPaperEvidence": false,
+      "changesCommitteeDecisions": false,
+      "executionEligible": false,
+      "paperCertificationEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    "hasVerifiedProfit": false,
+    "horizons": {
+      "1d": {
+        "horizon": "1d",
+        "pairedSamples": 528,
+        "uniqueDays": 31,
+        "historicalBackfillSamples": 477,
+        "forwardObservedSamples": 51,
+        "buySignalSamples": 0,
+        "waitOrAvoidSamples": 528,
+        "hypotheticalMeanReturnAfterCostPercent": -0.18,
+        "benchmarkMeanGrossReturnPercent": 0.04,
+        "hypotheticalMeanExcessVsBenchmarkPercent": -0.21,
+        "hypotheticalPositiveNetRatePercent": 41.67,
+        "hypotheticalBeatBenchmarkRatePercent": 38.83,
+        "verifiedNetProfit": false,
+        "verifiedLiveReturnPercent": null
+      },
+      "7d": {
+        "horizon": "7d",
+        "pairedSamples": 426,
+        "uniqueDays": 25,
+        "historicalBackfillSamples": 426,
+        "forwardObservedSamples": 0,
+        "buySignalSamples": 0,
+        "waitOrAvoidSamples": 426,
+        "hypotheticalMeanReturnAfterCostPercent": 0.57,
+        "benchmarkMeanGrossReturnPercent": 0.11,
+        "hypotheticalMeanExcessVsBenchmarkPercent": 0.45,
+        "hypotheticalPositiveNetRatePercent": 49.06,
+        "hypotheticalBeatBenchmarkRatePercent": 46.24,
+        "verifiedNetProfit": false,
+        "verifiedLiveReturnPercent": null
+      },
+      "30d": {
+        "horizon": "30d",
+        "pairedSamples": 171,
+        "uniqueDays": 10,
+        "historicalBackfillSamples": 171,
+        "forwardObservedSamples": 0,
+        "buySignalSamples": 0,
+        "waitOrAvoidSamples": 171,
+        "hypotheticalMeanReturnAfterCostPercent": 4.11,
+        "benchmarkMeanGrossReturnPercent": 0.97,
+        "hypotheticalMeanExcessVsBenchmarkPercent": 3.14,
+        "hypotheticalPositiveNetRatePercent": 69.01,
+        "hypotheticalBeatBenchmarkRatePercent": 66.08,
+        "verifiedNetProfit": false,
+        "verifiedLiveReturnPercent": null
+      },
+      "90d": {
+        "horizon": "90d",
+        "pairedSamples": 0,
+        "uniqueDays": 0,
+        "historicalBackfillSamples": 0,
+        "forwardObservedSamples": 0,
+        "buySignalSamples": 0,
+        "waitOrAvoidSamples": 0,
+        "hypotheticalMeanReturnAfterCostPercent": null,
+        "benchmarkMeanGrossReturnPercent": null,
+        "hypotheticalMeanExcessVsBenchmarkPercent": null,
+        "hypotheticalPositiveNetRatePercent": null,
+        "hypotheticalBeatBenchmarkRatePercent": null,
+        "verifiedNetProfit": false,
+        "verifiedLiveReturnPercent": null
       }
     }
   }
