@@ -32,7 +32,7 @@ assert.match(homeSource, /euro\.format\(data\.capital\).*?euro\.format\(data\.st
 assert.match(homeSource, /data\.horizonYears/);
 assert.match(homeSource, /data\.requiredAnnualReturn\.toFixed\(2\)/);
 assert.match(homeSource, /href="\/performance"/);
-assert.match(homeSource, /Profitto netto dimostrato rispetto all'obiettivo/);
+assert.match(homeSource, /Profitto netto dimostrato rispetto all&apos;obiettivo/);
 assert.match(homeSource, /NON VERIFICATO/);
 assert.match(homeSource, /Capitale reale Directa verificato/);
 assert.match(homeSource, /NON INVESTIRE ANCORA/);
