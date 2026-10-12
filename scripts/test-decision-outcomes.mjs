@@ -107,4 +107,72 @@ const late = updateDecisionOutcomeLedger(
 assert(late.records.every((r) => !r.checkpoints["1d"]), "late marks cannot be mislabeled as 1d");
 assert(late.records.every((r) => r.checkpoints["7d"]), "7d mark may use grace window");
 
+
+// Money-making evaluations must not convert missing price evidence into a
+// fabricated zero quote or into a winning/losing trading outcome.
+for (const absent of [null, undefined, "", "   ", "N/D", Number.NaN, Infinity, -Infinity]) {
+  assert.equal(classifyDecisionOutcome("COMPRA", absent), null, "missing return must remain unclassified");
+}
+const missingCandidates = selectDecisionOutcomeCandidates([
+  decision("NULL", null),
+  decision("EMPTY", ""),
+  decision("SPACES", "   "),
+  decision("ZERO", 0),
+  decision("NEGATIVE", -4),
+  decision("VALID", "101.25", { confidence: null, committeeScore: "", riskScore: undefined }),
+]);
+assert.deepEqual(missingCandidates.map(item => item.symbol), ["VALID"]);
+assert.equal(missingCandidates[0].confidence, null);
+assert.equal(missingCandidates[0].committeeScore, null);
+assert.equal(missingCandidates[0].riskScore, null);
+
+const badHistoricPrice = buildHistoricalDecisionOutcomeBackfill([
+  { generatedAt: "2026-09-24T20:00:00Z", allDecisions: [decision("SPY", 100)] },
+  { generatedAt: "2026-09-25T20:00:00Z", allDecisions: [decision("SPY", null)] },
+  { generatedAt: "2026-09-28T20:00:00Z", allDecisions: [decision("QQQ", 100)] },
+]);
+const initialSpy = badHistoricPrice.records.find(r => r.symbol === "SPY");
+assert(initialSpy, "historical reference remains preserved");
+assert.equal(initialSpy.checkpoints["1d"], undefined,
+  "missing next-day quote must not create an artificial 100 percent loss");
+assert.equal(initialSpy.checkpoints["7d"], undefined);
+assert.equal(badHistoricPrice.records.some(r => r.symbol === "SPY" && r.referencePrice === 0), false);
+
+for (const invalidPrice of [null, undefined, 0, "", "   ", -3, Number.NaN]) {
+  const marked = updateDecisionOutcomeLedger(first, [], new Map([["SPY", invalidPrice]]), {
+    cycleId: "missing-prices",
+    now: new Date("2026-10-03T22:00:00Z"),
+  });
+  const spy = marked.records.find(r => r.symbol === "SPY");
+  assert.equal(spy.checkpoints["1d"], undefined, "invalid quotes cannot become 1d outcomes");
+  assert.equal(spy.lastPrice, 100, "invalid quotes cannot change stored last valid price");
+  assert.equal(spy.lastMarkedAt, "2026-10-01T22:00:00.000Z",
+    "invalid quotes cannot advance the last-verified timestamp");
+}
+const malformedSummary = summarizeDecisionOutcomes([
+  {
+    symbol: "SPY", decision: "EVITA", referencePrice: 100,
+    checkpoints: { "1d": { price: null, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: -100 } },
+  },
+  {
+    symbol: "QQQ", decision: "COMPRA", referencePrice: 100,
+    checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: null } },
+  },
+  {
+    symbol: "TSM", decision: "COMPRA", referencePrice: 100,
+    checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: 20 } },
+  },
+], "1d");
+assert.equal(malformedSummary.sampleSize, 1, "only complete evidence should count towards profitability");
+assert.equal(malformedSummary.decisions.COMPRA.sampleSize, 1);
+assert.equal(malformedSummary.decisions.COMPRA.favorableRatePercent, 100);
+assert.equal(malformedSummary.decisions.EVITA.sampleSize, 0);
+assert.equal(malformedSummary.decisions.EVITA.favorableRatePercent, null);
+
+const forgedCandidate = updateDecisionOutcomeLedger(first, [
+  { symbol: "ZERO", decision: "COMPRA", referencePrice: 0 },
+  { symbol: "MISSING", decision: "EVITA", referencePrice: null },
+], new Map(), { now: new Date("2026-10-04T22:00:00Z") });
+assert.equal(forgedCandidate.recordCount, 3, "unverified new decision entries must not enter the scorecard");
+
 console.log("Fenice V7 decision outcome engine: PASS");
