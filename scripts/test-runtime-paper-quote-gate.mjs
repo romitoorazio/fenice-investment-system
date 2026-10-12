@@ -51,4 +51,17 @@ const newestQuoteDivergence = { ...evidence, observations: [
 ]};
 assert.equal(evaluate(newestQuoteDivergence).ready, false, "older same-provider quote must never mask a newer divergent quote");
 
+for (const requestedSymbols of [0, -1, 2, 3.5, "10", Number.NaN]) {
+  assert.equal(evaluate(evidence, { ...coverage, requestedSymbols }).ready, false);
+}
+assert.equal(evaluate(evidence, { ...coverage, paperEligibleSymbols: 11 }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, rows: [...coverage.rows, coverage.rows[0]] }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, rows: [] }).ready, false);
+assert.equal(evaluate({ ...evidence, observations: "malformed" }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, policy: { ...coverage.policy, approvedIndependentPaperSourceFamilies: "malformed" } }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, rows: symbols.map(symbol => ({ symbol: "OTHER_" + symbol, paperEligible: false })) }).ready, false,
+  "unrequested but fresh symbol quotes cannot establish coverage");
+assert.equal(evaluate({ ...evidence, generatedAt: "2026-02-30T13:00:00.000Z" }).ready, false);
+assert.equal(evaluate(evidence, coverage, Number.NaN).ready, false);
+
 console.log("Fenice runtime PAPER quote freshness/quorum regression: PASS.");

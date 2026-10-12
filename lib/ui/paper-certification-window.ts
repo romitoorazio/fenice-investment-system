@@ -1,6 +1,8 @@
 /**
  * Read-only PAPER certification calendar. This is a DISPLAY/DIAGNOSTIC check,
  * NOT certification, order authority, or permission to modify V6 approval.
+ * V6 approval covers NEW probe writes; its expiry cannot erase prior evidence
+ * or prevent passive calendar maturation. Canonical gates remain authoritative.
  * Do not import into the fingerprinted PAPER execution pipeline.
  */
 type EvidenceRow = {
@@ -17,7 +19,10 @@ type Campaign = {
 };
 type Approval = {
   approved?: boolean;
+  approvedAt?: string | null;
   expiresAt?: string | null;
+  mode?: string;
+  humanConfirmation?: boolean;
   liveTradingAllowed?: boolean;
   brokerConnectivityAllowed?: boolean;
 };
@@ -49,19 +54,22 @@ export function summarizePaperCertificationWindow(
   approval: Approval | null | undefined,
   now: number = Date.now(),
 ) {
-  const nowValid = Number.isFinite(now) && now >= 0;
+  const nowValid = Number.isSafeInteger(now) && now >= 0 && now <= 8.64e15;
   const started = utcTime(campaign?.startedAt);
   const expires = utcTime(approval?.expiresAt);
+  const approvedAt = utcTime(approval?.approvedAt);
   const durationDays = positiveInteger(campaign?.requiredDays);
   const requiredEvidenceDays = positiveInteger(campaign?.minEvidenceDays);
   const requiredFills = positiveInteger(campaign?.minPaperFills);
-  const calendarValid = nowValid && started !== null && durationDays !== null
+  const calendarValid = nowValid && started !== null && started <= now && durationDays !== null
     && requiredEvidenceDays !== null && requiredFills !== null;
   const earliestTime = calendarValid ? started + durationDays * DAY_MS : null;
   const earliestValid = earliestTime !== null && Number.isSafeInteger(earliestTime);
   const earliestMaturityAt = earliestValid ? new Date(earliestTime).toISOString() : null;
   const authorizationExpiresAt = expires !== null ? new Date(expires).toISOString() : null;
-  const approvalValid = approval?.approved === true && expires !== null
+  const approvalValid = approval?.approved === true && expires !== null && nowValid
+    && approvedAt !== null && approvedAt <= now && expires > approvedAt
+    && approval?.mode === "PAPER" && approval?.humanConfirmation === true
     && approval?.liveTradingAllowed === false && approval?.brokerConnectivityAllowed === false;
   const authorizationExpired = expires !== null && nowValid && now >= expires;
   const deadlineBeforeMaturity = earliestValid && expires !== null && expires < earliestTime;
@@ -82,15 +90,17 @@ export function summarizePaperCertificationWindow(
   const daysToMinMaturity = earliestValid ? Math.max(0, Math.ceil((earliestTime - now) / DAY_MS)) : null;
   const numericalTargetsMet = calendarValid && earliestValid
     && now >= earliestTime && evidenceDays >= requiredEvidenceDays && reportedFills >= requiredFills;
+  const fillTargetReportedMet = requiredFills !== null && reportedFills >= requiredFills;
+  const newProbeWindowOpen = calendarValid && earliestValid && approvalValid && !authorizationExpired;
+  const approvalRenewalRequiredForMissingFills = authorizationExpired && !fillTargetReportedMet;
   const ownerActionRequired = !calendarValid || !earliestValid || !approvalValid
-    || authorizationExpired || deadlineBeforeMaturity;
+    || approvalRenewalRequiredForMissingFills;
   const state = !calendarValid || !earliestValid || !approvalValid
     ? "INVALID_POLICY"
-    : authorizationExpired
-      ? "AUTHORIZATION_EXPIRED"
-      : deadlineBeforeMaturity
-        ? "AUTHORIZATION_EXPIRES_BEFORE_MATURITY"
-        : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY" : "IN_PROGRESS";
+    : numericalTargetsMet ? "NUMERICAL_TARGETS_MET_REVIEW_ONLY"
+      : authorizationExpired
+        ? fillTargetReportedMet ? "POST_APPROVAL_OBSERVATION" : "AUTHORIZATION_EXPIRED"
+        : deadlineBeforeMaturity ? "POST_APPROVAL_OBSERVATION_PLANNED" : "IN_PROGRESS";
 
   return {
     state,
@@ -100,6 +110,12 @@ export function summarizePaperCertificationWindow(
     authorizationExpired,
     ownerActionRequired,
     approvalValid,
+    approvalScope: "NEW_PAPER_PROBES_ONLY" as const,
+    newProbeWindowOpen,
+    fillTargetReportedMet,
+    approvalRenewalRequiredForMissingFills,
+    campaignMaturityRequiresActiveApproval: false as const,
+    postExpiryObservationAllowed: calendarValid && earliestValid && approvalValid,
     elapsedDays,
     requiredDays: durationDays,
     evidenceDays,

@@ -18,6 +18,7 @@ import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 import { classifyPaperEvidenceState } from "@/lib/ui/paper-evidence-state";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
+import { applyTemporalRiskReadiness } from "@/lib/ui/paper-temporal-risk";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -168,14 +169,14 @@ export default async function ReadinessPage() {
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
   const persistentAuditVerified = engineeringEvidence.persistentAuditImplementationVerified
     && paperRuntimeEvidence.persistentAuditRuntimeVerified;
-  const { report, metrics } = buildInstitutionalReadiness(intelligence, {
+  const { report, metrics, temporalRiskSafety } = applyTemporalRiskReadiness(buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
     recoveryVerified: engineeringEvidence.crashRecoveryVerified,
     persistentAuditVerified,
     marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
     fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
     chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
-  });
+  }));
   const pass = report.controls.filter((control) => control.status === "PASS").length;
   const executionMetrics = executionReadiness.metrics;
   const paperCampaignView = paperCampaign as unknown as PaperCampaignView;
@@ -244,20 +245,20 @@ export default async function ReadinessPage() {
 
         <section className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4" aria-label="Autorizzazione e durata PAPER">
           <p className="text-sm font-bold text-amber-200">
-            {calendar.ownerActionRequired ? "Autorizzazione PAPER: intervento necessario" : "Autorizzazione PAPER: finestra temporale controllata"}
+            {calendar.ownerActionRequired ? "Nuovi probe PAPER: intervento necessario" : "Nuovi probe PAPER e maturazione: finestre separate"}
           </p>
           <p className="mt-2 text-sm text-slate-200">
-            Scadenza autorizzazione: <strong>{italianInstant(calendar.authorizationExpiresAt)}</strong>.
+            Scadenza per nuovi probe: <strong>{italianInstant(calendar.authorizationExpiresAt)}</strong>.
             Prima maturazione possibile dei 30 giorni: <strong>{italianInstant(calendar.earliestMaturityAt)}</strong>.
           </p>
           <p className="mt-2 text-sm text-slate-300">
-            {calendar.deadlineBeforeMaturity
-              ? "L'autorizzazione scade PRIMA dei 30 giorni richiesti: serve una decisione esplicita del proprietario per la continuità, conservando tutte le prove."
-              : calendar.authorizationExpired
-                ? "Autorizzazione scaduta: nessun proseguimento autorizzato senza nuova verifica."
-                : calendar.ownerActionRequired
-                  ? "Autorizzazione o calendario non verificabili: controllare i dati prima di procedere."
-                  : "Le prove devono ancora essere validate: rispettare tutte le soglie senza forzare esecuzioni."}
+            {calendar.state === "INVALID_POLICY"
+              ? "Autorizzazione o calendario non verificabili: nessun nuovo probe consentito."
+              : calendar.approvalRenewalRequiredForMissingFills
+                ? "La finestra dei nuovi probe è scaduta e il campione di fill è incompleto: per aggiungere fill serve una nuova approvazione verificata. Le prove storiche restano conservate."
+                : calendar.authorizationExpired
+                  ? "Nuovi probe sospesi. Le prove già raccolte e la maturazione passiva proseguono senza estendere l'autorizzazione. Nessuna certificazione automatica."
+                  : "La scadenza riguarda i nuovi probe, non le prove già raccolte. La campagna può maturare dopo la scadenza: servono comunque tutti i fill, i giorni e i controlli previsti."}
           </p>
           <p className="mt-2 text-xs text-amber-100/80">
             Ultima evidenza registrata: {calendar.latestEvidenceDate ?? "non verificabile"} ·
@@ -266,6 +267,17 @@ export default async function ReadinessPage() {
             Nessuna modifica automatica alla V6; trading reale sempre bloccato.
           </p>
         </section>
+
+        {!temporalRiskSafety.coreVerified && (
+          <section className="rounded-2xl border border-rose-400/30 bg-rose-400/[0.04] p-4" aria-label="Integrità temporale del rischio">
+            <p className="text-sm font-bold text-rose-200">Controllo temporale del rischio: correzione del core in attesa</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              La revisione Sì/No blocca date future, invalide e scadute con un controllo aggiuntivo.
+              Il modulo V6 congelato richiede ancora la correzione delle date future: il suo gate resta in collaudo.
+              Le evidenze della campagna sono conservate e gli ordini reali rimangono bloccati.
+            </p>
+          </section>
+        )}
 
         <section className="rounded-3xl border border-violet-400/20 bg-violet-400/[0.05] p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
