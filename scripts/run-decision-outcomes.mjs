@@ -48,7 +48,9 @@ if (!Array.isArray(previous?.records) || previous.records.length === 0) {
 
 const prices = new Map(
   (committee.allDecisions || [])
-    .filter((x) => Number.isFinite(Number(x.currentPrice)))
+    .filter((x) => x?.currentPrice !== null && x?.currentPrice !== undefined
+      && String(x.currentPrice).trim() !== ""
+      && Number.isFinite(Number(x.currentPrice)) && Number(x.currentPrice) > 0)
     .map((x) => [String(x.symbol || "").toUpperCase(), Number(x.currentPrice)]),
 );
 
