@@ -154,7 +154,7 @@ export default async function DecisioniPage() {
           <div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold">
             <Link href="/api/broker/status" className="text-violet-200 underline">Diagnostica integrazione broker (non verifica il conto)</Link>
             <Link href="/portfolio" className="text-violet-200 underline">Vai al portafoglio modello</Link>
-            <Link href="/analista" className="text-violet-200 underline">Chiedi all'analista</Link>
+            <Link href="/analista" className="text-violet-200 underline">Chiedi all&apos;analista</Link>
           </div>
         </section>
         <div className="rounded-xl border border-white/10 p-4 text-sm text-slate-300">
