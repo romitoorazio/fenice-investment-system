@@ -53,6 +53,8 @@ checkBlocked({ ...base, snapshot: { ...base.snapshot, diagnostics: { ...base.sna
 checkBlocked({ ...base, snapshot: { ...base.snapshot, errors: [{ ticker: "TEST", code: 1024 }] } }, "Protocol errors");
 checkBlocked({ ...base, snapshot: { ...base.snapshot, mode: "live" } }, "Write capable bridge");
 checkBlocked({ ...base, reconciliation: { ...base.reconciliation, balanced: false } }, "Reconciliation breaks");
+checkBlocked({ ...base, reconciliation: { ...base.reconciliation, observedAt: "2026-10-13T14:59:55.000Z" } }, "Old reconciliation");
+checkBlocked({ ...base, reconciliation: { ...base.reconciliation, breaks: [{ code: "OPEN_ORDER", key: "x", expected: true, actual: false }] } }, "Inconsistent balanced flag");
 checkBlocked({ ...base, unresolvedInternalOrders: 1 }, "Unknown order outcome");
 checkBlocked({ ...base, unresolvedInternalOrders: -1 }, "Malformed order count");
 checkBlocked({ ...base, ambiguousPriorExecution: true }, "Ambiguous order state");
