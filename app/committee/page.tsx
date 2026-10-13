@@ -295,6 +295,13 @@ export default function CommitteePage() {
                 SPY ipotizza invece il 100% del capitale investito inizialmente e non sottrae costi.
                 Non sono rendimenti realizzati, né includono imposte, dividendi, cambio o commissioni effettive Directa.
               </p>
+              {shadowEvaluation.forwardBenchmark?.provisional.pairedSamples === 0 && (
+                <p className="mt-3 text-sm font-semibold text-amber-200">
+                  Nessun confronto prospettico con orari di quotazione verificati: N/D.
+                  Le vecchie rilevazioni prive dell&apos;ora originale del prezzo restano archiviate,
+                  ma non vengono usate per dichiarare un vantaggio economico.
+                </p>
+              )}
               {shadowEvaluation.forwardBenchmark ? (
                 <>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
