@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-13T14:55:17.248Z",
+  "generatedAt": "2026-10-13T15:00:05.980Z",
   "purpose": "Fail-closed V7 research promotion gate for forward-only shadow evidence. Never grants PAPER or LIVE execution permission.",
   "state": "LOCKED",
   "eligibleForHumanResearchReview": false,
@@ -14,11 +14,18 @@
     "30D_NOT_MATURE",
     "30D_BEAT_RATE_MISSING",
     "30D_AVERAGE_RETURN_MISSING",
-    "30D_DRAWDOWN_EVIDENCE_MISSING"
+    "30D_DRAWDOWN_EVIDENCE_MISSING",
+    "BENCHMARK_FORWARD_SAMPLE_NOT_MATURE",
+    "7D_BENCHMARK_INDEPENDENT_DAYS_BELOW_30",
+    "7D_BENCHMARK_NET_EXCESS_NOT_POSITIVE",
+    "7D_BENCHMARK_BEAT_RATE_NOT_ABOVE_50",
+    "30D_BENCHMARK_INDEPENDENT_DAYS_BELOW_30",
+    "30D_BENCHMARK_NET_EXCESS_NOT_POSITIVE",
+    "30D_BENCHMARK_BEAT_RATE_NOT_ABOVE_50"
   ],
   "evidence": {
     "sourceGeneratedAt": "2026-10-13T14:53:21.333Z",
-    "sourceAgeHours": 0.03,
+    "sourceAgeHours": 0.11,
     "sourceFresh": true,
     "totalRecords": 7,
     "activeRecords": 7,
@@ -65,11 +72,30 @@
         "30D_AVERAGE_RETURN_MISSING",
         "30D_DRAWDOWN_EVIDENCE_MISSING"
       ]
+    },
+    "independentBenchmark": {
+      "7d": {
+        "pairedSamples": 0,
+        "independentEntryDays": 0,
+        "hypotheticalAverageExcessPercent": null,
+        "beatBenchmarkRatePercent": null,
+        "passed": false
+      },
+      "30d": {
+        "pairedSamples": 0,
+        "independentEntryDays": 0,
+        "hypotheticalAverageExcessPercent": null,
+        "beatBenchmarkRatePercent": null,
+        "passed": false
+      }
     }
   },
   "promotionPolicy": {
     "requiresBothHorizons": true,
     "minimumIndependentSamplesPerHorizon": 30,
+    "minimumIndependentBenchmarkEntryDaysPerHorizon": 30,
+    "requirePositiveHypotheticalExcessAfterCosts": true,
+    "requireBenchmarkBeatRateAbovePercent": 50,
     "minimumBeatWaitRatePercent": 60,
     "sevenDayMinimumAverageReturnPercent": 0.25,
     "thirtyDayMinimumAverageReturnPercent": 0.75,
