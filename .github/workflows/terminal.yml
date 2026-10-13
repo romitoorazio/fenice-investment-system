@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - "scripts/run-terminal-engine.mjs"
+      - "lib/intelligence/yahoo-regular-research-quote.mjs"
+      - "scripts/test-yahoo-regular-research-quote.mjs"
       - "scripts/postprocess-terminal-intelligence.mjs"
       - "scripts/finalize-terminal-allocation.mjs"
       - "scripts/run-dcf-engine.mjs"
@@ -62,6 +64,9 @@ jobs:
 
       - name: Verify Foundation-to-Terminal trigger is not duplicated
         run: node scripts/test-terminal-trigger-config.mjs
+
+      - name: Verify last-trade provenance is independent of daily bars
+        run: node scripts/test-yahoo-regular-research-quote.mjs
 
       - name: Reject substring-only catalyst matches
         run: node scripts/test-investment-committee-catalysts.mjs
