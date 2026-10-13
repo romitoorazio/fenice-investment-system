@@ -9,6 +9,7 @@ import { buildPaperContinuityOwnerCheckpoint } from "@/lib/ui/paper-continuity-o
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
+import { assessHistoricalCredentialRotation } from "@/lib/ui/credential-rotation-gate.mjs";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
@@ -65,6 +66,7 @@ export async function GET() {
     paperRuntimeEvidence,
     paperCertificationWindow,
     paperContinuityOwnerCheckpoint,
+    credentialRotation: assessHistoricalCredentialRotation(),
     engineeringEvidence,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
