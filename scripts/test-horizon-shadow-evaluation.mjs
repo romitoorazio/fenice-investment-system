@@ -148,7 +148,7 @@ assert.equal(r30.checkpoints["30d"].resultVsWait, "BEATS_WAIT");
 
 const summary7 = summarizeForwardShadowLedger(ledger.records, "7d");
 const summary30 = summarizeForwardShadowLedger(ledger.records, "30d");
-assert.equal(summary7.sampleSize, 1);
+assert.equal(summary7.sampleSize, 2, "both October 7 and October 14 independent cohorts mature at 7d");
 assert.equal(summary30.sampleSize, 1);
 assert.equal(summary7.maturity, "INSUFFICIENT");
 assert.equal(summary30.maturity, "INSUFFICIENT");
