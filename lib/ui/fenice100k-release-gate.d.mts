@@ -1,3 +1,5 @@
+import type { HistoricalCredentialRotationAssessment } from "./credential-rotation-gate.mjs";
+
 /** Read-only typing contract for the pure ESM release gate used by Next.js. */
 export type ReleaseStatus =
   | "SAFETY_BLOCKED"
@@ -14,6 +16,7 @@ export type Fenice100KReleaseReport = {
   verifiedProfit:false;
   brokerAccountReconciled:false;
   gates:{
+    credentialRotation:HistoricalCredentialRotationAssessment;
     dataQuality:{
       state:"RESEARCH_DATA_CURRENT"|"UNVERIFIED_OR_STALE";
       score:number|null;
