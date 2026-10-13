@@ -341,7 +341,7 @@ export default function CommitteePage() {
                     <p className="mt-1 text-xs leading-5 text-slate-400">
                       Stress test sul capitale teorico totale. Le commissioni sono scenari ipotetici e i ribassi
                       del 5%, 10% e 20% sono shock aggiuntivi al prezzo rilevato del singolo titolo,
-                      mantenendo SPY invariato solo per isolare l'effetto. Non sono previsioni,
+                      mantenendo SPY invariato solo per isolare l&apos;effetto. Non sono previsioni,
                       probabilità di perdita, drawdown osservati o ordini.
                     </p>
                     {shadowEvaluation.forwardBenchmark.provisional.sensitivity?.pairedSamples ? (
