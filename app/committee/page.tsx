@@ -95,6 +95,23 @@ type ShadowEvaluationRecord = {
   checkpoint30d: unknown | null;
 };
 
+type ForwardBenchmarkSummary = {
+  pairedSamples: number;
+  independentEntryDays: number;
+  hypotheticalAverageAfterCostPercent: number | null;
+  benchmarkGrossAveragePercent: number | null;
+  hypotheticalAverageExcessPercent: number | null;
+  beatBenchmarkRatePercent: number | null;
+};
+type ForwardBenchmarkReport = {
+  state: string;
+  benchmark: string;
+  costPercent: number;
+  hasRealizedProfit: false;
+  provisional: ForwardBenchmarkSummary & { observations: Array<{ symbol: string; hypotheticalExcessPercent: number }> };
+  matured: Record<string, ForwardBenchmarkSummary>;
+};
+
 type ShadowEvaluationReport = {
   generatedAt: string;
   activeRecords: number;
@@ -105,6 +122,7 @@ type ShadowEvaluationReport = {
   };
   matured7d: ShadowEvaluationSummary;
   matured30d: ShadowEvaluationSummary;
+  forwardBenchmark?: ForwardBenchmarkReport;
   latestRecords: ShadowEvaluationRecord[];
 };
 
@@ -244,6 +262,51 @@ export default function CommitteePage() {
               <Mini label="Campioni 7 giorni" value={`${shadowEvaluation.matured7d.sampleSize} · ${shadowEvaluation.matured7d.maturity}`} />
               <Mini label="Campioni 30 giorni" value={`${shadowEvaluation.matured30d.sampleSize} · ${shadowEvaluation.matured30d.maturity}`} />
               <Mini label="Selezionati ora" value={shadowEvaluation.sourceState.selectedNow.join(", ") || "—"} />
+            </div>
+
+            <div aria-label="Controllo economico SHADOW contro SPY" className="mt-4 rounded-2xl border border-violet-400/25 bg-slate-950/65 p-4">
+              <h3 className="text-base font-black text-violet-200">Controllo economico SHADOW contro SPY</h3>
+              <p className="mt-2 text-xs leading-5 text-slate-300">
+                Opportunità sperimentali già registrate confrontate con SPY nello stesso giorno di ingresso e di valutazione,
+                soltanto in USD. Applichiamo un costo ipotetico dello {shadowEvaluation.forwardBenchmark?.costPercent ?? 0.3}%
+                alla strategia a tranche; il benchmark è prima dei costi. Non sono rendimenti realizzati,
+                non includono imposte, dividendi, cambio o le commissioni effettive Directa.
+              </p>
+              {shadowEvaluation.forwardBenchmark ? (
+                <>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {(["7d", "30d"] as const).map(period => {
+                      const summary = shadowEvaluation.forwardBenchmark?.matured[period];
+                      return <div key={period} className="rounded-xl border border-white/10 p-3">
+                        <p className="text-xs text-slate-400">{period} · confronto maturo</p>
+                        <p className="mt-1 text-lg font-black">{summary?.pairedSamples ?? 0} campioni</p>
+                        <p className="text-xs text-slate-400">
+                          Extra netto ipotetico: {summary?.pairedSamples && Number.isFinite(summary.hypotheticalAverageExcessPercent)
+                            ? `${summary.hypotheticalAverageExcessPercent}%` : "N/D"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-500">Giornate iniziali: {summary?.independentEntryDays ?? 0}</p>
+                      </div>;
+                    })}
+                    <div className="rounded-xl border border-white/10 p-3">
+                      <p className="text-xs text-slate-400">Valutazioni provvisorie, non mature</p>
+                      <p className="mt-1 text-lg font-black">{shadowEvaluation.forwardBenchmark.provisional.pairedSamples} confronti</p>
+                      <p className="text-xs text-slate-400">
+                        Extra netto ipotetico: {shadowEvaluation.forwardBenchmark.provisional.pairedSamples
+                          && Number.isFinite(shadowEvaluation.forwardBenchmark.provisional.hypotheticalAverageExcessPercent)
+                          ? `${shadowEvaluation.forwardBenchmark.provisional.hypotheticalAverageExcessPercent}%` : "N/D"}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">Campioni non indipendenti, nessuna promozione operativa</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs font-semibold text-amber-200">
+                    {shadowEvaluation.forwardBenchmark.state === "INSUFFICIENT_FORWARD_EVIDENCE"
+                      ? "EVIDENZE NON SUFFICIENTI · Nessun vantaggio economico dimostrato"
+                      : "Campione numerico maturato; risultati da sottoporre comunque a revisione umana e test fuori campione"}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-3 text-xs text-amber-200">Confronto SPY non ancora generato: N/D, nessun vantaggio dimostrato.</p>
+              )}
             </div>
 
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
