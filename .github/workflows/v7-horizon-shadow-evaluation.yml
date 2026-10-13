@@ -8,6 +8,7 @@ on:
     paths:
       - "lib/intelligence/horizon-shadow-evaluator.mjs"
       - "lib/intelligence/forward-shadow-benchmark.mjs"
+      - "lib/intelligence/forward-shadow-risk-sensitivity.mjs"
       - "scripts/run-horizon-shadow-evaluation.mjs"
       - "scripts/test-horizon-shadow-evaluation.mjs"
       - "scripts/test-forward-shadow-benchmark.mjs"
@@ -23,6 +24,7 @@ on:
     paths:
       - "lib/intelligence/horizon-shadow-evaluator.mjs"
       - "lib/intelligence/forward-shadow-benchmark.mjs"
+      - "lib/intelligence/forward-shadow-risk-sensitivity.mjs"
       - "scripts/run-horizon-shadow-evaluation.mjs"
       - "scripts/test-horizon-shadow-evaluation.mjs"
       - "scripts/test-forward-shadow-benchmark.mjs"
@@ -87,6 +89,18 @@ jobs:
             || report.forwardBenchmark?.isolation?.feedsPaperCertification !== false
             || report.forwardBenchmark?.hasRealizedProfit !== false) {
             throw new Error('Forward SPY benchmark may not promote evidence into broker or PAPER execution');
+          }
+          const scenarios = [
+            report.forwardBenchmark?.provisional?.sensitivity,
+            report.forwardBenchmark?.matured?.['7d']?.sensitivity,
+            report.forwardBenchmark?.matured?.['30d']?.sensitivity,
+          ];
+          for (const risk of scenarios) {
+            if (!risk || risk.orderSubmissionAllowed !== false || risk.paperPromotionAllowed !== false
+              || risk.liveTradingAllowed !== false || !Array.isArray(risk.costScenarios)
+              || !Array.isArray(risk.isolatedAssetPriceShocks)) {
+              throw new Error('Missing or unsafe fee/downside research scenarios');
+            }
           }
           for (const record of ledger.records || []) {
             if (record.liveTradingAllowed !== false

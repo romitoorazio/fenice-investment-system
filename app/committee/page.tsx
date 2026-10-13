@@ -95,6 +95,26 @@ type ShadowEvaluationRecord = {
   checkpoint30d: unknown | null;
 };
 
+type ForwardSensitivity = {
+  state: string;
+  pairedSamples: number;
+  independentEntryDays: number;
+  costScenarios: Array<{
+    hypotheticalRoundTripCostPercent: number;
+    averageNetFullCapitalPercent: number | null;
+    averageExcessVsSpyGrossPercent: number | null;
+    underperformSpyRatePercent: number | null;
+    negativeVsCashRatePercent: number | null;
+  }>;
+  isolatedAssetPriceShocks: Array<{
+    additionalAssetPriceDropPercent: number;
+    averageStressedNetFullCapitalPercent: number | null;
+    worstStressedNetFullCapitalPercent: number | null;
+    averageStressedExcessVsSpyGrossPercent: number | null;
+    negativeVsCashRatePercent: number | null;
+  }>;
+  caution: string;
+};
 type ForwardBenchmarkSummary = {
   pairedSamples: number;
   independentEntryDays: number;
@@ -102,6 +122,7 @@ type ForwardBenchmarkSummary = {
   benchmarkGrossAveragePercent: number | null;
   hypotheticalAverageExcessPercent: number | null;
   beatBenchmarkRatePercent: number | null;
+  sensitivity?: ForwardSensitivity;
 };
 type ForwardBenchmarkReport = {
   state: string;
@@ -315,6 +336,37 @@ export default function CommitteePage() {
                       </div>
                     </div>
                   )}
+                  <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                    <h4 className="text-sm font-black text-violet-200">Sensibilità ai costi e ribassi ipotetici</h4>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                      Stress test sul capitale teorico totale. Le commissioni sono scenari ipotetici e i ribassi
+                      del 5%, 10% e 20% sono shock aggiuntivi al prezzo rilevato del singolo titolo,
+                      mantenendo SPY invariato solo per isolare l&apos;effetto. Non sono previsioni,
+                      probabilità di perdita, drawdown osservati o ordini.
+                    </p>
+                    {shadowEvaluation.forwardBenchmark.provisional.sensitivity?.pairedSamples ? (
+                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-lg border border-white/10 p-3">
+                          <p className="text-xs font-bold text-white">Costi ipotetici di andata e ritorno</p>
+                          {shadowEvaluation.forwardBenchmark.provisional.sensitivity.costScenarios.map(item => (
+                            <p key={item.hypotheticalRoundTripCostPercent} className="mt-1 flex justify-between gap-2 text-xs text-slate-300">
+                              <span>Costo {item.hypotheticalRoundTripCostPercent}% sulla quota investita</span>
+                              <span>Extra vs SPY: {item.averageExcessVsSpyGrossPercent == null ? "N/D" : `${item.averageExcessVsSpyGrossPercent}%`}</span>
+                            </p>
+                          ))}
+                        </div>
+                        <div className="rounded-lg border border-white/10 p-3">
+                          <p className="text-xs font-bold text-white">Ulteriori shock sul titolo (SPY fermo)</p>
+                          {shadowEvaluation.forwardBenchmark.provisional.sensitivity.isolatedAssetPriceShocks.map(item => (
+                            <p key={item.additionalAssetPriceDropPercent} className="mt-1 flex justify-between gap-2 text-xs text-slate-300">
+                              <span>Prezzo −{item.additionalAssetPriceDropPercent}%</span>
+                              <span>Capitale ipotetico: {item.averageStressedNetFullCapitalPercent == null ? "N/D" : `${item.averageStressedNetFullCapitalPercent}%`}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ) : <p className="mt-2 text-xs text-amber-200">N/D: mancano prezzi allineati o il rapporto aggiornato.</p>}
+                  </div>
                   <p className="mt-3 text-xs font-semibold text-amber-200">
                     {shadowEvaluation.forwardBenchmark.state === "INSUFFICIENT_FORWARD_EVIDENCE"
                       ? "EVIDENZE NON SUFFICIENTI · Nessun vantaggio economico dimostrato"
