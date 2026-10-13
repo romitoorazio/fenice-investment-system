@@ -245,6 +245,34 @@ export default async function ReadinessPage() {
           </div>
         </section>
 
+        {calendar.preExpiryOperatorAttentionRequired && (
+          <section aria-label="Revisione operatore prima della scadenza PAPER" className="rounded-2xl border border-amber-400/50 bg-amber-400/[0.08] p-4">
+            <h2 className="text-base font-black text-amber-200">FENICE100K · Revisione umana prima della scadenza PAPER</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-200">
+              Autorizzazione per NUOVI probe PAPER in scadenza entro{" "}
+              <strong>{calendar.daysUntilProbeExpiry ?? "N/D"} giorni</strong>
+              {" "}(termine: <strong>{italianInstant(calendar.authorizationExpiresAt)}</strong>).
+              Nel registro risultano ancora <strong>{calendar.missingAuthorizedFills ?? "N/D"} fill PAPER mancanti</strong>
+              {" "}rispetto al minimo richiesto. Giornate con prova di integrità ancora da raccogliere:
+              {" "}<strong>{calendar.missingVerifiedEvidenceDays ?? "N/D"}</strong>.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-amber-100">
+              È necessaria una revisione con il proprietario prima del termine: verificare la copertura delle fonti,
+              la disponibilità di nuove operazioni PAPER consentite e, solo se indispensabile,
+              una nuova approvazione esplicita secondo policy. Non prolungare la vecchia autorizzazione,
+              non generare fill artificiali, non retrodatare prove e non modificare il fingerprint V6.
+              Le osservazioni passive possono proseguire dopo la scadenza; il LIVE resta bloccato.
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Avviso informativo basato sul registro: non rinnova approvazioni e non concede permessi.
+              <a href="https://github.com/romitoorazio/fenice-investment-system/issues/226"
+                className="ml-2 font-semibold text-amber-200 underline" target="_blank" rel="noopener noreferrer">
+                Procedura e blocco #226
+              </a>
+            </p>
+          </section>
+        )}
+
         <section className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4" aria-label="Autorizzazione e durata PAPER">
           <p className="text-sm font-bold text-amber-200">
             {calendar.ownerActionRequired ? "Nuovi probe PAPER: intervento necessario" : "Nuovi probe PAPER e maturazione: finestre separate"}

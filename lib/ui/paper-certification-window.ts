@@ -148,6 +148,18 @@ export function summarizePaperCertificationWindow(
     && !postExpiryFillIncreaseDetected && !fillCounterRegressionDetected && !fillCounterHistoryInvalid;
   const fillTargetReportedMet = requiredFills !== null && authorizedReportedFills >= requiredFills;
   const newProbeWindowOpen = calendarValid && earliestValid && approvalValid && !authorizationExpired;
+  // Advisory ONLY. A human must review new PAPER probe scope before its approval expires.
+  // Do not turn this notice into approval renewal, a new probe or a certification gate.
+  const daysUntilProbeExpiry = newProbeWindowOpen && expires !== null
+    ? Math.max(0, Math.ceil((expires - now) / DAY_MS)) : null;
+  const missingAuthorizedFills = requiredFills !== null
+    ? Math.max(0, requiredFills - authorizedReportedFills) : null;
+  const missingVerifiedEvidenceDays = requiredEvidenceDays !== null
+    ? Math.max(0, requiredEvidenceDays - verifiedEvidenceDays) : null;
+  const preExpiryOperatorAttentionRequired = newProbeWindowOpen
+    && daysUntilProbeExpiry !== null && daysUntilProbeExpiry <= 14
+    && (missingAuthorizedFills !== null && missingAuthorizedFills > 0);
+
   const approvalRenewalRequiredForMissingFills = authorizationExpired && !fillTargetReportedMet;
   const ownerActionRequired = !calendarValid || !earliestValid || !approvalValid
     || approvalRenewalRequiredForMissingFills || evidenceIntegrityReviewRequired
@@ -173,6 +185,12 @@ export function summarizePaperCertificationWindow(
     approvalValid,
     approvalScope: "NEW_PAPER_PROBES_ONLY" as const,
     newProbeWindowOpen,
+    preExpiryOperatorAttentionRequired,
+    daysUntilProbeExpiry,
+    missingAuthorizedFills,
+    missingVerifiedEvidenceDays,
+    operatorReminderScope: "PRE_EXPIRY_REVIEW_ONLY" as const,
+    operatorReminderMayAuthorizeProbes: false as const,
     fillTargetReportedMet,
     authorizedReportedFills,
     postExpiryFillIncreaseDetected,
