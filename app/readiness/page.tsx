@@ -12,6 +12,7 @@ import forwardShadowEvidence from "@/data/v7-horizon-shadow-evaluation.json";
 import { assessFenice100KRelease } from "@/lib/ui/fenice100k-release-gate.mjs";
 import { assessDirectaServiceContinuity } from "@/lib/ui/directa-service-continuity";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
+import { buildPaperContinuityOwnerCheckpoint } from "@/lib/ui/paper-continuity-owner-checkpoint";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { evaluateExecutionReadiness, type ExecutionReadinessState } from "@/lib/trading/execution-readiness";
@@ -192,6 +193,7 @@ export default async function ReadinessPage() {
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
   const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
+  const paperOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(calendar, paperApproval);
   // The cloud deployment cannot inspect a localhost Directa/Darwin session.
   const directaContinuity = assessDirectaServiceContinuity();
   const releaseGate = assessFenice100KRelease({
@@ -359,6 +361,24 @@ export default async function ReadinessPage() {
               <p className="mt-1 text-xs text-slate-500">{pass}/{report.controls.length} controlli PASS</p>
             </div>
           </div>
+        </section>
+
+        <section aria-label="FENICE100K controllo decisione proprietario PAPER" className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4">
+          <h2 className="font-black text-amber-200">FENICE100K · Decisione PAPER prima del 24 ottobre</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-200">{paperOwnerCheckpoint.message}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-300">
+            Stato <strong>{paperOwnerCheckpoint.status}</strong> ·
+            Fill mancanti nel registro: <strong>{paperOwnerCheckpoint.missingAuthorizedPaperFills ?? "N/D"}</strong> ·
+            Giornate verificate mancanti: <strong>{paperOwnerCheckpoint.missingVerifiedEvidenceDays ?? "N/D"}</strong> ·
+            Limite attuale di ordini PAPER al giorno: <strong>{paperOwnerCheckpoint.maxOrdersPerDay ?? "N/D"}</strong>.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Finestre giornaliere minime teoriche per i fill restanti (supponendo un fill per probe):
+            <strong> {paperOwnerCheckpoint.illustrativeMinimumDailyProbeWindows ?? "N/D"}</strong>.
+            È soltanto un calcolo di capacità, non una previsione di esecuzioni: mercati chiusi, dati non idonei e controlli di rischio
+            possono ridurre i risultati fino a zero. Scadenza: <strong>{italianInstant(paperOwnerCheckpoint.expiryAt)}</strong>.
+            Nessuna nuova autorizzazione è stata concessa e nessun test viene eseguito da questo riquadro.
+          </p>
         </section>
 
         {calendar.preExpiryOperatorAttentionRequired && (
