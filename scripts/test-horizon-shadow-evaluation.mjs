@@ -17,7 +17,9 @@ function committee(generatedAt, price = 100) {
         currentPrice: price,
         currency: "USD",
         priceEvidence: {observedAt: generatedAt,source: "fixture-official-quote",price,
-          evidenceType: "TERMINAL_TECHNICAL_RESEARCH_ONLY",executionEligible: false},
+          evidenceType: "YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY",
+          executionEligible: false,paperCertificationEligible: false,
+          brokerSubmissionAllowed: false,liveTradingAllowed: false},
         committeeScore: 70,
         confidence: 88,
         rawConfidenceBeforeCalibration: 98,
@@ -32,7 +34,9 @@ function committee(generatedAt, price = 100) {
         currentPrice: price * 2,
         currency: "USD",
         priceEvidence: {observedAt: generatedAt,source: "fixture-official-quote",price: price*2,
-          evidenceType: "TERMINAL_TECHNICAL_RESEARCH_ONLY",executionEligible: false},
+          evidenceType: "YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY",
+          executionEligible: false,paperCertificationEligible: false,
+          brokerSubmissionAllowed: false,liveTradingAllowed: false},
         committeeScore: 68,
         rawConfidenceBeforeCalibration: 98,
         riskScore: 50,
@@ -164,6 +168,10 @@ for (const [label, mutate] of [
   ["price divergence",row => { row.priceEvidence.price = 1; }],
   ["unidentified provider",row => { row.priceEvidence.source = ""; }],
   ["execution-capable quote",row => { row.priceEvidence.executionEligible = true; }],
+  ["bar timestamp masquerades as a trade", row => { row.priceEvidence.evidenceType = "TERMINAL_TECHNICAL_RESEARCH_ONLY"; }],
+  ["only one provider not PAPER eligible", row => { row.priceEvidence.paperCertificationEligible = true; }],
+  ["live-enabled evidence", row => { row.priceEvidence.liveTradingAllowed = true; }],
+
 ]) {
   const input = committee("2026-10-08T19:55:00Z", 108);
   mutate(input.allDecisions[0]);

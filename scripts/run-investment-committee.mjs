@@ -165,16 +165,20 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     sector: fundamental?.sector || asset.sector || asset.assetClass,
     positionType,
     currentPrice: Number.isFinite(Number(asset.price)) ? Number(asset.price) : null,
-    // Source observation time is NOT the report generation time. Downstream
-    // forward-only evidence must independently verify age and price agreement.
-    priceEvidence: {
-      observedAt: typeof asset.technical?.observedAt === 'string' ? asset.technical.observedAt : null,
-      source: typeof asset.technical?.source === 'string' ? asset.technical.source : null,
-      price: Number.isFinite(Number(asset.technical?.price)) && Number(asset.technical.price) > 0
-        ? Number(asset.technical.price) : null,
-      evidenceType: 'TERMINAL_TECHNICAL_RESEARCH_ONLY',
-      executionEligible: false,
-    },
+    // A daily OHLC bar is NOT a live quote: separate self-reported regular
+    // session trade metadata. Keep asset.price unchanged for all Committee,
+    // valuation, risk and PAPER frozen logic. V7 research gates stay isolated.
+    priceEvidence: asset.technical?.researchQuote?.evidenceType === 'YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY'
+      ? { ...asset.technical.researchQuote, executionEligible: false,
+          brokerSubmissionAllowed: false, liveTradingAllowed: false }
+      : {
+          observedAt: null, source: null, price: null,
+          evidenceType: 'NO_VERIFIED_REGULAR_TRADE',
+          executionEligible: false,
+          paperCertificationEligible: false,
+          brokerSubmissionAllowed: false,
+          liveTradingAllowed: false,
+        },
     currency: asset.currency || dcf?.currency || fundamental?.financials?.currency || null,
     decision,
     committeeScore,

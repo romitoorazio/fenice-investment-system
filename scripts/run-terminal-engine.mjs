@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { yahooRegularSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'terminal-intelligence.json');
@@ -338,7 +339,13 @@ async function fetchTechnical(definition) {
   const technical = Math.round(clamp(trend * 0.45 + momentum * 0.35 + (100 - risk) * 0.2));
   const availableIndicators = [price, sma20, sma50, sma200, rsi14, volatility20, atr14, oneMonth, threeMonth, sixMonth, oneYear, maxDrawdown];
   const dataCompleteness = Math.round((availableIndicators.filter(Number.isFinite).length / availableIndicators.length) * 100);
-  const observedAt = rows.at(-1)?.timestamp ? new Date(rows.at(-1).timestamp * 1000).toISOString() : now.toISOString();
+  const observedAt = rows.at(-1)?.timestamp ? new Date(rows.at(-1).timestamp * 1000).toISOString() : null;
+  // The daily-bar timestamp is a candle bucket, NOT when "price" last traded.
+  // Only a self-reported, in-session Yahoo META last trade can back prospective
+  // shadow observations; this side channel does not alter historical indicators.
+  const researchQuote = yahooRegularSessionResearchQuote(result.meta, {
+    yahooSymbol, market, now,
+  });
 
   return {
     symbol,
@@ -349,6 +356,8 @@ async function fetchTechnical(definition) {
     currency: result.meta?.currency || 'USD',
     observedAt,
     source: `Yahoo Finance chart (${sourceHost})`,
+    timestampSemantics: 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE',
+    researchQuote,
     status: dataCompleteness >= 80 ? 'operativo' : 'parziale',
     price: round(price, price < 1 ? 6 : 2),
     returns: {
