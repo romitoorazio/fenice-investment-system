@@ -108,7 +108,7 @@ type ForwardBenchmarkReport = {
   benchmark: string;
   costPercent: number;
   hasRealizedProfit: false;
-  provisional: ForwardBenchmarkSummary & { observations: Array<{ symbol: string; hypotheticalExcessPercent: number; investedCapitalPercent: number; cashCapitalPercent: number }> };
+  provisional: ForwardBenchmarkSummary & { observations: Array<{ symbol: string; hypotheticalExcessPercent: number; investedCapitalPercent?: number; cashCapitalPercent?: number }> };
   matured: Record<string, ForwardBenchmarkSummary>;
 };
 
@@ -308,8 +308,8 @@ export default function CommitteePage() {
                       <div className="mt-2 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
                         {shadowEvaluation.forwardBenchmark.provisional.observations.map((observation) => (
                           <p key={observation.symbol}>
-                            {observation.symbol}: {observation.investedCapitalPercent}% investito,
-                            {" "}{observation.cashCapitalPercent}% liquido
+                            {observation.symbol}: {Number.isFinite(observation.investedCapitalPercent) ? `${observation.investedCapitalPercent}%` : "N/D"} investito,
+                            {" "}{Number.isFinite(observation.cashCapitalPercent) ? `${observation.cashCapitalPercent}%` : "N/D"} liquido
                           </p>
                         ))}
                       </div>
