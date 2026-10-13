@@ -7,8 +7,10 @@ on:
       - main
     paths:
       - "lib/intelligence/horizon-shadow-evaluator.mjs"
+      - "lib/intelligence/forward-shadow-benchmark.mjs"
       - "scripts/run-horizon-shadow-evaluation.mjs"
       - "scripts/test-horizon-shadow-evaluation.mjs"
+      - "scripts/test-forward-shadow-benchmark.mjs"
       - ".github/workflows/v7-horizon-shadow-evaluation.yml"
   schedule:
     - cron: "22 23 * * 1-5"
@@ -20,8 +22,10 @@ on:
   pull_request:
     paths:
       - "lib/intelligence/horizon-shadow-evaluator.mjs"
+      - "lib/intelligence/forward-shadow-benchmark.mjs"
       - "scripts/run-horizon-shadow-evaluation.mjs"
       - "scripts/test-horizon-shadow-evaluation.mjs"
+      - "scripts/test-forward-shadow-benchmark.mjs"
       - ".github/workflows/v7-horizon-shadow-evaluation.yml"
 
 permissions:
@@ -52,6 +56,9 @@ jobs:
       - name: Test forward-only shadow strategy evaluator
         run: node scripts/test-horizon-shadow-evaluation.mjs
 
+      - name: Verify matched SPY forward-only economic evidence and cost isolation
+        run: node scripts/test-forward-shadow-benchmark.mjs
+
       - name: Dry-run forward evaluation
         run: node scripts/run-horizon-shadow-evaluation.mjs
 
@@ -73,6 +80,13 @@ jobs:
           }
           if (ledger.methodology?.forwardOnly !== true || ledger.methodology?.historicalBackfillAllowed !== false) {
             throw new Error('Shadow evaluation must remain forward-only');
+          }
+          if (report.forwardBenchmark?.isolation?.researchOnly !== true
+            || report.forwardBenchmark?.isolation?.liveTradingAllowed !== false
+            || report.forwardBenchmark?.isolation?.brokerSubmissionAllowed !== false
+            || report.forwardBenchmark?.isolation?.feedsPaperCertification !== false
+            || report.forwardBenchmark?.hasRealizedProfit !== false) {
+            throw new Error('Forward SPY benchmark may not promote evidence into broker or PAPER execution');
           }
           for (const record of ledger.records || []) {
             if (record.liveTradingAllowed !== false
@@ -129,6 +143,11 @@ jobs:
             || ledger.methodology?.forwardOnly !== true
             || ledger.methodology?.historicalBackfillAllowed !== false) {
             throw new Error('Unsafe forward shadow evaluation output');
+          }
+          if (report.forwardBenchmark?.isolation?.liveTradingAllowed !== false
+            || report.forwardBenchmark?.isolation?.feedsPaperCertification !== false
+            || report.forwardBenchmark?.hasRealizedProfit !== false) {
+            throw new Error('Unsafe shadow benchmark report');
           }
           console.log('Forward shadow evidence valid:', ledger.recordCount, ledger.sourceState?.selectedNow?.join(',') || 'none');
           NODE
