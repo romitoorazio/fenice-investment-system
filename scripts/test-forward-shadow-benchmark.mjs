@@ -8,10 +8,11 @@ const now = new Date("2026-10-08T20:00:00.000Z");
 const percentage = (a,b)=>Math.round(((b/a)-1)*10000)/100;
 function record(symbol,price,latest,{decision="OSSERVA",checkpoint=true}={}) {
   const gross=percentage(price,latest);
-  const cp=checkpoint?{"7d":{status:"MEASURED",measuredAt:mark,currentPrice:latest,
+  const cp=checkpoint?{"7d":{status:"MEASURED",measuredAt:mark,quoteObservedAt:mark,currentPrice:latest,
     stagedReturnPercent:gross,lumpSumReturnPercent:gross}}:{};
   return {id:"2026-10-01:"+symbol,symbol,observationDate:"2026-10-01",createdAt:start,currency:"USD",
-    referencePrice:price,lastPrice:latest,lastMarkedAt:mark,
+    source:{initialQuoteObservedAt:start, initialQuoteSource:"fixture-quote-source"},
+    referencePrice:price,lastPrice:latest,lastMarkedAt:mark,lastQuoteObservedAt:mark,
     stagedMarkToMarketPercent:gross,lumpSumMarkToMarketPercent:gross,checkpoints:cp,
     tranches:[{number:1,targetOffsetDays:0,status:"EXECUTED",price,executedAt:start},
       {number:2,targetOffsetDays:7,status:"PENDING",price:null,executedAt:null},
@@ -26,7 +27,7 @@ const baseline=evaluateForwardShadowBenchmark([spy,candidate,lower],{now});
 assert.equal(baseline.state,"INSUFFICIENT_FORWARD_EVIDENCE");
 assert.equal(baseline.matured["7d"].pairedSamples,2);
 assert.equal(baseline.matured["7d"].independentEntryDays,1);
-assert.equal(baseline.version,3);
+assert.equal(baseline.version,4);
 assert.match(baseline.capitalBasis,/Three equal-notional/);
 assert.equal(baseline.matured["7d"].hypotheticalAverageAfterCostPercent,1.4);
 assert.equal(baseline.matured["7d"].benchmarkGrossAveragePercent,2);
@@ -61,6 +62,13 @@ assert.notEqual(baseline.matured["7d"].sensitivity.costScenarios[0].averageExces
   baseline.matured["7d"].sensitivity.costScenarios[3].averageExcessVsSpyGrossPercent);
 
 assert.equal(baseline.hasRealizedProfit,false);
+assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,source:{}}],{now}).provisional.pairedSamples,0,
+  "legacy unknown-time marks cannot be reported as proven forward profit");
+assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,lastQuoteObservedAt:null}],{now}).provisional.pairedSamples,0,
+  "price marks require original source quote time");
+assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,lastQuoteObservedAt:"2026-10-08T02:00:00.000Z"}],{now}).provisional.pairedSamples,0,
+  "old quote cannot be laundered into current mark with report generation time");
+
 assert.equal(baseline.isolation.liveTradingAllowed,false);
 assert.equal(baseline.isolation.feedsPaperCertification,false);
 assert.equal(baseline.isolation.brokerSubmissionAllowed,false);
@@ -70,6 +78,13 @@ const doubled=evaluateForwardShadowBenchmark([spy,candidate,{...candidate,curren
 assert.equal(doubled.matured["7d"].pairedSamples,2,"one symbol/day only");
 const malformed=[
   ["non-USD", {currency:"EUR"}],
+  ["legacy quote missing original time", {source:{initialQuoteSource:"fixture-quote-source"}}],
+  ["missing original quote source", {source:{initialQuoteObservedAt:start}}],
+  ["backdated unverified origin", {source:{initialQuoteObservedAt:"2026-09-30T17:59:00.000Z",initialQuoteSource:"test"}}],
+  ["future original quote", {source:{initialQuoteObservedAt:"2026-10-02T12:00:00.000Z",initialQuoteSource:"test"}}],
+  ["missing checkpoint quote time", {checkpoints:{"7d":{...candidate.checkpoints["7d"],quoteObservedAt:null}}}],
+  ["earlier checkpoint quote", {checkpoints:{"7d":{...candidate.checkpoints["7d"],quoteObservedAt:"2026-10-08T04:00:00.000Z"}}}],
+
   ["missing origin price", {referencePrice:null}],
   ["zero origin price", {referencePrice:0}],
   ["missing end quote", {lastPrice:null,checkpoints:{"7d":{...candidate.checkpoints["7d"],currentPrice:null}}}],
@@ -117,8 +132,9 @@ const cohort = [record("SPY", 100, 102)];
 for(let i=0;i<31;i++) cohort.push(record("T"+String(i).padStart(2,"0"), 100, 110));
 for(const row of cohort){
   row.lastMarkedAt = day30;
+  row.lastQuoteObservedAt = day30;
   const gross = percentage(row.referencePrice,row.lastPrice);
-  row.checkpoints["30d"]={status:"MEASURED",measuredAt:day30,currentPrice:row.lastPrice,
+  row.checkpoints["30d"]={status:"MEASURED",measuredAt:day30,quoteObservedAt:day30,currentPrice:row.lastPrice,
     stagedReturnPercent:gross,lumpSumReturnPercent:gross};
 }
 const artificiallyBig = evaluateForwardShadowBenchmark(cohort, {now:new Date("2026-10-31T20:00:00.000Z")});
@@ -133,11 +149,13 @@ const threeSlices = structuredClone(candidate);
 threeSlices.tranches[1]={number:2,targetOffsetDays:7,status:"EXECUTED",price:55,executedAt:mark};
 threeSlices.tranches[2]={number:3,targetOffsetDays:14,status:"EXECUTED",price:55,executedAt:"2026-10-15T18:00:00.000Z"};
 threeSlices.lastMarkedAt="2026-10-16T18:00:00.000Z";
+threeSlices.lastQuoteObservedAt=threeSlices.lastMarkedAt;
 threeSlices.stagedMarkToMarketPercent=10; // deliberately false "all capital" mark
 threeSlices.lumpSumMarkToMarketPercent=10;
 threeSlices.checkpoints={};
 const lateBaseline=structuredClone(spy);
 lateBaseline.lastMarkedAt=threeSlices.lastMarkedAt;
+lateBaseline.lastQuoteObservedAt=lateBaseline.lastMarkedAt;
 lateBaseline.checkpoints={};
 const fullExposure=evaluateForwardShadowBenchmark([lateBaseline,threeSlices],{now:new Date("2026-10-16T20:00:00.000Z")});
 assert.equal(fullExposure.provisional.pairedSamples,0,"inconsistent invested-only mark must fail closed");
