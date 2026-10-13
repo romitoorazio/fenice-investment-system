@@ -3,13 +3,20 @@ import { readFile } from "node:fs/promises";
 import { isPublicPaperRefreshAttempt } from "../lib/ui/proposal-route-policy.ts";
 
 const url = (suffix) => new URL(`https://fenice.example/api/trading/proposals${suffix}`);
+
+// A public request must not provoke provider calls even if a refresh parameter
+// is case-shifted, percent-encoded, duplicated or sent using a common alias.
 for (const input of [
   "?fresh=1", "?fresh=0", "?fresh=true", "?fresh=",
   "?fresh=1&fresh=0", "?other=ok&%66resh=1",
+  "?FRESH=1", "?FrEsH=true", "?%46%52%45%53%48=1",
+  "?fresh%20=1", "?refresh=1", "?REFRESH=0",
+  "?refreshLiveContext=true", "?refresh_live_context=1",
+  "?refresh-live-context=1", "?other=x&refresh=1",
 ]) {
   assert.equal(isPublicPaperRefreshAttempt(url(input)), true, `fail closed on ${input}`);
 }
-for (const input of ["", "?other=ok", "?FRESH=1", "?freshness=1"]) {
+for (const input of ["", "?other=ok", "?freshness=1", "?refreshMode=1", "?symbol=SPY"]) {
   assert.equal(isPublicPaperRefreshAttempt(url(input)), false, `keep read-only access for ${input}`);
 }
 
