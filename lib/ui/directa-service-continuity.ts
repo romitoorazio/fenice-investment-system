@@ -70,6 +70,13 @@ export function assessDirectaServiceContinuity(
   if (input.reconciliation?.balanced !== true) {
     reasons.push("Riconciliazione effettiva con Directa non verificata");
   }
+  if (input.reconciliation?.balanced === true && (
+    !Array.isArray(input.reconciliation.breaks)
+    || input.reconciliation.breaks.length !== 0
+    || timeMs(input.reconciliation.observedAt) !== timestampMs
+  )) {
+    reasons.push("Riconciliazione incoerente o riferita a uno snapshot Directa diverso");
+  }
   if (input.auditChainValid !== true) reasons.push("Catena audit non verificata");
   if (!Number.isSafeInteger(input.unresolvedInternalOrders) || Number(input.unresolvedInternalOrders) !== 0) {
     reasons.push("Esito ordini interni sconosciuto o ordini irrisolti");
