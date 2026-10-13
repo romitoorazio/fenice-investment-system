@@ -110,6 +110,9 @@ jobs:
       - name: Directa diagnostic redaction safety
         run: npm run directa:diagnostic-safety:test
 
+      - name: Directa DDoS/disconnection continuity is fail-closed and independent of frozen V6
+        run: node --experimental-strip-types scripts/test-directa-service-continuity.mjs
+
       - name: Directa entitlement fallback safety
         run: npm run directa:entitlement:test
 
