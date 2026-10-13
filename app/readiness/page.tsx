@@ -6,6 +6,10 @@ import executionCoverage from "@/data/execution-market-coverage.json";
 
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperApproval from "@/data/paper-validation-approval.json";
+import sourceHealth from "@/data/global-source-health.json";
+import investmentCommittee from "@/data/investment-committee.json";
+import forwardShadowEvidence from "@/data/v7-horizon-shadow-evaluation.json";
+import { assessFenice100KRelease } from "@/lib/ui/fenice100k-release-gate.mjs";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
@@ -187,6 +191,15 @@ export default async function ReadinessPage() {
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
   const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
+  const releaseGate = assessFenice100KRelease({
+    sourceHealth,
+    committee: investmentCommittee,
+    shadow: forwardShadowEvidence,
+    engineeringEvidence: engineeringValidation,
+    paperWindow: calendar,
+    paperApproval,
+    now: new Date(),
+  });
   const evidenceDays = calendar.evidenceDays;
   const campaignAgeDays = calendar.elapsedDays;
   const requiredDays = calendar.requiredDays ?? 30;
@@ -229,6 +242,92 @@ export default async function ReadinessPage() {
             <Link href="/" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">Oggi</Link>
           </div>
         </header>
+
+        <section aria-label="FENICE100K release acceptance" className="rounded-3xl border border-cyan-400/25 bg-cyan-400/[0.04] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">13–31 ottobre · audit di rilascio</p>
+              <h2 className="mt-1 text-xl font-black">FENICE100K · Collaudo finale</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                Stato: <strong>{releaseGate.overall === "RESEARCH_USABLE_NOT_CERTIFIED"
+                  ? "Ricerca utilizzabile, certificazione incompleta"
+                  : releaseGate.overall === "SAFETY_BLOCKED"
+                    ? "Blocco di sicurezza da esaminare"
+                    : "Verifiche ricerca ancora incomplete"}</strong>.
+                {" "}Non siamo autorizzati a operare con capitale reale:
+                {" "}<strong>{releaseGate.completeForRealCapital ? "SÌ" : "NO"}</strong>.
+                Nessun guadagno reale verificato: <strong>{releaseGate.verifiedProfit ? "SÌ" : "N/D"}</strong>.
+              </p>
+            </div>
+            <span className="rounded-xl border border-amber-400/30 px-3 py-2 text-xs font-bold text-amber-200">
+              LIVE: {releaseGate.gates.liveLock.state === "LOCKED" ? "BLOCCATO" : "ANOMALIA SICUREZZA"}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-white/10 p-3">
+              <p className="text-sm font-bold text-white">1. Data Quality</p>
+              <p className="mt-1 text-xs text-slate-300">
+                {releaseGate.gates.dataQuality.state === "RESEARCH_DATA_CURRENT" ? "Dati ricerca aggiornati" : "Dati scaduti o non verificabili"}
+                {" "}· punteggio {releaseGate.gates.dataQuality.score ?? "N/D"}/100
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {releaseGate.gates.dataQuality.analyzedSymbols} strumenti analizzati;
+                {" "}{releaseGate.gates.dataQuality.timestampedSingleFamilyResearchQuotes} prezzi con timestamp Yahoo verificato.
+                Una sola fonte di ricerca non abilita esecuzione.
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/10 p-3">
+              <p className="text-sm font-bold text-white">2. Risk/System Tests</p>
+              <p className="mt-1 text-xs text-slate-300">
+                {releaseGate.gates.riskSystem.state === "HISTORICAL_MAIN_CI_VERIFIED"
+                  ? "CI storica verificata"
+                  : "Prove CI non aggiornate"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                SHA provato: {releaseGate.gates.riskSystem.validatedCommit?.slice(0,8) ?? "N/D"}.
+                Il deploy attuale richiede sempre una verifica separata dello stesso commit.
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/10 p-3">
+              <p className="text-sm font-bold text-white">3. PAPER Certification</p>
+              <p className="mt-1 text-xs font-semibold text-amber-200">NON CERTIFICATA</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {releaseGate.gates.paperCertification.verifiedEvidenceDays ?? "N/D"}/
+                {releaseGate.gates.paperCertification.requiredEvidenceDays ?? "N/D"} giornate verificate,
+                {" "}{releaseGate.gates.paperCertification.reportedFills ?? "N/D"}/
+                {releaseGate.gates.paperCertification.requiredFills ?? "N/D"} fill riportati.
+                Minimo temporale {italianInstant(releaseGate.gates.paperCertification.earliestMaturityAt)}.
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/10 p-3">
+              <p className="text-sm font-bold text-white">4. Vantaggio economico SHADOW</p>
+              <p className="mt-1 text-xs font-semibold text-amber-200">
+                {releaseGate.gates.performance.state === "NOT_PROVEN" ? "NON DIMOSTRATO" : "Campione da revisionare"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {releaseGate.gates.performance.researchRecords} esperimenti;
+                {" "}7 giorni: {releaseGate.gates.performance.benchmark7d.pairs ?? "N/D"} confronti,
+                {" "}30 giorni: {releaseGate.gates.performance.benchmark30d.pairs ?? "N/D"} confronti.
+                Profitti del conto Directa: N/D.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-white/10 p-3">
+            <h3 className="text-sm font-bold text-white">Cosa manca per completare Fenice100K</h3>
+            <ol className="mt-2 list-inside list-decimal space-y-1 text-xs leading-5 text-slate-300">
+              {releaseGate.blockers.map((blocker) => (
+                <li key={blocker.id}>
+                  <strong>{blocker.severity}</strong> · {blocker.detail}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-3 text-xs text-slate-500">
+              Valutazione informativa al {italianInstant(releaseGate.assessedAt)}.
+              Il cruscotto non può certificare PAPER, rinnovare autorizzazioni, verificare il conto Directa
+              né impartire operazioni reali.
+            </p>
+          </div>
+        </section>
 
         <section className="rounded-3xl border border-rose-400/25 bg-rose-400/[0.06] p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
