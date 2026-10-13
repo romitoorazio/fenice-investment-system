@@ -1,5 +1,6 @@
 import { getDirectaBridgeStatus, type DirectaRequestedMode } from "@/lib/brokers/directa";
 import { recognizeBroker } from "@/lib/brokers/registry";
+import { assessDirectaServiceContinuity } from "@/lib/ui/directa-service-continuity";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,9 @@ export async function GET() {
       normalizedBroker: recognition.normalized,
       bridge,
       executionEnabled: false,
+      // This cloud endpoint has no direct view of the owner's local Darwin socket.
+      // Configuration flags are never mistaken for verified broker continuity.
+      continuity: assessDirectaServiceContinuity(),
       safety: {
         failClosed: true,
         realOrdersBlocked: true,

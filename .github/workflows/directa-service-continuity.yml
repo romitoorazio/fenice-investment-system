@@ -1,0 +1,39 @@
+name: Fenice Directa Service Continuity
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/directa-service-continuity.ts"
+      - "scripts/test-directa-service-continuity.mjs"
+      - "app/api/broker/status/route.ts"
+      - "app/readiness/page.tsx"
+      - ".github/workflows/directa-service-continuity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/directa-service-continuity.ts"
+      - "scripts/test-directa-service-continuity.mjs"
+      - "app/api/broker/status/route.ts"
+      - "app/readiness/page.tsx"
+      - ".github/workflows/directa-service-continuity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  continuity-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Regression after outage, disconnection and ambiguous orders
+        run: node --experimental-strip-types scripts/test-directa-service-continuity.mjs
+      - name: Secrets must not be published
+        run: node scripts/scan-repository-secrets.mjs

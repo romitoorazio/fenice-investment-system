@@ -10,6 +10,7 @@ import sourceHealth from "@/data/global-source-health.json";
 import investmentCommittee from "@/data/investment-committee.json";
 import forwardShadowEvidence from "@/data/v7-horizon-shadow-evaluation.json";
 import { assessFenice100KRelease } from "@/lib/ui/fenice100k-release-gate.mjs";
+import { assessDirectaServiceContinuity } from "@/lib/ui/directa-service-continuity";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
@@ -191,6 +192,8 @@ export default async function ReadinessPage() {
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
   const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
+  // The cloud deployment cannot inspect a localhost Directa/Darwin session.
+  const directaContinuity = assessDirectaServiceContinuity();
   const releaseGate = assessFenice100KRelease({
     sourceHealth,
     committee: investmentCommittee,
@@ -327,6 +330,20 @@ export default async function ReadinessPage() {
               né impartire operazioni reali.
             </p>
           </div>
+        </section>
+
+        <section aria-label="Directa continuità dopo disservizi" className="rounded-2xl border border-amber-400/30 p-4">
+          <h2 className="text-base font-black text-amber-200">Directa · continuità operativa</h2>
+          <p className="mt-2 text-sm text-slate-200">
+            Evidenza connessione locale: <strong>{directaContinuity.state === "NOT_VERIFIED" ? "NON VERIFICATA" : directaContinuity.state}</strong>.
+            Dopo una disconnessione, il riavvio di Darwin o un disservizio, non presumere che gli ordini precedenti siano falliti:
+            prima occorrono un nuovo snapshot, le liste complete di ordini e posizioni, la riconciliazione e la revisione dell&apos;operatore.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            L&apos;app online non può controllare la sessione dAPI localhost del tuo PC.
+            I parametri configurati su Vercel non attestano liquidità, ordini o posizioni su Directa.
+            Questo controllo è informativo: non sblocca PAPER, SHADOW o LIVE e non invia ordini.
+          </p>
         </section>
 
         <section className="rounded-3xl border border-rose-400/25 bg-rose-400/[0.06] p-6">
