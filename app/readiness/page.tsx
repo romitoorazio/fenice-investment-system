@@ -316,6 +316,21 @@ export default async function ReadinessPage() {
                 Profitti del conto Directa: N/D.
               </p>
             </div>
+            <div className="rounded-xl border border-amber-400/25 p-3">
+              <p className="text-sm font-bold text-white">5. Credenziali delle fonti finanziarie</p>
+              <p className="mt-1 text-xs font-semibold text-amber-200">
+                {releaseGate.gates.credentialRotation.state === "HISTORICAL_ROTATION_UNVERIFIED"
+                  ? "REVOCA STORICA NON VERIFICATA" : "Verifica sicurezza da riesaminare"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Test dei file attuali e fonti GREEN non provano che le vecchie chiavi esposte
+                siano state revocate. Servono verifiche presso i provider, senza condividere i valori.
+              </p>
+              <Link href="https://github.com/romitoorazio/fenice-investment-system/issues/26"
+                className="mt-2 inline-block text-xs font-semibold text-amber-200 underline">
+                Verifica credenziali · issue #26
+              </Link>
+            </div>
           </div>
           <div className="mt-4 rounded-xl border border-white/10 p-3">
             <h3 className="text-sm font-bold text-white">Cosa manca per completare Fenice100K</h3>
