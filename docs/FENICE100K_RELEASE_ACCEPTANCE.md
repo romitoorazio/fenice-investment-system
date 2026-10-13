@@ -60,6 +60,14 @@ Questi criteri qualificano solo una possibile revisione umana della ricerca e **
 
 ## Sicurezza P0 — credenziali storicamente esposte (issue #26)
 
+Verifica puntuale della cronologia effettuata il 14/10 (senza stampare, salvare o
+ripubblicare i valori): nel `data/global-source-health.json` del commit
+`c6e0f32a4d31ec467e20578a58201a74fa2c40d1` (rapporto del 03/09/2026)
+si osservano parametri di query contenenti valori di credenziali per
+**EIA** (`api_key`), **Alpha Vantage** (`apikey`) e **FRED** (`api_key`).
+La rilevazione di esposizione NON certifica che tali credenziali siano tuttora
+valide, né la presenza/assenza di una rotazione nei rispettivi account.
+
 Dal 14/10 il Centro sicurezza e l'API di readiness espongono un controllo
 `HISTORICAL_ROTATION_UNVERIFIED` separato da Data Quality, CI e PAPER.
 Un rapporto fonti GREEN, una build verde, secret scan del **solo** albero attuale
