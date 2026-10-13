@@ -5,6 +5,7 @@ import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperApproval from "@/data/paper-validation-approval.json";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
+import { buildPaperContinuityOwnerCheckpoint } from "@/lib/ui/paper-continuity-owner-checkpoint";
 import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
@@ -36,6 +37,7 @@ export async function GET() {
     usMarketSession,
   };
   const paperCertificationWindow = summarizePaperCertificationWindow(paperCampaign, paperApproval, now);
+  const paperContinuityOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(paperCertificationWindow, paperApproval);
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
   const readiness = applyTemporalRiskReadiness(buildInstitutionalReadiness(intelligence, {
@@ -62,6 +64,7 @@ export async function GET() {
     executionReadiness,
     paperRuntimeEvidence,
     paperCertificationWindow,
+    paperContinuityOwnerCheckpoint,
     engineeringEvidence,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
