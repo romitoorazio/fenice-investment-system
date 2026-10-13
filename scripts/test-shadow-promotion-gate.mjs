@@ -38,6 +38,18 @@ function baseReport() {
       averageStagedReturnPercent: 2.4,
       averageWorstObservedReturnPercent: -7.2,
     },
+    forwardBenchmark: {
+      version: 4, state: "RESEARCH_SAMPLE_MATURE", benchmark: "SPY",
+      currency: "USD", costPercent: 0.3, hasRealizedProfit: false,
+      isolation: { researchOnly: true, liveTradingAllowed: false,
+        brokerSubmissionAllowed: false, feedsPaperCertification: false },
+      matured: {
+        "7d": { pairedSamples: 32, independentEntryDays: 30,
+          hypotheticalAverageExcessPercent: 0.35, beatBenchmarkRatePercent: 56.25 },
+        "30d": { pairedSamples: 33, independentEntryDays: 31,
+          hypotheticalAverageExcessPercent: 0.8, beatBenchmarkRatePercent: 60.61 },
+      },
+    },
   };
 }
 
@@ -92,5 +104,46 @@ stale.generatedAt = "2026-10-05T00:00:00Z";
 const staleGate = buildShadowPromotionGate(stale, { now });
 assert.equal(staleGate.state, "LOCKED");
 assert(staleGate.blockers.includes("PROMOTION_REPORT_STALE"));
+
+
+assert.equal(mature.evidence.independentBenchmark["7d"].independentEntryDays, 30);
+assert.equal(mature.promotionPolicy.requirePositiveHypotheticalExcessAfterCosts, true);
+const onlyCorrelatedDays = baseReport();
+onlyCorrelatedDays.forwardBenchmark.matured["7d"].pairedSamples = 100;
+onlyCorrelatedDays.forwardBenchmark.matured["7d"].independentEntryDays = 1;
+const correlated = buildShadowPromotionGate(onlyCorrelatedDays, {now});
+assert.equal(correlated.state, "LOCKED", "100 stocks on 1 day are not independent evidence");
+assert(correlated.blockers.includes("7D_BENCHMARK_INDEPENDENT_DAYS_BELOW_30"));
+
+const losesAfterCosts = baseReport();
+losesAfterCosts.forwardBenchmark.matured["30d"].hypotheticalAverageExcessPercent = -0.05;
+const losesGate = buildShadowPromotionGate(losesAfterCosts,{now});
+assert.equal(losesGate.eligibleForHumanResearchReview,false);
+assert(losesGate.blockers.includes("30D_BENCHMARK_NET_EXCESS_NOT_POSITIVE"));
+
+const weakBenchmarkWins = baseReport();
+weakBenchmarkWins.forwardBenchmark.matured["7d"].beatBenchmarkRatePercent = 50;
+assert(buildShadowPromotionGate(weakBenchmarkWins,{now}).blockers.includes("7D_BENCHMARK_BEAT_RATE_NOT_ABOVE_50"));
+
+const benchmarkAbsent = baseReport();
+delete benchmarkAbsent.forwardBenchmark;
+assert.equal(buildShadowPromotionGate(benchmarkAbsent,{now}).state,"LOCKED","missing benchmark must fail closed");
+
+const provisionalOnly = baseReport();
+provisionalOnly.forwardBenchmark.state="INSUFFICIENT_FORWARD_EVIDENCE";
+assert(buildShadowPromotionGate(provisionalOnly,{now}).blockers.includes("BENCHMARK_FORWARD_SAMPLE_NOT_MATURE"));
+
+const claimsRealProfit = baseReport();
+claimsRealProfit.forwardBenchmark.hasRealizedProfit=true;
+assert(buildShadowPromotionGate(claimsRealProfit,{now}).blockers.includes("BENCHMARK_SAFETY_BOUNDARY_INVALID"));
+
+const falseFutureTimestamp = baseReport();
+falseFutureTimestamp.generatedAt="2026-10-08T20:01:00Z";
+assert(buildShadowPromotionGate(falseFutureTimestamp,{now}).blockers.includes("PROMOTION_REPORT_STALE"),
+  "a report dated in the future is not fresh evidence");
+
+const malformedBenchmark = baseReport();
+malformedBenchmark.forwardBenchmark.matured["7d"].independentEntryDays=Infinity;
+assert(buildShadowPromotionGate(malformedBenchmark,{now}).blockers.includes("7D_BENCHMARK_INDEPENDENT_DAYS_BELOW_30"));
 
 console.log("Fenice V7 shadow promotion gate: PASS");

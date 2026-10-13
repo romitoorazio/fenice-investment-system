@@ -47,3 +47,13 @@ node --experimental-strip-types scripts/test-paper-certification-window.mjs
 ```
 
 Le prove di requisito temporale e gli esiti SHADOW non sono comprimibili: **non si deve dichiarare «tutto completato oggi» quando questi controlli non sono ancora soddisfatti**.
+
+## Check aggiunto: promozione SHADOW contro benchmark (13 ottobre)
+
+La valutazione di una strategia V7 non può passare alla **revisione di ricerca umana** soltanto per risultati positivi rispetto alla liquidità. Il gate ora richiede, separatamente a 7 e 30 giorni:
+- campioni SHADOW maturi già richiesti;
+- confronto realmente forward-only contro SPY su almeno **30 coppie e 30 date d'ingresso distinte**;
+- extra-rendimento medio teorico **positivo dopo il costo ipotizzato**, e vittorie vs SPY in **più del 50%** dei confronti;
+- report corrente e non futuro, assunzione di costi valida, segregazione research-only e assenza di dichiarazioni di profitto realizzato.
+
+Questi criteri qualificano solo una possibile revisione umana della ricerca e **non certificano PAPER, non autorizzano ordini LIVE** e non dimostrano utili di conto. La verifica è riproducibile con `node scripts/test-shadow-promotion-gate.mjs` nel workflow UI Evidence Regression.
