@@ -40,6 +40,14 @@ assert.equal(outcome.approvalScope, "NEW_PAPER_PROBES_ONLY");
 assert.equal(outcome.postExpiryObservationAllowed, true);
 assert.equal(outcome.campaignMaturityRequiresActiveApproval, false);
 assert.equal(outcome.newProbeWindowOpen, true);
+assert.equal(outcome.preExpiryOperatorAttentionRequired, true, "missing PAPER fills near 24 October require human review");
+assert.equal(outcome.daysUntilProbeExpiry, 14);
+assert.equal(outcome.missingAuthorizedFills, 4);
+assert.equal(outcome.missingVerifiedEvidenceDays, 23);
+assert.equal(outcome.operatorReminderScope, "PRE_EXPIRY_REVIEW_ONLY");
+assert.equal(outcome.operatorReminderMayAuthorizeProbes, false);
+assert.equal(outcome.ownerActionRequired, false, "advisory must not mutate policy-state semantics");
+
 assert.equal(outcome.elapsedDays, 16);
 assert.equal(outcome.daysToMinMaturity, 14);
 assert.equal(outcome.reportedFills, 6);
@@ -49,6 +57,20 @@ assert.equal(outcome.evidenceIntegrityReviewRequired, false);
 assert.equal(outcome.numericalTargetsMet, false);
 assert.equal(outcome.liveTradingAllowed, false);
 assert.equal(outcome.certified, false);
+
+const fartherAhead = assess(campaign, approval, Date.parse("2026-10-01T12:00:00.000Z"));
+assert.equal(fartherAhead.preExpiryOperatorAttentionRequired, false, "no warning before 14-day review window");
+assert(fartherAhead.daysUntilProbeExpiry > 14);
+const satisfiedBeforeExpiry = assess({
+  ...campaign,
+  dailyEvidence: [proofDay("2026-09-25", "2026-09-25T17:24:41.625Z", 10, 10)],
+}, approval, current);
+assert.equal(satisfiedBeforeExpiry.missingAuthorizedFills, 0);
+assert.equal(satisfiedBeforeExpiry.preExpiryOperatorAttentionRequired, false);
+assert.equal(assess(campaign, approval, Date.parse("2026-10-25T00:00:00.000Z")).preExpiryOperatorAttentionRequired, false,
+  "expired probes must never be reauthorized by a reminder");
+assert.equal(assess(campaign, { ...approval, approved: false }, current).preExpiryOperatorAttentionRequired, false,
+  "invalid approval cannot generate actionable probe reminders");
 
 const futureRows = {
   ...campaign, dailyEvidence: [
@@ -144,5 +166,14 @@ assert.equal(renewed.newProbeWindowOpen, true);
 assert.equal(renewed.earliestMaturityAt, "2026-10-25T15:40:35.178Z");
 assert.equal(renewed.reportedFills, 6);
 assert.equal(assess({ ...campaign, startedAt: "2026-10-27T15:40:35.178Z" }, approval, current).state, "INVALID_POLICY");
+
+// Ensure the warning is actually visible to users, with no direct approval mutation.
+const { readFileSync } = await import("node:fs");
+const readinessPage = readFileSync(new URL("../app/readiness/page.tsx", import.meta.url), "utf8");
+assert.match(readinessPage, /calendar\.preExpiryOperatorAttentionRequired/);
+assert.match(readinessPage, /Revisione umana prima della scadenza PAPER/);
+assert.match(readinessPage, /calendar\.missingAuthorizedFills/);
+assert.match(readinessPage, /non generare fill artificiali/);
+assert.match(readinessPage, /non concede permessi/);
 
 console.log("Fenice PAPER authorization calendar: PASS");
