@@ -13,7 +13,9 @@ function record(symbol,price,latest,{decision="OSSERVA",checkpoint=true}={}) {
   return {id:"2026-10-01:"+symbol,symbol,observationDate:"2026-10-01",createdAt:start,currency:"USD",
     referencePrice:price,lastPrice:latest,lastMarkedAt:mark,
     stagedMarkToMarketPercent:gross,lumpSumMarkToMarketPercent:gross,checkpoints:cp,
-    tranches:[{number:1,status:"EXECUTED",price,executedAt:start}],
+    tranches:[{number:1,targetOffsetDays:0,status:"EXECUTED",price,executedAt:start},
+      {number:2,targetOffsetDays:7,status:"PENDING",price:null,executedAt:null},
+      {number:3,targetOffsetDays:14,status:"PENDING",price:null,executedAt:null}],
     currentDecision:decision,researchOnly:true,executionEligible:false,paperCertificationEligible:false,
     brokerSubmissionAllowed:false,liveTradingAllowed:false};
 }
@@ -24,12 +26,18 @@ const baseline=evaluateForwardShadowBenchmark([spy,candidate,lower],{now});
 assert.equal(baseline.state,"INSUFFICIENT_FORWARD_EVIDENCE");
 assert.equal(baseline.matured["7d"].pairedSamples,2);
 assert.equal(baseline.matured["7d"].independentEntryDays,1);
-assert.equal(baseline.matured["7d"].hypotheticalAverageAfterCostPercent,4.2);
+assert.equal(baseline.version,2);
+assert.match(baseline.capitalBasis,/Three equal-notional/);
+assert.equal(baseline.matured["7d"].hypotheticalAverageAfterCostPercent,1.4);
 assert.equal(baseline.matured["7d"].benchmarkGrossAveragePercent,2);
-assert.equal(baseline.matured["7d"].hypotheticalAverageExcessPercent,2.2);
+assert.equal(baseline.matured["7d"].hypotheticalAverageExcessPercent,-0.6);
 assert.equal(baseline.matured["7d"].beatBenchmarkRatePercent,50);
 assert.equal(baseline.matured["30d"].hypotheticalAverageExcessPercent,null);
 assert.equal(baseline.provisional.pairedSamples,2);
+assert.equal(baseline.provisional.observations[0].investedCapitalPercent,33.33);
+assert.equal(baseline.provisional.observations[0].cashCapitalPercent,66.67);
+assert.equal(baseline.provisional.observations[0].hypotheticalCostOnTotalCapitalPercent,0.1);
+assert.equal(baseline.provisional.observations[0].hypotheticalNetReturnPercent,3.23);
 assert.equal(baseline.hasRealizedProfit,false);
 assert.equal(baseline.isolation.liveTradingAllowed,false);
 assert.equal(baseline.isolation.feedsPaperCertification,false);
@@ -53,8 +61,11 @@ const malformed=[
   ["symbol misattributed", {id:"2026-10-01:TSM"}],
   ["wrong observation day", {observationDate:"2026-10-02"}],
   ["missing executed tranche", {tranches:[]}],
-  ["bad tranche price", {tranches:[{number:1,status:"EXECUTED",price:null,executedAt:start}]}],
-  ["tranche executed after checkpoint", {tranches:[{number:1,status:"EXECUTED",price:50,executedAt:"2026-10-09T10:00:00.000Z"}]}],
+  ["bad tranche price", {tranches:[{...candidate.tranches[0],price:null},...candidate.tranches.slice(1)]}],
+  ["missing third allocation", {tranches:candidate.tranches.slice(0,2)}],
+  ["mislabelled tranche", {tranches:candidate.tranches.map((t,i)=>i===1?{...t,number:7}:t)}],
+  ["early extra tranche", {tranches:[candidate.tranches[0],{...candidate.tranches[1],status:"EXECUTED",price:52,executedAt:start},candidate.tranches[2]]}],
+  ["tranche executed after checkpoint", {tranches:[{...candidate.tranches[0],executedAt:"2026-10-09T10:00:00.000Z"},...candidate.tranches.slice(1)]}],
   ["early checkpoint", {checkpoints:{"7d":{...candidate.checkpoints["7d"],measuredAt:"2026-10-03T18:00:00.000Z"}}}],
   ["late checkpoint", {checkpoints:{"7d":{...candidate.checkpoints["7d"],measuredAt:"2026-10-13T18:00:00.000Z"}}}],
   ["incorrect checkpoint date", {checkpoints:{"7d":{...candidate.checkpoints["7d"],measuredAt:"2026-10-09T18:00:00.000Z"}}}],
@@ -78,10 +89,51 @@ const before7=new Date("2026-10-06T18:00:00.000Z");
 assert.equal(evaluateForwardShadowBenchmark([spy,candidate],{now:before7}).matured["7d"].pairedSamples,0,"do not see future");
 const staleMark=evaluateForwardShadowBenchmark([spy,candidate],{now:new Date("2026-10-11T20:00:00.000Z")});
 assert.equal(staleMark.provisional.pairedSamples,0,"stale marks are not current");
+// Multiple symbols on a single day are a correlated cohort, not 30 independent observations.
+const day30 = "2026-10-31T18:00:00.000Z";
+const cohort = [record("SPY", 100, 102)];
+for(let i=0;i<31;i++) cohort.push(record("T"+String(i).padStart(2,"0"), 100, 110));
+for(const row of cohort){
+  row.lastMarkedAt = day30;
+  const gross = percentage(row.referencePrice,row.lastPrice);
+  row.checkpoints["30d"]={status:"MEASURED",measuredAt:day30,currentPrice:row.lastPrice,
+    stagedReturnPercent:gross,lumpSumReturnPercent:gross};
+}
+const artificiallyBig = evaluateForwardShadowBenchmark(cohort, {now:new Date("2026-10-31T20:00:00.000Z")});
+assert.equal(artificiallyBig.matured["7d"].pairedSamples,31);
+assert.equal(artificiallyBig.matured["30d"].pairedSamples,31);
+assert.equal(artificiallyBig.matured["7d"].independentEntryDays,1);
+assert.equal(artificiallyBig.matured["30d"].independentEntryDays,1);
+assert.equal(artificiallyBig.state,"INSUFFICIENT_FORWARD_EVIDENCE","30 stocks in one market day do not prove a strategy");
+
+// When every planned slice is genuinely executed, full notional (not just 1/3) is exposed.
+const threeSlices = structuredClone(candidate);
+threeSlices.tranches[1]={number:2,targetOffsetDays:7,status:"EXECUTED",price:55,executedAt:mark};
+threeSlices.tranches[2]={number:3,targetOffsetDays:14,status:"EXECUTED",price:55,executedAt:"2026-10-15T18:00:00.000Z"};
+threeSlices.lastMarkedAt="2026-10-16T18:00:00.000Z";
+threeSlices.stagedMarkToMarketPercent=10; // deliberately false "all capital" mark
+threeSlices.lumpSumMarkToMarketPercent=10;
+threeSlices.checkpoints={};
+const lateBaseline=structuredClone(spy);
+lateBaseline.lastMarkedAt=threeSlices.lastMarkedAt;
+lateBaseline.checkpoints={};
+const fullExposure=evaluateForwardShadowBenchmark([lateBaseline,threeSlices],{now:new Date("2026-10-16T20:00:00.000Z")});
+assert.equal(fullExposure.provisional.pairedSamples,0,"inconsistent invested-only mark must fail closed");
+threeSlices.stagedMarkToMarketPercent=Math.round((10/3)*100)/100;
+const fullExposureValid=evaluateForwardShadowBenchmark([lateBaseline,threeSlices],{now:new Date("2026-10-16T20:00:00.000Z")});
+assert.equal(fullExposureValid.provisional.pairedSamples,1);
+assert.equal(fullExposureValid.provisional.observations[0].investedCapitalPercent,100);
+assert.equal(fullExposureValid.provisional.observations[0].hypotheticalCostOnTotalCapitalPercent,0.3);
+assert.equal(fullExposureValid.provisional.observations[0].hypotheticalNetReturnPercent,3.03);
+
 const reportRunner=await readFile(new URL("./run-horizon-shadow-evaluation.mjs",import.meta.url),"utf8");
 assert.match(reportRunner,/forwardBenchmark:\s*evaluateForwardShadowBenchmark\(ledger\.records,\s*\{\s*now\s*\}\)/);
 const ui=await readFile(new URL("../app/committee/page.tsx",import.meta.url),"utf8");
 assert.match(ui,/Controllo economico SHADOW contro SPY/);
 assert.match(ui,/forwardBenchmark/);
 assert.match(ui,/non sono rendimenti realizzati/i);
+assert.match(ui,/capitale teorico totale/);
+assert.match(ui,/non ancora acquistate mantenute in liquidità/);
+assert.match(ui,/observation\.cashCapitalPercent/);
+assert.match(ui,/30 confronti e 30 giornate iniziali distinti/);
 console.log("FENICE100K forward-only SPY matched benchmark + hypothetical costs: PASS");
