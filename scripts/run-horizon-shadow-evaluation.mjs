@@ -3,6 +3,7 @@ import {
   summarizeForwardShadowLedger,
   updateForwardShadowLedger,
 } from "../lib/intelligence/horizon-shadow-evaluator.mjs";
+import { evaluateForwardShadowBenchmark } from "../lib/intelligence/forward-shadow-benchmark.mjs";
 
 async function readJson(path, fallback = null) {
   try {
@@ -44,6 +45,7 @@ const report = {
   totalRecords: ledger.recordCount,
   matured7d: summarizeForwardShadowLedger(ledger.records, "7d"),
   matured30d: summarizeForwardShadowLedger(ledger.records, "30d"),
+  forwardBenchmark: evaluateForwardShadowBenchmark(ledger.records, { now }),
   latestRecords: ledger.records.slice(-12).map((record) => ({
     id: record.id,
     symbol: record.symbol,
@@ -73,6 +75,7 @@ console.log(
   "selectedNow=", ledger.sourceState.selectedNow.join(",") || "none",
   "7d=", report.matured7d.sampleSize,
   "30d=", report.matured30d.sampleSize,
+  "forwardPairs7d=", report.forwardBenchmark.matured["7d"].pairedSamples,
   "sourceFresh=", ledger.sourceState.sourceFresh,
   "forwardOnly=true; liveTradingAllowed=false.",
 );
