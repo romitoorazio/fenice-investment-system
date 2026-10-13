@@ -1,0 +1,37 @@
+name: Fenice PAPER Owner Continuity Advisory
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-continuity-owner-checkpoint.ts"
+      - "scripts/test-paper-continuity-owner-checkpoint.mjs"
+      - "app/readiness/page.tsx"
+      - "app/api/trading/readiness/route.ts"
+      - ".github/workflows/paper-owner-continuity-advisory.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/paper-continuity-owner-checkpoint.ts"
+      - "scripts/test-paper-continuity-owner-checkpoint.mjs"
+      - "app/readiness/page.tsx"
+      - "app/api/trading/readiness/route.ts"
+      - ".github/workflows/paper-owner-continuity-advisory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-auto-renewal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify no automatic approval, no fake fills, no LIVE
+        run: node --experimental-strip-types scripts/test-paper-continuity-owner-checkpoint.mjs
+      - name: Repository secret scan
+        run: node scripts/scan-repository-secrets.mjs

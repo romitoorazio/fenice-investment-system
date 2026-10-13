@@ -29,3 +29,11 @@ Readiness/API espongono il difetto del core come `TESTING`, anche se la suite st
 - Regressioni di continuità prima/dopo la scadenza, target incompleti e 30 giorni non anticipabili.
 - Revisione Sì/No, no provider calls dal refresh pubblico, nessun ordine LIVE.
 - Confronto byte-per-byte/hash dei 92 file della baseline V6: nessuna modifica ammessa.
+
+## FENICE100K · Checkpoint proprietario, 13 ottobre 2026
+
+Nuovo controllo informativo indipendente `lib/ui/paper-continuity-owner-checkpoint.ts`, visibile in `/readiness` e nella risposta `/api/trading/readiness`. Presenta i fill riportati mancanti, le giornate verificate mancanti, il limite preesistente di ordini PAPER al giorno e un minimo **esclusivamente teorico** di giornate per tentare i fill restanti (ipotizzando al più un fill per prova). Non pianifica né avvia nuove prove e non presume liquidità, feed o sessioni aperte.
+
+Stato verificato il 13 ottobre: 19 giornate riportate e 7/10 fill, con approvazione per nuove prove fino al 24 ottobre 2026 ore 21:59:59 UTC. La durata minima di 30 giorni non matura prima del 25 ottobre 2026 ore 15:40:35.178 UTC. Il controllo distingue revisione umana prima della scadenza, osservazione passiva dopo scadenza e blocco in caso di evidenze incoerenti.
+
+Non vengono modificate policy, approvazione, motore V6, audit o dati; non vengono create approvazioni né simulazioni di fill. Il checkpoint è solo diagnostico e non concede permessi PAPER o LIVE. Le regressioni riproducibili sono nel workflow autonomo `Fenice PAPER Owner Continuity Advisory`.
