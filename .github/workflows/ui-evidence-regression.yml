@@ -55,6 +55,9 @@ jobs:
       - name: Verify PAPER authorization expiry and minimum campaign duration
         run: node --experimental-strip-types scripts/test-paper-certification-window.mjs
 
+      - name: Verify Fenice100K release acceptance is never mistaken for LIVE/PAPER certification
+        run: node scripts/test-fenice100k-release-gate.mjs
+
       - name: Verify strict PAPER temporal risk boundary and core diagnostics
         run: node --experimental-strip-types scripts/test-paper-temporal-risk.mjs
 
