@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-13T10:11:25.466Z",
+  "generatedAt": "2026-10-13T11:00:00.143Z",
   "purpose": "Forward-only scorecard for V7 staged shadow accumulation versus remaining in cash/waiting.",
   "safety": {
     "diagnosticOnly": true,
@@ -40,7 +40,7 @@
   "sourceState": {
     "sourceFresh": true,
     "horizonGeneratedAt": "2026-10-13T03:30:49.304Z",
-    "committeeGeneratedAt": "2026-10-13T09:29:00.060Z",
+    "committeeGeneratedAt": "2026-10-13T10:18:20.178Z",
     "selectedNow": [
       "SPY",
       "ASML",
@@ -74,7 +74,7 @@
     "maturity": "INSUFFICIENT"
   },
   "forwardBenchmark": {
-    "version": 2,
+    "version": 3,
     "benchmark": "SPY",
     "currency": "USD",
     "costPercent": 0.3,
@@ -82,10 +82,73 @@
     "costBasis": "Illustrative round trip charged in proportion to executed slices, not on uninvested cash; benchmark is gross",
     "state": "INSUFFICIENT_FORWARD_EVIDENCE",
     "methodology": "Matched issuer and SPY forward-only cohorts on same entry and exit days (<=12h entry, <=24h mark difference). Price returns and prior invested-only marks cross-validated. Whole research capital normalized to 3 equal slices: unfilled slices held as zero-yield cash and hypothetical costs scaled by invested fraction. Numerical maturity requires >=30 paired symbols AND >=30 independent entry days for BOTH 7d and 30d. Provisional marks are never matured evidence.",
-    "exclusions": "No FX, dividends, taxes, Directa actual fees or executable order-book evidence. No claim of observed strategy alpha when sample is immature.",
+    "exclusions": "No FX, dividends, taxes, Directa actual fees or executable order-book evidence. Sensitivity shocks are hypothetical, not max drawdown or forecasts. No claim of observed strategy alpha when sample is immature.",
     "provisional": {
       "pairedSamples": 3,
       "independentEntryDays": 1,
+      "sensitivity": {
+        "state": "SCENARIOS_ONLY_NOT_PREDICTIONS",
+        "pairedSamples": 3,
+        "independentEntryDays": 1,
+        "baseCaseRoundTripCostPercent": 0.3,
+        "costScenarios": [
+          {
+            "hypotheticalRoundTripCostPercent": 0.1,
+            "averageNetFullCapitalPercent": -1.25,
+            "averageExcessVsSpyGrossPercent": -1.31,
+            "underperformSpyRatePercent": 100,
+            "negativeVsCashRatePercent": 100
+          },
+          {
+            "hypotheticalRoundTripCostPercent": 0.3,
+            "averageNetFullCapitalPercent": -1.31,
+            "averageExcessVsSpyGrossPercent": -1.38,
+            "underperformSpyRatePercent": 100,
+            "negativeVsCashRatePercent": 100
+          },
+          {
+            "hypotheticalRoundTripCostPercent": 0.5,
+            "averageNetFullCapitalPercent": -1.38,
+            "averageExcessVsSpyGrossPercent": -1.45,
+            "underperformSpyRatePercent": 100,
+            "negativeVsCashRatePercent": 100
+          },
+          {
+            "hypotheticalRoundTripCostPercent": 1,
+            "averageNetFullCapitalPercent": -1.55,
+            "averageExcessVsSpyGrossPercent": -1.61,
+            "underperformSpyRatePercent": 100,
+            "negativeVsCashRatePercent": 100
+          }
+        ],
+        "isolatedAssetPriceShocks": [
+          {
+            "additionalAssetPriceDropPercent": 5,
+            "averageStressedNetFullCapitalPercent": -2.92,
+            "worstStressedNetFullCapitalPercent": -3.75,
+            "averageStressedExcessVsSpyGrossPercent": -2.99,
+            "negativeVsCashRatePercent": 100
+          },
+          {
+            "additionalAssetPriceDropPercent": 10,
+            "averageStressedNetFullCapitalPercent": -4.52,
+            "worstStressedNetFullCapitalPercent": -5.31,
+            "averageStressedExcessVsSpyGrossPercent": -4.59,
+            "negativeVsCashRatePercent": 100
+          },
+          {
+            "additionalAssetPriceDropPercent": 20,
+            "averageStressedNetFullCapitalPercent": -7.74,
+            "worstStressedNetFullCapitalPercent": -8.44,
+            "averageStressedExcessVsSpyGrossPercent": -7.8,
+            "negativeVsCashRatePercent": 100
+          }
+        ],
+        "caution": "Illustrative idiosyncratic stock-price shocks applied AFTER the observed mark; SPY is frozen solely as a comparison control. Not an observed drawdown, forecast, VaR, confidence interval, position-sizing advice, broker quote or executed profit.",
+        "orderSubmissionAllowed": false,
+        "paperPromotionAllowed": false,
+        "liveTradingAllowed": false
+      },
       "hypotheticalAverageAfterCostPercent": -1.31,
       "benchmarkGrossAveragePercent": 0.07,
       "hypotheticalAverageExcessPercent": -1.38,
@@ -95,6 +158,10 @@
           "symbol": "ASML",
           "entryDate": "2026-10-07",
           "exitDate": "2026-10-13",
+          "grossFullCapitalPercent": -1.0438228489832964,
+          "investedFraction": 0.3333333333333333,
+          "benchmarkGrossPercent": 0.06687414799764202,
+          "priceShockCoefficient": 0.32289510484350037,
           "investedCapitalPercent": 33.33,
           "cashCapitalPercent": 66.67,
           "hypotheticalCostOnTotalCapitalPercent": 0.1,
@@ -107,6 +174,10 @@
           "symbol": "QQQ",
           "entryDate": "2026-10-07",
           "exitDate": "2026-10-13",
+          "grossFullCapitalPercent": -0.5034236327471834,
+          "investedFraction": 0.3333333333333333,
+          "benchmarkGrossPercent": 0.06687414799764202,
+          "priceShockCoefficient": 0.3282990970058615,
           "investedCapitalPercent": 33.33,
           "cashCapitalPercent": 66.67,
           "hypotheticalCostOnTotalCapitalPercent": 0.1,
@@ -119,6 +190,10 @@
           "symbol": "TSM",
           "entryDate": "2026-10-07",
           "exitDate": "2026-10-13",
+          "grossFullCapitalPercent": -2.0897054584062804,
+          "investedFraction": 0.3333333333333333,
+          "benchmarkGrossPercent": 0.06687414799764202,
+          "priceShockCoefficient": 0.31243627874927055,
           "investedCapitalPercent": 33.33,
           "cashCapitalPercent": 66.67,
           "hypotheticalCostOnTotalCapitalPercent": 0.1,
@@ -133,6 +208,69 @@
       "7d": {
         "pairedSamples": 0,
         "independentEntryDays": 0,
+        "sensitivity": {
+          "state": "NOT_AVAILABLE",
+          "pairedSamples": 0,
+          "independentEntryDays": 0,
+          "baseCaseRoundTripCostPercent": 0.3,
+          "costScenarios": [
+            {
+              "hypotheticalRoundTripCostPercent": 0.1,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 0.3,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 0.5,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 1,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            }
+          ],
+          "isolatedAssetPriceShocks": [
+            {
+              "additionalAssetPriceDropPercent": 5,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "additionalAssetPriceDropPercent": 10,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "additionalAssetPriceDropPercent": 20,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            }
+          ],
+          "caution": "Illustrative idiosyncratic stock-price shocks applied AFTER the observed mark; SPY is frozen solely as a comparison control. Not an observed drawdown, forecast, VaR, confidence interval, position-sizing advice, broker quote or executed profit.",
+          "orderSubmissionAllowed": false,
+          "paperPromotionAllowed": false,
+          "liveTradingAllowed": false
+        },
         "hypotheticalAverageAfterCostPercent": null,
         "benchmarkGrossAveragePercent": null,
         "hypotheticalAverageExcessPercent": null,
@@ -141,6 +279,69 @@
       "30d": {
         "pairedSamples": 0,
         "independentEntryDays": 0,
+        "sensitivity": {
+          "state": "NOT_AVAILABLE",
+          "pairedSamples": 0,
+          "independentEntryDays": 0,
+          "baseCaseRoundTripCostPercent": 0.3,
+          "costScenarios": [
+            {
+              "hypotheticalRoundTripCostPercent": 0.1,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 0.3,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 0.5,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "hypotheticalRoundTripCostPercent": 1,
+              "averageNetFullCapitalPercent": null,
+              "averageExcessVsSpyGrossPercent": null,
+              "underperformSpyRatePercent": null,
+              "negativeVsCashRatePercent": null
+            }
+          ],
+          "isolatedAssetPriceShocks": [
+            {
+              "additionalAssetPriceDropPercent": 5,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "additionalAssetPriceDropPercent": 10,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            },
+            {
+              "additionalAssetPriceDropPercent": 20,
+              "averageStressedNetFullCapitalPercent": null,
+              "worstStressedNetFullCapitalPercent": null,
+              "averageStressedExcessVsSpyGrossPercent": null,
+              "negativeVsCashRatePercent": null
+            }
+          ],
+          "caution": "Illustrative idiosyncratic stock-price shocks applied AFTER the observed mark; SPY is frozen solely as a comparison control. Not an observed drawdown, forecast, VaR, confidence interval, position-sizing advice, broker quote or executed profit.",
+          "orderSubmissionAllowed": false,
+          "paperPromotionAllowed": false,
+          "liveTradingAllowed": false
+        },
         "hypotheticalAverageAfterCostPercent": null,
         "benchmarkGrossAveragePercent": null,
         "hypotheticalAverageExcessPercent": null,
