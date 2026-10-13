@@ -108,7 +108,7 @@ type ForwardBenchmarkReport = {
   benchmark: string;
   costPercent: number;
   hasRealizedProfit: false;
-  provisional: ForwardBenchmarkSummary & { observations: Array<{ symbol: string; hypotheticalExcessPercent: number }> };
+  provisional: ForwardBenchmarkSummary & { observations: Array<{ symbol: string; hypotheticalExcessPercent: number; investedCapitalPercent: number; cashCapitalPercent: number }> };
   matured: Record<string, ForwardBenchmarkSummary>;
 };
 
@@ -267,10 +267,12 @@ export default function CommitteePage() {
             <div aria-label="Controllo economico SHADOW contro SPY" className="mt-4 rounded-2xl border border-violet-400/25 bg-slate-950/65 p-4">
               <h3 className="text-base font-black text-violet-200">Controllo economico SHADOW contro SPY</h3>
               <p className="mt-2 text-xs leading-5 text-slate-300">
-                Opportunità sperimentali già registrate confrontate con SPY nello stesso giorno di ingresso e di valutazione,
-                soltanto in USD. Applichiamo un costo ipotetico dello {shadowEvaluation.forwardBenchmark?.costPercent ?? 0.3}%
-                alla strategia a tranche; il benchmark è prima dei costi. Non sono rendimenti realizzati,
-                non includono imposte, dividendi, cambio o le commissioni effettive Directa.
+                Opportunità sperimentali confrontate con SPY nelle stesse date e in USD. I rendimenti della
+                strategia sono calcolati sul capitale teorico totale: tre tranche uguali, con le tranche
+                non ancora acquistate mantenute in liquidità a rendimento zero. Il costo ipotetico dello
+                {shadowEvaluation.forwardBenchmark?.costPercent ?? 0.3}% si applica soltanto alla quota investita;
+                SPY ipotizza invece il 100% del capitale investito inizialmente e non sottrae costi.
+                Non sono rendimenti realizzati, né includono imposte, dividendi, cambio o commissioni effettive Directa.
               </p>
               {shadowEvaluation.forwardBenchmark ? (
                 <>
@@ -295,13 +297,28 @@ export default function CommitteePage() {
                           && Number.isFinite(shadowEvaluation.forwardBenchmark.provisional.hypotheticalAverageExcessPercent)
                           ? `${shadowEvaluation.forwardBenchmark.provisional.hypotheticalAverageExcessPercent}%` : "N/D"}
                       </p>
-                      <p className="mt-1 text-[11px] text-slate-500">Campioni non indipendenti, nessuna promozione operativa</p>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Giornate iniziali: {shadowEvaluation.forwardBenchmark.provisional.independentEntryDays} · nessuna promozione operativa
+                      </p>
                     </div>
                   </div>
+                  {shadowEvaluation.forwardBenchmark.provisional.observations.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-white/10 p-3">
+                      <p className="text-xs font-bold text-white">Quota di capitale negli esperimenti provvisori</p>
+                      <div className="mt-2 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
+                        {shadowEvaluation.forwardBenchmark.provisional.observations.map((observation) => (
+                          <p key={observation.symbol}>
+                            {observation.symbol}: {observation.investedCapitalPercent}% investito,
+                            {" "}{observation.cashCapitalPercent}% liquido
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="mt-3 text-xs font-semibold text-amber-200">
                     {shadowEvaluation.forwardBenchmark.state === "INSUFFICIENT_FORWARD_EVIDENCE"
                       ? "EVIDENZE NON SUFFICIENTI · Nessun vantaggio economico dimostrato"
-                      : "Campione numerico maturato; risultati da sottoporre comunque a revisione umana e test fuori campione"}
+                      : "Almeno 30 confronti e 30 giornate iniziali distinti per entrambi gli orizzonti; non è prova di profitto né autorizzazione operativa"}
                   </p>
                 </>
               ) : (
