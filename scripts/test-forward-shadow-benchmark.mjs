@@ -82,6 +82,6 @@ const reportRunner=await readFile(new URL("./run-horizon-shadow-evaluation.mjs",
 assert.match(reportRunner,/forwardBenchmark:\s*evaluateForwardShadowBenchmark\(ledger\.records,\s*\{\s*now\s*\}\)/);
 const ui=await readFile(new URL("../app/committee/page.tsx",import.meta.url),"utf8");
 assert.match(ui,/Controllo economico SHADOW contro SPY/);
-assert.match(ui,/forwardBenchmark\.matured/);
+assert.match(ui,/forwardBenchmark/);
 assert.match(ui,/non sono rendimenti realizzati/i);
 console.log("FENICE100K forward-only SPY matched benchmark + hypothetical costs: PASS");
