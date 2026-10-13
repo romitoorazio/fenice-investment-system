@@ -57,3 +57,36 @@ La valutazione di una strategia V7 non può passare alla **revisione di ricerca 
 - report corrente e non futuro, assunzione di costi valida, segregazione research-only e assenza di dichiarazioni di profitto realizzato.
 
 Questi criteri qualificano solo una possibile revisione umana della ricerca e **non certificano PAPER, non autorizzano ordini LIVE** e non dimostrano utili di conto. La verifica è riproducibile con `node scripts/test-shadow-promotion-gate.mjs` nel workflow UI Evidence Regression.
+
+## Sicurezza P0 — credenziali storicamente esposte (issue #26)
+
+Verifica puntuale della cronologia effettuata il 14/10 (senza stampare, salvare o
+ripubblicare i valori): nel `data/global-source-health.json` del commit
+`c6e0f32a4d31ec467e20578a58201a74fa2c40d1` (rapporto del 03/09/2026)
+si osservano parametri di query contenenti valori di credenziali per
+**EIA** (`api_key`), **Alpha Vantage** (`apikey`) e **FRED** (`api_key`).
+La rilevazione di esposizione NON certifica che tali credenziali siano tuttora
+valide, né la presenza/assenza di una rotazione nei rispettivi account.
+
+Dal 14/10 il Centro sicurezza e l'API di readiness espongono un controllo
+`HISTORICAL_ROTATION_UNVERIFIED` separato da Data Quality, CI e PAPER.
+Un rapporto fonti GREEN, una build verde, secret scan del **solo** albero attuale
+o la presenza di variabili in Vercel NON dimostrano la revoca delle chiavi già
+apparse in commit o snapshot pubblici. Nessuna variabile di ambiente, checkbox
+o payload JSON può autocertificare la chiusura di questo problema.
+
+La chiusura #26 richiede un riscontro esterno dei provider coinvolti:
+1. Individuare credenziali esposte senza riportare mai i loro valori in ticket,
+   log, chat, file o schermate.
+2. Revocare le vecchie credenziali presso ciascun provider e generare le
+   sostituzioni, rispettando quote e condizioni dei piani gratuiti.
+3. Aggiornare i segreti GitHub e Vercel solo attraverso le rispettive interfacce
+   sicure; verificare con test non sensibili che le nuove chiavi funzionino e le
+   precedenti siano inutilizzabili.
+4. Considerare la bonifica della cronologia Git dopo revoca verificata, con
+   un piano di coordinamento: riscriverla non rende innocue chiavi ancora valide.
+5. Far revisionare indipendentemente l'evidenza prima di cambiare il gate; LIVE
+   resta bloccato, e questa modifica **non** abilita PAPER né ordini reali.
+
+L'intervento di sola visibilità di questo gate non afferma che la rotazione sia
+stata effettuata: mostra esplicitamente il blocco operativo irrisolto.

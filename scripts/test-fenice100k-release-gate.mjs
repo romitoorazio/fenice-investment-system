@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { assessFenice100KRelease } from "../lib/ui/fenice100k-release-gate.mjs";
+import { assessHistoricalCredentialRotation } from "../lib/ui/credential-rotation-gate.mjs";
 
 const now = new Date("2026-10-13T14:00:00.000Z");
 const committee = {generatedAt:"2026-10-13T13:41:00.000Z",allDecisions:[
@@ -47,6 +48,23 @@ assert.equal(baseline.gates.directa.state,"LOCAL_READ_ONLY_NOT_VERIFIED");
 assert.equal(baseline.safety.liveTradingAllowed,false);
 assert.equal(baseline.safety.paperCertificationEligible,false);
 assert.equal(baseline.safety.automaticPaperRenewalAllowed,false);
+assert.equal(baseline.gates.credentialRotation.state,"HISTORICAL_ROTATION_UNVERIFIED");
+assert.equal(baseline.gates.credentialRotation.credentialsRevokedAtProvidersVerified,false);
+assert.equal(baseline.gates.credentialRotation.replacementKeysVerified,false);
+assert.equal(baseline.gates.credentialRotation.brokerWritesAllowed,false);
+assert.equal(baseline.gates.credentialRotation.liveTradingAllowed,false);
+assert(baseline.blockers.some(x=>x.id==="P0_HISTORICAL_PROVIDER_KEYS_UNVERIFIED"));
+for (const falseAssurance of [
+  {sourceGate:"GREEN",rotationComplete:true,allKeysRotated:true},
+  {currentTreeSecretScan:"PASS",historicalCredentialsInvalidated:true},
+  {configuredSecrets:true,providerCredentialsVerified:true},
+]) {
+  const outcome = assessHistoricalCredentialRotation(falseAssurance);
+  assert.equal(outcome.historicalExposureResolved,false,"self-declared flags never certify historical revocation");
+  assert.equal(outcome.credentialsRevokedAtProvidersVerified,false);
+  assert.equal(assess({credentialRotationEvidence:falseAssurance}).gates.credentialRotation.state,
+    "HISTORICAL_ROTATION_UNVERIFIED");
+}
 assert(baseline.blockers.some(x=>x.id==="P0_PAPER_APPROVAL_WINDOW"));
 assert(baseline.blockers.some(x=>x.id==="P1_INSUFFICIENT_FORWARD_ALPHA"));
 
@@ -100,4 +118,8 @@ assert.match(readiness,/assessFenice100KRelease/);
 assert.match(readiness,/releaseGate\.gates/);
 assert.match(readiness,/completeForRealCapital/);
 assert.match(readiness,/releaseGate\.blockers/);
+assert.match(readiness,/releaseGate\.gates\.credentialRotation/);
+const api = await readFile(new URL("../app/api/trading/readiness/route.ts",import.meta.url),"utf8");
+assert.match(api,/credentialRotation: assessHistoricalCredentialRotation\(\)/);
+assert(!api.includes("credentialsRevokedAtProvidersVerified: true"),"API must not claim key revocation");
 console.log("FENICE100K release acceptance tests: PASS (PAPER/LIVE/real profit fail closed)");
