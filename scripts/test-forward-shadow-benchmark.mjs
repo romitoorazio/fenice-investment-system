@@ -68,7 +68,8 @@ for(const [name,fields] of malformed){
 assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,lastMarkedAt:"2026-10-09T18:00:00.000Z"}],{now}).provisional.pairedSamples,0,"future provisional mark is invalid");
 assert.equal(evaluateForwardShadowBenchmark([candidate],{now}).matured["7d"].pairedSamples,0,"no matching SPY is N/D");
 assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,observationDate:"2026-10-02",id:"2026-10-02:NVDA",createdAt:"2026-10-02T18:00:00.000Z"}],{now}).matured["7d"].pairedSamples,0);
-assert.equal(evaluateForwardShadowBenchmark([spy,{...candidate,checkpoints:{"7d":{...candidate.checkpoints["7d"],measuredAt:"2026-10-09T18:00:00.000Z"}}],{now:new Date("2026-10-10T02:00:00.000Z")}).matured["7d"].pairedSamples,0,"exit must match");
+const misaligned = { ...candidate, checkpoints: { "7d": { ...candidate.checkpoints["7d"], measuredAt: "2026-10-09T18:00:00.000Z" } } };
+assert.equal(evaluateForwardShadowBenchmark([spy, misaligned], { now: new Date("2026-10-10T02:00:00.000Z") }).matured["7d"].pairedSamples, 0, "exit must match");
 assert.equal(evaluateForwardShadowBenchmark([spy,candidate],{now,costPercent:10}).matured["7d"].hypotheticalAverageExcessPercent,-2);
 assert.throws(()=>evaluateForwardShadowBenchmark([spy,candidate],{now,costPercent:-1}),/Invalid forward research/);
 assert.throws(()=>evaluateForwardShadowBenchmark([spy,candidate],{now:new Date("bad")}),/Invalid forward research/);
