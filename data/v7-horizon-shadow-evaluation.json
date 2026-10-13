@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-13T13:41:37.567Z",
+  "generatedAt": "2026-10-13T14:23:13.734Z",
   "purpose": "Forward-only scorecard for V7 staged shadow accumulation versus remaining in cash/waiting.",
   "safety": {
     "diagnosticOnly": true,
@@ -43,7 +43,7 @@
   "sourceState": {
     "sourceFresh": true,
     "horizonGeneratedAt": "2026-10-13T03:30:49.304Z",
-    "committeeGeneratedAt": "2026-10-13T13:39:44.583Z",
+    "committeeGeneratedAt": "2026-10-13T14:21:37.278Z",
     "selectedNow": [
       "SPY",
       "ASML",
@@ -54,23 +54,23 @@
       "QQQ",
       "ASML",
       "NVDA",
+      "TSM",
       "IWM",
       "TLT",
       "RXRX",
       "GLD",
-      "CRSP",
+      "META",
       "BIOX",
+      "CRSP",
       "MSFT",
-      "NTLA",
-      "AAPL"
+      "GOOGL",
+      "AAPL",
+      "NTLA"
     ],
     "excludedMissingOrStalePriceEvidence": [
-      "TSM",
       "AMZN",
       "BTC",
-      "ETH",
-      "META",
-      "GOOGL"
+      "ETH"
     ]
   },
   "activeRecords": 7,
@@ -110,39 +110,39 @@
     "methodology": "Only original symbol-specific quote timestamps and sources are admitted (<=30 minutes before decision), and exit quotes need actual observation timestamps no older than 6h at mark time. Unknown-time legacy quote marks remain archived but cannot count toward alpha. Matched USD issuer and SPY forward-only cohorts on same entry and exit days. Full capital normalized to three equal tranches; unfilled slices stay zero-yield cash and illustrative costs scale with invested fraction. Both >=30 paired symbols AND >=30 independent entry dates at 7d/30d are required. Provisional marks never count as mature.",
     "exclusions": "No FX, dividends, taxes, Directa actual fees or executable order-book evidence. Sensitivity shocks are hypothetical, not max drawdown or forecasts. No claim of observed strategy alpha when sample is immature.",
     "provisional": {
-      "pairedSamples": 1,
+      "pairedSamples": 2,
       "independentEntryDays": 1,
       "sensitivity": {
         "state": "SCENARIOS_ONLY_NOT_PREDICTIONS",
-        "pairedSamples": 1,
+        "pairedSamples": 2,
         "independentEntryDays": 1,
         "baseCaseRoundTripCostPercent": 0.3,
         "costScenarios": [
           {
             "hypotheticalRoundTripCostPercent": 0.1,
-            "averageNetFullCapitalPercent": 0.08,
-            "averageExcessVsSpyGrossPercent": -0.03,
-            "underperformSpyRatePercent": 100,
-            "negativeVsCashRatePercent": 0
+            "averageNetFullCapitalPercent": -0.1,
+            "averageExcessVsSpyGrossPercent": -0.05,
+            "underperformSpyRatePercent": 50,
+            "negativeVsCashRatePercent": 50
           },
           {
             "hypotheticalRoundTripCostPercent": 0.3,
-            "averageNetFullCapitalPercent": 0.02,
-            "averageExcessVsSpyGrossPercent": -0.09,
-            "underperformSpyRatePercent": 100,
-            "negativeVsCashRatePercent": 0
+            "averageNetFullCapitalPercent": -0.17,
+            "averageExcessVsSpyGrossPercent": -0.12,
+            "underperformSpyRatePercent": 50,
+            "negativeVsCashRatePercent": 50
           },
           {
             "hypotheticalRoundTripCostPercent": 0.5,
-            "averageNetFullCapitalPercent": -0.05,
-            "averageExcessVsSpyGrossPercent": -0.16,
+            "averageNetFullCapitalPercent": -0.23,
+            "averageExcessVsSpyGrossPercent": -0.19,
             "underperformSpyRatePercent": 100,
             "negativeVsCashRatePercent": 100
           },
           {
             "hypotheticalRoundTripCostPercent": 1,
-            "averageNetFullCapitalPercent": -0.22,
-            "averageExcessVsSpyGrossPercent": -0.33,
+            "averageNetFullCapitalPercent": -0.4,
+            "averageExcessVsSpyGrossPercent": -0.35,
             "underperformSpyRatePercent": 100,
             "negativeVsCashRatePercent": 100
           }
@@ -150,23 +150,23 @@
         "isolatedAssetPriceShocks": [
           {
             "additionalAssetPriceDropPercent": 5,
-            "averageStressedNetFullCapitalPercent": -1.66,
-            "worstStressedNetFullCapitalPercent": -1.66,
-            "averageStressedExcessVsSpyGrossPercent": -1.76,
+            "averageStressedNetFullCapitalPercent": -1.83,
+            "worstStressedNetFullCapitalPercent": -2,
+            "averageStressedExcessVsSpyGrossPercent": -1.78,
             "negativeVsCashRatePercent": 100
           },
           {
             "additionalAssetPriceDropPercent": 10,
-            "averageStressedNetFullCapitalPercent": -3.33,
-            "worstStressedNetFullCapitalPercent": -3.33,
-            "averageStressedExcessVsSpyGrossPercent": -3.44,
+            "averageStressedNetFullCapitalPercent": -3.49,
+            "worstStressedNetFullCapitalPercent": -3.66,
+            "averageStressedExcessVsSpyGrossPercent": -3.45,
             "negativeVsCashRatePercent": 100
           },
           {
             "additionalAssetPriceDropPercent": 20,
-            "averageStressedNetFullCapitalPercent": -6.67,
-            "worstStressedNetFullCapitalPercent": -6.67,
-            "averageStressedExcessVsSpyGrossPercent": -6.78,
+            "averageStressedNetFullCapitalPercent": -6.82,
+            "worstStressedNetFullCapitalPercent": -6.97,
+            "averageStressedExcessVsSpyGrossPercent": -6.77,
             "negativeVsCashRatePercent": 100
           }
         ],
@@ -175,25 +175,41 @@
         "paperPromotionAllowed": false,
         "liveTradingAllowed": false
       },
-      "hypotheticalAverageAfterCostPercent": 0.02,
-      "benchmarkGrossAveragePercent": 0.11,
-      "hypotheticalAverageExcessPercent": -0.09,
-      "beatBenchmarkRatePercent": 0,
+      "hypotheticalAverageAfterCostPercent": -0.16,
+      "benchmarkGrossAveragePercent": -0.05,
+      "hypotheticalAverageExcessPercent": -0.12,
+      "beatBenchmarkRatePercent": 50,
       "observations": [
         {
           "symbol": "QQQ",
           "entryDate": "2026-10-13",
           "exitDate": "2026-10-13",
-          "grossFullCapitalPercent": 0.11575012385713161,
+          "grossFullCapitalPercent": 0.11710129261811215,
           "investedFraction": 0.3333333333333333,
-          "benchmarkGrossPercent": 0.10800524596910055,
-          "priceShockCoefficient": 0.33449083457190465,
+          "benchmarkGrossPercent": -0.04628796255817802,
+          "priceShockCoefficient": 0.3345043462595145,
           "investedCapitalPercent": 33.33,
           "cashCapitalPercent": 66.67,
           "hypotheticalCostOnTotalCapitalPercent": 0.1,
           "hypotheticalNetReturnPercent": 0.02,
-          "benchmarkGrossReturnPercent": 0.11,
-          "hypotheticalExcessPercent": -0.09,
+          "benchmarkGrossReturnPercent": -0.05,
+          "hypotheticalExcessPercent": 0.06,
+          "beatBenchmark": true
+        },
+        {
+          "symbol": "ASML",
+          "entryDate": "2026-10-13",
+          "exitDate": "2026-10-13",
+          "grossFullCapitalPercent": -0.25010550115954766,
+          "investedFraction": 0.3333333333333333,
+          "benchmarkGrossPercent": -0.04628796255817802,
+          "priceShockCoefficient": 0.33083227832173784,
+          "investedCapitalPercent": 33.33,
+          "cashCapitalPercent": 66.67,
+          "hypotheticalCostOnTotalCapitalPercent": 0.1,
+          "hypotheticalNetReturnPercent": -0.35,
+          "benchmarkGrossReturnPercent": -0.05,
+          "hypotheticalExcessPercent": -0.3,
           "beatBenchmark": false
         }
       ]
@@ -358,9 +374,9 @@
       "symbol": "ASML",
       "observationDate": "2026-10-07",
       "referencePrice": 1806.82,
-      "lastPrice": 1721.94,
-      "stagedMarkToMarketPercent": -4.7,
-      "lumpSumMarkToMarketPercent": -4.7,
+      "lastPrice": 1709.02,
+      "stagedMarkToMarketPercent": -5.41,
+      "lumpSumMarkToMarketPercent": -5.41,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
@@ -390,9 +406,9 @@
       "symbol": "SPY",
       "observationDate": "2026-10-07",
       "referencePrice": 777.58,
-      "lastPrice": 778.58,
-      "stagedMarkToMarketPercent": 0.13,
-      "lumpSumMarkToMarketPercent": 0.13,
+      "lastPrice": 777.38,
+      "stagedMarkToMarketPercent": -0.03,
+      "lumpSumMarkToMarketPercent": -0.03,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
@@ -422,9 +438,9 @@
       "symbol": "QQQ",
       "observationDate": "2026-10-07",
       "referencePrice": 757.48,
-      "lastPrice": 742.67,
-      "stagedMarkToMarketPercent": -1.96,
-      "lumpSumMarkToMarketPercent": -1.96,
+      "lastPrice": 742.7,
+      "stagedMarkToMarketPercent": -1.95,
+      "lumpSumMarkToMarketPercent": -1.95,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
@@ -454,9 +470,9 @@
       "symbol": "TSM",
       "observationDate": "2026-10-07",
       "referencePrice": 474.07,
-      "lastPrice": 444.35,
-      "stagedMarkToMarketPercent": -6.27,
-      "lumpSumMarkToMarketPercent": -6.27,
+      "lastPrice": 441.98,
+      "stagedMarkToMarketPercent": -6.77,
+      "lumpSumMarkToMarketPercent": -6.77,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
@@ -486,9 +502,9 @@
       "symbol": "SPY",
       "observationDate": "2026-10-13",
       "referencePrice": 777.74,
-      "lastPrice": 778.58,
-      "stagedMarkToMarketPercent": 0.11,
-      "lumpSumMarkToMarketPercent": 0.11,
+      "lastPrice": 777.38,
+      "stagedMarkToMarketPercent": -0.05,
+      "lumpSumMarkToMarketPercent": -0.05,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
@@ -518,7 +534,7 @@
       "symbol": "QQQ",
       "observationDate": "2026-10-13",
       "referencePrice": 740.1,
-      "lastPrice": 742.67,
+      "lastPrice": 742.7,
       "stagedMarkToMarketPercent": 0.35,
       "lumpSumMarkToMarketPercent": 0.35,
       "executedTrancheCount": 1,
@@ -550,9 +566,9 @@
       "symbol": "ASML",
       "observationDate": "2026-10-13",
       "referencePrice": 1721.94,
-      "lastPrice": 1721.94,
-      "stagedMarkToMarketPercent": 0,
-      "lumpSumMarkToMarketPercent": 0,
+      "lastPrice": 1709.02,
+      "stagedMarkToMarketPercent": -0.75,
+      "lumpSumMarkToMarketPercent": -0.75,
       "executedTrancheCount": 1,
       "trancheStates": [
         {
