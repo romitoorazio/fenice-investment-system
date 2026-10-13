@@ -132,4 +132,8 @@ const ui=await readFile(new URL("../app/committee/page.tsx",import.meta.url),"ut
 assert.match(ui,/Controllo economico SHADOW contro SPY/);
 assert.match(ui,/forwardBenchmark/);
 assert.match(ui,/non sono rendimenti realizzati/i);
+assert.match(ui,/capitale teorico totale/);
+assert.match(ui,/non ancora acquistate mantenute in liquidità/);
+assert.match(ui,/observation\.cashCapitalPercent/);
+assert.match(ui,/30 confronti e 30 giornate iniziali distinti/);
 console.log("FENICE100K forward-only SPY matched benchmark + hypothetical costs: PASS");
