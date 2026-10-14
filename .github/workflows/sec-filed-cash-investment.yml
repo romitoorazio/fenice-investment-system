@@ -1,0 +1,31 @@
+name: Fenice SEC Filed Cash Investment Reconciliation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/run-fundamental-engine.mjs"
+      - "lib/research/sec-filed-cash-investment.mjs"
+      - "scripts/test-sec-filed-cash-investment.mjs"
+      - ".github/workflows/sec-filed-cash-investment.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-fundamental-engine.mjs"
+      - "lib/research/sec-filed-cash-investment.mjs"
+      - "scripts/test-sec-filed-cash-investment.mjs"
+      - ".github/workflows/sec-filed-cash-investment.yml"
+permissions:
+  contents: read
+jobs:
+  audited-fiscal-cash-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate primary filing FCF arithmetic and period identity
+        run: node scripts/test-sec-filed-cash-investment.mjs
+      - name: Validate SEC reference contract
+        run: node scripts/test-free-reference-sources.mjs

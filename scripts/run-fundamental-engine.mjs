@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { reconcileFiledCashInvestment } from '../lib/research/sec-filed-cash-investment.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'fundamental-research.json');
@@ -149,7 +150,7 @@ function debtValue(facts, targetEnd) {
   return Number.isFinite(total) ? total : Number.isFinite(noncurrent) ? noncurrent : current;
 }
 
-function financialsFrom(companyFacts, market) {
+function financialsFrom(companyFacts, market, target, filing) {
   const facts = companyFacts?.facts || {};
   const revenueFact = bestFact(facts, candidates.revenue);
   const revenueSeries = annualSeries(revenueFact);
@@ -162,7 +163,19 @@ function financialsFrom(companyFacts, market) {
   const operatingIncome = numericValue(metric(candidates.operatingIncome));
   const operatingCashFlow = numericValue(metric(candidates.operatingCashFlow));
   const capexRaw = numericValue(metric(candidates.capitalExpenditure));
-  const capitalExpenditure = Number.isFinite(capexRaw) ? Math.abs(capexRaw) : undefined;
+  const extractedCashInvestment = Number.isFinite(capexRaw) ? Math.abs(capexRaw) : undefined;
+  // Reconcile ONLY issuer + filed fiscal end + cash flow + reporting currency.
+  // The generic SEC tag must not override an explicit annual cash-flow statement.
+  const auditedCashInvestment = reconcileFiledCashInvestment({
+    ticker: target.ticker, cik: Number(target.cik), fiscalEnd: targetEnd,
+    currency: revenueMetric?.unit,
+    operatingCashFlow,
+    extractedCashInvestment,
+    filing,
+    asOf: now,
+  });
+  const capitalExpenditure = auditedCashInvestment.applied
+    ? auditedCashInvestment.cashInvestment : extractedCashInvestment;
   const freeCashFlow = Number.isFinite(operatingCashFlow) && Number.isFinite(capitalExpenditure)
     ? operatingCashFlow - capitalExpenditure
     : undefined;
@@ -187,6 +200,7 @@ function financialsFrom(companyFacts, market) {
     netMarginPercent: percentage(netIncome, revenue),
     operatingCashFlow,
     capitalExpenditure,
+    ...(auditedCashInvestment.applied ? { cashInvestmentAudit: auditedCashInvestment } : {}),
     freeCashFlow,
     freeCashFlowMarginPercent: percentage(freeCashFlow, revenue),
     cash,
@@ -305,9 +319,13 @@ async function main() {
         requestJson(`https://data.sec.gov/submissions/CIK${target.cik}.json`),
       ]);
       const filing = filingFrom(submissions, target.cik);
-      const financials = financialsFrom(companyFacts, marketMap.get(target.ticker));
+      const financials = financialsFrom(companyFacts, marketMap.get(target.ticker), target, filing);
       const scores = score(financials, target.sector, Boolean(filing));
       const text = narrative(financials, scores, target.sector);
+      if (financials.cashInvestmentAudit?.status === 'FILED_CASH_INVESTMENT_RECONCILED') {
+        text.thesis.push('Cash investment e free cash flow riconciliati con il cash-flow statement annuale SEC, nello stesso esercizio.');
+        text.risks.push('La riconciliazione storica non sostituisce la verifica dei futuri filing o dei dati trimestrali.');
+      }
       const absurdMargin = Math.abs(Number(financials.operatingMarginPercent)) > 150 || Math.abs(Number(financials.netMarginPercent)) > 150;
       if (absurdMargin) {
         scores.overall = Math.min(scores.overall, 35);
