@@ -8,6 +8,7 @@ import {
   updateDecisionOutcomeLedger,
 } from "../lib/intelligence/decision-outcomes.mjs";
 import { evaluateDecisionBenchmarkEdge } from "../lib/intelligence/decision-edge-research.mjs";
+import { admitV7ResearchQuotes } from "../lib/intelligence/v7-asof-quote-admission.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
@@ -37,7 +38,8 @@ async function readCommitteeHistory() {
 const committee = await readJson("investment-committee.json", { allDecisions: [], generatedAt: null, marketRegime: null });
 let previous = await readJson("v7-decision-outcomes-ledger.json", { version: 1, records: [] });
 const now = new Date();
-const candidates = selectDecisionOutcomeCandidates(committee.allDecisions || []);
+const quoteAdmission = admitV7ResearchQuotes(committee, now);
+const candidates = selectDecisionOutcomeCandidates(quoteAdmission.accepted);
 let bootstrap = { applied: false, sourceSnapshotCount: 0, seededRecords: 0 };
 
 if (!Array.isArray(previous?.records) || previous.records.length === 0) {
@@ -47,18 +49,15 @@ if (!Array.isArray(previous?.records) || previous.records.length === 0) {
   if (seeded.recordCount > 0) previous = seeded;
 }
 
-const prices = new Map(
-  (committee.allDecisions || [])
-    .filter((x) => x?.currentPrice !== null && x?.currentPrice !== undefined
-      && String(x.currentPrice).trim() !== ""
-      && Number.isFinite(Number(x.currentPrice)) && Number(x.currentPrice) > 0)
-    .map((x) => [String(x.symbol || "").toUpperCase(), Number(x.currentPrice)]),
-);
+// Only original observed market prices known by the committee as-of timestamp
+// may create new V7 records or mark existing ones. Old/future/mismatched quotes
+// must NOT gain fresh research timestamps from a newer GitHub job.
+const prices = quoteAdmission.prices;
 
 const ledger = updateDecisionOutcomeLedger(previous, candidates, prices, {
   cycleId: committee.generatedAt || now.toISOString(),
   marketRegime: committee.marketRegime || null,
-  now,
+  now: quoteAdmission.snapshotAsOf ? new Date(quoteAdmission.snapshotAsOf) : now,
 });
 
 const horizons = Object.fromEntries(
@@ -79,6 +78,12 @@ const report = {
     feedsV6CalibrationPolicy: false,
   },
   bootstrap,
+  quoteAdmission: {
+    state: quoteAdmission.state,
+    snapshotAsOf: quoteAdmission.snapshotAsOf,
+    ...quoteAdmission.evidence,
+    researchOnly: true,
+  },
   isolation: {
     modifiesV6DecisionLedger: false,
     executionEligible: false,
