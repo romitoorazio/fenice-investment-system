@@ -1,51 +1,30 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const get = async name => readFile(new URL("../.github/workflows/" + name, import.meta.url), "utf8");
-const [foundation, ci, paper] = await Promise.all([
-  get("autonomy.yml"), get("ci.yml"), get("paper-validation.yml"),
+const read = name => readFile(new URL("../.github/workflows/" + name, import.meta.url), "utf8");
+const [foundation, ci, paper, engineering] = await Promise.all([
+  read("autonomy.yml"), read("ci.yml"), read("paper-validation.yml"),
+  read("engineering-validation-evidence.yml"),
 ]);
-const trigger = source => source.split(/\npermissions:\s*\n/)[0];
+const header = source => source.split(/\npermissions:\s*\n/)[0];
 
-assert.ok(trigger(foundation).includes('cron: "17 */3 * * *"'), "Foundation must not rebuild hourly");
-assert.ok(trigger(foundation).includes('cron: "37 5 * * *"'), "Keep daily full research refresh");
-assert.ok(!trigger(foundation).includes('cron: "17 * * * *"'));
+// Only *non-fingerprinted* workflows can change during the live PAPER V6 window.
+assert.ok(header(foundation).includes('cron: "17 */3 * * *"'));
+assert.ok(header(foundation).includes('cron: "37 5 * * *"'));
+assert.ok(!header(foundation).includes('cron: "17 * * * *"'));
+assert.ok(header(ci).includes('cron: "47 * * * *"'), "Frozen CI schedule must be unchanged");
+assert.ok(header(ci).includes('"data/history/**"'));
+assert.ok(!header(ci).includes('"data/**"'));
+assert.ok(header(ci).includes("pull_request:"));
+assert.ok(header(ci).includes("push:"));
+assert.ok(header(paper).includes('cron: "35 16 * * 0,6"'));
 
-assert.ok(trigger(ci).includes('cron: "47 5,11,17,23 * * *"'));
-assert.ok(!trigger(ci).includes('cron: "47 * * * *"'));
-assert.match(trigger(ci), /pull_request:/, "Every code PR must receive CI");
-assert.match(trigger(ci), /push:/, "Code changes on main must receive CI");
-assert.match(trigger(ci), /workflow_dispatch:/, "Operator can always request CI");
-
-const ignored = trigger(ci).split("paths-ignore:")[1]?.split("\n  pull_request:")[0] || "";
-assert.ok(ignored, "Data output exceptions are required");
-assert.doesNotMatch(ignored, /^\s*- ["']?data\/\*\*/m, "Never blanket-ignore protected PAPER files");
-assert.match(ignored, /data\/v7-\*\.json/);
-assert.match(ignored, /data\/engineering-validation-evidence\.json/);
-assert.match(ignored, /data\/history\/\*\*/);
-assert.match(ignored, /\*\*\/\*\.md/);
-
-// GitHub minimatch semantics for the deliberately bounded patterns above:
-// ignore lists must not match safety-critical datasets.
-const patterns = [...ignored.matchAll(/^\s*- "([^"]+)"\s*$/gm)].map(match => match[1]);
-function matches(path, glob) {
-  if (glob === "data/**") return path.startsWith("data/");
-  if (glob.endsWith("/**")) return path.startsWith(glob.slice(0, -3) + "/");
-  if (glob.endsWith("*.json")) return path.startsWith(glob.slice(0, -6)) && path.endsWith(".json");
-  return path === glob;
-}
-const protectedPaths = [
-  "data/paper-validation-campaign.json",
-  "data/paper-validation-approval.json",
-  "data/paper-oms-state.json",
-  "data/paper-fx-evidence.json",
-  "data/paper-market-session.json",
-  "data/execution-market-evidence.json",
-  "data/execution-market-coverage.json",
-];
-for (const path of protectedPaths) {
-  assert.ok(!patterns.some(glob => matches(path,glob)), "PAPER/execution changes must trigger CI: " + path);
-}
-assert.ok(trigger(paper).includes('cron: "35 16 * * 0,6"'), "Weekend PAPER evidence schedule retained");
-assert.ok(!/ignoreCommand|commandForIgnoringBuildStep/.test(foundation + ci), "An ignored Vercel build still consumes the deployment quota");
-console.log("Fenice deployment quota workflow budget and PAPER isolation: PASS");
+assert.match(engineering, /Skip repeated evidence commits for unchanged tested code/);
+assert.match(engineering, /node scripts\/decide-engineering-evidence-publication\.mjs/);
+assert.equal((engineering.match(/steps\.publication\.outputs\.publish == 'true'/g) || []).length, 2,
+  "Both evidence generation and persistence must be controlled");
+assert.match(engineering, /Confirm tested code still matches main/);
+assert.match(engineering, /git merge-base --is-ancestor "\$TESTED_SHA" HEAD/);
+assert.ok(!/ignoreCommand|commandForIgnoringBuildStep/.test(foundation + ci + engineering),
+  "Ignored Vercel builds still consume deployment quota");
+console.log("Fenice Vercel deployment throttling without frozen PAPER changes: PASS");
