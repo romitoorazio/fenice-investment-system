@@ -7,12 +7,12 @@ const [foundation, ci, paper] = await Promise.all([
 ]);
 const trigger = source => source.split(/\npermissions:\s*\n/)[0];
 
-assert.match(trigger(foundation), /cron: "17 \\/3 \\* \\* \\*"/, "Foundation must not rebuild hourly");
-assert.match(trigger(foundation), /cron: "37 5 \\* \\* \\*"/, "Keep daily full research refresh");
-assert.doesNotMatch(trigger(foundation), /cron: "17 \\* \\* \\* \\*"/);
+assert.ok(trigger(foundation).includes('cron: "17 */3 * * *"'), "Foundation must not rebuild hourly");
+assert.ok(trigger(foundation).includes('cron: "37 5 * * *"'), "Keep daily full research refresh");
+assert.ok(!trigger(foundation).includes('cron: "17 * * * *"'));
 
-assert.match(trigger(ci), /cron: "47 5,11,17,23 \\* \\* \\*"/);
-assert.doesNotMatch(trigger(ci), /cron: "47 \\* \\* \\* \\*"/);
+assert.ok(trigger(ci).includes('cron: "47 5,11,17,23 * * *"'));
+assert.ok(!trigger(ci).includes('cron: "47 * * * *"'));
 assert.match(trigger(ci), /pull_request:/, "Every code PR must receive CI");
 assert.match(trigger(ci), /push:/, "Code changes on main must receive CI");
 assert.match(trigger(ci), /workflow_dispatch:/, "Operator can always request CI");
@@ -46,6 +46,6 @@ const protectedPaths = [
 for (const path of protectedPaths) {
   assert.ok(!patterns.some(glob => matches(path,glob)), "PAPER/execution changes must trigger CI: " + path);
 }
-assert.match(trigger(paper), /cron: "35 16 \\* \\* 0,6"/, "Weekend PAPER evidence schedule retained");
+assert.ok(trigger(paper).includes('cron: "35 16 * * 0,6"'), "Weekend PAPER evidence schedule retained");
 assert.ok(!/ignoreCommand|commandForIgnoringBuildStep/.test(foundation + ci), "An ignored Vercel build still consumes the deployment quota");
 console.log("Fenice deployment quota workflow budget and PAPER isolation: PASS");
