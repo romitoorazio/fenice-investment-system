@@ -43,6 +43,9 @@ jobs:
       - name: Verify economic opportunity shortlist ranks real committee near-misses without orders
         run: node --experimental-strip-types scripts/test-opportunity-watchlist.mjs
 
+      - name: Verify ETF strategies are compared on matched historical costs and windows
+        run: node --experimental-strip-types scripts/test-etf-strategy-economics.mjs
+
       - name: Verify worldwide pilot coverage never grants PAPER or Directa orders
         run: node --experimental-strip-types scripts/test-market-coverage-plan.mjs
 

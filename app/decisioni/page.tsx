@@ -3,6 +3,7 @@ import terminal from "@/data/terminal-intelligence.json";
 import committee from "@/data/investment-committee.json";
 import { decisionGroup, type CommitteeDecision } from "@/lib/ui/committee-decision-display";
 import { buildOpportunityWatchlist, type OpportunityCommitteeRow } from "@/lib/ui/opportunity-watchlist";
+import { buildEtfStrategyLab, type EtfTerminalAsset } from "@/lib/ui/etf-strategy-economics";
 import { explainBuyConstraints, type BuyBarrierRow } from "@/lib/intelligence/buy-blocker-diagnostics.mjs";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
@@ -55,6 +56,7 @@ export default async function DecisioniPage() {
   const now = serverRequestTime();
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
+  const etfStrategyLab = buildEtfStrategyLab(assets as EtfTerminalAsset[], 3);
   const committeeCurrent = isCurrent(now, committeeReport.generatedAt);
   const profitResearchPriority = buildOpportunityWatchlist(
     committeeReport.allDecisions as OpportunityCommitteeRow[], committeeCurrent, 6,
@@ -217,6 +219,81 @@ export default async function DecisioniPage() {
             Nota: la valutazione convenzionale 50/100 di alcuni ETF è riconosciuta come
             un limite metodologico, non come prova che un ETF sia sottovalutato.
             Un punteggio alto o un rischio basso non garantiscono rendimenti.
+          </p>
+        </section>
+        <section aria-label="Laboratorio strategie ETF - confronto economico" className="rounded-2xl border border-violet-400/30 bg-violet-400/[0.04] p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-violet-300">FENICE100K · Strategia e rendimento</p>
+              <h2 className="mt-1 text-xl font-black text-white">Laboratorio ETF · La strategia batte compra e mantieni?</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Confrontiamo i backtest già calcolati sulle stesse osservazioni.
+                Una strategia con più segnali non è automaticamente migliore:
+                il vantaggio deve emergere nel rendimento dopo i costi ipotizzati
+                e nella riduzione del rischio. I risultati non sono profitti verificati.
+              </p>
+            </div>
+            <Link href="/performance" className="rounded-xl border border-violet-300/30 px-3 py-2 text-xs font-bold text-violet-200">
+              Risultati forward-only →
+            </Link>
+          </div>
+          {etfStrategyLab.length === 0 ? (
+            <p className="mt-4 text-sm text-amber-200">Dati backtest ETF confrontabili non disponibili. Nessuna strategia raccomandata.</p>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              {etfStrategyLab.map(row => (
+                <article key={row.symbol} className="rounded-xl border border-white/10 bg-slate-950/70 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-black text-white">{row.symbol}</h3>
+                      <p className="text-xs text-slate-400">{row.name}</p>
+                    </div>
+                    <span className={`rounded-lg border px-2 py-1 text-[11px] font-black ${row.finding === "BUY_AND_HOLD_OUTPERFORMED"
+                      ? "border-amber-400/30 text-amber-200" : "border-sky-400/30 text-sky-200"}`}>
+                      {row.finding === "BUY_AND_HOLD_OUTPERFORMED" ? "HOLD MEGLIO NEL TEST" : "ALTERNATIVA MEGLIO NEL TEST"}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                    <div><dt className="text-slate-400">Compra e mantieni · annuo</dt>
+                      <dd className="mt-1 text-xl font-black text-white">{row.reference.annualizedReturnPercent.toLocaleString("it-IT")}%</dd></div>
+                    <div><dt className="text-slate-400">Migliore alternativa · annuo</dt>
+                      <dd className="mt-1 text-xl font-black text-white">{row.bestAlternative.annualizedReturnPercent.toLocaleString("it-IT")}%</dd></div>
+                    <div><dt className="text-slate-400">Differenza alternativa − hold</dt>
+                      <dd className={`mt-1 text-base font-black ${row.bestAlternative.annualizedGapVersusHoldPoints > 0 ? "text-sky-200" : "text-amber-200"}`}>
+                        {row.bestAlternative.annualizedGapVersusHoldPoints > 0 ? "+" : ""}{row.bestAlternative.annualizedGapVersusHoldPoints.toLocaleString("it-IT")} punti</dd></div>
+                    <div><dt className="text-slate-400">Riduzione drawdown massimo</dt>
+                      <dd className="mt-1 text-base font-black text-white">
+                        {row.bestAlternative.drawdownReductionPoints > 0 ? "+" : ""}
+                        {row.bestAlternative.drawdownReductionPoints.toLocaleString("it-IT")} punti</dd></div>
+                  </dl>
+                  <p className="mt-3 text-xs text-slate-300">
+                    Alternativa: <strong>{row.bestAlternative.label}</strong> · {row.bestAlternative.trades} operazioni nel test.
+                    Periodo comune: {row.observationCount} osservazioni.
+                  </p>
+                  <div className="mt-3 border-t border-white/10 pt-3">
+                    <p className="text-xs font-semibold text-white">Altre strategie sullo stesso periodo</p>
+                    {row.alternatives.map(alt => (
+                      <div key={alt.id} className="mt-2 flex items-baseline justify-between gap-3 text-xs">
+                        <span className="text-slate-300">{alt.label}</span>
+                        <span className={alt.annualizedGapVersusHoldPoints < 0 ? "font-semibold text-amber-200" : "font-semibold text-sky-200"}>
+                          {alt.annualizedReturnPercent.toLocaleString("it-IT")}% annuo · {alt.annualizedGapVersusHoldPoints > 0 ? "+" : ""}{alt.annualizedGapVersusHoldPoints.toLocaleString("it-IT")} pt
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                    Frizione per operazione nel modello: {row.assumedPerTradeCostPercent.toLocaleString("it-IT")}%.
+                    Non include una verifica delle commissioni Directa, del cambio EUR/USD e della fiscalità.
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+          <p className="mt-4 text-xs leading-5 text-slate-400">
+            Backtest storici del motore Fenice, non campioni forward indipendenti.
+            Rendimenti annualizzati nella valuta dei prezzi storici, non simulazioni del tuo conto in euro.
+            Il confronto non costituisce un modello di valutazione ETF, non rimuove le condizioni del Comitato e
+            non abilita ordini. Per il vantaggio economico autentico servono misurazioni fuori campione e costi verificati.
           </p>
         </section>
         <section aria-label="Diagnostica ostacoli al COMPRA" className="rounded-2xl border border-violet-400/25 bg-violet-400/[0.04] p-4">
