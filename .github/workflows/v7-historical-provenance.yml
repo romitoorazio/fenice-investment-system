@@ -1,0 +1,36 @@
+name: Fenice V7 Historical Provenance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/v7-historical-quote-admission.mjs"
+      - "scripts/run-decision-outcomes.mjs"
+      - "scripts/test-v7-historical-quote-admission.mjs"
+      - ".github/workflows/v7-historical-provenance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/v7-historical-quote-admission.mjs"
+      - "scripts/run-decision-outcomes.mjs"
+      - "scripts/test-v7-historical-quote-admission.mjs"
+      - ".github/workflows/v7-historical-provenance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  historical-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Fail closed on unverified as-of historical prices
+        run: node scripts/test-v7-historical-quote-admission.mjs
+      - name: Existing V7 decision outcomes regression
+        run: node scripts/test-decision-outcomes.mjs
+      - name: Current-as-of V7 provenance regression
+        run: node scripts/test-v7-asof-quote-admission.mjs

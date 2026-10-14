@@ -8,6 +8,7 @@ import {
   updateDecisionOutcomeLedger,
 } from "../lib/intelligence/decision-outcomes.mjs";
 import { evaluateDecisionBenchmarkEdge } from "../lib/intelligence/decision-edge-research.mjs";
+import { admitHistoricalV7ResearchSnapshots } from "../lib/intelligence/v7-historical-quote-admission.mjs";
 import { admitV7ResearchQuotes } from "../lib/intelligence/v7-asof-quote-admission.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,12 +41,20 @@ let previous = await readJson("v7-decision-outcomes-ledger.json", { version: 1, 
 const now = new Date();
 const quoteAdmission = admitV7ResearchQuotes(committee, now);
 const candidates = selectDecisionOutcomeCandidates(quoteAdmission.accepted);
-let bootstrap = { applied: false, sourceSnapshotCount: 0, seededRecords: 0 };
+let bootstrap = { applied: false, sourceSnapshotCount: 0, seededRecords: 0, verifiedHistoricalSnapshots: 0, historicalSourceEvidenceChecked: false };
 
 if (!Array.isArray(previous?.records) || previous.records.length === 0) {
   const snapshots = await readCommitteeHistory();
-  const seeded = buildHistoricalDecisionOutcomeBackfill(snapshots);
-  bootstrap = { applied: seeded.recordCount > 0, sourceSnapshotCount: snapshots.length, seededRecords: seeded.recordCount };
+  const historical = admitHistoricalV7ResearchSnapshots(snapshots, now);
+  const seeded = buildHistoricalDecisionOutcomeBackfill(historical.verifiedSnapshots);
+  bootstrap = {
+    applied: seeded.recordCount > 0,
+    sourceSnapshotCount: snapshots.length,
+    seededRecords: seeded.recordCount,
+    verifiedHistoricalSnapshots: historical.verification.snapshotsAccepted,
+    historicalSourceEvidenceChecked: true,
+    historicalAdmission: historical.verification,
+  };
   if (seeded.recordCount > 0) previous = seeded;
 }
 
@@ -74,7 +83,7 @@ const report = {
     avoidRule: "EVITA is favorable when forward return is non-positive.",
     waitRule: "OSSERVA/ATTENDI are not forced into a binary verdict; missed upside and avoided loss are measured with a 1% neutral band.",
     deDuplication: "maximum one observation per symbol, decision and UTC day",
-    historicalBootstrap: "latest persisted committee snapshot per UTC weekday",
+    historicalBootstrap: "new historical bootstrap admits only committee snapshots with verified as-of research quote provenance; retroactive data never certify profits",
     feedsV6CalibrationPolicy: false,
   },
   bootstrap,
