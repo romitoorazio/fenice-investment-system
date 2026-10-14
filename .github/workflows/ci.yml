@@ -8,11 +8,30 @@ on:
   push:
     branches: [main, feature/professional-core-consolidation]
     paths-ignore:
-      # Data-only bots previously triggered a fresh CI and engineering evidence
-      # commit, creating another Vercel deployment for every dataset update.
-      # Data integrity is still checked by the scheduled CI and dedicated PAPER
-      # workflows; any code + data commit still triggers the full test suite.
-      - "data/**"
+      # Generated research snapshots are validated by their own writer workflows
+      # and the scheduled full CI. Avoid recursively committing fresh CI evidence
+      # for every routine research-data push. NEVER blanket-ignore data/**:
+      # PAPER campaign, OMS, quote/FX/session and approval changes MUST still
+      # trigger the full production CI for independent validation.
+      - "data/history/**"
+      - "data/committee-history/**"
+      - "data/raw/**"
+      - "data/v7-*.json"
+      - "data/calibration-analysis.json"
+      - "data/dcf-analysis.json"
+      - "data/decision-ledger.json"
+      - "data/decision-governance.json"
+      - "data/fundamental-research.json"
+      - "data/global-source-health.json"
+      - "data/intelligence-quality.json"
+      - "data/internet-ingestion-report.json"
+      - "data/investment-committee.json"
+      - "data/knowledge-graph.json"
+      - "data/latest-snapshot.json"
+      - "data/osint-intelligence.json"
+      - "data/source-health.json"
+      - "data/terminal-*.json"
+      - "data/engineering-validation-evidence.json"
       - "**/*.md"
   pull_request:
     branches: [main]
