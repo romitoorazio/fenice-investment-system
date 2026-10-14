@@ -1,0 +1,34 @@
+name: Fenice BUY-only Forward Edge
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/buy-only-forward-edge.mjs"
+      - "lib/intelligence/decision-edge-research.mjs"
+      - "scripts/test-buy-only-forward-edge.mjs"
+      - "app/performance/page.tsx"
+      - ".github/workflows/buy-only-forward-edge.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/buy-only-forward-edge.mjs"
+      - "lib/intelligence/decision-edge-research.mjs"
+      - "scripts/test-buy-only-forward-edge.mjs"
+      - "app/performance/page.tsx"
+permissions:
+  contents: read
+jobs:
+  buyer-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test forward BUY-only alpha and independent days
+        run: node scripts/test-buy-only-forward-edge.mjs
+      - name: Existing economic benchmark regression
+        run: node scripts/test-decision-edge-research.mjs
+      - name: Existing V7 outcome regression
+        run: node scripts/test-decision-outcomes.mjs

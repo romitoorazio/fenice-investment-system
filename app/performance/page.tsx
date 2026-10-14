@@ -27,6 +27,13 @@ type EdgeRow = {
   uniqueDays: number;
   buySignalSamples: number;
   waitOrAvoidSamples: number;
+  buyOnlyEvidence?: {
+    state: string;
+    forward: { sampleSize: number; independentEntryDays: number; equalEntryDayMeanExcessPercent: number | null };
+    retrospective: { sampleSize: number };
+    sampleMature: boolean;
+    actualTradingProfitDemonstrated: false;
+  };
   historicalBackfillSamples: number;
   forwardObservedSamples: number;
   hypotheticalMeanReturnAfterCostPercent: number | null;
@@ -283,8 +290,10 @@ export default function PerformancePage() {
                     <th scope="col" className="p-3">Orizzonte</th>
                     <th scope="col" className="p-3">Confronti validi</th>
                     <th scope="col" className="p-3">Giorni distinti</th>
-                    <th scope="col" className="p-3">Segnali COMPRA</th>
+                    <th scope="col" className="p-3">Segnali COMPRA (tutti)</th>
                     <th scope="col" className="p-3">In avanti / retrospettivi</th>
+                    <th scope="col" className="p-3">COMPRA in avanti (giorni distinti)</th>
+                    <th scope="col" className="p-3">Vantaggio COMPRA in avanti, media per giorno</th>
                     <th scope="col" className="p-3">Extra-rendimento ipotetico medio</th>
                     <th scope="col" className="p-3">Superano SPY dopo costo</th>
                   </tr>
@@ -297,6 +306,8 @@ export default function PerformancePage() {
                       <td className="p-3">{row.uniqueDays}</td>
                       <td className="p-3">{row.buySignalSamples}</td>
                       <td className="p-3">{row.forwardObservedSamples} / {row.historicalBackfillSamples}</td>
+                      <td className="p-3">{row.buyOnlyEvidence?.forward.sampleSize ?? "N/D"} ({row.buyOnlyEvidence?.forward.independentEntryDays ?? "N/D"} gg)</td>
+                      <td className="p-3">{row.buyOnlyEvidence?.forward.sampleSize ? percent(row.buyOnlyEvidence.forward.equalEntryDayMeanExcessPercent) : "N/D"}</td>
                       <td className="p-3">{row.pairedSamples ? percent(row.hypotheticalMeanExcessVsBenchmarkPercent) : "N/D"}</td>
                       <td className="p-3">{row.pairedSamples ? percent(row.hypotheticalBeatBenchmarkRatePercent) : "N/D"}</td>
                     </tr>
@@ -305,6 +316,11 @@ export default function PerformancePage() {
               </table>
             </div>
           ) : <p className="rounded-xl border border-white/10 p-4 text-sm text-amber-200">Ricerca comparativa non ancora calcolata: N/D.</p>}
+          <p className="text-sm font-semibold text-amber-200">
+            Evidenza COMPRA registrata in avanti: distinta dai titoli soltanto osservati o evitati.
+            Per valutare il vantaggio numerico servono almeno 30 coppie COMPRA e 30 giornate di ingresso indipendenti.
+            Nessun rendimento reale dimostrato: il dato resta N/D se mancano segnali COMPRA validi.
+          </p>
           <p className="text-xs leading-5 text-slate-400">
             In avanti = segnali osservati dal registro prima della scadenza; retrospettivi = eventi
             ricostruiti da snapshot del Comitato. Più titoli nella stessa giornata non sono osservazioni indipendenti.
