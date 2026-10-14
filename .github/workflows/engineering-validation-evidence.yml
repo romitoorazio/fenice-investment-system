@@ -55,8 +55,15 @@ jobs:
             echo "Code changed after the tested revision; refusing to publish stale engineering evidence."
           fi
 
-      - name: Write fail-closed engineering evidence
+      - name: Skip repeated evidence commits for unchanged tested code
         if: steps.applicability.outputs.eligible == 'true'
+        id: publication
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/decide-engineering-evidence-publication.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Write fail-closed engineering evidence
+        if: steps.applicability.outputs.eligible == 'true' && steps.publication.outputs.publish == 'true'
         env:
           CI_VALIDATED_AT: ${{ github.event.workflow_run.updated_at }}
           CI_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -68,7 +75,7 @@ jobs:
         run: node --experimental-strip-types scripts/write-engineering-validation-evidence.mjs
 
       - name: Persist evidence only
-        if: steps.applicability.outputs.eligible == 'true'
+        if: steps.applicability.outputs.eligible == 'true' && steps.publication.outputs.publish == 'true'
         run: |
           set -euo pipefail
           if git diff --quiet -- data/engineering-validation-evidence.json; then
