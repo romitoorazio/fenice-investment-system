@@ -57,4 +57,13 @@ const noData = admitV7ResearchQuotes(null, now);
 assert.equal(noData.accepted.length, 0);
 assert.equal(noData.state, "SOURCE_STALE_BLOCKED");
 assert.throws(() => admitV7ResearchQuotes(committee, new Date("invalid")), /INVALID_V7_ADMISSION_CLOCK/);
+
+import { readFile } from "node:fs/promises";
+const runner = await readFile(new URL("./run-decision-outcomes.mjs", import.meta.url), "utf8");
+assert.match(runner, /admitV7ResearchQuotes\(committee, now\)/);
+assert.match(runner, /selectDecisionOutcomeCandidates\(quoteAdmission\.accepted\)/);
+assert.match(runner, /const prices = quoteAdmission\.prices/);
+assert.match(runner, /now: quoteAdmission\.snapshotAsOf \? new Date\(quoteAdmission\.snapshotAsOf\) : now/);
+assert.match(runner, /quoteAdmission: \{/);
+
 console.log("Fenice V7 quote provenance and no-lookahead admission: PASS");
