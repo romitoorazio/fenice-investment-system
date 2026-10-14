@@ -1,0 +1,33 @@
+name: Fenice FINRA Public Entitlement Diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/diagnose-finra-public-access.mjs"
+      - ".github/workflows/finra-public-access-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  finra-readonly-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Test FINRA Public read-only dataset entitlements
+        env:
+          FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+          FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
+        run: node scripts/diagnose-finra-public-access.mjs
+      - name: Publish redacted diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: finra-public-readonly-entitlement-diagnostic
+          path: finra-public-access-report.json
+          retention-days: 7
