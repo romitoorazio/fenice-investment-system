@@ -21,6 +21,11 @@ assert.ok(workflow.includes("Production alias did not move to expected deploymen
 assert.ok(workflow.includes("VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By"));
 assert.ok(workflow.includes("VERCEL_TEAM_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP"));
 assert.ok(workflow.includes("VERCEL_PRODUCTION_ALIAS: fenice-investment-system.vercel.app"));
+assert.ok(workflow.includes("/api/brokers/status"),"Smoke test must exercise current broker endpoint");
+assert.ok(workflow.includes('.purpose == "RESEARCH_ONLY"'));
+assert.ok(workflow.includes(".brokerOrderSubmissionEnabled == false"));
+assert.ok(workflow.includes(".liveTradingReleased == false"));
+assert.ok(!workflow.includes("Broker scelto: Directa SIM"),"Obsolete homepage copy may not block a successful deployment");
 // Scheduling/launch may not change frozen CI or PAPER policy.
 const paper = JSON.parse(await readFile(new URL("../data/paper-validation-campaign.json",import.meta.url),"utf8"));
 assert.equal(paper.liveTradingAllowed,false);
