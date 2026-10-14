@@ -9,10 +9,12 @@ const secret = String(process.env.FINRA_CLIENT_SECRET || "").trim();
 const now = new Date().toISOString();
 const results = [];
 const endpoints = [
-  ["treasuryDailyAggregates", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates?limit=1"],
-  ["treasuryMonthlyAggregates", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryMonthlyAggregates?limit=1"],
-  ["treasuryWeeklyAggregates", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryWeeklyAggregates?limit=1"],
-  ["otcRegShoDaily", "https://api.finra.org/data/group/otcMarket/name/regShoDaily?limit=1"],
+  ["treasuryDailyAggregatesGET", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates?limit=1"],
+  ["treasuryDailyAggregatesPOST", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryDailyAggregates", "POST"],
+  ["treasuryMonthlyAggregatesGET", "https://api.finra.org/data/group/fixedIncomeMarket/name/treasuryMonthlyAggregates?limit=1"],
+  ["corporateMarketBreadthGET", "https://api.finra.org/data/group/fixedIncomeMarket/name/corporateMarketBreadth?limit=1"],
+  ["corporatesAndAgenciesCappedVolumeGET", "https://api.finra.org/data/group/fixedIncomeMarket/name/corporatesAndAgenciesCappedVolume?limit=1"],
+  ["otcRegShoDailyGET", "https://api.finra.org/data/group/otcMarket/name/regShoDaily?limit=1"],
   ["treasuryDailyMetadata", "https://api.finra.org/metadata/group/fixedIncomeMarket/name/treasuryDailyAggregates"],
 ];
 
@@ -45,9 +47,15 @@ async function check() {
   const tokenPayload = await response.json().catch(() => null);
   const token = typeof tokenPayload?.access_token === "string" ? tokenPayload.access_token : "";
   if (!token) return { state: "AUTH_NO_TOKEN", tokenHttpStatus: response.status };
-  for (const [id, endpoint] of endpoints) {
+  for (const [id, endpoint, method = "GET"] of endpoints) {
     try {
-      const r = await checkedFetch(endpoint, { headers: { accept: "application/json", authorization: "Bearer " + token } });
+      const headers = { accept: "application/json", authorization: "Bearer " + token };
+      if (method === "POST") headers["content-type"] = "application/json";
+      const r = await checkedFetch(endpoint, {
+        method,
+        headers,
+        ...(method === "POST" ? { body: JSON.stringify({ limit: 1 }) } : {}),
+      });
       const json = /json/i.test(r.headers.get("content-type") || "");
       let shapeValid = false;
       if (r.ok && json) {
@@ -61,7 +69,11 @@ async function check() {
   }
   const production = results.filter(row => row.id !== "treasuryDailyMetadata");
   const usable = production.filter(row => row.usable).map(row => row.id);
-  return { state: usable.length ? "PUBLIC_DATA_ACCESS_PARTIAL_OR_READY" : "PUBLIC_TOKEN_VALID_DATA_ACCESS_NOT_VERIFIED", tokenHttpStatus: response.status, accessibleDatasets: usable };
+  const workingFixedIncome = production.filter(row => row.id !== "otcRegShoDailyGET" && row.usable).map(row => row.id);
+  return {
+    state: workingFixedIncome.length ? "FIXED_INCOME_PUBLIC_DATA_AVAILABLE" : usable.length ? "OTHER_PUBLIC_DATA_OK_FIXED_INCOME_UNAVAILABLE" : "PUBLIC_TOKEN_VALID_DATA_ACCESS_NOT_VERIFIED",
+    tokenHttpStatus: response.status, accessibleDatasets: usable, accessibleFixedIncomeDatasets: workingFixedIncome,
+  };
 }
 
 const diagnosis = await check();
