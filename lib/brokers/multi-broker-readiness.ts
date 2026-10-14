@@ -49,11 +49,11 @@ export function buildMultiBrokerReadiness(): MultiBrokerReadiness {
       label: "eToro",
       mode: "DEMO_READ_ONLY_PLANNED",
       status: "NOT_CONNECTED",
-      readOnlyAdapterPrepared: false,
+      readOnlyAdapterPrepared: true,
       accountConnectionVerified: false,
       accountDataAvailable: false,
       orderSubmissionEnabled: false,
-      nextStep: "Verificare idoneita API e condizioni; poi predisporre credenziali DEMO con permesso Read nei secrets, senza ordini.",
+      nextStep: "Verificare idoneita API e condizioni; poi abilitare il transport DEMO/Read server-side con credenziali nei secrets, senza ordini.",
     },
   ];
   return {
