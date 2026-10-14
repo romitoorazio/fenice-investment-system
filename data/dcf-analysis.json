@@ -1,15 +1,15 @@
 {
-  "version": 417,
-  "generatedAt": "2026-10-14T19:54:00.189Z",
+  "version": 418,
+  "generatedAt": "2026-10-14T20:10:41.593Z",
   "mode": "live",
   "source": {
     "name": "Fenice DCF Scenario Engine",
     "state": "operativo",
-    "detail": "6/12 società con DCF confrontabile; gli altri casi sono bloccati per qualità FCF, valuta, fase o dati insufficienti."
+    "detail": "5/12 società con DCF confrontabile; gli altri casi sono bloccati per qualità FCF, valuta, fase o dati insufficienti."
   },
   "companyCount": 12,
-  "availableCount": 6,
-  "coveragePercent": 50,
+  "availableCount": 5,
+  "coveragePercent": 42,
   "methodology": [
     "Free cash flow annuale SEC collegato al prezzo del World Terminal.",
     "Controllo qualità obbligatorio su operating cash flow, capex, margine FCF e coerenza dei valori.",
@@ -19,7 +19,8 @@
     "Espansivo: sconto 8,5%, crescita terminale 3%.",
     "Matrice di sensibilità 3×3 separata: crescita base invariata, tasso di sconto 8,5/9,5/10,5% e crescita terminale 1,5/2,5/3,5%.",
     "La fragilità della valutazione misura la dispersione dei fair value nella matrice e non modifica il DCF score.",
-    "Cassa e debito inclusi nel ponte enterprise-equity.",
+    "Cassa e debito inclusi nel ponte enterprise-equity soltanto se effettivamente dichiarati; mai riempire i dati assenti con zero.",
+    "Se una riconciliazione SEC annuale lascia FCF inferiore al 10% del cash flow operativo, bloccare il DCF basato su quell’unico anno fino a verifica pluriennale.",
     "Azioni diluite inferite da utile netto/EPS.",
     "Blocco automatico quando valuta del bilancio e del prezzo non coincidono.",
     "Nessun DCF tradizionale per società pre-commerciali."
@@ -31,13 +32,20 @@
       "sector": "Piattaforme digitali e intelligenza artificiale",
       "businessStage": "crescita",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 738.82,
       "freeCashFlow": 46109000000,
       "cash": 35873000000,
       "debt": 58744000000,
       "dilutedShares": 2573776075,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": 39.82,
+        "researchOnly": true
+      },
       "status": "disponibile",
       "confidence": 94,
       "score": 21,
@@ -170,13 +178,20 @@
       "sector": "Semiconduttori e intelligenza artificiale",
       "businessStage": "crescita",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 220.9,
       "freeCashFlow": 96575000000,
       "cash": 10605000000,
       "debt": 8468000000,
       "dilutedShares": 24503469388,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": 94.02,
+        "researchOnly": true
+      },
       "status": "disponibile",
       "confidence": 73,
       "score": 14,
@@ -310,13 +325,20 @@
       "sector": "Cloud e intelligenza artificiale",
       "businessStage": "crescita",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 534.4,
       "freeCashFlow": 66987000000,
       "cash": 20935000000,
       "debt": 40294000000,
       "dilutedShares": 7451197772,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": 36.62,
+        "researchOnly": true
+      },
       "status": "disponibile",
       "confidence": 95,
       "score": 13,
@@ -449,13 +471,20 @@
       "sector": "Internet, cloud e intelligenza artificiale",
       "businessStage": "crescita",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 348.13,
       "freeCashFlow": 73266000000,
       "cash": 30708000000,
       "debt": 48543000000,
       "dilutedShares": 12226641998,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": 44.48,
+        "researchOnly": true
+      },
       "status": "disponibile",
       "confidence": 95,
       "score": 13,
@@ -588,13 +617,20 @@
       "sector": "Tecnologia e dispositivi",
       "businessStage": "maturo",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 343.8,
       "freeCashFlow": 98767000000,
       "cash": 35934000000,
       "debt": 90678000000,
       "dilutedShares": 15014745308,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": 88.59,
+        "researchOnly": true
+      },
       "status": "disponibile",
       "confidence": 94,
       "score": 13,
@@ -722,167 +758,33 @@
       ]
     },
     {
-      "symbol": "AMZN",
-      "name": "AMAZON COM INC",
-      "sector": "Cloud, commercio elettronico e logistica",
-      "businessStage": "crescita",
-      "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
-      "source": "SEC EDGAR + Fenice World Terminal",
-      "currentPrice": 253.35,
-      "freeCashFlow": 11194000000,
-      "cash": 86810000000,
-      "debt": 68396000000,
-      "dilutedShares": 10832635983,
-      "status": "disponibile",
-      "confidence": 66,
-      "score": 5,
-      "fairValueLow": 13.42,
-      "fairValueBase": 18.84,
-      "fairValueHigh": 24.9,
-      "upsideBasePercent": -92.6,
-      "scenarios": [
-        {
-          "id": "prudente",
-          "label": "Prudente",
-          "revenueGrowthStartPercent": 3.6,
-          "terminalGrowthPercent": 2,
-          "discountRatePercent": 11.5,
-          "forecastYears": 5,
-          "enterpriseValue": 126948516860,
-          "equityValue": 145362516860,
-          "fairValuePerShare": 13.42,
-          "upsidePercent": -94.7
-        },
-        {
-          "id": "base",
-          "label": "Base",
-          "revenueGrowthStartPercent": 7.6,
-          "terminalGrowthPercent": 2.5,
-          "discountRatePercent": 9.5,
-          "forecastYears": 5,
-          "enterpriseValue": 185695185643,
-          "equityValue": 204109185643,
-          "fairValuePerShare": 18.84,
-          "upsidePercent": -92.6
-        },
-        {
-          "id": "espansivo",
-          "label": "Espansivo",
-          "revenueGrowthStartPercent": 10.6,
-          "terminalGrowthPercent": 3,
-          "discountRatePercent": 8.5,
-          "forecastYears": 5,
-          "enterpriseValue": 251307947843,
-          "equityValue": 269721947843,
-          "fairValuePerShare": 24.9,
-          "upsidePercent": -90.2
-        }
-      ],
-      "robustness": {
-        "state": "MEDIA FRAGILITÀ",
-        "sensitivityCells": [
-          {
-            "discountRatePercent": 8.5,
-            "terminalGrowthPercent": 1.5,
-            "fairValuePerShare": 19.43,
-            "upsidePercent": -92.3
-          },
-          {
-            "discountRatePercent": 8.5,
-            "terminalGrowthPercent": 2.5,
-            "fairValuePerShare": 21.72,
-            "upsidePercent": -91.4
-          },
-          {
-            "discountRatePercent": 8.5,
-            "terminalGrowthPercent": 3.5,
-            "fairValuePerShare": 25.43,
-            "upsidePercent": -90
-          },
-          {
-            "discountRatePercent": 9.5,
-            "terminalGrowthPercent": 1.5,
-            "fairValuePerShare": 17.18,
-            "upsidePercent": -93.2
-          },
-          {
-            "discountRatePercent": 9.5,
-            "terminalGrowthPercent": 2.5,
-            "fairValuePerShare": 18.84,
-            "upsidePercent": -92.6
-          },
-          {
-            "discountRatePercent": 9.5,
-            "terminalGrowthPercent": 3.5,
-            "fairValuePerShare": 21.45,
-            "upsidePercent": -91.5
-          },
-          {
-            "discountRatePercent": 10.5,
-            "terminalGrowthPercent": 1.5,
-            "fairValuePerShare": 15.44,
-            "upsidePercent": -93.9
-          },
-          {
-            "discountRatePercent": 10.5,
-            "terminalGrowthPercent": 2.5,
-            "fairValuePerShare": 16.68,
-            "upsidePercent": -93.4
-          },
-          {
-            "discountRatePercent": 10.5,
-            "terminalGrowthPercent": 3.5,
-            "fairValuePerShare": 18.61,
-            "upsidePercent": -92.7
-          }
-        ],
-        "supportingCells": 0,
-        "totalCells": 9,
-        "supportPercent": 0,
-        "fairValueMin": 15.44,
-        "fairValueMedian": 18.84,
-        "fairValueMax": 25.43,
-        "valuationSpreadPercent": 53,
-        "prudentMarginPercent": -93.9,
-        "note": "Sensibilità 3×3: crescita iniziale invariata; Fenice varia solo tasso di sconto (8,5/9,5/10,5%) e crescita terminale (1,5/2,5/3,5%). Non modifica score o decisioni."
-      },
-      "rationale": [
-        "Free cash flow di partenza 11194000000 USD.",
-        "Capex/ricavi verificato al 17.9%.",
-        "Crescita iniziale scenario base 7.6%, poi progressivamente ridotta.",
-        "Azioni diluite stimate da utile netto/EPS: 10832635983.",
-        "Scostamento scenario base rispetto al prezzo: -92.6%.",
-        "Robustezza: 0/9 celle della matrice di sensibilità hanno fair value almeno pari al prezzo corrente; fragilità media fragilità."
-      ],
-      "warnings": [
-        "Le azioni diluite sono inferite dai dati SEC e devono essere confrontate con il filing.",
-        "L’intervallo di scenari è più importante del valore centrale.",
-        "Il valore centrale è estremo rispetto al prezzo: score e confidenza sono ridotti e il risultato richiede riconciliazione manuale."
-      ]
-    },
-    {
       "symbol": "ASML",
       "name": "ASML HOLDING NV",
       "sector": "Macchinari per semiconduttori",
       "businessStage": "crescita",
       "currency": "EUR",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 1669.45,
       "freeCashFlow": 11084900000,
       "cash": 12916000000,
       "debt": 4390900000,
       "dilutedShares": 388887090,
+      "cashFlowBasis": {
+        "state": "CURRENCY_NOT_COMPARABLE",
+        "eligible": false,
+        "reason": "La valuta del bilancio e quella del prezzo devono essere verificate e identiche; nessuna conversione implicita.",
+        "singleYearFcfToOperatingCashFlowPercent": null
+      },
       "status": "non confrontabile",
-      "confidence": 82,
-      "score": 50,
+      "confidence": 55,
+      "score": 35,
       "scenarios": [],
       "rationale": [
-        "Bilancio espresso in EUR e prezzo espresso in USD."
+        "La valuta del bilancio e quella del prezzo devono essere verificate e identiche; nessuna conversione implicita."
       ],
       "warnings": [
-        "ADR, rapporto di conversione o cambio devono essere verificati prima di stimare il valore per azione."
+        "Senza riconciliazione della base FCF o del ponte cassa/debito/valuta non esiste un fair value quinquennale difendibile."
       ]
     },
     {
@@ -891,12 +793,17 @@
       "sector": "Produzione di semiconduttori",
       "businessStage": "crescita",
       "currency": "TWD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 430.8,
       "cash": 2127627000000,
-      "debt": 0,
       "dilutedShares": 25912780390,
+      "cashFlowBasis": {
+        "state": "MISSING_VERIFIED_CASH_OR_DEBT",
+        "eligible": false,
+        "reason": "Cassa o debito assenti: non è lecito sostituire il valore mancante con zero nel ponte enterprise/equity.",
+        "singleYearFcfToOperatingCashFlowPercent": null
+      },
       "status": "dati insufficienti",
       "confidence": 55,
       "score": 35,
@@ -910,17 +817,59 @@
       ]
     },
     {
+      "symbol": "AMZN",
+      "name": "AMAZON COM INC",
+      "sector": "Cloud, commercio elettronico e logistica",
+      "businessStage": "crescita",
+      "currency": "USD",
+      "observedAt": "2026-10-14T20:10:41.593Z",
+      "source": "SEC EDGAR + Fenice World Terminal",
+      "currentPrice": 253.35,
+      "freeCashFlow": 11194000000,
+      "cash": 86810000000,
+      "debt": 68396000000,
+      "dilutedShares": 10832635983,
+      "cashFlowBasis": {
+        "state": "SINGLE_YEAR_FCF_NOT_NORMALIZED",
+        "eligible": false,
+        "reason": "FCF annuale inferiore al 10% del cash flow operativo dopo investimenti riconciliati: non proiettare un unico esercizio su cinque anni senza serie pluriennale e ipotesi di investimenti.",
+        "singleYearFcfToOperatingCashFlowPercent": 8.02,
+        "fiscalEnd": "2025-12-31",
+        "filingUrl": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+        "researchOnly": true,
+        "requiresMultiYearValidation": true
+      },
+      "status": "dati insufficienti",
+      "confidence": 55,
+      "score": 35,
+      "scenarios": [],
+      "rationale": [
+        "FCF annuale inferiore al 10% del cash flow operativo dopo investimenti riconciliati: non proiettare un unico esercizio su cinque anni senza serie pluriennale e ipotesi di investimenti."
+      ],
+      "warnings": [
+        "Senza riconciliazione della base FCF o del ponte cassa/debito/valuta non esiste un fair value quinquennale difendibile.",
+        "Servono almeno più esercizi di free cash flow e spese di investimento per verificare se il flusso del singolo anno è rappresentativo."
+      ]
+    },
+    {
       "symbol": "BIOX",
       "name": "BIOCERES CROP SOLUTIONS CORP.",
       "sector": "Agritech e biotecnologie agricole",
       "businessStage": "maturo",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 0.3012,
       "cash": 32695079,
       "debt": 10400000,
       "dilutedShares": 67144287,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": null,
+        "researchOnly": true
+      },
       "status": "dati insufficienti",
       "confidence": 55,
       "score": 35,
@@ -939,13 +888,20 @@
       "sector": "AI applicata alla scoperta di farmaci",
       "businessStage": "pre-commerciale",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 3.72,
       "freeCashFlow": -378277000,
       "cash": 743294000,
       "debt": 723000,
       "dilutedShares": 447749306,
+      "cashFlowBasis": {
+        "state": "BASIC_INPUTS_VERIFIED",
+        "eligible": true,
+        "reason": "Cassa, debito e valuta confrontabili; gli altri controlli DCF restano obbligatori.",
+        "singleYearFcfToOperatingCashFlowPercent": null,
+        "researchOnly": true
+      },
       "status": "non applicabile",
       "confidence": 95,
       "score": 25,
@@ -963,13 +919,18 @@
       "sector": "Biotecnologia e gene editing",
       "businessStage": "pre-commerciale",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 50.1,
       "freeCashFlow": -345928000,
       "cash": 347559000,
-      "debt": 0,
       "dilutedShares": 89891654,
+      "cashFlowBasis": {
+        "state": "MISSING_VERIFIED_CASH_OR_DEBT",
+        "eligible": false,
+        "reason": "Cassa o debito assenti: non è lecito sostituire il valore mancante con zero nel ponte enterprise/equity.",
+        "singleYearFcfToOperatingCashFlowPercent": null
+      },
       "status": "non applicabile",
       "confidence": 81,
       "score": 25,
@@ -987,13 +948,18 @@
       "sector": "Biotecnologia e gene editing",
       "businessStage": "pre-commerciale",
       "currency": "USD",
-      "observedAt": "2026-10-14T19:54:00.189Z",
+      "observedAt": "2026-10-14T20:10:41.593Z",
       "source": "SEC EDGAR + Fenice World Terminal",
       "currentPrice": 11.38,
       "freeCashFlow": -395865000,
       "cash": 155464000,
-      "debt": 0,
       "dilutedShares": 108318635,
+      "cashFlowBasis": {
+        "state": "MISSING_VERIFIED_CASH_OR_DEBT",
+        "eligible": false,
+        "reason": "Cassa o debito assenti: non è lecito sostituire il valore mancante con zero nel ponte enterprise/equity.",
+        "singleYearFcfToOperatingCashFlowPercent": null
+      },
       "status": "non applicabile",
       "confidence": 79,
       "score": 25,
