@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkDcfCashFlowBasis } from '../lib/intelligence/dcf-cashflow-basis.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'dcf-analysis.json');
@@ -179,8 +180,11 @@ function buildCompany(company, asset) {
   const operatingCashFlow = Number(company.financials?.operatingCashFlow);
   const capitalExpenditure = Number(company.financials?.capitalExpenditure);
   const fcf = Number(company.financials?.freeCashFlow);
-  const cash = Math.max(0, Number(company.financials?.cash || 0));
-  const debt = Math.max(0, Number(company.financials?.debt || 0));
+  // A missing financial statement line is not an observed zero.
+  const cash = Number.isFinite(company.financials?.cash) && company.financials.cash >= 0
+    ? company.financials.cash : undefined;
+  const debt = Number.isFinite(company.financials?.debt) && company.financials.debt >= 0
+    ? company.financials.debt : undefined;
   const shares = inferShares(company);
   const growth = Number(company.financials?.revenueGrowth3YPercent || 0);
   const completeness = Number(company.scores?.dataCompleteness || 0);
@@ -195,7 +199,8 @@ function buildCompany(company, asset) {
     || fcf > operatingCashFlow * 1.001
     || (['NVDA', 'AMZN'].includes(company.ticker) && Number(capexRevenuePercent) < 2)
     || Number(fcfMarginPercent) > 55;
-  const common = commonFields(company, asset, fcf, cash, debt, shares);
+  const cashFlowBasis = checkDcfCashFlowBasis({ financials: company.financials, asset });
+  const common = { ...commonFields(company, asset, fcf, cash, debt, shares), cashFlowBasis };
 
   if (isPreCommercial(company)) {
     return {
@@ -220,6 +225,21 @@ function buildCompany(company, asset) {
       warnings: [
         `Capex/ricavi indicativo: ${round(capexRevenuePercent, 2) ?? 'n/d'}%; margine FCF: ${round(fcfMarginPercent, 1) ?? 'n/d'}%.`,
         'Il DCF resta bloccato finché il capex non viene riconciliato con cash-flow statement e note del filing.',
+      ],
+    };
+  }
+
+  if (!cashFlowBasis.eligible) {
+    return {
+      ...common,
+      status: cashFlowBasis.state === 'CURRENCY_NOT_COMPARABLE' ? 'non confrontabile' : 'dati insufficienti',
+      confidence: Math.round(clamp(completeness * 0.4 + quality * 0.25, 0, 55)),
+      score: 35,
+      scenarios: [],
+      rationale: [cashFlowBasis.reason],
+      warnings: [
+        'Senza riconciliazione della base FCF o del ponte cassa/debito/valuta non esiste un fair value quinquennale difendibile.',
+        ...(cashFlowBasis.requiresMultiYearValidation ? ['Servono almeno più esercizi di free cash flow e spese di investimento per verificare se il flusso del singolo anno è rappresentativo.'] : []),
       ],
     };
   }
@@ -323,7 +343,8 @@ const report = {
     'Espansivo: sconto 8,5%, crescita terminale 3%.',
     'Matrice di sensibilità 3×3 separata: crescita base invariata, tasso di sconto 8,5/9,5/10,5% e crescita terminale 1,5/2,5/3,5%.',
     'La fragilità della valutazione misura la dispersione dei fair value nella matrice e non modifica il DCF score.',
-    'Cassa e debito inclusi nel ponte enterprise-equity.',
+    'Cassa e debito inclusi nel ponte enterprise-equity soltanto se effettivamente dichiarati; mai riempire i dati assenti con zero.',
+    'Se una riconciliazione SEC annuale lascia FCF inferiore al 10% del cash flow operativo, bloccare il DCF basato su quell’unico anno fino a verifica pluriennale.',
     'Azioni diluite inferite da utile netto/EPS.',
     'Blocco automatico quando valuta del bilancio e del prezzo non coincidono.',
     'Nessun DCF tradizionale per società pre-commerciali.',
