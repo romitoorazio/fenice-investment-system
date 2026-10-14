@@ -66,8 +66,19 @@ for(const ticker of ["AMZN","NVDA"]){
   assert.equal(audited.applied,true);
   assert.equal(audited.operatingCashFlow,undefined,"No invented operating cash flow output");
   assert.equal(row.financials.operatingCashFlow,byTicker[ticker].operatingCashFlow);
-  assert.ok(audited.cashInvestment>row.financials.capitalExpenditure,
-    "Correction must not opportunistically increase historical FCF");
+  assert.ok(audited.cashInvestment>=row.financials.capitalExpenditure,
+    "Filed cash investment may stay equal after successful reconciliation; must never inflate FCF");
+  if (row.financials.capitalExpenditure===audited.cashInvestment) {
+    assert.equal(audited.status,"FILING_ALREADY_ALIGNED",
+      "Repeated Foundation runs must be idempotent on corrected statements");
+    assert.equal(row.financials.cashInvestmentAudit?.freeCashFlow,audited.freeCashFlow);
+    assert.equal(row.financials.freeCashFlow,audited.freeCashFlow);
+    assert.ok(row.financials.cashInvestmentAudit.previouslyExtractedCashInvestment<audited.cashInvestment,
+      "Original raw extracted cash investment remains auditable");
+  } else {
+    assert.equal(audited.status,"FILED_CASH_INVESTMENT_RECONCILED",
+      "First run must correct an understated cash investment");
+  }
   assert.equal(byTicker[ticker].operatingCashFlow-audited.cashInvestment,audited.freeCashFlow);
 }
 const runner=await readFile(new URL("./run-fundamental-engine.mjs",import.meta.url),"utf8");
