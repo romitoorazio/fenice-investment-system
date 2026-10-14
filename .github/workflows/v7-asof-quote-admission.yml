@@ -1,0 +1,30 @@
+name: Fenice V7 As-of Quote Admission
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/run-decision-outcomes.mjs"
+      - "lib/intelligence/v7-asof-quote-admission.mjs"
+      - "scripts/test-v7-asof-quote-admission.mjs"
+      - ".github/workflows/v7-asof-quote-admission.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-decision-outcomes.mjs"
+      - "lib/intelligence/v7-asof-quote-admission.mjs"
+      - "scripts/test-v7-asof-quote-admission.mjs"
+permissions:
+  contents: read
+jobs:
+  no-lookahead:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Reject stale future mismatched or unauthorised price evidence
+        run: node scripts/test-v7-asof-quote-admission.mjs
+      - name: Existing V7 outcomes regression
+        run: node scripts/test-decision-outcomes.mjs
