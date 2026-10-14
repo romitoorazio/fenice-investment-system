@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - "lib/brokers/multi-broker-readiness.ts"
+      - "lib/brokers/etoro-demo-readonly.ts"
       - "app/api/brokers/status/route.ts"
       - "app/brokers/page.tsx"
       - "scripts/test-multi-broker-readiness.mjs"
+      - "scripts/test-etoro-demo-readonly.mjs"
       - ".github/workflows/multi-broker-readiness.yml"
       - "app/page.tsx"
   push:
@@ -32,4 +34,6 @@ jobs:
         with:
           node-version: "22"
       - name: Verify multi-broker reports stay disconnected and fail closed
-        run: node --experimental-strip-types scripts/test-multi-broker-readiness.mjs
+        run: |
+          node --experimental-strip-types scripts/test-multi-broker-readiness.mjs
+          node --experimental-strip-types scripts/test-etoro-demo-readonly.mjs
