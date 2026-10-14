@@ -237,21 +237,26 @@ jobs:
           echo "Production alias did not move to expected deployment $EXPECTED."
           exit 1
 
-      - name: Verify public Fenice UI is the new broker-aware build
+      - name: Verify current broker read-only production endpoint
         if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          HTML="$(curl --fail --silent --show-error --location "https://${VERCEL_PRODUCTION_ALIAS}/")"
+          STATUS="$(curl --fail --silent --show-error --location \
+            "https://${VERCEL_PRODUCTION_ALIAS}/api/brokers/status")"
 
-          if ! grep -Fq "Broker scelto: Directa SIM" <<< "$HTML"; then
-            echo "New Directa broker state was not found in production HTML."
+          if ! printf '%s' "$STATUS" | jq -e '
+            .version == 1
+            and .purpose == "RESEARCH_ONLY"
+            and .brokerOrderSubmissionEnabled == false
+            and .liveTradingReleased == false
+            and .accountTotalsAvailable == false
+            and .verifiedBrokerConnections == 0
+            and ([.brokers[]?.id] | index("directa") != null)
+            and ([.brokers[]?.id] | index("etoro") != null)
+          ' > /dev/null; then
+            echo "Broker status did not match the current read-only Fenice safety contract."
             exit 1
           fi
 
-          if grep -Fq "Scegliere banca o broker" <<< "$HTML"; then
-            echo "Old broker-selection UI is still present after deployment."
-            exit 1
-          fi
-
-          echo "Production UI verified: Directa SIM selected; obsolete broker-selection text absent."
+          echo "Production broker endpoint verified: Directa + eToro research-only; LIVE locked."
