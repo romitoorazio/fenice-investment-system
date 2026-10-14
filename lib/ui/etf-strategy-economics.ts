@@ -62,8 +62,8 @@ const admissible = (row: StrategyObservation): boolean =>
   typeof row.id === "string" &&
   bounded(row.annualizedReturnPercent, -100, 10000) &&
   bounded(row.maxDrawdownPercent, -100, 0) &&
-  Number.isSafeInteger(row.observations) && (row.observations ?? 0) >= 100 &&
-  Number.isSafeInteger(row.trades) && (row.trades ?? -1) >= 0 &&
+  Number.isSafeInteger(row.observations ?? NaN) && (row.observations ?? 0) >= 100 &&
+  Number.isSafeInteger(row.trades ?? NaN) && (row.trades ?? -1) >= 0 &&
   bounded(row.transactionCostPercent, 0, 20) &&
   (row.exposurePercent === undefined || bounded(row.exposurePercent, 0, 100));
 
