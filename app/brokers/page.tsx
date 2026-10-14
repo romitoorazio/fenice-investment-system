@@ -33,7 +33,7 @@ export default function BrokersPage() {
               <p className="mt-5 text-sm text-slate-300">
                 {broker.mode === "LOCAL_READ_ONLY"
                   ? "Ponte locale in sola lettura: disponibilità nel codice, connessione al PC da verificare."
-                  : "Integrazione demo in sola lettura da costruire; nessuna chiave o sessione eToro collegata."}
+                  : "Adattatore demo in sola lettura predisposto nel codice; nessuna chiave o sessione eToro collegata."}
               </p>
               <p className="mt-4 text-sm leading-6 text-slate-400">{broker.nextStep}</p>
               <div className="mt-5 rounded-xl border border-white/10 p-3 text-xs text-slate-300">
