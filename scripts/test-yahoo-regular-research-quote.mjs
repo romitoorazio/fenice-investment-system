@@ -57,5 +57,10 @@ assert.match(committee,/priceEvidence: asset\.technical\?\.researchQuote/);
 assert.match(committee,/NO_VERIFIED_REGULAR_TRADE/);
 assert.match(shadow,/quote\?\.evidenceType !== "YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY"/);
 assert.match(shadow,/Math\.abs\(current - observed\)/);
-assert.match(yaml,/Fenice World Terminal/);
+// Yahoo research quote guards still run on the Terminal, but the 7d/30d
+// shadow scorecard now runs after the daily Horizon Split (or fallback cron).
+// Re-running it every intraday Terminal refresh caused deployment cascades.
+assert.match(yaml,/Fenice V7 Horizon Split/);
+assert.match(yaml,/cron: "22 23 \\* \\* 1-5"/);
+assert.doesNotMatch(yaml,/      - Fenice World Terminal/);
 console.log("FENICE100K Yahoo regular-market quote provenance, V7 isolation and terminal hook: PASS");
