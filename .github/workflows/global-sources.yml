@@ -42,6 +42,8 @@ jobs:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+          FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
         run: npm run sources:check
 
       - name: Enforce production source health gate
@@ -78,6 +80,8 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+          FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -87,6 +91,8 @@ jobs:
             process.env.FRED_API_KEY,
             process.env.COINGECKO_API_KEY,
             process.env.EIA_API_KEY,
+            process.env.FINRA_CLIENT_ID,
+            process.env.FINRA_CLIENT_SECRET,
           ].filter(Boolean);
           const sensitiveKeys = new Set(['api_key', 'apikey', 'key', 'token', 'access_token']);
           const files = ['data/global-source-health.json'];
