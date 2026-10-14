@@ -15,7 +15,7 @@ assert.ok(workflow.includes("Skip duplicate production deployment for an already
 assert.ok(workflow.includes('select(.state == "READY" and .meta.githubCommitSha == $sha)'));
 assert.ok(workflow.includes('steps.duplicate.outputs.deploy == \'true\''), "Skip duplicates downstream");
 assert.ok(workflow.includes('Missing GitHub Actions secret VERCEL_TOKEN'), "Fail closed if missing token");
-assert.ok(workflow.includes("Unexpected Vercel project"), "Strict target identity expected");
+assert.ok(workflow.includes("unexpected Vercel project"), "Strict target identity expected");
 assert.ok(workflow.includes('Deployment entered terminal failure state'), "Runtime build failure remains fatal");
 assert.ok(workflow.includes("Production alias did not move to expected deployment"), "Don't falsely claim production success");
 assert.ok(workflow.includes("VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By"));
