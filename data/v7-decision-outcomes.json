@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-14T17:33:53.485Z",
+  "generatedAt": "2026-10-14T18:03:16.991Z",
   "purpose": "V7 decision outcome scorecard: measure realised consequences of COMPRA/OSSERVA/ATTENDI/EVITA without changing V6 execution.",
   "methodology": {
     "checkpoints": [
@@ -13,22 +13,24 @@
     "avoidRule": "EVITA is favorable when forward return is non-positive.",
     "waitRule": "OSSERVA/ATTENDI are not forced into a binary verdict; missed upside and avoided loss are measured with a 1% neutral band.",
     "deDuplication": "maximum one observation per symbol, decision and UTC day",
-    "historicalBootstrap": "latest persisted committee snapshot per UTC weekday",
+    "historicalBootstrap": "new historical bootstrap admits only committee snapshots with verified as-of research quote provenance; retroactive data never certify profits",
     "feedsV6CalibrationPolicy": false
   },
   "bootstrap": {
     "applied": false,
     "sourceSnapshotCount": 0,
-    "seededRecords": 0
+    "seededRecords": 0,
+    "verifiedHistoricalSnapshots": 0,
+    "historicalSourceEvidenceChecked": false
   },
   "quoteAdmission": {
     "state": "RESEARCH_ONLY",
-    "snapshotAsOf": "2026-10-14T16:49:58.700Z",
+    "snapshotAsOf": "2026-10-14T17:40:06.418Z",
     "checkedCandidates": 19,
-    "acceptedCandidates": 15,
-    "rejectedCandidates": 4,
+    "acceptedCandidates": 14,
+    "rejectedCandidates": 5,
     "reasonCounts": {
-      "PRICE_MISSING_OR_MISMATCH": 4
+      "PRICE_MISSING_OR_MISMATCH": 5
     },
     "maxCommitteeAgeHours": 24,
     "maxQuoteAgeHours": 4,
@@ -43,20 +45,19 @@
     "liveTradingAllowed": false
   },
   "current": {
-    "committeeGeneratedAt": "2026-10-14T16:49:58.700Z",
+    "committeeGeneratedAt": "2026-10-14T17:40:06.418Z",
     "marketRegime": "ATTENDERE",
-    "trackedDecisions": 15,
+    "trackedDecisions": 14,
     "counts": {
-      "OSSERVA": 2,
-      "ATTENDI": 10,
+      "ATTENDI": 11,
       "EVITA": 3
     }
   },
-  "ledgerRecordCount": 648,
+  "ledgerRecordCount": 649,
   "horizons": {
     "1d": {
       "checkpoint": "1d",
-      "sampleSize": 592,
+      "sampleSize": 593,
       "decisions": {
         "COMPRA": {
           "sampleSize": 0,
@@ -73,7 +74,7 @@
           "avoidedLossPercent": 53.59
         },
         "ATTENDI": {
-          "sampleSize": 307,
+          "sampleSize": 308,
           "averageReturnPercent": 0.1,
           "favorableRatePercent": null,
           "missedUpsidePercent": 165.72,
@@ -88,7 +89,7 @@
         }
       },
       "restraintTradeoff": {
-        "sampleSize": 429,
+        "sampleSize": 430,
         "missedUpsidePercent": 237.1,
         "avoidedLossPercent": 199.48,
         "netProtectionMinusMissedPercent": -37.62,
@@ -100,7 +101,7 @@
     },
     "7d": {
       "checkpoint": "7d",
-      "sampleSize": 502,
+      "sampleSize": 503,
       "decisions": {
         "COMPRA": {
           "sampleSize": 0,
@@ -117,10 +118,10 @@
           "avoidedLossPercent": 137.08
         },
         "ATTENDI": {
-          "sampleSize": 262,
+          "sampleSize": 263,
           "averageReturnPercent": 0.55,
           "favorableRatePercent": null,
-          "missedUpsidePercent": 378.51,
+          "missedUpsidePercent": 379.93,
           "avoidedLossPercent": 230.91
         },
         "EVITA": {
@@ -132,10 +133,10 @@
         }
       },
       "restraintTradeoff": {
-        "sampleSize": 363,
-        "missedUpsidePercent": 548.48,
+        "sampleSize": 364,
+        "missedUpsidePercent": 549.9,
         "avoidedLossPercent": 367.99,
-        "netProtectionMinusMissedPercent": -180.49,
+        "netProtectionMinusMissedPercent": -181.91,
         "missedUpsidePerDecisionPercent": 1.51,
         "avoidedLossPerDecisionPercent": 1.01,
         "netProtectionMinusMissedPerDecisionPercent": -0.5,
@@ -255,33 +256,33 @@
     "horizons": {
       "1d": {
         "horizon": "1d",
-        "pairedSamples": 559,
+        "pairedSamples": 560,
         "uniqueDays": 33,
         "historicalBackfillSamples": 477,
-        "forwardObservedSamples": 82,
+        "forwardObservedSamples": 83,
         "buySignalSamples": 0,
-        "waitOrAvoidSamples": 559,
+        "waitOrAvoidSamples": 560,
         "hypotheticalMeanReturnAfterCostPercent": -0.26,
         "benchmarkMeanGrossReturnPercent": 0.01,
         "hypotheticalMeanExcessVsBenchmarkPercent": -0.27,
-        "hypotheticalPositiveNetRatePercent": 40.61,
-        "hypotheticalBeatBenchmarkRatePercent": 38.1,
+        "hypotheticalPositiveNetRatePercent": 40.54,
+        "hypotheticalBeatBenchmarkRatePercent": 38.04,
         "verifiedNetProfit": false,
         "verifiedLiveReturnPercent": null
       },
       "7d": {
         "horizon": "7d",
-        "pairedSamples": 474,
+        "pairedSamples": 475,
         "uniqueDays": 28,
-        "historicalBackfillSamples": 474,
+        "historicalBackfillSamples": 475,
         "forwardObservedSamples": 0,
         "buySignalSamples": 0,
-        "waitOrAvoidSamples": 474,
+        "waitOrAvoidSamples": 475,
         "hypotheticalMeanReturnAfterCostPercent": 0.17,
-        "benchmarkMeanGrossReturnPercent": 0.09,
-        "hypotheticalMeanExcessVsBenchmarkPercent": 0.08,
-        "hypotheticalPositiveNetRatePercent": 47.47,
-        "hypotheticalBeatBenchmarkRatePercent": 44.73,
+        "benchmarkMeanGrossReturnPercent": 0.08,
+        "hypotheticalMeanExcessVsBenchmarkPercent": 0.09,
+        "hypotheticalPositiveNetRatePercent": 47.58,
+        "hypotheticalBeatBenchmarkRatePercent": 44.84,
         "verifiedNetProfit": false,
         "verifiedLiveReturnPercent": null
       },
