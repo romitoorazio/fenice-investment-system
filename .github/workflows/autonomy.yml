@@ -10,7 +10,9 @@ on:
         type: choice
         options: [full, daily, intraday]
   schedule:
-    - cron: "17 * * * *"
+    # Eight intraday research cycles, plus the independent daily full refresh below.
+    # Research snapshots do not need to commit hourly on the Vercel Hobby quota.
+    - cron: "17 */3 * * *"
     - cron: "37 5 * * *"
   push:
     branches: [main]

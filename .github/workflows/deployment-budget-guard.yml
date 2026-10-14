@@ -1,0 +1,37 @@
+name: Fenice Deployment Budget Guard
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/autonomy.yml"
+      - ".github/workflows/engineering-validation-evidence.yml"
+      - "lib/ui/engineering-evidence-publish-policy.mjs"
+      - "scripts/decide-engineering-evidence-publication.mjs"
+      - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/test-engineering-evidence-publish-policy.mjs"
+      - ".github/workflows/deployment-budget-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/autonomy.yml"
+      - ".github/workflows/engineering-validation-evidence.yml"
+      - "lib/ui/engineering-evidence-publish-policy.mjs"
+      - "scripts/decide-engineering-evidence-publication.mjs"
+      - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/test-engineering-evidence-publish-policy.mjs"
+      - ".github/workflows/deployment-budget-guard.yml"
+permissions:
+  contents: read
+jobs:
+  budget-and-paper-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify schedule and frozen PAPER contracts
+        run: node scripts/test-deployment-budget-policy.mjs
+      - name: Verify conservative engineering publication policy
+        run: node scripts/test-engineering-evidence-publish-policy.mjs
