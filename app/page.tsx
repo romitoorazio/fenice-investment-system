@@ -29,6 +29,7 @@ export default function Home() {
         <Link href="/dossier" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-emerald-300 transition hover:bg-white/5">Dossier</Link>
         <Link href="/memos" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-indigo-300 transition hover:bg-white/5">Memo IC</Link>
         <Link href="/portfolio" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-slate-300 transition hover:bg-white/5">Portafoglio</Link>
+        <Link href="/brokers" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-cyan-200 transition hover:bg-white/5">Broker</Link>
         <Link href="/performance" className="shrink-0 rounded-xl px-3 py-3 text-xs font-black text-amber-200 transition hover:bg-white/5">Risultati</Link>
         <Link href="/discovery" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-violet-300 transition hover:bg-white/5">Scoperte</Link>
         <Link href="/data-hub" className="shrink-0 rounded-xl px-3 py-3 text-xs font-bold text-cyan-300 transition hover:bg-white/5">Dati</Link>
