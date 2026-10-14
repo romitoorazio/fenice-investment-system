@@ -1,0 +1,31 @@
+name: Fenice Shadow Scheduling Budget
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-horizon-shadow-evaluation.yml"
+      - "scripts/test-shadow-run-schedule-budget.mjs"
+      - ".github/workflows/shadow-scheduling-budget.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-horizon-shadow-evaluation.yml"
+      - "scripts/test-shadow-run-schedule-budget.mjs"
+      - ".github/workflows/shadow-scheduling-budget.yml"
+permissions:
+  contents: read
+jobs:
+  daily-trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Validate non-duplicative research and frozen PAPER triggers
+        run: node scripts/test-shadow-run-schedule-budget.mjs
+      - name: Preserve forward-only shadow evaluation regression
+        run: node scripts/test-horizon-shadow-evaluation.mjs
+      - name: Preserve matched SPY benchmark regression
+        run: node scripts/test-forward-shadow-benchmark.mjs
