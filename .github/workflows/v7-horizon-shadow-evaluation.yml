@@ -18,9 +18,11 @@ on:
   schedule:
     - cron: "22 23 * * 1-5"
   workflow_run:
+    # Reassess horizon returns after the daily horizon split, NOT after each
+    # intraday Terminal refresh: that duplicate chain exhausted Vercel's
+    # free deployment quota without adding matured 7d/30d evidence.
     workflows:
       - Fenice V7 Horizon Split
-      - Fenice World Terminal
     types:
       - completed
   pull_request:
