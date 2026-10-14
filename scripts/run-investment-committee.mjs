@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
+import { scoreResearchFreshness, positiveResearchReferencePrice } from '../lib/intelligence/committee-input-integrity.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -27,17 +28,6 @@ async function readJson(name, fallback) {
   } catch {
     return fallback;
   }
-}
-
-function freshnessScore(date) {
-  if (!date) return 35;
-  const timestamp = new Date(date).getTime();
-  if (!Number.isFinite(timestamp)) return 30;
-  const hours = Math.max(0, (Date.now() - timestamp) / 3_600_000);
-  if (hours <= 24) return 100;
-  if (hours <= 72) return 85;
-  if (hours <= 168) return 65;
-  return 35;
 }
 
 function valuationScore(asset, dcf) {
@@ -80,11 +70,11 @@ function decisionFor({ score, confidence, risk, valuation, terminalDecision, dcf
 }
 
 function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
-  const price = Number(asset.price);
+  const price = positiveResearchReferencePrice(asset.price);
   const fairValue = Number(dcf?.fairValueBase);
   const fairValueHigh = Number(dcf?.fairValueHigh);
   let maxEntryPrice = null;
-  if (Number.isFinite(price) && decision === 'COMPRA') {
+  if (price !== null && decision === 'COMPRA') {
     if (Number.isFinite(fairValue) && fairValue > price) {
       maxEntryPrice = Math.min(price * 1.01, fairValue * 0.9);
     } else if (!Number.isFinite(fairValue)) {
@@ -111,7 +101,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
   const riskAdjusted = 100 - risk;
   const valuation = valuationScore(asset, dcf);
   const catalyst = catalystFor(asset, discoveries);
-  const fresh = freshnessScore(asset.technical?.observedAt ?? asset.observedAt);
+  const fresh = scoreResearchFreshness(asset.technical?.observedAt ?? asset.observedAt, now.getTime());
   const rawSourceConfidence = Math.round(clamp((asset.confidence ?? dataQuality) * 0.55 + dataQuality * 0.25 + fresh * 0.2));
   const sourceConfidence = applyCalibrationToConfidence(rawSourceConfidence, calibrationPolicy);
   const contradictionPenalty = dcf?.status === 'disponibile' && Number(dcf.upsideBasePercent) < -20 ? Math.min(20, Math.abs(Number(dcf.upsideBasePercent)) * 0.25) : 0;
@@ -127,7 +117,10 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
   ));
   const positionType = positionClass(asset, fundamental);
   const maxWeightPercent = maxWeight(positionType, risk, sourceConfidence);
-  const decision = decisionFor({
+  // The economic thesis may remain research-worthy, but a missing/zero
+  // price cannot establish a valid BUY or a limit order entry plan.
+  const referencePrice = positiveResearchReferencePrice(asset.price);
+  const decision = referencePrice === null ? 'ATTENDI' : decisionFor({
     score: committeeScore,
     confidence: sourceConfidence,
     risk,
@@ -149,6 +142,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     ...(valuationConflict ? [`DCF base indica ${round(dcf.upsideBasePercent, 1)}% rispetto al prezzo corrente: rischio di valutazione elevato.`] : []),
     ...(risk >= 65 ? [`Rischio quantitativo elevato (${risk}/100).`] : []),
     ...(asset.warnings || []).slice(0, 2),
+    ...(referencePrice === null ? ['Prezzo di riferimento mancante o non positivo: vietato presentare COMPRA o un limite di ingresso.'] : []),
   ].filter(Boolean);
 
   const invalidation = [
@@ -164,7 +158,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     assetClass: asset.assetClass,
     sector: fundamental?.sector || asset.sector || asset.assetClass,
     positionType,
-    currentPrice: Number.isFinite(Number(asset.price)) ? Number(asset.price) : null,
+    currentPrice: referencePrice,
     // A daily OHLC bar is NOT a live quote: separate self-reported regular
     // session trade metadata. Keep asset.price unchanged for all Committee,
     // valuation, risk and PAPER frozen logic. V7 research gates stay isolated.
