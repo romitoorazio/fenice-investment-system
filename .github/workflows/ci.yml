@@ -3,11 +3,16 @@ name: Fenice Production CI
 on:
   workflow_dispatch:
   schedule:
-    - cron: "47 * * * *"
+    # Four independent safety checks per day; PR and code pushes remain checked.
+    - cron: "47 5,11,17,23 * * *"
   push:
     branches: [main, feature/professional-core-consolidation]
     paths-ignore:
-      - "data/history/**"
+      # Data-only bots previously triggered a fresh CI and engineering evidence
+      # commit, creating another Vercel deployment for every dataset update.
+      # Data integrity is still checked by the scheduled CI and dedicated PAPER
+      # workflows; any code + data commit still triggers the full test suite.
+      - "data/**"
       - "**/*.md"
   pull_request:
     branches: [main]
