@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-14T18:03:16.991Z",
+  "generatedAt": "2026-10-14T18:15:10.120Z",
   "purpose": "V7 decision outcome scorecard: measure realised consequences of COMPRA/OSSERVA/ATTENDI/EVITA without changing V6 execution.",
   "methodology": {
     "checkpoints": [
@@ -25,12 +25,12 @@
   },
   "quoteAdmission": {
     "state": "RESEARCH_ONLY",
-    "snapshotAsOf": "2026-10-14T17:40:06.418Z",
+    "snapshotAsOf": "2026-10-14T18:10:27.588Z",
     "checkedCandidates": 19,
-    "acceptedCandidates": 14,
-    "rejectedCandidates": 5,
+    "acceptedCandidates": 17,
+    "rejectedCandidates": 2,
     "reasonCounts": {
-      "PRICE_MISSING_OR_MISMATCH": 5
+      "PRICE_MISSING_OR_MISMATCH": 2
     },
     "maxCommitteeAgeHours": 24,
     "maxQuoteAgeHours": 4,
@@ -45,12 +45,13 @@
     "liveTradingAllowed": false
   },
   "current": {
-    "committeeGeneratedAt": "2026-10-14T17:40:06.418Z",
+    "committeeGeneratedAt": "2026-10-14T18:10:27.588Z",
     "marketRegime": "ATTENDERE",
-    "trackedDecisions": 14,
+    "trackedDecisions": 17,
     "counts": {
+      "OSSERVA": 2,
       "ATTENDI": 11,
-      "EVITA": 3
+      "EVITA": 4
     }
   },
   "ledgerRecordCount": 649,
@@ -233,14 +234,14 @@
     }
   },
   "researchEdge": {
-    "version": 1,
-    "label": "Research-only benchmark edge / hypothetical USD price returns",
+    "version": 2,
+    "label": "Research-only benchmark edge / hypothetical USD price returns; BUY-only evidence separated",
     "benchmark": "SPY",
     "currency": "USD",
     "assumedRoundTripCostPercent": 0.3,
     "costAssumption": "Illustrative single round-trip cost; not actual Directa commission, spread, slippage, FX, taxes or dividends.",
     "methodology": "Same UTC entry day and checkpoint exit day as a valid SPY price observation; recompute both forward returns from positive prices; deduplicate one observation per ticker/day; historical bootstrap and forward observations separated.",
-    "selectionBiasWarning": "Historical committee snapshots and repeated correlated market days are NOT out-of-sample validation. Hypothetical trades are not executed and cannot establish portfolio profitability.",
+    "selectionBiasWarning": "Historical committee snapshots and repeated correlated market days are NOT out-of-sample validation. ATTENDI/EVITA counterfactuals are NOT BUY alpha; buy-only forward cohorts require both >=30 pairs and >=30 independent entry days before numeric review. Hypothetical trades are not executed and cannot establish portfolio profitability.",
     "scope": "Excludes SPY itself, non-USD assets, missing/stale/badly timed quotes, mismatched end dates and unverified checkpoints. Benchmark SPY is gross; candidate nets a conservative illustrative cost.",
     "isolation": {
       "researchOnly": true,
@@ -268,7 +269,46 @@
         "hypotheticalPositiveNetRatePercent": 40.54,
         "hypotheticalBeatBenchmarkRatePercent": 38.04,
         "verifiedNetProfit": false,
-        "verifiedLiveReturnPercent": null
+        "verifiedLiveReturnPercent": null,
+        "buyOnlyEvidence": {
+          "state": "NO_FORWARD_BUY_SAMPLES",
+          "forward": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "retrospective": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "excludedUnknownOriginBuySamples": 0,
+          "thresholds": {
+            "minimumForwardPairedBuys": 30,
+            "minimumIndependentForwardEntryDays": 30,
+            "benchmarkBeatRateMustExceedPercent": 50,
+            "equalDayMeanExcessMustBePositive": true
+          },
+          "sampleMature": false,
+          "benchmarkOutperformedNumerically": false,
+          "researchOnly": true,
+          "costModel": "Illustrative USD round-trip cost, excludes broker actual fees, FX, tax, corporate actions and dividends",
+          "actualTradingProfitDemonstrated": false,
+          "canAuthorizePaper": false,
+          "canAuthorizeLive": false
+        }
       },
       "7d": {
         "horizon": "7d",
@@ -284,7 +324,46 @@
         "hypotheticalPositiveNetRatePercent": 47.58,
         "hypotheticalBeatBenchmarkRatePercent": 44.84,
         "verifiedNetProfit": false,
-        "verifiedLiveReturnPercent": null
+        "verifiedLiveReturnPercent": null,
+        "buyOnlyEvidence": {
+          "state": "NO_FORWARD_BUY_SAMPLES",
+          "forward": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "retrospective": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "excludedUnknownOriginBuySamples": 0,
+          "thresholds": {
+            "minimumForwardPairedBuys": 30,
+            "minimumIndependentForwardEntryDays": 30,
+            "benchmarkBeatRateMustExceedPercent": 50,
+            "equalDayMeanExcessMustBePositive": true
+          },
+          "sampleMature": false,
+          "benchmarkOutperformedNumerically": false,
+          "researchOnly": true,
+          "costModel": "Illustrative USD round-trip cost, excludes broker actual fees, FX, tax, corporate actions and dividends",
+          "actualTradingProfitDemonstrated": false,
+          "canAuthorizePaper": false,
+          "canAuthorizeLive": false
+        }
       },
       "30d": {
         "horizon": "30d",
@@ -300,7 +379,46 @@
         "hypotheticalPositiveNetRatePercent": 69.01,
         "hypotheticalBeatBenchmarkRatePercent": 66.08,
         "verifiedNetProfit": false,
-        "verifiedLiveReturnPercent": null
+        "verifiedLiveReturnPercent": null,
+        "buyOnlyEvidence": {
+          "state": "NO_FORWARD_BUY_SAMPLES",
+          "forward": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "retrospective": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "excludedUnknownOriginBuySamples": 0,
+          "thresholds": {
+            "minimumForwardPairedBuys": 30,
+            "minimumIndependentForwardEntryDays": 30,
+            "benchmarkBeatRateMustExceedPercent": 50,
+            "equalDayMeanExcessMustBePositive": true
+          },
+          "sampleMature": false,
+          "benchmarkOutperformedNumerically": false,
+          "researchOnly": true,
+          "costModel": "Illustrative USD round-trip cost, excludes broker actual fees, FX, tax, corporate actions and dividends",
+          "actualTradingProfitDemonstrated": false,
+          "canAuthorizePaper": false,
+          "canAuthorizeLive": false
+        }
       },
       "90d": {
         "horizon": "90d",
@@ -316,7 +434,46 @@
         "hypotheticalPositiveNetRatePercent": null,
         "hypotheticalBeatBenchmarkRatePercent": null,
         "verifiedNetProfit": false,
-        "verifiedLiveReturnPercent": null
+        "verifiedLiveReturnPercent": null,
+        "buyOnlyEvidence": {
+          "state": "NO_FORWARD_BUY_SAMPLES",
+          "forward": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "retrospective": {
+            "sampleSize": 0,
+            "independentEntryDays": 0,
+            "hypotheticalMeanReturnAfterCostPercent": null,
+            "hypotheticalMeanExcessVsBenchmarkPercent": null,
+            "equalEntryDayMeanExcessPercent": null,
+            "benchmarkBeatRatePercent": null,
+            "worstObservedHypotheticalNetPercent": null,
+            "strategyDrawdownPercent": null,
+            "verifiedProfit": false
+          },
+          "excludedUnknownOriginBuySamples": 0,
+          "thresholds": {
+            "minimumForwardPairedBuys": 30,
+            "minimumIndependentForwardEntryDays": 30,
+            "benchmarkBeatRateMustExceedPercent": 50,
+            "equalDayMeanExcessMustBePositive": true
+          },
+          "sampleMature": false,
+          "benchmarkOutperformedNumerically": false,
+          "researchOnly": true,
+          "costModel": "Illustrative USD round-trip cost, excludes broker actual fees, FX, tax, corporate actions and dividends",
+          "actualTradingProfitDemonstrated": false,
+          "canAuthorizePaper": false,
+          "canAuthorizeLive": false
+        }
       }
     }
   }
