@@ -4,16 +4,21 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/autonomy.yml"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/paper-validation.yml"
+      - ".github/workflows/engineering-validation-evidence.yml"
+      - "lib/ui/engineering-evidence-publish-policy.mjs"
+      - "scripts/decide-engineering-evidence-publication.mjs"
       - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/test-engineering-evidence-publish-policy.mjs"
       - ".github/workflows/deployment-budget-guard.yml"
   push:
     branches: [main]
     paths:
       - ".github/workflows/autonomy.yml"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/engineering-validation-evidence.yml"
+      - "lib/ui/engineering-evidence-publish-policy.mjs"
+      - "scripts/decide-engineering-evidence-publication.mjs"
       - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/test-engineering-evidence-publish-policy.mjs"
       - ".github/workflows/deployment-budget-guard.yml"
 permissions:
   contents: read
@@ -25,6 +30,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
         with:
-          node-version: "24"
-      - name: Ensure deployment throttling cannot bypass PAPER tests
+          node-version: "22"
+      - name: Verify schedule and frozen PAPER contracts
         run: node scripts/test-deployment-budget-policy.mjs
+      - name: Verify conservative engineering publication policy
+        run: node scripts/test-engineering-evidence-publish-policy.mjs
