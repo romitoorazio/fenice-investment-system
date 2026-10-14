@@ -2,6 +2,7 @@ import Link from "next/link";
 import terminal from "@/data/terminal-intelligence.json";
 import committee from "@/data/investment-committee.json";
 import { decisionGroup, type CommitteeDecision } from "@/lib/ui/committee-decision-display";
+import { buildOpportunityWatchlist, type OpportunityCommitteeRow } from "@/lib/ui/opportunity-watchlist";
 import { explainBuyConstraints, type BuyBarrierRow } from "@/lib/intelligence/buy-blocker-diagnostics.mjs";
 import globalCoverage from "@/data/global-reference-coverage.json";
 import master from "@/data/instrument-master.json";
@@ -55,6 +56,9 @@ export default async function DecisioniPage() {
   const researchCurrent = isCurrent(now, data.generatedAt);
   const assets = [...(data.assets || [])];
   const committeeCurrent = isCurrent(now, committeeReport.generatedAt);
+  const profitResearchPriority = buildOpportunityWatchlist(
+    committeeReport.allDecisions as OpportunityCommitteeRow[], committeeCurrent, 6,
+  );
   const buyBarrierRows = committeeCurrent
     ? (committeeReport.allDecisions || []).slice(0, 6).map(row => ({
         symbol: row.symbol,
@@ -132,6 +136,87 @@ export default async function DecisioniPage() {
           <p className="mt-1 text-xs text-slate-300">
             Le categorie sotto seguono la decisione del comitato, non la scritta ACCUMULA del motore tecnico.
             Nessuna proposta qui autorizza da sola un ordine Directa.
+          </p>
+        </section>
+        <section aria-label="Radar profitto - priorità di studio" className="rounded-2xl border border-lime-400/30 bg-lime-400/[0.04] p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-lime-300">FENICE100K · Ricerca per le opportunità</p>
+              <h2 className="mt-1 text-xl font-black text-white">Quali titoli meritano attenzione adesso?</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Priorità ordinate per numero di condizioni mancanti, punteggio del Comitato e rischio.
+                Le soglie non sono state abbassate. È una lista di studio, non una previsione di profitto,
+                un&apos;indicazione di acquisto o una verifica dei prezzi eseguibili.
+              </p>
+            </div>
+            <Link href="/performance" className="rounded-lg border border-lime-300/30 px-3 py-2 text-xs font-bold text-lime-200">
+              Confronta con il mercato →
+            </Link>
+          </div>
+          {!committeeCurrent ? (
+            <p className="mt-4 rounded-xl border border-amber-400/30 p-3 text-sm text-amber-100">
+              Comitato scaduto: nessuna graduatoria utilizzabile fino al prossimo aggiornamento.
+            </p>
+          ) : profitResearchPriority.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-300">Nessuno strumento sufficientemente documentato per una graduatoria attendibile.</p>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {profitResearchPriority.map((row, index) => (
+                <article key={row.symbol} className="rounded-xl border border-white/10 bg-slate-950/75 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wider text-lime-300">
+                        Studio #{index + 1} · {row.missingConditions.length} condizioni da riesaminare
+                      </p>
+                      <h3 className="mt-1 text-lg font-black text-white">{row.symbol} <span className="text-sm font-medium text-slate-400">{row.name}</span></h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-white">
+                        {row.referencePrice === null ? "N/D" : formatMoney(row.referencePrice, row.currency || undefined)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">Riferimento storico, non live</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-300">
+                    <span>Comitato: <strong className="text-white">{row.decision}</strong></span>
+                    <span>Score: <strong className="text-white">{row.committeeScore}/100</strong></span>
+                    <span>Rischio: <strong className="text-white">{row.riskScore}/100</strong></span>
+                    <span>Tecnico: <strong className="text-white">{row.technicalDecision}</strong></span>
+                  </div>
+                  <p className="mt-3 text-xs font-black text-amber-200">
+                    {row.pointsBelowBuyScore > 0
+                      ? `Mancano ${row.pointsBelowBuyScore} punti al requisito di punteggio (78)`
+                      : "Requisito di punteggio soddisfatto; verificare tutte le altre condizioni"}
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-slate-300">
+                    {row.missingConditions.slice(0, 3).map(gap => (
+                      <li key={gap.code}>{gap.description}</li>
+                    ))}
+                    {row.missingConditions.length > 3 && (
+                      <li>Altre {row.missingConditions.length - 3} condizioni in sospeso: apri l&apos;analisi dettagliata.</li>
+                    )}
+                    {row.missingConditions.length === 0 && (
+                      <li>Tutte le soglie numeriche indicate risultano raggiunte; verifica comunque fonti, prezzi e autorizzazioni.</li>
+                    )}
+                  </ul>
+                  {row.bullCase && <p className="mt-3 text-xs leading-5 text-emerald-200"><strong>Argomento favorevole:</strong> {row.bullCase}</p>}
+                  {row.bearCase && <p className="mt-2 text-xs leading-5 text-rose-200"><strong>Rischio da valutare:</strong> {row.bearCase}</p>}
+                  {row.reviewTrigger && <p className="mt-2 text-xs text-slate-400"><strong>Prossimo controllo:</strong> {row.reviewTrigger}</p>}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold text-amber-200">ORDINI REALI: NON AUTORIZZATI</span>
+                    <Link href={`/analista?symbol=${encodeURIComponent(row.symbol)}`}
+                      className="text-xs font-bold text-lime-200 underline">
+                      Analisi IA di {row.symbol} →
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Nota: la valutazione convenzionale 50/100 di alcuni ETF è riconosciuta come
+            un limite metodologico, non come prova che un ETF sia sottovalutato.
+            Un punteggio alto o un rischio basso non garantiscono rendimenti.
           </p>
         </section>
         <section aria-label="Diagnostica ostacoli al COMPRA" className="rounded-2xl border border-violet-400/25 bg-violet-400/[0.04] p-4">
