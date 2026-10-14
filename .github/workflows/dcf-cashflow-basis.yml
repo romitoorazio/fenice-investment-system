@@ -1,0 +1,31 @@
+name: Fenice DCF Cash Flow Basis
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/dcf-cashflow-basis.mjs"
+      - "scripts/run-dcf-engine.mjs"
+      - "scripts/test-dcf-cashflow-basis.mjs"
+      - ".github/workflows/dcf-cashflow-basis.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/dcf-cashflow-basis.mjs"
+      - "scripts/run-dcf-engine.mjs"
+      - "scripts/test-dcf-cashflow-basis.mjs"
+      - ".github/workflows/dcf-cashflow-basis.yml"
+permissions:
+  contents: read
+jobs:
+  economic-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Strictly distinguish filed cash flows from five-year forecast
+        run: node scripts/test-dcf-cashflow-basis.mjs
+      - name: Preserve filed SEC cash investment reconciliation
+        run: node scripts/test-sec-filed-cash-investment.mjs
