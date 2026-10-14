@@ -1,0 +1,46 @@
+name: Fenice Free Reference Research
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "19 7 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-free-reference-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check free reference mapping and execution isolation
+        run: node scripts/test-free-reference-sources.mjs
+
+  bounded-public-probes:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check bounded public reference APIs (no broker or paid data)
+        run: node scripts/check-free-reference-sources.mjs --write
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fenice-free-reference-health
+          path: data/free-reference-source-status.json
+          retention-days: 7
