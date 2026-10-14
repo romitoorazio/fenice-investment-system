@@ -6,6 +6,10 @@ on:
     paths:
       - ".ops/vercel-deploy-request.json"
   workflow_dispatch:
+  schedule:
+    # One controlled deployment opportunity per day, not per data-bot commit.
+    # This schedule never renews the PAPER approval or unlocks LIVE.
+    - cron: "41 22 * * *"
 
 permissions:
   contents: read
@@ -36,6 +40,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            if [[ "$GITHUB_REF_NAME" != "main" ]]; then
+              echo "Scheduled release must run only from main."
+              exit 1
+            fi
+            echo "execute=true" >> "$GITHUB_OUTPUT"
+            echo "Controlled daily production refresh for exact main SHA: $GITHUB_SHA"
+            exit 0
+          fi
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "execute=false" >> "$GITHUB_OUTPUT"
@@ -71,8 +85,26 @@ jobs:
             exit 1
           fi
 
-      - name: Create exact Fenice production deployment through Vercel API
+      - name: Skip duplicate production deployment for an already READY commit
         if: steps.request.outputs.execute == 'true'
+        id: duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error \\
+            -H "Authorization: Bearer $VERCEL_TOKEN" \\
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&target=production&limit=30")"
+          FOUND="$(printf '%s' "$RESPONSE" | jq --arg sha "$GITHUB_SHA" \\
+            '[.deployments[]? | select(.state == "READY" and .meta.githubCommitSha == $sha)] | length')"
+          if [[ "$FOUND" -gt 0 ]]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "This exact main SHA already has a READY production deployment; skip duplicate."
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create exact Fenice production deployment through Vercel API
+        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
         id: deploy
         shell: bash
         run: |
@@ -86,19 +118,19 @@ jobs:
               name: $name,
               project: $project,
               target: "production",
-              withLatestCommit: true,
               gitSource: {
                 type: "github",
                 org: "romitoorazio",
                 repo: "fenice-investment-system",
-                ref: "main"
+                ref: "main",
+                sha: $sha
               },
               gitMetadata: {
                 remoteUrl: "https://github.com/romitoorazio/fenice-investment-system",
                 commitRef: "main",
                 commitSha: $sha,
-                dirty: "false",
-                ci: "true",
+                dirty: false,
+                ci: true,
                 ciType: "github-actions"
               },
               meta: {
@@ -148,7 +180,7 @@ jobs:
           rm -f "$RESPONSE_FILE"
 
       - name: Wait for Fenice deployment to become READY
-        if: steps.request.outputs.execute == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -179,7 +211,7 @@ jobs:
           exit 1
 
       - name: Verify production alias points to the new Fenice deployment
-        if: steps.request.outputs.execute == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -206,7 +238,7 @@ jobs:
           exit 1
 
       - name: Verify public Fenice UI is the new broker-aware build
-        if: steps.request.outputs.execute == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
