@@ -1,0 +1,31 @@
+name: Fenice Committee Input Integrity
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/run-investment-committee.mjs"
+      - "lib/intelligence/committee-input-integrity.mjs"
+      - "scripts/test-committee-input-integrity.mjs"
+      - ".github/workflows/committee-input-integrity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run-investment-committee.mjs"
+      - "lib/intelligence/committee-input-integrity.mjs"
+      - "scripts/test-committee-input-integrity.mjs"
+      - ".github/workflows/committee-input-integrity.yml"
+permissions:
+  contents: read
+jobs:
+  asof-reference-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test timestamp and entry price integrity
+        run: node scripts/test-committee-input-integrity.mjs
+      - name: Preserve BUY diagnostics and no-orders
+        run: node scripts/test-buy-blocker-diagnostics.mjs
