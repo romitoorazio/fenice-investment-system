@@ -1,0 +1,30 @@
+name: Fenice Deployment Budget Guard
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/autonomy.yml"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/paper-validation.yml"
+      - "scripts/test-deployment-budget-policy.mjs"
+      - ".github/workflows/deployment-budget-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/autonomy.yml"
+      - ".github/workflows/ci.yml"
+      - "scripts/test-deployment-budget-policy.mjs"
+      - ".github/workflows/deployment-budget-guard.yml"
+permissions:
+  contents: read
+jobs:
+  budget-and-paper-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Ensure deployment throttling cannot bypass PAPER tests
+        run: node scripts/test-deployment-budget-policy.mjs
