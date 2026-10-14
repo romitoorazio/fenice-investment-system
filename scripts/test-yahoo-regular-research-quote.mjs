@@ -61,6 +61,6 @@ assert.match(shadow,/Math\.abs\(current - observed\)/);
 // shadow scorecard now runs after the daily Horizon Split (or fallback cron).
 // Re-running it every intraday Terminal refresh caused deployment cascades.
 assert.match(yaml,/Fenice V7 Horizon Split/);
-assert.match(yaml,/cron: "22 23 \\* \\* 1-5"/);
+assert.ok(yaml.includes('cron: "22 23 * * 1-5"'), "Keep daily shadow fallback");
 assert.doesNotMatch(yaml,/      - Fenice World Terminal/);
 console.log("FENICE100K Yahoo regular-market quote provenance, V7 isolation and terminal hook: PASS");
