@@ -1,0 +1,39 @@
+name: Fenice Multi-Broker Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/brokers/multi-broker-readiness.ts"
+      - "lib/brokers/etoro-demo-readonly.ts"
+      - "app/api/brokers/status/route.ts"
+      - "app/brokers/page.tsx"
+      - "scripts/test-multi-broker-readiness.mjs"
+      - "scripts/test-etoro-demo-readonly.mjs"
+      - ".github/workflows/multi-broker-readiness.yml"
+      - "app/page.tsx"
+  push:
+    branches: [main]
+    paths:
+      - "lib/brokers/multi-broker-readiness.ts"
+      - "app/api/brokers/status/route.ts"
+      - "app/brokers/page.tsx"
+      - "scripts/test-multi-broker-readiness.mjs"
+      - ".github/workflows/multi-broker-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify multi-broker reports stay disconnected and fail closed
+        run: |
+          node --experimental-strip-types scripts/test-multi-broker-readiness.mjs
+          node --experimental-strip-types scripts/test-etoro-demo-readonly.mjs
