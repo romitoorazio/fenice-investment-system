@@ -1,0 +1,27 @@
+name: Fenice Controlled Release Guard
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/vercel-deploy.yml"
+      - "scripts/test-vercel-exact-release-policy.mjs"
+      - ".github/workflows/controlled-release-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/vercel-deploy.yml"
+      - "scripts/test-vercel-exact-release-policy.mjs"
+      - ".github/workflows/controlled-release-guard.yml"
+permissions:
+  contents: read
+jobs:
+  exact-sha-and-paper-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify Vercel exact SHA, bounded release and PAPER isolation
+        run: node scripts/test-vercel-exact-release-policy.mjs

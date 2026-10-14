@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const workflow = await readFile(new URL("../.github/workflows/vercel-deploy.yml",import.meta.url),"utf8");
+const yaml = workflow.split("\npermissions:")[0];
+assert.ok(yaml.includes('cron: "41 22 * * *"'), "Only one daily controlled opportunity");
+assert.ok(yaml.includes('".ops/vercel-deploy-request.json"'), "Keep explicitly guarded operator request");
+assert.ok(yaml.includes("workflow_dispatch:"), "Preserve safe manual dry-run");
+assert.ok(workflow.includes('Manual dispatch is dry-run only'), "No unguarded manual production deploy");
+assert.ok(workflow.includes('if [[ "$GITHUB_REF_NAME" != "main" ]]'), "Reject wrong branch");
+assert.ok(workflow.includes('ref: "main",\n                sha: $sha'), "Require exact Git commit SHA in gitSource");
+assert.ok(workflow.includes('commitSha: $sha'), "Metadata must correspond to source SHA");
+assert.ok(!workflow.includes("withLatestCommit:"), "Never override exact Git SHA with latest");
+assert.ok(workflow.includes("Skip duplicate production deployment for an already READY commit"));
+assert.ok(workflow.includes('select(.state == "READY" and .meta.githubCommitSha == $sha)'));
+assert.ok(workflow.includes('steps.duplicate.outputs.deploy == \'true\''), "Skip duplicates downstream");
+assert.ok(workflow.includes('Missing GitHub Actions secret VERCEL_TOKEN'), "Fail closed if missing token");
+assert.ok(workflow.includes("unexpected Vercel project"), "Strict target identity expected");
+assert.ok(workflow.includes('Deployment entered terminal failure state'), "Runtime build failure remains fatal");
+assert.ok(workflow.includes("Production alias did not move to expected deployment"), "Don't falsely claim production success");
+assert.ok(workflow.includes("VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By"));
+assert.ok(workflow.includes("VERCEL_TEAM_ID: team_qi2mFTw4tEjq6x5zWqDyjNDP"));
+assert.ok(workflow.includes("VERCEL_PRODUCTION_ALIAS: fenice-investment-system.vercel.app"));
+assert.ok(workflow.includes("/api/brokers/status"),"Smoke test must exercise current broker endpoint");
+assert.ok(workflow.includes('.purpose == "RESEARCH_ONLY"'));
+assert.ok(workflow.includes(".brokerOrderSubmissionEnabled == false"));
+assert.ok(workflow.includes(".liveTradingReleased == false"));
+assert.ok(!workflow.includes("Broker scelto: Directa SIM"),"Obsolete homepage copy may not block a successful deployment");
+// Scheduling/launch may not change frozen CI or PAPER policy.
+const paper = JSON.parse(await readFile(new URL("../data/paper-validation-campaign.json",import.meta.url),"utf8"));
+assert.equal(paper.liveTradingAllowed,false);
+assert.equal(paper.baselineFingerprint.complete,true);
+assert.equal(paper.baselineFingerprint.files.includes(".github/workflows/vercel-deploy.yml"),false);
+assert.ok(workflow.includes("execute=false"),"Dryrun control retained");
+console.log("Fenice exact-SHA daily production deployment contract: PASS");
