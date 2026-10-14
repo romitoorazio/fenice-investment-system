@@ -27,7 +27,7 @@ assert.equal(directa.mode, "LOCAL_READ_ONLY");
 assert.equal(directa.readOnlyAdapterPrepared, true);
 assert.equal(directa.status, "PREPARED_UNVERIFIED");
 assert.equal(etoro.mode, "DEMO_READ_ONLY_PLANNED");
-assert.equal(etoro.readOnlyAdapterPrepared, false);
+assert.equal(etoro.readOnlyAdapterPrepared, true);
 assert.equal(etoro.status, "NOT_CONNECTED");
 
 const serialized = JSON.stringify(report).toLowerCase();
