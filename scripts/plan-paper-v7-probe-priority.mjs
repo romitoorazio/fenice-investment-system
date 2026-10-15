@@ -31,7 +31,11 @@ export function planPaperV7ProbePriority({ diagnostic, feasibility }) {
       symbol,
       classification,
       quorumCompatible: provider?.quorumCompatible === true,
-      crossSourceSpreadPercent: Number.isFinite(Number(provider?.crossSourceSpreadPercent)) ? Number(provider.crossSourceSpreadPercent) : null,
+      crossSourceSpreadPercent: provider?.crossSourceSpreadPercent != null
+        && provider.crossSourceSpreadPercent !== ""
+        && Number.isFinite(Number(provider.crossSourceSpreadPercent))
+        && Number(provider.crossSourceSpreadPercent) >= 0
+        ? Number(provider.crossSourceSpreadPercent) : null,
       failedGates,
       structuralFailedGates: failedGates.filter((gate) => gate !== "execution-coverage"),
       metrics: {

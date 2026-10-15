@@ -6,6 +6,7 @@ import {
   normalizeExecutionSymbol,
 } from "../lib/trading/execution-market-data.ts";
 import { DEFAULT_MARKET_DATA_QUORUM_LIMITS } from "../lib/trading/market-data-quorum.ts";
+import { diagnosticQuoteAgeSeconds, diagnosticQuoteFresh, chooseAlpacaIexDiagnosticPrice } from "../lib/intelligence/paper-provider-probe-truth.mjs";
 import { parseTwelveDataQuoteTime, unwrapTwelveDataBatchQuote } from "../lib/trading/twelve-data-batch.mjs";
 
 const targetSymbols = String(process.env.FENICE_FEASIBILITY_SYMBOLS || "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN")
@@ -20,8 +21,8 @@ const maxAgeSeconds = DEFAULT_MARKET_DATA_QUORUM_LIMITS.maxQuoteAgeSeconds;
 const maxSpreadPercent = DEFAULT_MARKET_DATA_QUORUM_LIMITS.maxSpreadPercent;
 
 function quoteAgeSeconds(observedAt) {
-  const observedMs = Date.parse(String(observedAt || ""));
-  return Number.isFinite(observedMs) ? Math.max(0, (Date.now() - observedMs) / 1000) : Number.POSITIVE_INFINITY;
+  const age=diagnosticQuoteAgeSeconds(observedAt,Date.now());
+  return age===null?Number.POSITIVE_INFINITY:age;
 }
 
 function roundedAge(observedAt) {
@@ -64,22 +65,20 @@ async function probeAlpaca(symbol) {
       { "APCA-API-KEY-ID": alpacaKey, "APCA-API-SECRET-KEY": alpacaSecret },
     );
     const quote = payload?.quote || {};
-    const bid = Number(quote.bp);
-    const ask = Number(quote.ap);
-    const observedAt = String(quote.t || "").trim();
-    const valid = Number.isFinite(bid) && bid > 0
-      && Number.isFinite(ask) && ask >= bid
-      && Number.isFinite(Date.parse(observedAt));
-    return {
-      configured: true,
-      ok: valid,
-      freshVerifiedQuote: valid && quoteAgeSeconds(observedAt) <= maxAgeSeconds,
-      observedAt: valid ? new Date(Date.parse(observedAt)).toISOString() : null,
-      ageSeconds: valid ? roundedAge(observedAt) : null,
-      midpoint: valid ? Number(((bid + ask) / 2).toFixed(6)) : null,
-      provenance: "authenticated-alpaca-iex-latest-quote",
-      reason: valid ? null : "invalid-latest-quote",
-    };
+    const initial=chooseAlpacaIexDiagnosticPrice({quote,now:Date.now(),maxAgeSeconds});
+    if(initial.freshVerifiedQuote)return {configured:true,...initial};
+    // Read-only extra probe only when IEX quote is unusable. Active V6 untouched.
+    try{
+      const data=await requestJson(
+        `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/trades/latest?feed=iex`,
+        {"APCA-API-KEY-ID":alpacaKey,"APCA-API-SECRET-KEY":alpacaSecret},
+      );
+      return {configured:true,...chooseAlpacaIexDiagnosticPrice({
+        quote,trade:data?.trade,now:Date.now(),maxAgeSeconds,
+      })};
+    }catch{
+      return {configured:true,...initial,fallbackRequestFailed:true};
+    }
   } catch (error) {
     return { configured: true, ok: false, freshVerifiedQuote: false, reason: String(error?.message || "alpaca-fetch-failed") };
   }
@@ -115,7 +114,7 @@ async function probeTwelveBatch(instruments) {
         ok: valid,
         freshVerifiedQuote: valid
           && quoteTime.paperTimestampVerified === true
-          && quoteAgeSeconds(quoteTime.observedAt) <= maxAgeSeconds,
+          && diagnosticQuoteFresh(quoteTime.observedAt,Date.now(),maxAgeSeconds),
         observedAt: quoteTime.observedAt || null,
         ageSeconds: quoteTime.observedAt ? roundedAge(quoteTime.observedAt) : null,
         price: Number.isFinite(price) ? price : null,
@@ -141,11 +140,11 @@ function markdown(report) {
     "Read-only diagnostic. No PAPER state, order, broker, campaign evidence or LIVE setting is modified.",
     `Current quorum spread limit: ${report.maxSpreadPercent}%.`,
     "",
-    "| Symbol | Venue | Alpaca fresh | Twelve Data fresh | Spread % | Quorum-compatible |",
-    "| --- | --- | --- | --- | ---: | --- |",
+    "| Symbol | Venue | Alpaca fresh | Alpaca basis | Twelve Data fresh | Spread % | Quorum-compatible |",
+    "| --- | --- | --- | --- | --- | ---: | --- |",
   ];
   for (const row of report.targets) {
-    lines.push(`| ${row.symbol} | ${row.exchangeMic || "unknown"} | ${row.alpaca.freshVerifiedQuote ? "yes" : "no"} | ${row.twelveData.freshVerifiedQuote ? "yes" : "no"} | ${row.crossSourceSpreadPercent ?? "n/a"} | ${row.quorumCompatible ? "yes" : "no"} |`);
+    lines.push(`| ${row.symbol} | ${row.exchangeMic || "unknown"} | ${row.alpaca.freshVerifiedQuote ? "yes" : "no"} | ${row.alpaca.priceBasis || "n/a"} | ${row.twelveData.freshVerifiedQuote ? "yes" : "no"} | ${row.crossSourceSpreadPercent ?? "n/a"} | ${row.quorumCompatible ? "yes" : "no"} |`);
   }
   return `${lines.join("\n")}\n`;
 }
