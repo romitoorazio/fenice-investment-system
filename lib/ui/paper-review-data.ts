@@ -71,9 +71,14 @@ function liveContextReuseKey(instruments: readonly ExecutionInstrument[], creden
       String(item.assetClass || "").toLowerCase(),
       String(item.exchangeMic || "").toUpperCase(),
     ]),
-    Boolean(credentials.alpacaKeyId),
-    Boolean(credentials.alpacaSecretKey),
-    Boolean(credentials.twelveDataApiKey),
+    // A boolean credentials-presence tuple incorrectly shared ten-second
+    // responses across owner/provider credential rotations. Bind the cache
+    // entry to a one-way fingerprint instead; never store raw keys in the key.
+    createHash("sha256").update(JSON.stringify([
+      credentials.alpacaKeyId ?? "",
+      credentials.alpacaSecretKey ?? "",
+      credentials.twelveDataApiKey ?? "",
+    ])).digest("hex"),
   ]);
 }
 

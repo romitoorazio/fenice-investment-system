@@ -187,6 +187,31 @@ try {
   assert.equal(reusedLivePayload.reviewDataSource, "LIVE_READONLY");
   assert.deepEqual(reusedLivePayload.proposals[0].blockers, []);
 
+  // A rotation of one API secret (or ID) must NOT reuse data from the old
+  // credential identity even during the 10s reuse window.
+  const firstOwnerCredentials = {
+    alpacaKeyId: "owner-A", alpacaSecretKey: "paper-secret-A", twelveDataApiKey: "twelve-A",
+  };
+  const rotatedAlpaca = { ...firstOwnerCredentials, alpacaSecretKey: "paper-secret-B" };
+  const rotatedTwelve = { ...rotatedAlpaca, twelveDataApiKey: "twelve-B" };
+  const rotatedId = { ...rotatedTwelve, alpacaKeyId: "owner-B" };
+  for (const identity of [firstOwnerCredentials, rotatedAlpaca, rotatedTwelve, rotatedId]) {
+    const callsBefore = liveLoaderCalls;
+    const rotated = await loadPaperReviewPayload(root, refreshNow + 2000, {
+      refreshLiveContext: true, credentials: identity, liveContextLoader,
+    });
+    assert.equal(liveLoaderCalls, callsBefore + 1,
+      "changed provider credential identity must trigger new read-only evidence lookup");
+    assert.equal(rotated.liveTradingAllowed, false);
+    assert.equal(rotated.brokerOrderSubmissionAllowed, false);
+  }
+  const afterRotation = liveLoaderCalls;
+  await loadPaperReviewPayload(root, refreshNow + 3000, {
+    refreshLiveContext: true, credentials: rotatedId, liveContextLoader,
+  });
+  assert.equal(liveLoaderCalls, afterRotation,
+    "an identical post-rotation credential identity should still share quota-safe refreshes");
+
   const partialPayload = await loadPaperReviewPayload(root, refreshNow, {
     refreshLiveContext: true,
     credentials: {},
