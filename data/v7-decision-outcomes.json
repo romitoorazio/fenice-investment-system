@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-15T18:26:52.719Z",
+  "generatedAt": "2026-10-15T19:05:44.971Z",
   "purpose": "V7 decision outcome scorecard: measure realised consequences of COMPRA/OSSERVA/ATTENDI/EVITA without changing V6 execution.",
   "methodology": {
     "checkpoints": [
@@ -25,7 +25,7 @@
   },
   "quoteAdmission": {
     "state": "RESEARCH_ONLY",
-    "snapshotAsOf": "2026-10-15T18:14:48.945Z",
+    "snapshotAsOf": "2026-10-15T18:56:13.441Z",
     "checkedCandidates": 19,
     "acceptedCandidates": 16,
     "rejectedCandidates": 3,
@@ -45,16 +45,16 @@
     "liveTradingAllowed": false
   },
   "current": {
-    "committeeGeneratedAt": "2026-10-15T18:14:48.945Z",
+    "committeeGeneratedAt": "2026-10-15T18:56:13.441Z",
     "marketRegime": "VALUTARE",
     "trackedDecisions": 16,
     "counts": {
       "OSSERVA": 2,
-      "ATTENDI": 11,
-      "EVITA": 3
+      "ATTENDI": 10,
+      "EVITA": 4
     }
   },
-  "ledgerRecordCount": 665,
+  "ledgerRecordCount": 666,
   "horizons": {
     "1d": {
       "checkpoint": "1d",
@@ -240,9 +240,9 @@
     "currency": "USD",
     "assumedRoundTripCostPercent": 0.3,
     "costAssumption": "Illustrative single round-trip cost; not actual Directa commission, spread, slippage, FX, taxes or dividends.",
-    "methodology": "Same UTC entry day and checkpoint exit day as a valid SPY price observation; recompute both forward returns from positive prices; deduplicate one observation per ticker/day; historical bootstrap and forward observations separated.",
+    "methodology": "Identical committee as-of instant and provenance origin as the SPY benchmark, same UTC checkpoint exit day; recompute both returns from positive prices; deduplicate one observation per ticker/day; historical bootstrap and prospective observations never cross-paired.",
     "selectionBiasWarning": "Historical committee snapshots and repeated correlated market days are NOT out-of-sample validation. ATTENDI/EVITA counterfactuals are NOT BUY alpha; buy-only forward cohorts require both >=30 pairs and >=30 independent entry days before numeric review. Hypothetical trades are not executed and cannot establish portfolio profitability.",
-    "scope": "Excludes SPY itself, non-USD assets, missing/stale/badly timed quotes, mismatched end dates and unverified checkpoints. Benchmark SPY is gross; candidate nets a conservative illustrative cost.",
+    "scope": "Excludes SPY itself, non-USD assets, missing/stale/badly timed quotes, unknown origin, mismatched entry instants/benchmark origins, mismatched end dates and unverified checkpoints. SPY benchmark is gross; candidate nets illustrative costs.",
     "isolation": {
       "researchOnly": true,
       "feedsV6CalibrationPolicy": false,
