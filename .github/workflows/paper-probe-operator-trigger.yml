@@ -17,14 +17,11 @@ on:
     - cron: "25 19 * * 1-5"
   workflow_run:
     workflows:
-      # Successful scheduled main runs provide recovery opportunities even if
-      # GitHub omits dedicated PAPER cron events. All still pass the same
-      # market-window, freshness, quality, cooldown and duplicate gates below.
-      - Fenice Global Sources
+      # Scheduled Foundation completion is the one supported upstream event.
+      # World Terminal normally runs as a workflow_run event, which the
+      # provenance gate rightly rejects. Five independent intraday crons
+      # and manual dispatch remain with the canonical safety checks.
       - Fenice Foundation
-      - Fenice World Terminal
-      - Fenice Autonomous Analysis
-      - Fenice Production CI
     types:
       - completed
   push:
