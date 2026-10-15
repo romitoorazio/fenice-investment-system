@@ -22,6 +22,7 @@ import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import type { InstitutionalEvidence } from "@/lib/trading/institutional-readiness";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
 import { classifyPaperEvidenceState } from "@/lib/ui/paper-evidence-state";
+import { diagnosePaperEvidenceBottlenecks } from "@/lib/ui/paper-evidence-bottlenecks";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
 import { applyTemporalRiskReadiness } from "@/lib/ui/paper-temporal-risk";
@@ -192,6 +193,8 @@ export default async function ReadinessPage() {
 
   const paperEvidence = Array.isArray(paperCampaignView.dailyEvidence) ? paperCampaignView.dailyEvidence : [];
   const latestPaperEvidence = paperEvidence.at(-1);
+  const previousPaperEvidence = paperEvidence.at(-2);
+  const evidenceBottlenecks = diagnosePaperEvidenceBottlenecks(executionMarket, executionCoverage, paperOms, serverRequestTime());
   const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
   const paperOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(calendar, paperApproval);
   // The cloud deployment cannot inspect a localhost Directa/Darwin session.
@@ -227,7 +230,8 @@ export default async function ReadinessPage() {
   );
   const campaignSafe = paperCampaignView.liveTradingAllowed === false
     && (!latestPaperEvidence || (latestPaperEvidence.liveTradingAllowed === false && latestPaperEvidence.brokerConnectivityAllowed === false));
-  const latestPaperEvidenceState = latestPaperEvidence ? classifyPaperEvidenceState(latestPaperEvidence) : "RECORDED";
+  const latestPaperEvidenceState = latestPaperEvidence
+    ? classifyPaperEvidenceState(latestPaperEvidence, previousPaperEvidence) : "RECORDED";
   const protectedNoTrade = latestPaperEvidenceState === "RISK_REJECTED_NO_TRADE";
   const marketClosedNoTrade = latestPaperEvidenceState === "MARKET_CLOSED_NO_RISK";
   const noRiskEvidence = protectedNoTrade || marketClosedNoTrade;
@@ -517,7 +521,7 @@ export default async function ReadinessPage() {
                     {marketClosedNoTrade
                       ? "La sessione autorevole risulta chiusa e il gate operativo ha negato nuove esecuzioni. Zero fill, audit e riconciliazione sono persistiti: la giornata conta come evidence di sicurezza, non come attività di mercato."
                       : protectedNoTrade
-                        ? "Il risk engine ha rifiutato il tentativo perché la qualità dati locale era sotto soglia. Audit e riconciliazione restano validi: un blocco prudenziale senza fill non viene trasformato in una falsa esecuzione."
+                        ? "Nel giorno registrato si è verificato un nuovo rifiuto di rischio. La causa specifica è mostrata nella diagnostica storica: nessun fill viene inventato."
                         : "Lo stato del giorno deriva esclusivamente dall'evidenza PAPER persistita; nessun dato LIVE viene usato per maturare la campagna."}
                   </p>
                 </div>
@@ -532,6 +536,29 @@ export default async function ReadinessPage() {
               )}
             </div>
           )}
+        </section>
+
+
+        <section aria-label="Diagnostica fonti PAPER e rifiuti storici" className="rounded-2xl border border-sky-400/25 p-4">
+          <h2 className="font-black text-sky-200">Diagnostica PAPER · fonti e rifiuti verificabili</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Ultima raccolta: <strong>{evidenceBottlenecks.snapshotAt ?? "non disponibile"}</strong>.
+            {" "}Quorum alla raccolta: <strong>{evidenceBottlenecks.paperEligibleSymbols}/{evidenceBottlenecks.requestedSymbols}</strong>.
+            {" "}Questi dati storici non sono prezzi utilizzabili per un ordine oggi.
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Alpaca: <strong>{evidenceBottlenecks.sources.alpaca.paperAtCollection} ammissibili / {evidenceBottlenecks.sources.alpaca.staleAtCollection} scadute</strong>
+            {" "}· Twelve Data: <strong>{evidenceBottlenecks.sources["twelve-data"].paperAtCollection} ammissibili</strong>.
+            {" "}Snapshot runtime: <strong>{evidenceBottlenecks.runtimeSnapshotFresh ? "entro finestra" : "SCADUTO / NON VERIFICATO"}</strong>.
+          </p>
+          <p className="mt-2 text-xs text-amber-200">
+            Ultimo rifiuto: <strong>{evidenceBottlenecks.lastRiskRejection?.symbol ?? "nessuno"}</strong>
+            {" "}· causa: <strong>{evidenceBottlenecks.lastRiskRejection?.reasons.join("; ") || "nessun motivo attestato"}</strong>
+            {" "}· data: {evidenceBottlenecks.lastRiskRejection?.createdAt ?? "N/D"}.
+            {" "}Kill-switch persistito ora: <strong>{evidenceBottlenecks.currentKillSwitchEngaged === false ? "non inserito" : "non verificato / inserito"}</strong>.
+            {" "}Lo stato storico dell’ordine non viene sostituito dallo stato attuale.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">Diagnosi read-only; nessun refresh provider, ordine, rilascio LIVE o rinnovo PAPER.</p>
         </section>
 
         <section className={`rounded-3xl border p-5 ${executionStateStyle[executionReadiness.state]}`}>

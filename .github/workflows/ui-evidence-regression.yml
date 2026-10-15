@@ -31,6 +31,9 @@ jobs:
       - name: Verify fail-closed PAPER evidence UI states
         run: node --experimental-strip-types scripts/test-paper-evidence-state.mjs
 
+      - name: Verify historical quote aging and risk rejection are not confused with current gates
+        run: node --experimental-strip-types scripts/test-paper-evidence-bottlenecks.mjs
+
       - name: Verify market-open readiness rejects stale stored evidence
         run: node scripts/test-paper-open-readiness-orchestration.mjs
 

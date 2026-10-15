@@ -15,6 +15,7 @@ import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-g
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { buildInstitutionalReadiness } from "@/lib/trading/readiness-evidence";
 import { derivePaperRuntimeEvidence } from "@/lib/ui/paper-runtime-evidence";
+import { diagnosePaperEvidenceBottlenecks } from "@/lib/ui/paper-evidence-bottlenecks";
 import { deriveEngineeringValidationEvidence } from "@/lib/ui/engineering-validation-evidence";
 import { applyTemporalRiskReadiness } from "@/lib/ui/paper-temporal-risk";
 
@@ -64,6 +65,7 @@ export async function GET() {
     ...readiness,
     executionReadiness,
     paperRuntimeEvidence,
+    paperEvidenceBottlenecks: diagnosePaperEvidenceBottlenecks(executionMarket, executionCoverage, paperOms, now),
     paperCertificationWindow,
     paperContinuityOwnerCheckpoint,
     credentialRotation: assessHistoricalCredentialRotation(),
