@@ -30,6 +30,34 @@ for (const stepName of [
   );
 }
 
+// Slow intelligence and provider workflows previously left the initially
+// valid Alpaca clock stale by the time final PAPER readiness was checked.
+const firstClock = workflow.indexOf("- name: Read authoritative PAPER market session");
+const lastClock = workflow.indexOf("- name: Recheck authoritative PAPER market session after provider collection");
+const coverage = workflow.indexOf("- name: Measure per-symbol PAPER coverage");
+const classify = workflow.indexOf("- name: Classify market-open PAPER readiness");
+assert(firstClock >= 0 && firstClock < coverage && coverage < lastClock && lastClock < classify,
+  "final PAPER decision must use an independent post-collection exchange-clock observation");
+const recheckBlock = workflow.slice(lastClock, classify);
+assert.match(recheckBlock, /if: steps\.session_gate\.outputs\.market_open == 'true'/,
+  "post-collection clock lookup must not run for initially closed exchanges");
+assert.match(recheckBlock, /run: node --experimental-strip-types scripts\/check-paper-market-session\.mjs/,
+  "final clock must be re-observed from the authenticated PAPER endpoint; never extend an expired timestamp");
+for (const stepName of [
+  "Install dependencies",
+  "Validate instrument identities and venues",
+  "Read authoritative PAPER market session",
+  "Gate provider refresh to authoritative open session",
+  "Classify market-open PAPER readiness",
+]) {
+  const step = new RegExp(`- name: ${stepName}\\n\\s+if: steps\\.schedule_guard\\.outcome == 'success'`);
+  assert.match(workflow, step,
+    `${stepName} must be skipped for delayed/untrusted scheduled audits without provider calls`);
+}
+assert.match(workflow, /if: always\(\)[\s\S]*?fenice-paper-open-readiness/,
+  "missed-schedule evidence must still be persisted as an artifact");
+assert.match(workflow, /if: always\(\) && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/,
+  "late scheduled runs must still terminate as failures, never falsely certify PAPER");
 assert.match(workflow, /data\/paper-fx-evidence\.json/, "readiness artifact must retain the canonical FX evidence used by the gate");
 assert.doesNotMatch(workflow, /paper-market-fx\.json/, "workflow must not retain or reference the obsolete/non-produced FX path");
 

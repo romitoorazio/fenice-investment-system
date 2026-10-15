@@ -103,16 +103,23 @@ jobs:
       - name: Regression-test execution quote freshness
         run: node --experimental-strip-types scripts/test-runtime-paper-quote-gate.mjs
 
+      # An hours-late GitHub schedule is not a fresh opening-session audit.
+      # Preserve the failed scheduler report, but do not spend any provider
+      # credits or install dependencies for a run already known to be invalid.
       - name: Install dependencies
+        if: steps.schedule_guard.outcome == 'success'
         run: npm install --no-audit --no-fund --package-lock=false
 
       - name: Validate instrument identities and venues
+        if: steps.schedule_guard.outcome == 'success'
         run: npm run instruments:validate
 
       - name: Read authoritative PAPER market session
+        if: steps.schedule_guard.outcome == 'success'
         run: node --experimental-strip-types scripts/check-paper-market-session.mjs
 
       - name: Gate provider refresh to authoritative open session
+        if: steps.schedule_guard.outcome == 'success'
         id: session_gate
         run: |
           node --input-type=module - <<'NODE'
@@ -147,7 +154,16 @@ jobs:
         if: steps.session_gate.outputs.market_open == 'true'
         run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
+      # Intelligence and market-data collection can legitimately take several
+      # minutes, longer than the 120-second authority of the opening clock.
+      # Re-observe the exchange through the same authenticated PAPER-only
+      # clock. Do not extend timestamps or reuse a stale OPEN observation.
+      - name: Recheck authoritative PAPER market session after provider collection
+        if: steps.session_gate.outputs.market_open == 'true'
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+
       - name: Classify market-open PAPER readiness
+        if: steps.schedule_guard.outcome == 'success'
         run: node --experimental-strip-types scripts/check-paper-open-readiness.mjs --require-session --require-ready-if-open
 
       - name: Upload readiness evidence
