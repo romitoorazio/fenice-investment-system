@@ -42,4 +42,14 @@ assert.equal(
   "RISK_REJECTED_NO_TRADE",
 );
 
+const previous = { ...closedSafeEvidence, cumulativeRiskRejected: 2 };
+const sameTotalToday = { ...closedSafeEvidence, cumulativeRiskRejected: 2, marketSession: undefined };
+assert.equal(classifyPaperEvidenceState(sameTotalToday, previous), "RECORDED",
+  "a prior-day rejection must not falsely classify a new zero-activity day");
+assert.equal(classifyPaperEvidenceState({ ...sameTotalToday, cumulativeRiskRejected: 3 }, previous),
+  "RISK_REJECTED_NO_TRADE", "genuine new rejection remains visible");
+assert.equal(classifyPaperEvidenceState({ ...sameTotalToday, cumulativeRiskRejected: 1 }, previous),
+  "RECORDED", "decreasing counters must never fabricate a rejection");
+assert.equal(classifyPaperEvidenceState({ ...sameTotalToday, cumulativeRiskRejected: null }, previous),
+  "RECORDED", "invalid counters must fail closed");
 console.log("Fenice PAPER evidence UI state tests: PASS");
