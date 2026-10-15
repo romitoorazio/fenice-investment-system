@@ -17,6 +17,8 @@ on:
       - "scripts/run-dcf-engine.mjs"
       - "scripts/run-investment-committee.mjs"
       - "scripts/test-investment-committee-catalysts.mjs"
+      - "lib/intelligence/committee-valuation-numbers.mjs"
+      - "scripts/test-committee-valuation-numbers.mjs"
       - "scripts/run-decision-ledger.mjs"
       - "scripts/run-calibration-analysis.mjs"
       - "lib/intelligence/calibration-engine.mjs"
@@ -70,6 +72,9 @@ jobs:
 
       - name: Reject substring-only catalyst matches
         run: node scripts/test-investment-committee-catalysts.mjs
+
+      - name: Guard missing DCF values from becoming zero
+        run: node scripts/test-committee-valuation-numbers.mjs
 
       - name: Build technical intelligence, DCF and Investment Committee
         run: npm run terminal

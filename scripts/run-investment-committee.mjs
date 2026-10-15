@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
 import { scoreResearchFreshness, positiveResearchReferencePrice } from '../lib/intelligence/committee-input-integrity.mjs';
+import { optionalDcfNumber } from '../lib/intelligence/committee-valuation-numbers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -34,8 +35,8 @@ function valuationScore(asset, dcf) {
   if (dcf?.status === 'disponibile' && Number.isFinite(dcf.upsideBasePercent)) {
     return Math.round(clamp(50 + dcf.upsideBasePercent * 0.8));
   }
-  const relative = Number(asset?.valuation?.score);
-  return Number.isFinite(relative) ? Math.round(clamp(relative)) : 50;
+  const relative = optionalDcfNumber(asset?.valuation?.score);
+  return relative !== null ? Math.round(clamp(relative)) : 50;
 }
 
 function catalystFor(asset, discoveries) {
@@ -71,13 +72,13 @@ function decisionFor({ score, confidence, risk, valuation, terminalDecision, dcf
 
 function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
   const price = positiveResearchReferencePrice(asset.price);
-  const fairValue = Number(dcf?.fairValueBase);
-  const fairValueHigh = Number(dcf?.fairValueHigh);
+  const fairValue = optionalDcfNumber(dcf?.fairValueBase, { positiveOnly: true });
+  const fairValueHigh = optionalDcfNumber(dcf?.fairValueHigh, { positiveOnly: true });
   let maxEntryPrice = null;
   if (price !== null && decision === 'COMPRA') {
     if (Number.isFinite(fairValue) && fairValue > price) {
       maxEntryPrice = Math.min(price * 1.01, fairValue * 0.9);
-    } else if (!Number.isFinite(fairValue)) {
+    } else if (fairValue === null) {
       maxEntryPrice = price * 0.99;
     }
   }
@@ -88,8 +89,8 @@ function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
     maxEntryPrice: round(maxEntryPrice, 2),
     firstTranchePercent: tranchePercent,
     firstTrancheEuro: tranchePercent ? Math.round((CAPITAL * tranchePercent) / 100) : 0,
-    fairValueBase: Number.isFinite(fairValue) ? fairValue : null,
-    fairValueHigh: Number.isFinite(fairValueHigh) ? fairValueHigh : null,
+    fairValueBase: fairValue,
+    fairValueHigh,
   };
 }
 
@@ -204,11 +205,11 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     },
     valuation: {
       status: dcf?.status || asset.valuation?.status || 'non disponibile',
-      fairValueLow: Number.isFinite(Number(dcf?.fairValueLow)) ? Number(dcf.fairValueLow) : null,
-      fairValueBase: Number.isFinite(Number(dcf?.fairValueBase)) ? Number(dcf.fairValueBase) : null,
-      fairValueHigh: Number.isFinite(Number(dcf?.fairValueHigh)) ? Number(dcf.fairValueHigh) : null,
-      upsideBasePercent: Number.isFinite(Number(dcf?.upsideBasePercent)) ? Number(dcf.upsideBasePercent) : null,
-      confidence: Number.isFinite(Number(dcf?.confidence)) ? Number(dcf.confidence) : null,
+      fairValueLow: optionalDcfNumber(dcf?.fairValueLow, { positiveOnly: true }),
+      fairValueBase: optionalDcfNumber(dcf?.fairValueBase, { positiveOnly: true }),
+      fairValueHigh: optionalDcfNumber(dcf?.fairValueHigh, { positiveOnly: true }),
+      upsideBasePercent: optionalDcfNumber(dcf?.upsideBasePercent),
+      confidence: optionalDcfNumber(dcf?.confidence),
     },
     catalyst: {
       score: catalyst.score,
