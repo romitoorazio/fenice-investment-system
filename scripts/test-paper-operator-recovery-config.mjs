@@ -6,10 +6,13 @@ const workflowPath = ".github/workflows/paper-probe-operator-trigger.yml";
 const workflow = readFileSync(workflowPath, "utf8");
 
 const workflowRun = workflow.match(/  workflow_run:\n([\s\S]*?)\n  push:/)?.[1] ?? "";
-assert.match(workflowRun, /- Fenice Global Sources\b/, "Global Sources recovery hook is required");
-assert.match(workflowRun, /- Fenice Foundation\b/, "Foundation recovery hook is required");
+// The controller's provenance allow-list is intentionally a superset of the
+// subscribed hooks. A single downstream World Terminal event now suffices;
+// independent intraday crons remain a separate recovery mechanism.
 const configuredUpstreams = [...workflowRun.matchAll(/^      - (Fenice .+)$/gm)].map((match) => match[1]);
-assert.deepEqual(configuredUpstreams, PAPER_PROBE_RECOVERY_UPSTREAMS, "workflow hooks must match the tested event allow-list");
+assert.deepEqual(configuredUpstreams, ["Fenice Foundation"], "only a genuinely scheduled recovery upstream is subscribed");
+assert.ok(configuredUpstreams.every((name) => PAPER_PROBE_RECOVERY_UPSTREAMS.includes(name)),
+  "subscribed workflow must remain within the independently tested provenance allow-list");
 assert.match(workflowRun, /types:\n\s+- completed\b/, "recovery must only inspect completed upstream runs");
 assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository[\s\S]*github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Production CI'/,
   "runner-level filter must allow scheduled upstreams or successful Production CI push on repository main only");

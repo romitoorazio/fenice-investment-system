@@ -24,12 +24,12 @@ on:
     - cron: "5 19 * * 0,6"
     - cron: "35 19 * * 0,6"
   workflow_run:
+    # One scheduled upstream recovery signal is enough: Foundation itself
+    # runs on a schedule, so event provenance can pass the existing strict
+    # scheduled-upstream gate. Daily/weekend cron checkpoints remain backup.
+    # Re-subscribing all five upstream workflows produced redundant jobs.
     workflows:
-      - "Fenice Global Sources"
       - "Fenice Foundation"
-      - "Fenice World Terminal"
-      - "Fenice Autonomous Analysis"
-      - "Fenice Production CI"
     types: [completed]
   workflow_dispatch:
 

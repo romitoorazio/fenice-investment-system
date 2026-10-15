@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/autonomy.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
+      - ".github/workflows/paper-probe-operator-trigger.yml"
+      - "scripts/test-paper-dispatch-fanout-budget.mjs"
       - ".github/workflows/fenice-x.yml"
       - ".github/workflows/market-data-validation-lab.yml"
       - ".github/workflows/engineering-validation-evidence.yml"
@@ -16,6 +19,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/autonomy.yml"
+      - ".github/workflows/paper-validation-early-trigger.yml"
+      - ".github/workflows/paper-probe-operator-trigger.yml"
+      - "scripts/test-paper-dispatch-fanout-budget.mjs"
       - ".github/workflows/fenice-x.yml"
       - ".github/workflows/market-data-validation-lab.yml"
       - ".github/workflows/engineering-validation-evidence.yml"
@@ -39,3 +45,5 @@ jobs:
         run: node scripts/test-deployment-budget-policy.mjs
       - name: Verify conservative engineering publication policy
         run: node scripts/test-engineering-evidence-publish-policy.mjs
+      - name: Verify PAPER recovery subscriptions do not fan out into duplicate jobs
+        run: node scripts/test-paper-dispatch-fanout-budget.mjs
