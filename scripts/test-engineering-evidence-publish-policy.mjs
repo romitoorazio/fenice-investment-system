@@ -40,4 +40,19 @@ assert.match(script,/git", \["diff", "--quiet", prev, testedSha/);
 assert.match(script,/:\(exclude\)data\/\*\*/);
 assert.match(script,/:\(exclude\)\*\*\/\*\.md/);
 assert.match(script,/codeChangedSincePrevious = false/);
+
+assert.match(workflow, /for attempt in 1 2 3; do/,
+  "concurrent Foundation/V7 data pushes must be retried a bounded number of times");
+assert.match(workflow, /git fetch origin main[\s\S]*?git reset --hard origin\/main/,
+  "every retry must start from the latest remote head without a force push");
+assert.match(workflow, /git diff --quiet "\$TESTED_SHA"\.\.HEAD -- \. ':.?\(exclude\)data\/\*\*'/,
+  "a changed code revision cannot inherit an older CI attestation");
+assert.match(workflow, /decision="\$\(node scripts\/decide-engineering-evidence-publication\.mjs\)"/,
+  "the publication budget must be re-checked after every competing main update");
+assert.match(workflow, /git diff --cached --quiet/,
+  "replayed identical evidence must never produce a duplicate commit");
+assert.match(workflow, /if git push origin HEAD:main; then/,
+  "the only allowed push is an ordinary fast-forward");
+assert.doesNotMatch(workflow, /git push --force|git push -f\b|git reset --soft/,
+  "never destroy competing data commits or rewrite main history");
 console.log("Fenice engineering evidence data-only publication budget: PASS");

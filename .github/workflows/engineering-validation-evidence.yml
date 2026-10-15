@@ -76,14 +76,61 @@ jobs:
 
       - name: Persist evidence only
         if: steps.applicability.outputs.eligible == 'true' && steps.publication.outputs.publish == 'true'
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/engineering-validation-evidence.json; then
-            echo "Engineering evidence is already current."
-            exit 0
-          fi
           git config user.name "fenice-engineering-evidence-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/engineering-validation-evidence.json
-          git commit -m "data: record engineering validation evidence"
-          git push origin HEAD:main
+
+          # Foundation, V7 and Terminal can push new DATA revisions while
+          # this CI attestation is being prepared. Never force-push and never
+          # discard their commits: regenerate the one evidence-only commit
+          # against the latest main with a tightly bounded retry.
+          generated_dir="$(mktemp -d)"
+          trap 'rm -rf "$generated_dir"' EXIT
+          cp data/engineering-validation-evidence.json "$generated_dir/evidence.json"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+
+            # The original main CI cannot certify a newer code revision.
+            # Data-only and documentation-only pushes may safely be rebased.
+            if ! git merge-base --is-ancestor "$TESTED_SHA" HEAD; then
+              echo "::warning::Tested CI commit is no longer on main. Fresh CI evidence required."
+              exit 0
+            fi
+            if ! git diff --quiet "$TESTED_SHA"..HEAD -- . ':(exclude)data/**' ':(exclude)**/*.md'; then
+              echo "::warning::Code changed since successful CI; waiting for the newer CI run."
+              exit 0
+            fi
+
+            # Another writer may have already published equally current
+            # evidence; do not overwrite it with an older CI attestation.
+            decision="$(node scripts/decide-engineering-evidence-publication.mjs)"
+            if [[ "$decision" != "publish=true" ]]; then
+              if [[ "$decision" == "publish=false" ]]; then
+                echo "Newer or equivalent CI evidence is already sufficiently fresh."
+                exit 0
+              fi
+              echo "::error::Unrecognized engineering evidence publication decision."
+              exit 1
+            fi
+
+            cp "$generated_dir/evidence.json" data/engineering-validation-evidence.json
+            git add data/engineering-validation-evidence.json
+            if git diff --cached --quiet; then
+              echo "Engineering evidence is already current."
+              exit 0
+            fi
+            git commit -m "data: record engineering validation evidence"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "::warning::Concurrent data push; retrying guarded evidence publication ($attempt/3)."
+            sleep $((attempt * 2))
+          done
+
+          echo "::error::Unable to publish engineering validation evidence after 3 safe attempts."
+          exit 1
