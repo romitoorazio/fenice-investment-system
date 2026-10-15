@@ -70,7 +70,7 @@ const ledger = updateDecisionOutcomeLedger(previous, candidates, prices, {
 });
 
 const horizons = Object.fromEntries(
-  ["1d", "7d", "30d", "90d"].map((h) => [h, summarizeDecisionOutcomes(ledger.records, h)]),
+  ["1d", "7d", "30d", "90d"].map((h) => [h, summarizeDecisionOutcomes(ledger.records, h, now)]),
 );
 
 const report = {
