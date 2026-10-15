@@ -192,19 +192,19 @@ for (const invalidPrice of [null, undefined, 0, "", "   ", -3, Number.NaN]) {
 }
 const malformedSummary = summarizeDecisionOutcomes([
   {
-    symbol: "SPY", decision: "EVITA", referencePrice: 100,
+    symbol: "SPY", decision: "EVITA", referencePrice: 100, createdAt: "2026-10-01T22:00:00Z",
     checkpoints: { "1d": { price: null, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: -100 } },
   },
   {
-    symbol: "QQQ", decision: "COMPRA", referencePrice: 100,
+    symbol: "QQQ", decision: "COMPRA", referencePrice: 100, createdAt: "2026-10-01T22:00:00Z",
     checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: null } },
   },
   {
-    symbol: "SPY-FAKE", decision: "COMPRA", referencePrice: 100,
+    symbol: "SPY-FAKE", decision: "COMPRA", referencePrice: 100, createdAt: "2026-10-01T22:00:00Z",
     checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: 9999 } },
   },
   {
-    symbol: "TSM", decision: "COMPRA", referencePrice: 100,
+    symbol: "TSM", decision: "COMPRA", referencePrice: 100, createdAt: "2026-10-01T22:00:00Z",
     checkpoints: { "1d": { price: 120, measuredAt: "2026-10-02T22:00:00Z", source: "committee-history", returnPercent: 20 } },
   },
 ], "1d");
@@ -213,6 +213,49 @@ assert.equal(malformedSummary.decisions.COMPRA.sampleSize, 1);
 assert.equal(malformedSummary.decisions.COMPRA.favorableRatePercent, 100);
 assert.equal(malformedSummary.decisions.EVITA.sampleSize, 0);
 assert.equal(malformedSummary.decisions.EVITA.favorableRatePercent, null);
+
+// Profitability summaries must not count checkpoints outside their horizon,
+// sources without quote provenance, future marks, or forged win/loss objects.
+const verifiedCheckpoint = {
+  symbol: "TSM", decision: "COMPRA", currency: "USD", referencePrice: 100,
+  createdAt: "2026-10-01T22:00:00.000Z", observationDate: "2026-10-01",
+  checkpoints: { "1d": {
+    measuredAt: "2026-10-02T22:00:00.000Z", source: "committee-history",
+    price: 120, returnPercent: 20, outcome: { class: "SFAVOREVOLE", favorable: false,
+      missedUpsidePercent: 1000, avoidedLossPercent: 1000 },
+  } },
+};
+const validRecomputed = summarizeDecisionOutcomes([verifiedCheckpoint], "1d", new Date("2026-10-05T00:00:00Z"));
+assert.equal(validRecomputed.sampleSize, 1);
+assert.equal(validRecomputed.decisions.COMPRA.favorableRatePercent, 100,
+  "persisted negative outcome cannot override a positive observed return");
+assert.equal(validRecomputed.decisions.COMPRA.avoidedLossPercent, 0,
+  "a forged outcome cannot inflate avoided losses");
+const forgedWait = { ...verifiedCheckpoint, decision: "ATTENDI" };
+const accurateWait = summarizeDecisionOutcomes([forgedWait], "1d", new Date("2026-10-05T00:00:00Z"));
+assert.equal(accurateWait.restraintTradeoff.missedUpsidePercent, 20);
+assert.equal(accurateWait.restraintTradeoff.avoidedLossPercent, 0,
+  "fake stored favorable outcome cannot rewrite true wait opportunity cost");
+for (const [name, mutation] of [
+  ["too-early checkpoint", { measuredAt: "2026-10-02T20:00:00Z" }],
+  ["too-late checkpoint", { measuredAt: "2026-10-07T22:00:00Z" }],
+  ["future checkpoint", { measuredAt: "2026-10-06T22:00:00Z" }],
+  ["unverified source", { source: "social-news" }],
+  ["impossible date", { measuredAt: "2026-02-30T22:00:00Z" }],
+  ["non-numeric percentage", { returnPercent: "N/D" }],
+]) {
+  const row = { ...verifiedCheckpoint,
+    checkpoints: { "1d": { ...verifiedCheckpoint.checkpoints["1d"], ...mutation } } };
+  assert.equal(summarizeDecisionOutcomes([row], "1d", new Date("2026-10-05T00:00:00Z")).sampleSize, 0,
+    name + " must never enter the profitability scorecard");
+}
+assert.equal(summarizeDecisionOutcomes([
+  { ...verifiedCheckpoint, createdAt: "not-a-real-date" },
+], "1d").sampleSize, 0);
+assert.equal(summarizeDecisionOutcomes([verifiedCheckpoint], "7d").sampleSize, 0,
+  "one-day marks cannot be misreported as seven-day results");
+assert.equal(summarizeDecisionOutcomes([verifiedCheckpoint], "1d", new Date(NaN)).sampleSize, 0,
+  "an invalid evaluation clock fails closed");
 
 const forgedCandidate = updateDecisionOutcomeLedger(first, [
   { symbol: "ZERO", decision: "COMPRA", referencePrice: 0 },
