@@ -163,7 +163,12 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     // session trade metadata. Keep asset.price unchanged for all Committee,
     // valuation, risk and PAPER frozen logic. V7 research gates stay isolated.
     priceEvidence: asset.technical?.researchQuote?.evidenceType === 'YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY'
-      ? { ...asset.technical.researchQuote, executionEligible: false,
+      ? { ...asset.technical.researchQuote,
+          // Explicitly distinguish the Committee's daily adjusted candle price
+          // from the separately observed regular-session research trade.
+          referencePriceSemantics: asset.technical.timestampSemantics === 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE'
+            ? 'DAILY_ADJUSTED_CANDLE_CLOSE' : null,
+          executionEligible: false, paperCertificationEligible: false,
           brokerSubmissionAllowed: false, liveTradingAllowed: false }
       : {
           observedAt: null, source: null, price: null,
