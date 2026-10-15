@@ -6,7 +6,7 @@ const evidence = { generatedAt: iso(-36), observations: [
   {sourceFamily:"alpaca",symbol:"SPY",eligibility:"VALIDATION_ONLY",provenanceVerified:true,observedAt:iso(-1200)},
   {sourceFamily:"twelve-data",symbol:"SPY",eligibility:"PAPER",provenanceVerified:true,observedAt:iso(-60)},
 ] };
-const coverage = {generatedAt:iso(-10),requestedSymbols:12,paperEligibleSymbols:0};
+const coverage = {generatedAt:iso(-10),evidenceGeneratedAt:iso(-36),requestedSymbols:12,paperEligibleSymbols:0};
 const oms = {killSwitch:{engaged:false},executions:[
   {symbol:"SPY",status:"RISK_REJECTED",createdAt:iso(-86400),risk:{reasons:["kill-switch: engaged"],checks:[{code:"kill-switch",passed:false}]}},
   {symbol:"QQQ",status:"PAPER_FILLED",createdAt:iso(-30)}
@@ -19,6 +19,20 @@ assert.equal(diagnosis.paperEligibleSymbols,0);
 assert.equal(diagnosis.currentPaperEligibleSymbols,0);
 assert.equal(diagnosis.coverageSnapshotAt,iso(-10));
 assert.equal(diagnosis.coverageEvidenceAligned,true);
+const mismatchedBatch = diagnosePaperEvidenceBottlenecks(evidence,{
+  ...coverage,evidenceGeneratedAt:iso(-35),
+},oms,now);
+assert.equal(mismatchedBatch.coverageEvidenceAligned,false,
+  "nearby timestamps from different quote batches are not identity proof");
+assert.equal(mismatchedBatch.runtimeSnapshotFresh,false);
+assert.equal(mismatchedBatch.currentPaperEligibleSymbols,null);
+const missingBatchIdentity = diagnosePaperEvidenceBottlenecks(evidence,{
+  ...coverage,evidenceGeneratedAt:undefined,
+},oms,now);
+assert.equal(missingBatchIdentity.coverageEvidenceAligned,false);
+assert.equal(missingBatchIdentity.runtimeSnapshotFresh,false,
+  "legacy coverage without a source evidence identity fails closed");
+assert.equal(missingBatchIdentity.currentPaperEligibleSymbols,null);
 assert.equal(diagnosis.lastRiskRejection.symbol,"SPY");
 assert.deepEqual(diagnosis.lastRiskRejection.reasons,["kill-switch: engaged"]);
 assert.equal(diagnosis.currentKillSwitchEngaged,false);
