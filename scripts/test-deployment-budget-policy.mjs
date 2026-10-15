@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = name => readFile(new URL("../.github/workflows/" + name, import.meta.url), "utf8");
-const [foundation, ci, paper, engineering, redundantFoundation, dataLab] = await Promise.all([
+const [foundation, ci, paper, engineering, redundantFoundation, dataLab, release] = await Promise.all([
   read("autonomy.yml"), read("ci.yml"), read("paper-validation.yml"),
   read("engineering-validation-evidence.yml"), read("fenice-x.yml"),
-  read("market-data-validation-lab.yml"),
+  read("market-data-validation-lab.yml"), read("vercel-deploy.yml"),
 ]);
 const header = source => source.split(/\npermissions:\s*\n/)[0];
 
@@ -45,4 +45,19 @@ assert.match(engineering, /Confirm tested code still matches main/);
 assert.match(engineering, /git merge-base --is-ancestor "\$TESTED_SHA" HEAD/);
 assert.ok(!/ignoreCommand|commandForIgnoringBuildStep/.test(foundation + ci + engineering),
   "Ignored Vercel builds still consume deployment quota");
+
+const releaseContinuationLines = release.split("\n").filter(line => /\\+$/.test(line));
+assert(releaseContinuationLines.length >= 8, "guarded release must still use multiline curl/jq commands");
+assert(releaseContinuationLines.every(line => (line.match(/\\+$/) || [""])[0].length === 1),
+  "double-escaped shell line continuation corrupts curl headers and Vercel URL");
+assert.match(release, /gitSource:[\s\S]*?sha: \$sha/,
+  "production deployment must remain bound to an exact Git commit SHA");
+assert.match(release, /This exact main SHA already has a READY production deployment/,
+  "duplicate deployments must still be prevented");
+assert.match(release, /Manual dispatch is dry-run only/,
+  "manual bypass of the guarded deployment request must remain disabled");
+assert.match(release, /Verify production alias points to the new Fenice deployment/,
+  "deployment must verify that production alias reaches the exact created deployment");
+assert.match(release, /liveTradingReleased == false/,
+  "public read-only broker safety contract must remain enforced");
 console.log("Fenice Vercel deployment throttling without frozen PAPER changes: PASS");
