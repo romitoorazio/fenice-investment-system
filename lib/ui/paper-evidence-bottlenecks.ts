@@ -23,8 +23,21 @@ export function diagnosePaperEvidenceBottlenecks(
   now: number = Date.now(),
 ) {
   const at = timestamp(evidence?.generatedAt);
-  const runtimeSnapshotFresh = Number.isFinite(now) && at !== null
-    && at <= now && now - at <= 120_000;
+  const coverageAt = timestamp(coverage?.generatedAt);
+  const coverageCountsValid = typeof coverage?.requestedSymbols === "number"
+    && Number.isSafeInteger(coverage.requestedSymbols) && coverage.requestedSymbols > 0
+    && typeof coverage.paperEligibleSymbols === "number"
+    && Number.isSafeInteger(coverage.paperEligibleSymbols) && coverage.paperEligibleSymbols >= 0
+    && coverage.paperEligibleSymbols <= coverage.requestedSymbols;
+  // This is only a diagnostic. The execution gate has its own stricter
+  // proof checks, and no stored row ever becomes live trading authority.
+  // A quote snapshot and a separately generated coverage report from
+  // DIFFERENT runs must never be presented as one fresh runtime quorum.
+  const coverageEvidenceAligned = at !== null && coverageAt !== null
+    && coverageAt >= at && coverageAt - at <= 120_000;
+  const runtimeSnapshotFresh = Number.isSafeInteger(now) && now >= 0
+    && coverageEvidenceAligned && coverageCountsValid && coverageAt! <= now
+    && at! <= now && now - at! <= 120_000 && now - coverageAt! <= 120_000;
   const observations = Array.isArray(evidence?.observations) ? evidence.observations : [];
   const byFamily = (family: string) => {
     const quotes = observations.filter(q => q?.sourceFamily === family);
@@ -56,9 +69,12 @@ export function diagnosePaperEvidenceBottlenecks(
     brokerSubmissionAllowed: false as const,
     liveTradingAllowed: false as const,
     snapshotAt: at === null ? null : new Date(at).toISOString(),
+    coverageSnapshotAt: coverageAt === null ? null : new Date(coverageAt).toISOString(),
+    coverageEvidenceAligned,
     runtimeSnapshotFresh,
     requestedSymbols: count(coverage?.requestedSymbols),
-    paperEligibleSymbols: count(coverage?.paperEligibleSymbols),
+    paperEligibleSymbols: count(coverage?.paperEligibleSymbols), // historical count only
+    currentPaperEligibleSymbols: runtimeSnapshotFresh ? coverage!.paperEligibleSymbols! : null,
     sources: { alpaca: byFamily("alpaca"), "twelve-data": byFamily("twelve-data") },
     lastRiskRejection: latest ? {
       symbol: String(latest.symbol || "").slice(0,25),

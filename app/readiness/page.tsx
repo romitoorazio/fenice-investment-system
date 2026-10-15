@@ -542,14 +542,16 @@ export default async function ReadinessPage() {
         <section aria-label="Diagnostica fonti PAPER e rifiuti storici" className="rounded-2xl border border-sky-400/25 p-4">
           <h2 className="font-black text-sky-200">Diagnostica PAPER · fonti e rifiuti verificabili</h2>
           <p className="mt-2 text-sm text-slate-300">
-            Ultima raccolta: <strong>{evidenceBottlenecks.snapshotAt ?? "non disponibile"}</strong>.
-            {" "}Quorum alla raccolta: <strong>{evidenceBottlenecks.paperEligibleSymbols}/{evidenceBottlenecks.requestedSymbols}</strong>.
+            Quotazioni archiviate: <strong>{evidenceBottlenecks.snapshotAt ?? "non disponibile"}</strong>.
+            {" "}Copertura archiviata: <strong>{evidenceBottlenecks.paperEligibleSymbols}/{evidenceBottlenecks.requestedSymbols}</strong>
+            {" "}· calcolata: <strong>{evidenceBottlenecks.coverageSnapshotAt ?? "non disponibile"}</strong>.
             {" "}Questi dati storici non sono prezzi utilizzabili per un ordine oggi.
           </p>
           <p className="mt-2 text-xs text-slate-400">
             Alpaca: <strong>{evidenceBottlenecks.sources.alpaca.paperAtCollection} ammissibili / {evidenceBottlenecks.sources.alpaca.staleAtCollection} scadute</strong>
             {" "}· Twelve Data: <strong>{evidenceBottlenecks.sources["twelve-data"].paperAtCollection} ammissibili</strong>.
-            {" "}Snapshot runtime: <strong>{evidenceBottlenecks.runtimeSnapshotFresh ? "entro finestra" : "SCADUTO / NON VERIFICATO"}</strong>.
+            {" "}Coerenza raccolta/copertura: <strong>{evidenceBottlenecks.coverageEvidenceAligned ? "verificata" : "NON VERIFICATA"}</strong>.
+            {" "}Stato runtime: <strong>{evidenceBottlenecks.runtimeSnapshotFresh ? `rilevazione recente ${evidenceBottlenecks.currentPaperEligibleSymbols}/${evidenceBottlenecks.requestedSymbols} (solo diagnostica)` : "N/D · COPERTURA NON ATTUALE"}</strong>.
           </p>
           <p className="mt-2 text-xs text-amber-200">
             Ultimo rifiuto: <strong>{evidenceBottlenecks.lastRiskRejection?.symbol ?? "nessuno"}</strong>
