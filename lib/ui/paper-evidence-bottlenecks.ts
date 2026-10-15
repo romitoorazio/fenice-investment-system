@@ -5,7 +5,7 @@
 type Quote = { sourceFamily?: string; eligibility?: string; observedAt?: string;
   provenanceVerified?: boolean; symbol?: string };
 type Evidence = { generatedAt?: string; observations?: Quote[] };
-type Coverage = { generatedAt?: string; requestedSymbols?: number; paperEligibleSymbols?: number };
+type Coverage = { generatedAt?: string; evidenceGeneratedAt?: string | null; requestedSymbols?: number; paperEligibleSymbols?: number };
 type Execution = { symbol?: string; status?: string; createdAt?: string;
   risk?: { reasons?: string[]; checks?: Array<{code?: string; passed?: boolean}> } };
 type Oms = { executions?: Execution[]; killSwitch?: {engaged?: boolean} };
@@ -24,6 +24,7 @@ export function diagnosePaperEvidenceBottlenecks(
 ) {
   const at = timestamp(evidence?.generatedAt);
   const coverageAt = timestamp(coverage?.generatedAt);
+  const coverageEvidenceAt = timestamp(coverage?.evidenceGeneratedAt);
   const coverageCountsValid = typeof coverage?.requestedSymbols === "number"
     && Number.isSafeInteger(coverage.requestedSymbols) && coverage.requestedSymbols > 0
     && typeof coverage.paperEligibleSymbols === "number"
@@ -31,9 +32,11 @@ export function diagnosePaperEvidenceBottlenecks(
     && coverage.paperEligibleSymbols <= coverage.requestedSymbols;
   // This is only a diagnostic. The execution gate has its own stricter
   // proof checks, and no stored row ever becomes live trading authority.
-  // A quote snapshot and a separately generated coverage report from
-  // DIFFERENT runs must never be presented as one fresh runtime quorum.
+  // Proximity of generatedAt values is not proof that coverage was derived
+  // from THIS quote batch. Require the coverage report's exact source timestamp.
+  // Missing or mismatched provenance fails closed in the UI diagnostic.
   const coverageEvidenceAligned = at !== null && coverageAt !== null
+    && coverageEvidenceAt !== null && coverageEvidenceAt === at
     && coverageAt >= at && coverageAt - at <= 120_000;
   const runtimeSnapshotFresh = Number.isSafeInteger(now) && now >= 0
     && coverageEvidenceAligned && coverageCountsValid && coverageAt! <= now
