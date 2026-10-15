@@ -33,4 +33,11 @@ assert.equal(report.rows.find((row) => row.symbol === "C").classification, "DEFE
 assert.equal(report.rows.find((row) => row.symbol === "D").classification, "DEFER_MULTI_GATE");
 assert.equal(report.rows.find((row) => row.symbol === "E").classification, "DEFER_MISSING_CANDIDATE");
 assert.equal(report.recommendedExpansionOrder.includes("E"), false);
+const missing=planPaperV7ProbePriority({diagnostic:{candidates:[]},feasibility:{targets:[
+  {symbol:"Z",quorumCompatible:false,crossSourceSpreadPercent:null},
+  {symbol:"Y",quorumCompatible:false,crossSourceSpreadPercent:""},
+  {symbol:"X",quorumCompatible:false,crossSourceSpreadPercent:-2},
+]}});
+assert(missing.rows.every(row=>row.crossSourceSpreadPercent===null),
+  "missing or negative provider spread must not be invented as 0 percent");
 console.log("paper V7 probe priority planner tests: PASS");

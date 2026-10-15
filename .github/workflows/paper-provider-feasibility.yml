@@ -10,6 +10,8 @@ on:
       - ".github/workflows/paper-provider-feasibility.yml"
       - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/probe-paper-provider-feasibility.mjs"
+      - "lib/intelligence/paper-provider-probe-truth.mjs"
+      - "scripts/test-paper-provider-probe-truth.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -20,6 +22,8 @@ on:
       - ".github/workflows/paper-provider-feasibility.yml"
       - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/probe-paper-provider-feasibility.mjs"
+      - "lib/intelligence/paper-provider-probe-truth.mjs"
+      - "scripts/test-paper-provider-probe-truth.mjs"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -46,10 +50,10 @@ jobs:
       APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
     steps:
-      - name: Checkout main
+      - name: Checkout exactly the code under review or current main
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -57,7 +61,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: Verify strict provider timestamps and IEX fallback
+        run: node scripts/test-paper-provider-probe-truth.mjs
       - name: Probe read-only provider feasibility
+        if: github.event_name != 'pull_request'
         run: node --experimental-strip-types scripts/probe-paper-provider-feasibility.mjs
 
       - name: Regression-test inactive V7 planner
@@ -70,12 +77,15 @@ jobs:
         run: node scripts/test-paper-v7-probe-universe.mjs
 
       - name: Build inactive V7 probe priority plan
+        if: github.event_name != 'pull_request'
         run: node scripts/plan-paper-v7-probe-priority.mjs
 
       - name: Build inactive V7 adaptive probe universe
+        if: github.event_name != 'pull_request'
         run: node scripts/plan-paper-v7-probe-universe.mjs
 
       - name: Verify V6 isolation
+        if: github.event_name != 'pull_request'
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -113,6 +123,7 @@ jobs:
           NODE
 
       - name: Upload provider feasibility and V7 plans
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: paper-provider-feasibility-${{ github.run_id }}
