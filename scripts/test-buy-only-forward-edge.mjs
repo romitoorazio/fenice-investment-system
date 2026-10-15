@@ -31,6 +31,12 @@ assert.equal(noBuy.buyOnlyEvidence.forward.hypotheticalMeanExcessVsBenchmarkPerc
 assert.equal(noBuy.buyOnlyEvidence.state,"NO_FORWARD_BUY_SAMPLES");
 assert.equal(noBuy.buyOnlyEvidence.actualTradingProfitDemonstrated,false);
 assert.equal(noBuy.buyOnlyEvidence.canAuthorizeLive,false);
+const retrospectiveSpy = sample("SPY","ATTENDI",1,100,101,{historicalBackfill:true});
+const forwardBuy = sample("NVDA","COMPRA",1,100,120);
+const isolated = evaluateDecisionBenchmarkEdge([retrospectiveSpy,forwardBuy],{now}).horizons["1d"];
+assert.equal(isolated.pairedSamples,0,"BUY forward cannot use SPY from a historical backfill");
+assert.equal(isolated.buyOnlyEvidence.forward.sampleSize,0);
+assert.equal(isolated.buyOnlyEvidence.sampleMature,false);
 
 const singleDay = assessBuyOnlyForwardEdge(
   Array.from({length:40},(_,n)=>({

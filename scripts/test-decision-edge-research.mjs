@@ -23,8 +23,11 @@ function row(symbol, decision, initial, final, options = {}) {
 const spy = row("SPY", "ATTENDI", 100, 102);
 const nvidia = row("NVDA", "COMPRA", 50, 55);
 const qqq = row("QQQ", "OSSERVA", 200, 198, { historicalBackfill: false });
+const forwardSpy = row("SPY", "ATTENDI", 100, 102, {
+  historicalBackfill: false, id: "2026-10-01:SPY:FORWARD",
+});
 
-const data = evaluateDecisionBenchmarkEdge([spy, nvidia, qqq], { now });
+const data = evaluateDecisionBenchmarkEdge([spy, forwardSpy, nvidia, qqq], { now });
 const day = data.horizons["1d"];
 assert.equal(data.benchmark, "SPY");
 assert.equal(data.currency, "USD");
@@ -48,9 +51,36 @@ assert.equal(data.isolation.feedsV6CalibrationPolicy, false);
 assert.equal(data.horizons["30d"].hypotheticalMeanExcessVsBenchmarkPercent, null);
 
 assert.equal(
-  evaluateDecisionBenchmarkEdge([spy, qqq, nvidia, { ...nvidia, decision: "EVITA", id: "duplicate" }], { now }).horizons["1d"].pairedSamples,
+  evaluateDecisionBenchmarkEdge([spy, forwardSpy, qqq, nvidia, { ...nvidia, decision: "EVITA", id: "duplicate" }], { now }).horizons["1d"].pairedSamples,
   2, "ticker/date may only be scored once, regardless of committee decision changes",
 );
+
+// Two records with the same date but different as-of cycles or provenance
+// cannot be paired to manufacture a prospective BUY advantage.
+const backfillOnlyBenchmark = evaluateDecisionBenchmarkEdge([spy, qqq], { now }).horizons["1d"];
+assert.equal(backfillOnlyBenchmark.pairedSamples, 0,
+  "forward entry must never use a retrospective SPY benchmark from the same day");
+assert.equal(backfillOnlyBenchmark.forwardObservedSamples, 0);
+const forwardOnlyBenchmark = evaluateDecisionBenchmarkEdge([forwardSpy, qqq], { now }).horizons["1d"];
+assert.equal(forwardOnlyBenchmark.pairedSamples, 1,
+  "same origin and as-of timestamp must continue to be measured");
+assert.equal(forwardOnlyBenchmark.forwardObservedSamples, 1);
+const shiftedCycle = { ...nvidia, createdAt: "2026-10-01T17:00:00.000Z" };
+assert.equal(evaluateDecisionBenchmarkEdge([spy, shiftedCycle], { now }).horizons["1d"].pairedSamples,
+  0, "a benchmark from an earlier cycle cannot be paired on date alone");
+const earlierUnpaired = { ...nvidia, createdAt: "2026-10-01T17:00:00.000Z" };
+assert.equal(evaluateDecisionBenchmarkEdge([spy, earlierUnpaired, nvidia], { now }).horizons["1d"].pairedSamples,
+  0, "an unmatched earlier daily decision cannot be silently cherry-picked into a later paired BUY");
+const unknownOrigin = { ...nvidia, historicalBackfill: undefined };
+const unknownResult = evaluateDecisionBenchmarkEdge([spy, unknownOrigin], { now }).horizons["1d"];
+assert.equal(unknownResult.pairedSamples, 0, "unverified evidence origin is not forward performance");
+assert.equal(unknownResult.forwardObservedSamples, 0);
+assert.equal(unknownResult.buyOnlyEvidence.forward.sampleSize, 0);
+const crossProvenance = evaluateDecisionBenchmarkEdge([
+  forwardSpy, { ...nvidia, historicalBackfill: true },
+], { now }).horizons["1d"];
+assert.equal(crossProvenance.pairedSamples, 0,
+  "forward SPY must not be treated as retrospective benchmark evidence");
 
 const unsafeCases = [
   ["missing quote", { referencePrice: null }],
