@@ -28,6 +28,41 @@ const ledger = updateDecisionOutcomeLedger({ records: [] }, candidates, ok.price
 assert.equal(ledger.records.length, 1);
 assert.equal(ledger.records[0].createdAt, generatedAt, "as-of source time, not job run time");
 
+// A daily OHLC close is not an as-of intraday last trade. V7 may use the
+// verified research quote WITHOUT changing the Committee price or V6 gates.
+const intraday = {
+  ...original, currentPrice: 496, currency: "USD",
+  priceEvidence: { ...original.priceEvidence, price: 500,
+    referencePriceSemantics: "DAILY_ADJUSTED_CANDLE_CLOSE" },
+};
+const intradayAdmitted = admitV7ResearchQuotes(
+  { generatedAt, allDecisions: [intraday] }, now,
+);
+assert.equal(intradayAdmitted.accepted.length, 1);
+assert.equal(intradayAdmitted.accepted[0].currentPrice, 500);
+assert.equal(intradayAdmitted.accepted[0].committeeReferencePrice, 496);
+assert.equal(intradayAdmitted.prices.get("SPY"), 500);
+assert.equal(intraday.currentPrice, 496, "Committee source row must be immutable");
+assert.equal(intradayAdmitted.safety.executionEligible, false);
+const unmarked = admitV7ResearchQuotes({
+  generatedAt, allDecisions: [{
+    ...intraday, priceEvidence: { ...intraday.priceEvidence, referencePriceSemantics: null },
+  }],
+}, now);
+assert.equal(unmarked.accepted.length, 0, "a price mismatch without candle provenance must fail closed");
+const extremeGap = admitV7ResearchQuotes({
+  generatedAt, allDecisions: [{
+    ...intraday, currentPrice: 300,
+  }],
+}, now);
+assert.equal(extremeGap.accepted.length, 0, "an extreme candle-to-trade gap must fail closed");
+const futureCandleQuote = admitV7ResearchQuotes({
+  generatedAt, allDecisions: [{
+    ...intraday, priceEvidence: { ...intraday.priceEvidence, observedAt: "2026-10-14T16:50:01.000Z" },
+  }],
+}, now);
+assert.equal(futureCandleQuote.accepted.length, 0, "as-of rule remains strict for daily candle source");
+
 const rejection = [
   ["no proof", { priceEvidence: undefined }, "PRICE_MISSING_OR_MISMATCH"],
   ["quote from future", { priceEvidence: { ...original.priceEvidence, observedAt: "2026-10-14T16:50:01.000Z" } }, "PRICE_TIME_INVALID_STALE_OR_FUTURE"],

@@ -13,7 +13,12 @@ on:
       - "scripts/test-decision-edge-research.mjs"
       - ".github/workflows/v7-decision-outcomes.yml"
   schedule:
-    - cron: "37 22 * * 1-5"
+    # Observe V7 once per weekday while the US cash session is open.
+    # The 22:37 UTC run was after the session, when Yahoo's strict
+    # regular-trade freshness guard correctly rejected every symbol.
+    # Scheduled 18:17 UTC Foundation -> Terminal normally updates
+    # in-session provenance first; delayed/missing proof still fails closed.
+    - cron: "7 19 * * 1-5"
   pull_request:
     paths:
       - "lib/intelligence/decision-outcomes.mjs"
