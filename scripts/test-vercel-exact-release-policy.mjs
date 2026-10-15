@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const workflow = await readFile(new URL("../.github/workflows/vercel-deploy.yml",import.meta.url),"utf8");
+const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+// Prevent bot data-only commits from creating Vercel Git auto-deployments.
+// The existing exact-SHA API workflow still refreshes production daily.
+// PR previews remain enabled because only main is excluded.
+assert.equal(vercelConfig.git?.deploymentEnabled?.main, false,
+  "Git auto-deploy from main must be disabled to prevent Vercel Hobby quota flood");
+assert.equal(vercelConfig.git?.deploymentEnabled?.preview, undefined,
+  "Do not disable PR previews by accident");
+assert.equal(vercelConfig.commandForIgnoringBuildStep, undefined,
+  "Ignored builds still consume deployment quota and do not solve the root cause");
 const yaml = workflow.split("\npermissions:")[0];
 assert.ok(yaml.includes('cron: "41 22 * * *"'), "Only one daily controlled opportunity");
 assert.ok(yaml.includes('".ops/vercel-deploy-request.json"'), "Keep explicitly guarded operator request");

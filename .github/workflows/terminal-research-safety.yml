@@ -20,3 +20,5 @@ jobs:
           node-version: 22
       - name: Verify daily quotes are research-only and stale signals cannot receive allocations
         run: node --experimental-strip-types scripts/test-terminal-research-freshness.mjs
+      - name: Verify missing DCF values never become fictitious zero estimates
+        run: node scripts/test-committee-valuation-numbers.mjs
