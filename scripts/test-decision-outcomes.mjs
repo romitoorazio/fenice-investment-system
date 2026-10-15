@@ -90,6 +90,47 @@ const day2 = updateDecisionOutcomeLedger(
   { cycleId: "c3", marketRegime: "ATTENDERE", now: new Date("2026-10-03T22:00:00Z") },
 );
 assert(day2.records.every((r) => r.checkpoints["1d"]));
+// Delayed/out-of-order collection must never overwrite more recent as-of
+// research evidence or reset checkpoint outcomes to an older quotation.
+const reversed = updateDecisionOutcomeLedger(
+  day2, [],
+  new Map([["SPY", 150], ["NVDA", 2], ["BTC", 60]]),
+  { cycleId: "delayed-replay", now: new Date("2026-10-02T22:00:00Z") },
+);
+for (const symbol of ["SPY", "NVDA", "BTC"]) {
+  const recent = day2.records.find(r => r.symbol === symbol);
+  const delayed = reversed.records.find(r => r.symbol === symbol);
+  assert.equal(delayed.lastPrice, recent.lastPrice, symbol + " must keep newest verified price");
+  assert.equal(delayed.lastMarkedAt, recent.lastMarkedAt, symbol + " mark cannot travel backwards");
+  assert.equal(delayed.markToMarketPercent, recent.markToMarketPercent);
+  assert.deepEqual(delayed.checkpoints, recent.checkpoints, "earned checkpoints must remain immutable");
+}
+const duplicateInstant = updateDecisionOutcomeLedger(
+  day2, [], new Map([["SPY", 900]]),
+  { cycleId: "same-instant", now: new Date("2026-10-03T22:00:00Z") },
+);
+assert.equal(duplicateInstant.records.find(r=>r.symbol==="SPY").lastPrice, 97,
+  "same-timestamp rival quotation must never rewrite an existing mark");
+const futureBorn = structuredClone(first);
+futureBorn.records[0].createdAt = "2026-10-12T22:00:00.000Z";
+futureBorn.records[0].lastMarkedAt = null;
+const preBirth = updateDecisionOutcomeLedger(
+  futureBorn, [], new Map([["SPY", 450]]),
+  { cycleId: "pre-birth", now: new Date("2026-10-03T22:00:00Z") },
+);
+assert.equal(preBirth.records[0].lastPrice, 100,
+  "a quote that predates the decision must not create a manufactured return");
+const invalidPriorClock = structuredClone(first);
+invalidPriorClock.records[0].lastMarkedAt = "not-a-timestamp";
+const failedChronology = updateDecisionOutcomeLedger(
+  invalidPriorClock, [], new Map([["SPY", 450]]),
+  { cycleId: "invalid-prior-clock", now: new Date("2026-10-03T22:00:00Z") },
+);
+assert.equal(failedChronology.records[0].lastPrice, 100,
+  "invalid chronology cannot silently become valid research evidence");
+assert.throws(() => updateDecisionOutcomeLedger(first, [], new Map(), {now: new Date(NaN)}),
+  /INVALID_V7_LEDGER_CLOCK/);
+
 const summary = summarizeDecisionOutcomes(day2.records, "1d");
 assert.equal(summary.sampleSize, 3);
 assert.equal(summary.decisions.COMPRA.favorableRatePercent, 100);
