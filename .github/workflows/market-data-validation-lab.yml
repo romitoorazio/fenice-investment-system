@@ -3,7 +3,10 @@ name: Fenice Market Data Validation Lab
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: [Fenice Intelligence Quality, Fenice Foundation]
+    # Four daily Intelligence Quality checkpoints already follow/overlap
+    # Foundation collection. One downstream audit is sufficient; preserving
+    # manual dispatch and code-change validation avoids losing diagnostic access.
+    workflows: [Fenice Intelligence Quality]
     types: [completed]
     branches: [main]
   pull_request:

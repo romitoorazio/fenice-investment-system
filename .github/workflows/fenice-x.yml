@@ -1,16 +1,10 @@
 name: Fenice X
 
+# The regular Foundation workflow already runs this exact npm script eight times
+# daily and after relevant code pushes. Keep X solely as a manual fallback:
+# duplicate schedules used the same API keys and competed for writer slots.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 5,11,17,23 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "scripts/**"
-      - "data/*catalog*.json"
-      - "package.json"
-      - ".github/workflows/fenice-x.yml"
 
 permissions:
   contents: write
