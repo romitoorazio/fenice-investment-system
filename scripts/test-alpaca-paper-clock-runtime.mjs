@@ -4,6 +4,7 @@ import {
   ALPACA_PAPER_CLOCK_ENDPOINT,
   evaluateAlpacaClockResponse,
   fetchAlpacaPaperClock,
+  getAlpacaPaperClock,
 } from "../lib/market/alpaca-paper-clock-runtime.mjs";
 import { verifyUsPaperClock, resolveVenueSession } from "../lib/market/venue-session-intelligence.ts";
 
@@ -85,6 +86,54 @@ for (const failingFetcher of [
   assert(!JSON.stringify(report).includes(secretId));
   assert(!JSON.stringify(report).includes(secretKey));
 }
+
+// The public market/readiness clock has its own 15-second promise cache.
+  // No response fetched under a previous credential identity may be reused.
+  const originalFetch = globalThis.fetch;
+  const previousId = process.env.APCA_API_KEY_ID;
+  const previousSecret = process.env.APCA_API_SECRET_KEY;
+  const cacheNow = Date.parse("2026-10-15T18:40:00.000Z");
+  let requestCount = 0;
+  try {
+    globalThis.fetch = async (endpoint, opts) => {
+      requestCount++;
+      assert.equal(endpoint, ALPACA_PAPER_CLOCK_ENDPOINT);
+      assert.equal(opts.method, "GET");
+      const secret = opts.headers["APCA-API-SECRET-KEY"];
+      return {
+        ok: true,
+        json: async () => ({
+          timestamp: new Date(cacheNow - 1000).toISOString(),
+          is_open: secret === "rotate-A",
+        }),
+      };
+    };
+    process.env.APCA_API_KEY_ID = "cache-key";
+    process.env.APCA_API_SECRET_KEY = "rotate-A";
+    const beforeRotation = await getAlpacaPaperClock(cacheNow);
+    assert.equal(beforeRotation.evidence.state, "OPEN");
+    await getAlpacaPaperClock(cacheNow + 1000);
+    assert.equal(requestCount, 1, "same credential identity must reuse a fresh clock snapshot");
+    process.env.APCA_API_SECRET_KEY = "rotate-B";
+    const rotated = await getAlpacaPaperClock(cacheNow + 2000);
+    assert.equal(requestCount, 2, "rotated secret must invalidate authoritative cache immediately");
+    assert.equal(rotated.evidence.state, "CLOSED", "new credential's clock truth must replace old OPEN");
+    process.env.APCA_API_KEY_ID = "";
+    const missingAfterRotation = await getAlpacaPaperClock(cacheNow + 3000);
+    assert.equal(missingAfterRotation.evidence.state, "UNKNOWN");
+    assert.equal(requestCount, 2, "missing credentials must never call the provider");
+    process.env.APCA_API_KEY_ID = "cache-key";
+    const restored = await getAlpacaPaperClock(cacheNow + 4000);
+    assert.equal(requestCount, 3, "credentials removed and restored must not resurrect cached authority");
+    assert.equal(restored.evidence.state, "CLOSED");
+    assert(!JSON.stringify(restored).includes("rotate-B"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousId === undefined) delete process.env.APCA_API_KEY_ID;
+    else process.env.APCA_API_KEY_ID = previousId;
+    if (previousSecret === undefined) delete process.env.APCA_API_SECRET_KEY;
+    else process.env.APCA_API_SECRET_KEY = previousSecret;
+  }
 
 const root = new URL("../", import.meta.url);
 for (const relative of [
