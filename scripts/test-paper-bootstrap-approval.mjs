@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const workflow=readFileSync(new URL("../.github/workflows/paper-validation-bootstrap-v2.yml",import.meta.url),"utf8");
+assert.match(workflow,/uses: actions\/checkout@v5/);
+assert.match(workflow,/name: Refuse new PAPER probes outside original approval window/);
+assert.match(workflow,/node scripts\/paper-probe-operator-gate\.mjs/);
+assert.match(workflow,/contents\/data\/paper-order-queue\.json\?ref=main/);
+assert.match(workflow,/contents\/data\/paper-validation-approval\.json\?ref=main/);
+assert.match(workflow,/contents\/data\/paper-v6-continuation-plan\.json\?ref=main/);
+const gateIndex=workflow.indexOf("name: Refuse new PAPER probes");
+const probeIndex=workflow.indexOf("name: Dispatch and verify corrected PAPER probe cycle");
+assert(gateIndex>=0&&probeIndex>gateIndex,"approval gate must run before probe trigger");
+const probeBlock=workflow.slice(probeIndex);
+assert.match(probeBlock,/id: probe\s*\n\s*if: steps\.probe_approval\.outputs\.allowed == 'true'/);
+assert.match(workflow,/NOT_DISPATCHED/);
+assert.match(workflow,/gh workflow run "\$workflow" --repo "\$GITHUB_REPOSITORY" --ref main -f dispatch_token=/);
+console.log("Manual PAPER bootstrap restricted to original approval and empty queue: PASS");
