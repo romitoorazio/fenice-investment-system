@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "purpose": "PREPARE_PAPER_V6_CONTINUATION_ONLY",
+  "ownerInstructionDate": "2026-10-16",
+  "ownerInstructionContext": "Explicit owner direction to prepare continuation of PAPER validation without increasing limits or unlocking LIVE; chat assertion is not an independently verified identity or signature.",
+  "phase": "PREPARATION_NOT_EXECUTION",
+  "v6": {
+    "baselineCommit": "4ccb2d2c21b0545de5b99149222afa5b444bb4c2",
+    "baselineDigest": "9af99a3da2fcebef1cf8d6e804d8717ed2bdbe89cf13c19870d0cff88d04ede8",
+    "startedAt": "2026-09-25T15:40:35.178Z",
+    "originalApprovalId": "fenice-paper-validation-v6-2026-09-24",
+    "originalExpiresAt": "2026-10-24T21:59:59.000Z",
+    "requiredDurationDays": 30,
+    "minimumEvidenceDays": 25,
+    "minimumPaperFills": 10
+  },
+  "unchangedApprovalLimits": {
+    "idPrefix": "fenice-paper-validation-v6-",
+    "targetPaperFills": 10,
+    "maxProbeAttemptsTotal": 20,
+    "maxOrdersPerDay": 1,
+    "maxNotionalEuroPerOrder": 300,
+    "maxCapitalPercentPerProbe": 3,
+    "minTcaProbeNotionalEuro": 250,
+    "maxSingleAssetWeightPercentForProbe": 15,
+    "minCommitteeScore": 70,
+    "minValidationDataConfidence": 90,
+    "maxRiskScore": 75,
+    "permittedDecisionStates": [
+      "ACCUMULA",
+      "MANTIENI",
+      "OSSERVA"
+    ],
+    "permittedCurrencies": [
+      "USD",
+      "EUR"
+    ],
+    "fxPolicy": {
+      "baseCurrency": "EUR",
+      "provider": "twelve-data",
+      "requiredForNonEuro": true,
+      "maxAgeSeconds": 120,
+      "allowedCurrencies": [
+        "EUR",
+        "USD"
+      ],
+      "usdPair": "USD/EUR"
+    }
+  },
+  "absoluteRestrictions": {
+    "liveTradingAllowed": false,
+    "brokerConnectivityAllowed": false,
+    "mayRenewV6Approval": false,
+    "mayChangeV6Fingerprint": false,
+    "mayStageNewProbesAfterOriginalExpiry": false,
+    "mayBackdateEvidence": false,
+    "mayCountOldFillsAsNewPhaseFills": false,
+    "mayModifyBrokerOrPAPERExecution": false
+  },
+  "contingency": {
+    "ifFillsCompleteBeforeOriginalExpiry": "PASSIVE_OBSERVATION_TO_ORIGINAL_30_DAY_MATURITY",
+    "ifFillsMissingAfterOriginalExpiry": "SEPARATE_PHASE_B_APPROVAL_AND_REBASELINE_REQUIRED",
+    "phaseBExpiry": "NOT_SPECIFIED_NO_NEW_PROBE_AUTHORITY",
+    "preserveOriginalV6Evidence": "READ_ONLY_WITH_BASELINE_DIGEST_AND_AUDIT_PROOF"
+  },
+  "historicalCheckpoint": {
+    "asOfUtcDate": "2026-10-16",
+    "minimumReportedEvidenceDays": 22,
+    "minimumReportedPaperFills": 7,
+    "minimumLedgerExecutions": 9,
+    "minimumAuditEntries": 9,
+    "sourceCommit": "143056ec66a5f80586f7466f47f88a52a96ffba9"
+  }
+}
