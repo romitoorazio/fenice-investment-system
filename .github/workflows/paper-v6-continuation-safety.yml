@@ -1,0 +1,39 @@
+name: Fenice PAPER V6 Continuation Preparation Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v6-continuation-plan.json"
+      - "lib/ui/paper-v6-continuation-preflight.ts"
+      - "scripts/check-paper-v6-continuation.mjs"
+      - "scripts/test-paper-v6-continuation.mjs"
+      - ".github/workflows/paper-v6-continuation-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v6-continuation-plan.json"
+      - "lib/ui/paper-v6-continuation-preflight.ts"
+      - "scripts/check-paper-v6-continuation.mjs"
+      - "scripts/test-paper-v6-continuation.mjs"
+      - ".github/workflows/paper-v6-continuation-safety.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-preparation-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify owner preparation has no PAPER or LIVE grant
+        run: node --experimental-strip-types scripts/test-paper-v6-continuation.mjs
+      - name: Verify original core digest, existing ledger and approval read-only
+        run: node --experimental-strip-types scripts/check-paper-v6-continuation.mjs
+      - name: Scan published files for credentials
+        run: node scripts/scan-repository-secrets.mjs
