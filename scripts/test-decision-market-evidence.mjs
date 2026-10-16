@@ -13,7 +13,7 @@ const quote = {
   freshVerifiedFamilies: ["alpaca", "twelve-data"],
   quoteCurrencies: ["USD"],
 };
-const venue = { state: "OPEN", authoritative: true, paperQuoteRefreshCandidate: true };
+const venue = { mic: "XNAS", state: "OPEN", authoritative: true, paperQuoteRefreshCandidate: true };
 const defaults = {
   symbol: "AAPL", researchCurrency: "USD", researchFresh: true,
   instruments, quote, quoteSnapshotCurrent: true,
@@ -33,6 +33,14 @@ const locked = [
   { venue: { ...venue, authoritative: false } },
   { venue: null },
   { quote: null },
+  { quote: { ...quote, symbol: "MSFT" } },
+  { quote: { ...quote, symbol: "" } },
+  { quote: { ...quote, freshVerifiedFamilies: ["alpaca", "alpaca"] } },
+  { quote: { ...quote, freshVerifiedFamilies: ["alpaca", "unverified"] } },
+  { quote: { ...quote, freshVerifiedFamilies: ["alpaca", "twelve-data", "unverified"] } },
+  { quote: { ...quote, state: "NO_VERIFIED_PAPER_SOURCES" } },
+  { venue: { ...venue, mic: "XNYS" } },
+  { venue: { ...venue, mic: undefined } },
   { quote: { ...quote, freshVerifiedFamilies: ["alpaca"] } },
   { quote: { ...quote, snapshotPaperEligible: false } },
   { quote: { ...quote, state: "CURRENCY_NOT_VERIFIED" } },
@@ -52,6 +60,10 @@ for (const patch of locked) {
   assert.equal(result.brokerPositionVerified, false);
 }
 assert.match(assess({ quoteSnapshotCurrent: false }).priceStatus, /scaduto/);
+assert.match(assess({ quote: { ...quote, symbol: "MSFT" } }).priceStatus, /titolo diverso/);
+assert.match(assess({ quote: { ...quote, freshVerifiedFamilies: ["alpaca", "alpaca"] } }).priceStatus, /indipendenti/);
+assert.match(assess({ quote: { ...quote, state: "NO_VERIFIED_PAPER_SOURCES" } }).priceStatus, /Mancano almeno due/);
+assert.match(assess({ venue: { ...venue, mic: "XNYS" } }).marketStatus, /non verificata/);
 assert.match(assess({ quote: { ...quote, quoteCurrencies: ["EUR"] } }).priceStatus, /Valute/);
 assert.match(assess({ venue: { ...venue, state: "CLOSED" } }).marketStatus, /chiusa/);
 console.log("Decisioni evidence and fail-closed PAPER review: PASS");
