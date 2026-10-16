@@ -324,8 +324,11 @@ export async function loadPaperReviewPayload(
     const coverageFamilies = Array.isArray(coverage?.sourceFamilies) ? coverage.sourceFamilies : [];
     const accepted = selectPaperOnlyReviewQuotes(observations, coverageFamilies, queued.symbol, queued.currency, now);
     const proofPrices = accepted.map(item => item.price);
-    const paperMedian = proofPrices.length
-      ? [...proofPrices].sort((a,b) => a-b)[Math.floor((proofPrices.length-1)/2)] : NaN;
+    const sortedPaperPrices = [...proofPrices].sort((a,b) => a-b);
+    const midpoint = Math.floor(sortedPaperPrices.length / 2);
+    const paperMedian = sortedPaperPrices.length === 0 ? NaN
+      : sortedPaperPrices.length % 2 === 1 ? sortedPaperPrices[midpoint]
+      : (sortedPaperPrices[midpoint - 1] + sortedPaperPrices[midpoint]) / 2;
     const paperSpread = Number.isFinite(paperMedian) && paperMedian > 0
       ? 100 * (Math.max(...proofPrices) - Math.min(...proofPrices)) / paperMedian : Infinity;
     const paperProofReady = accepted.length >= 2 && accepted.length === coverageFamilies.length
