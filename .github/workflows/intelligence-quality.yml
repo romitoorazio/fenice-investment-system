@@ -37,7 +37,10 @@ jobs:
     timeout-minutes: 30
     env:
       FENICE_JOB: intraday
-      FENICE_TWELVE_DATA_EXECUTION_PROBES: "6"
+      # Spend four Twelve Data Basic credits on one coherent near-report batch,
+      # not six sequential 9-second polls that are often stale by coverage time.
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
       FENICE_ALPACA_EXECUTION_PROBES: "6"
       ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -83,6 +86,19 @@ jobs:
       - name: Build independent execution market evidence
         if: steps.execution_session.outputs.allowed == 'true'
         run: npm run marketdata:execution
+
+      - name: Verify existing Twelve Data batch timestamp and provider policies
+        if: steps.execution_session.outputs.allowed == 'true'
+        run: node --experimental-strip-types scripts/test-twelve-data-batch.mjs
+
+      # Same existing bounded batch used by PAPER validation. Never fabricate
+      # freshness: the next coverage gate still recomputes source timestamps.
+      # The batch's independent FX refresh is best-effort in this diagnostic
+      # workflow; actual PAPER validation has its own strict FX gate.
+      - name: Refresh coherent Twelve Data batch (best effort)
+        if: steps.execution_session.outputs.allowed == 'true'
+        continue-on-error: true
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
       - name: Measure per-symbol PAPER execution quorum coverage
         if: steps.execution_session.outputs.allowed == 'true'
