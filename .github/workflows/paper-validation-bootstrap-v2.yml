@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 70
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
       - name: Dispatch and verify fresh PAPER baseline workflow
         id: baseline
         env:
@@ -99,8 +103,24 @@ jobs:
 
           echo "Fresh PAPER baseline confirmed on main; LIVE remains locked."
 
+      - name: Refuse new PAPER probes outside original approval window
+        id: probe_approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
+          approval="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-approval.json?ref=main")"
+          queue="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-order-queue.json?ref=main")"
+          plan="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-v6-continuation-plan.json?ref=main")"
+          gate="$(APPROVAL_JSON="$approval" QUEUE_JSON="$queue" CAMPAIGN_JSON="$campaign" PLAN_JSON="$plan" node scripts/paper-probe-operator-gate.mjs)"
+          allowed="$(jq -r '.allowed == true' <<<"$gate")"
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+          echo "Bootstrap probe: $(jq -r '.reason' <<<"$gate")."
+
       - name: Dispatch and verify corrected PAPER probe cycle
         id: probe
+        if: steps.probe_approval.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -138,5 +158,6 @@ jobs:
 
       - name: Confirm bootstrap completed without LIVE permissions
         run: |
-          echo "Fenice PAPER v6 baseline run ${{ steps.baseline.outputs.run_id }} and probe run ${{ steps.probe.outputs.run_id }} completed."
+          echo "PAPER evidence run ${{ steps.baseline.outputs.run_id }} completed; separate new probe run: ${{ steps.probe.outputs.run_id || 'NOT_DISPATCHED' }}."
+          echo "PAPER probe gate: ${{ steps.probe_approval.outputs.allowed }}. An expired approval never triggers a new probe."
           echo "The v6 bootstrap requires the unified fresh decision-data gate plus fresh market USD/EUR conversion evidence; LIVE and broker connectivity remain governed by the canonical fail-closed workflows."
