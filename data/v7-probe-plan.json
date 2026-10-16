@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T20:33:18.926Z",
+  "generatedAt": "2026-10-16T13:58:44.614Z",
   "planningFxObservedAt": "2026-10-15T17:14:00.000Z",
   "planningFxFreshnessEnforced": false,
   "plannedForVersion": 7,
@@ -8,13 +8,32 @@
   "diagnosticOnly": true,
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "recommendedExpansionOrder": [],
+  "recommendedExpansionOrder": [
+    "SPY",
+    "ASML"
+  ],
   "rows": [
     {
+      "symbol": "SPY",
+      "classification": "PROMOTE_COVERAGE_ONLY",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0201,
+      "failedGates": [
+        "execution-coverage"
+      ],
+      "structuralFailedGates": [],
+      "metrics": {
+        "committeeScore": 70,
+        "validationDataConfidence": 98,
+        "riskScore": 30,
+        "notionalCapacityEuro": 299.64
+      }
+    },
+    {
       "symbol": "ASML",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
+      "classification": "PROMOTE_ONE_STRUCTURAL_GATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0042,
       "failedGates": [
         "execution-coverage",
         "committee-score"
@@ -30,10 +49,67 @@
       }
     },
     {
+      "symbol": "AAPL",
+      "classification": "DEFER_MISSING_CANDIDATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.1018,
+      "failedGates": [
+        "candidate-missing"
+      ],
+      "structuralFailedGates": [
+        "candidate-missing"
+      ],
+      "metrics": {
+        "committeeScore": 0,
+        "validationDataConfidence": 0,
+        "riskScore": 100,
+        "notionalCapacityEuro": 0
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "classification": "DEFER_MISSING_CANDIDATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0764,
+      "failedGates": [
+        "candidate-missing"
+      ],
+      "structuralFailedGates": [
+        "candidate-missing"
+      ],
+      "metrics": {
+        "committeeScore": 0,
+        "validationDataConfidence": 0,
+        "riskScore": 100,
+        "notionalCapacityEuro": 0
+      }
+    },
+    {
+      "symbol": "QQQ",
+      "classification": "DEFER_MULTI_GATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0291,
+      "failedGates": [
+        "execution-coverage",
+        "committee-decision",
+        "committee-score"
+      ],
+      "structuralFailedGates": [
+        "committee-decision",
+        "committee-score"
+      ],
+      "metrics": {
+        "committeeScore": 67,
+        "validationDataConfidence": 98,
+        "riskScore": 34,
+        "notionalCapacityEuro": 300
+      }
+    },
+    {
       "symbol": "TSM",
       "classification": "DEFER_PROVIDER_QUORUM",
       "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
+      "crossSourceSpreadPercent": 1.1804,
       "failedGates": [
         "execution-coverage",
         "committee-decision",
@@ -53,90 +129,10 @@
       }
     },
     {
-      "symbol": "AMZN",
+      "symbol": "MSFT",
       "classification": "DEFER_PROVIDER_QUORUM",
       "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
-      "failedGates": [
-        "execution-coverage",
-        "committee-decision",
-        "committee-score"
-      ],
-      "structuralFailedGates": [
-        "committee-decision",
-        "committee-score"
-      ],
-      "metrics": {
-        "committeeScore": 60,
-        "validationDataConfidence": 98,
-        "riskScore": 51,
-        "notionalCapacityEuro": 300
-      }
-    },
-    {
-      "symbol": "IWM",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
-      "failedGates": [
-        "execution-coverage",
-        "committee-decision",
-        "terminal-decision",
-        "committee-score"
-      ],
-      "structuralFailedGates": [
-        "committee-decision",
-        "terminal-decision",
-        "committee-score"
-      ],
-      "metrics": {
-        "committeeScore": 56,
-        "validationDataConfidence": 98,
-        "riskScore": 32,
-        "notionalCapacityEuro": 300
-      }
-    },
-    {
-      "symbol": "GOOGL",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
-      "failedGates": [
-        "candidate-missing"
-      ],
-      "structuralFailedGates": [
-        "candidate-missing"
-      ],
-      "metrics": {
-        "committeeScore": 0,
-        "validationDataConfidence": 0,
-        "riskScore": 100,
-        "notionalCapacityEuro": 0
-      }
-    },
-    {
-      "symbol": "META",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
-      "failedGates": [
-        "candidate-missing"
-      ],
-      "structuralFailedGates": [
-        "candidate-missing"
-      ],
-      "metrics": {
-        "committeeScore": 0,
-        "validationDataConfidence": 0,
-        "riskScore": 100,
-        "notionalCapacityEuro": 0
-      }
-    },
-    {
-      "symbol": "NVDA",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": null,
+      "crossSourceSpreadPercent": 1.7492,
       "failedGates": [
         "candidate-missing"
       ],
