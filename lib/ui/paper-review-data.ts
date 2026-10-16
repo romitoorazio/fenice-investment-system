@@ -56,6 +56,37 @@ const fresh = (timestamp: unknown, now: number, maxAgeMs: number) => {
   return at !== null && at <= now && now - at <= maxAgeMs;
 };
 
+/**
+ * Read-only evidence selector: a LIVE entitlement must never masquerade as
+ * PAPER proof. This does not modify the frozen V6 execution quorum.
+ */
+export function selectPaperOnlyReviewQuotes(
+  observations: readonly ExecutionMarketEvidence[],
+  approvedFamilies: readonly string[],
+  symbol: string, currency: string, now: number,
+): ExecutionMarketEvidence[] {
+  if (!Array.isArray(observations) || !Array.isArray(approvedFamilies) ||
+      !Number.isSafeInteger(now) || now < 0) return [];
+  const families = approvedFamilies.map(v => String(v).trim().toLowerCase());
+  const trusted = new Set(["alpaca", "twelve-data", "directa"]);
+  if (families.length < 2 || new Set(families).size !== families.length ||
+      !families.every(f => trusted.has(f))) return [];
+  const ticker = String(symbol || "").trim().toUpperCase();
+  const ccy = String(currency || "").trim().toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(ticker) || !/^[A-Z]{3}$/.test(ccy)) return [];
+  return families.flatMap(family => {
+    const eligible = observations.filter(item =>
+      item?.eligibility === "PAPER" && item?.provenanceVerified === true
+      && (family !== "directa" || item.provenanceMethod === "directa-readonly-entitlement-isin-topbook")
+      && item.symbol?.trim().toUpperCase() === ticker
+      && item.currency?.trim().toUpperCase() === ccy
+      && item.sourceFamily?.trim().toLowerCase() === family
+      && positive(item.price) && fresh(item.observedAt, now, 120_000))
+      .sort((a,b) => (paperTimestamp(b.observedAt) ?? 0) - (paperTimestamp(a.observedAt) ?? 0));
+    return eligible[0] ? [eligible[0]] : [];
+  });
+}
+
 function refreshableQueuedOrder(order: ProposedOrder, now: number) {
   const requestedAt = paperTimestamp(order?.requestedAt) ?? NaN;
   return Number.isFinite(requestedAt)
@@ -290,12 +321,21 @@ export async function loadPaperReviewPayload(
     // Use the canonical provenance registry, not a caller-supplied PAPER label.
     const coverage = evaluateExecutionCoverageReport({ requestedSymbols: [queued.symbol], observations }, now).rows[0];
     if (!coverage?.paperEligible) blockers.push("Servono prezzi freschi e concordi da due fonti indipendenti ammesse per PAPER.");
-    const accepted = coverage.sourceFamilies.map(family => observations
-      .filter(item => item.sourceFamily?.trim().toLowerCase() === family && item.provenanceVerified === true
-        && ["PAPER", "LIVE"].includes(item.eligibility) && fresh(item.observedAt, now, 120_000) && positive(item.price))
-      .sort((a, b) => Number(b.eligibility === "LIVE") - Number(a.eligibility === "LIVE") || Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]).filter(Boolean);
+    const coverageFamilies = Array.isArray(coverage?.sourceFamilies) ? coverage.sourceFamilies : [];
+    const accepted = selectPaperOnlyReviewQuotes(observations, coverageFamilies, queued.symbol, queued.currency, now);
+    const proofPrices = accepted.map(item => item.price);
+    const sortedPaperPrices = [...proofPrices].sort((a,b) => a-b);
+    const midpoint = Math.floor(sortedPaperPrices.length / 2);
+    const paperMedian = sortedPaperPrices.length === 0 ? NaN
+      : sortedPaperPrices.length % 2 === 1 ? sortedPaperPrices[midpoint]
+      : (sortedPaperPrices[midpoint - 1] + sortedPaperPrices[midpoint]) / 2;
+    const paperSpread = Number.isFinite(paperMedian) && paperMedian > 0
+      ? 100 * (Math.max(...proofPrices) - Math.min(...proofPrices)) / paperMedian : Infinity;
+    const paperProofReady = accepted.length >= 2 && accepted.length === coverageFamilies.length
+      && Number.isFinite(paperSpread) && paperSpread <= 0.75;
+    if (!paperProofReady) blockers.push("Prova PAPER insufficiente: servono due fonti PAPER indipendenti, concordi e aggiornate; LIVE non è sostitutiva.");
     const quoteAt = accepted.length ? Math.min(...accepted.map(item => Date.parse(item.observedAt))) : NaN;
-    const referencePrice = coverage.medianPrice ?? Number(queued.referencePrice ?? NaN);
+    const referencePrice = paperProofReady ? paperMedian : NaN;
     const rate = queued.currency === "EUR" ? 1 : Number(fx?.ratesToEuro?.[queued.currency]?.rate ?? NaN);
     const fxAt = queued.currency === "EUR" ? quoteAt : Date.parse(fx?.ratesToEuro?.[queued.currency]?.observedAt ?? "");
     if (!positive(rate) || rate > 5 || !Number.isFinite(fxAt) || fxAt > now || now - fxAt > 120_000
