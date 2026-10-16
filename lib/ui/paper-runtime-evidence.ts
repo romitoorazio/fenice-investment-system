@@ -1,5 +1,6 @@
 import { evaluateFxExposure } from "../trading/fx-exposure.ts";
 import { verifyAuditChain, type AuditEvent } from "../trading/audit-chain.ts";
+import { paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
 
 type PaperMarketSession = {
   configured?: boolean;
@@ -80,6 +81,7 @@ type PaperOmsLike = {
     fxToEuro?: number;
     fxProvider?: string | null;
     fxObservedAt?: string | null;
+    filledAt?: string | null;
     risk?: {
       checks?: Array<{
         code?: string;
@@ -101,11 +103,24 @@ function safePaperLocks(row: PaperEvidenceRow) {
   return row?.liveTradingAllowed === false && row?.brokerConnectivityAllowed === false;
 }
 
-function validSessionEvidence(row: PaperEvidenceRow) {
+/** Historical admission is bounded by the report/fill timestamp, not today's
+ * market time. A future-dated quote or FX observation is never proof of a
+ * completed historical PAPER event. This changes read-only readiness ONLY. */
+function historicalTimestampMatches(observed: unknown, parent: unknown, now: number, maxAgeMs: number) {
+  const at = paperTimestamp(observed);
+  const reference = paperTimestamp(parent);
+  return Number.isSafeInteger(now) && now >= 0 && now <= 8.64e15
+    && at !== null && reference !== null
+    && reference <= now && at <= reference
+    && reference - at <= maxAgeMs;
+}
+
+function validSessionEvidence(row: PaperEvidenceRow, now: number) {
   const session = row?.marketSession;
   const state = String(session?.evidence?.state || "").trim().toUpperCase();
   const source = String(session?.evidence?.source || "").trim();
-  const observedAt = Date.parse(String(session?.evidence?.observedAt || ""));
+  const timestampValid = historicalTimestampMatches(
+    session?.evidence?.observedAt, row?.observedAt, now, 120_000);
   const decisionAllowed = session?.decision?.allowed;
   const decisionState = String(session?.decision?.state || state).trim().toUpperCase();
   const stateDecisionConsistent = state === "OPEN"
@@ -119,7 +134,7 @@ function validSessionEvidence(row: PaperEvidenceRow) {
     && session?.evidence?.authoritative === true
     && ["OPEN", "CLOSED", "HALTED"].includes(state)
     && source.length > 0
-    && Number.isFinite(observedAt)
+    && timestampValid
     && decisionState === state
     && stateDecisionConsistent;
 }
@@ -149,11 +164,12 @@ function collectCertifiedForeignFillIds(rows: PaperEvidenceRow[]) {
   return ids;
 }
 
-function validLatestFxEvidence(rows: PaperEvidenceRow[]) {
+function validLatestFxEvidence(rows: PaperEvidenceRow[], now: number) {
   return [...rows].reverse().find((row) => {
     const fx = row?.marketFxEvidence;
     const rate = Number(fx?.usdRate);
-    const observedAt = Date.parse(String(fx?.usdObservedAt || ""));
+    const timestampValid = historicalTimestampMatches(
+      fx?.usdObservedAt, row?.observedAt, now, 120_000);
     const provider = String(fx?.provider || "").trim().toLowerCase();
     const expectedProvider = String(fx?.expectedProvider || provider).trim().toLowerCase();
     return safePaperLocks(row)
@@ -169,7 +185,7 @@ function validLatestFxEvidence(rows: PaperEvidenceRow[]) {
       && provider === expectedProvider
       && Number.isFinite(rate)
       && rate > 0
-      && Number.isFinite(observedAt);
+      && timestampValid;
   });
 }
 
@@ -187,21 +203,22 @@ function inferPaperCapitalEuro(oms: PaperOmsLike | null | undefined) {
 export function derivePaperRuntimeEvidence(
   campaign: PaperCampaignLike | null | undefined,
   oms?: PaperOmsLike | null,
+  now: number = Date.now(),
 ) {
   const rows = Array.isArray(campaign?.dailyEvidence)
     ? [...campaign.dailyEvidence].sort((a, b) => evidenceTime(a) - evidenceTime(b))
     : [];
   const newestFirst = [...rows].reverse();
-  const openSessionRow = newestFirst.find((row) => validSessionEvidence(row)
+  const openSessionRow = newestFirst.find((row) => validSessionEvidence(row, now)
     && String(row?.marketSession?.evidence?.state || "").toUpperCase() === "OPEN");
-  const blockedSessionRow = newestFirst.find((row) => validSessionEvidence(row)
+  const blockedSessionRow = newestFirst.find((row) => validSessionEvidence(row, now)
     && ["CLOSED", "HALTED"].includes(String(row?.marketSession?.evidence?.state || "").toUpperCase()));
   const latestSessionRow = [openSessionRow, blockedSessionRow]
     .filter(Boolean)
     .sort((a, b) => evidenceTime(a as PaperEvidenceRow) - evidenceTime(b as PaperEvidenceRow))
     .at(-1) as PaperEvidenceRow | undefined;
 
-  const latestFxRow = validLatestFxEvidence(rows);
+  const latestFxRow = validLatestFxEvidence(rows, now);
   const certifiedForeignFillIds = collectCertifiedForeignFillIds(rows);
   const executions = Array.isArray(oms?.executions) ? oms.executions : [];
   const foreignFills = executions.filter((execution) =>
@@ -209,12 +226,13 @@ export function derivePaperRuntimeEvidence(
   const foreignFillsCertified = foreignFills.length > 0 && foreignFills.every((execution) => {
     const id = String(execution?.clientOrderId || "");
     const rate = Number(execution?.fxToEuro);
-    const observedAt = Date.parse(String(execution?.fxObservedAt || ""));
+    const timestampValid = historicalTimestampMatches(
+      execution?.fxObservedAt, execution?.filledAt, now, 120_000);
     return certifiedForeignFillIds.has(id)
       && Number.isFinite(rate)
       && rate > 0
       && String(execution?.fxProvider || "").trim().length > 0
-      && Number.isFinite(observedAt);
+      && timestampValid;
   });
 
   const capitalEuro = inferPaperCapitalEuro(oms);

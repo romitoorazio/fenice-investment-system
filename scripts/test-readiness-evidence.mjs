@@ -232,6 +232,7 @@ const paperRuntime = derivePaperRuntimeEvidence({
       fxToEuro: 0.8928,
       fxProvider: "twelve-data",
       fxObservedAt: "2026-10-08T17:03:00.000Z",
+      filledAt: "2026-10-08T17:04:27.081Z",
       risk: { checks: [{ code: "valid-capital", passed: true, observed: 10000 }] },
     },
   ],
@@ -247,6 +248,76 @@ assert.equal(paperRuntime.persistentAuditRuntimeVerified, true);
 assert.equal(paperRuntime.auditChainEvents, 1);
 assert.equal(paperRuntime.auditEvidenceDays, 2);
 assert.equal(paperRuntime.allExecutionsAudited, true);
+
+const historicalRows = [
+  {
+    date: "2026-10-08", observedAt: "2026-10-08T17:04:27.344Z",
+    liveTradingAllowed: false, brokerConnectivityAllowed: false, auditChainValid: true,
+    marketSession: { configured: true, evidence: { state: "OPEN",
+      source: "Alpaca Paper Trading Clock", observedAt: "2026-10-08T17:04:26.734Z",
+      authoritative: true }, decision: { allowed: true, state: "OPEN" } },
+    marketFxEvidence: { readyNow: true, requiredForNonEuro: true, provider: "twelve-data",
+      expectedProvider: "twelve-data", baseCurrency: "EUR", expectedBaseCurrency: "EUR",
+      usdPair: "USD/EUR", usdRate: 0.8928,
+      usdObservedAt: "2026-10-08T17:03:00.000Z", provenanceVerified: true,
+      liveTradingAllowed: false, brokerConnectivityAllowed: false },
+    fillEvidenceProof: { complete: true, windows: [{ marketFx: {
+      ready: true, requiredForAdditionalFills: true,
+      nonEuroFills: 1, matchedNonEuroFills: 1,
+      proofs: [{ clientOrderId: "probe-usd-1", readyAtFill: true, matches: true }],
+    } }] },
+  },
+  {
+    date: "2026-10-09", observedAt: "2026-10-09T18:00:00.000Z",
+    liveTradingAllowed: false, brokerConnectivityAllowed: false, auditChainValid: true,
+    marketSession: { configured: true, evidence: { state: "CLOSED",
+      source: "Alpaca Paper Trading Clock", observedAt: "2026-10-09T18:00:00.000Z",
+      authoritative: true }, decision: { allowed: false, state: "CLOSED" } },
+  },
+];
+const historicalOms = {
+  liveTradingAllowed: false, brokerConnectivityAllowed: false,
+  auditChain: testAuditChain,
+  positions: [{ quantity: 1, averagePrice: 500, currency: "USD", fxToEuro: 0.8928 }],
+  executions: [{ clientOrderId: "probe-usd-1", status: "PAPER_FILLED",
+    currency: "USD", fxToEuro: 0.8928, fxProvider: "twelve-data",
+    fxObservedAt: "2026-10-08T17:03:00.000Z", filledAt: "2026-10-08T17:04:27.081Z",
+    risk: { checks: [{ code: "valid-capital", passed: true, observed: 10000 }] } }],
+};
+const historicalNow = Date.parse("2026-10-17T00:00:00.000Z");
+const historicalEvidence = (rows = historicalRows, oms = historicalOms, clock = historicalNow) =>
+  derivePaperRuntimeEvidence({ dailyEvidence: rows }, oms, clock);
+assert.equal(historicalEvidence().marketSessionControlsVerified, true);
+assert.equal(historicalEvidence().fxExposureVerified, true);
+// An OPEN session dated tomorrow cannot certify the historical venue control.
+const futureOpen = structuredClone(historicalRows);
+futureOpen[0].marketSession.evidence.observedAt = "2026-10-09T17:04:26.734Z";
+assert.equal(historicalEvidence(futureOpen).marketSessionControlsVerified, false);
+const futureClosed = structuredClone(historicalRows);
+futureClosed[1].marketSession.evidence.observedAt = "2026-10-10T18:00:00.000Z";
+assert.equal(historicalEvidence(futureClosed).marketSessionControlsVerified, false);
+const staleOpen = structuredClone(historicalRows);
+staleOpen[0].marketSession.evidence.observedAt = "2026-10-08T16:00:00.000Z";
+assert.equal(historicalEvidence(staleOpen).marketSessionControlsVerified, false);
+const malformedSession = structuredClone(historicalRows);
+malformedSession[0].marketSession.evidence.observedAt = "2026-02-30T17:04:26.734Z";
+assert.equal(historicalEvidence(malformedSession).marketSessionControlsVerified, false);
+// A future FX rate, even marked provider-verified, cannot certify past exposure.
+const futureFx = structuredClone(historicalRows);
+futureFx[0].marketFxEvidence.usdObservedAt = "2026-10-08T17:05:00.000Z";
+assert.equal(historicalEvidence(futureFx).fxExposureVerified, false);
+const staleFx = structuredClone(historicalRows);
+staleFx[0].marketFxEvidence.usdObservedAt = "2026-10-08T17:00:00.000Z";
+assert.equal(historicalEvidence(staleFx).fxExposureVerified, false);
+const futureFill = structuredClone(historicalOms);
+futureFill.executions[0].fxObservedAt = "2026-10-08T17:05:00.000Z";
+assert.equal(historicalEvidence(historicalRows,futureFill).fxExposureVerified, false);
+const missingFillTime = structuredClone(historicalOms);
+delete missingFillTime.executions[0].filledAt;
+assert.equal(historicalEvidence(historicalRows,missingFillTime).fxExposureVerified, false);
+assert.equal(historicalEvidence(historicalRows,historicalOms,Date.parse("2026-10-08T17:00:00Z"))
+  .fxExposureVerified, false, "future historical reports cannot certify readiness");
+
 
 const persistedPaperRuntime = buildInstitutionalEvidence(intelligence, {
   marketSessionControlsVerified: paperRuntime.marketSessionControlsVerified,
