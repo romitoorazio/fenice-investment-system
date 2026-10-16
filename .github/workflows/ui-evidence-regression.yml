@@ -43,6 +43,9 @@ jobs:
       - name: Verify market-open readiness rejects stale stored evidence
         run: node scripts/test-paper-open-readiness-orchestration.mjs
 
+      - name: Verify Compra/Vendi quotes and exchange identity match their exact instrument
+        run: node --experimental-strip-types scripts/test-decision-market-evidence.mjs
+
       - name: Verify committee-first Compra/Vendi classification
         run: node --experimental-strip-types scripts/test-committee-decision-display.mjs
 
