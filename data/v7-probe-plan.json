@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-16T13:58:44.614Z",
-  "planningFxObservedAt": "2026-10-15T17:14:00.000Z",
+  "generatedAt": "2026-10-16T18:49:34.594Z",
+  "planningFxObservedAt": "2026-10-16T17:42:00.000Z",
   "planningFxFreshnessEnforced": false,
   "plannedForVersion": 7,
   "activationAllowed": false,
@@ -8,51 +8,31 @@
   "diagnosticOnly": true,
   "liveTradingAllowed": false,
   "brokerConnectivityAllowed": false,
-  "recommendedExpansionOrder": [
-    "SPY",
-    "ASML"
-  ],
+  "recommendedExpansionOrder": [],
   "rows": [
-    {
-      "symbol": "SPY",
-      "classification": "PROMOTE_COVERAGE_ONLY",
-      "quorumCompatible": true,
-      "crossSourceSpreadPercent": 0.0201,
-      "failedGates": [
-        "execution-coverage"
-      ],
-      "structuralFailedGates": [],
-      "metrics": {
-        "committeeScore": 70,
-        "validationDataConfidence": 98,
-        "riskScore": 30,
-        "notionalCapacityEuro": 299.64
-      }
-    },
-    {
-      "symbol": "ASML",
-      "classification": "PROMOTE_ONE_STRUCTURAL_GATE",
-      "quorumCompatible": true,
-      "crossSourceSpreadPercent": 0.0042,
-      "failedGates": [
-        "execution-coverage",
-        "committee-score"
-      ],
-      "structuralFailedGates": [
-        "committee-score"
-      ],
-      "metrics": {
-        "committeeScore": 69,
-        "validationDataConfidence": 98,
-        "riskScore": 56,
-        "notionalCapacityEuro": 300
-      }
-    },
     {
       "symbol": "AAPL",
       "classification": "DEFER_MISSING_CANDIDATE",
       "quorumCompatible": true,
-      "crossSourceSpreadPercent": 0.1018,
+      "crossSourceSpreadPercent": 0.0381,
+      "failedGates": [
+        "candidate-missing"
+      ],
+      "structuralFailedGates": [
+        "candidate-missing"
+      ],
+      "metrics": {
+        "committeeScore": 0,
+        "validationDataConfidence": 0,
+        "riskScore": 100,
+        "notionalCapacityEuro": 0
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "classification": "DEFER_MISSING_CANDIDATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0665,
       "failedGates": [
         "candidate-missing"
       ],
@@ -70,7 +50,7 @@
       "symbol": "NVDA",
       "classification": "DEFER_MISSING_CANDIDATE",
       "quorumCompatible": true,
-      "crossSourceSpreadPercent": 0.0764,
+      "crossSourceSpreadPercent": 0.0467,
       "failedGates": [
         "candidate-missing"
       ],
@@ -85,31 +65,10 @@
       }
     },
     {
-      "symbol": "QQQ",
+      "symbol": "TSM",
       "classification": "DEFER_MULTI_GATE",
       "quorumCompatible": true,
-      "crossSourceSpreadPercent": 0.0291,
-      "failedGates": [
-        "execution-coverage",
-        "committee-decision",
-        "committee-score"
-      ],
-      "structuralFailedGates": [
-        "committee-decision",
-        "committee-score"
-      ],
-      "metrics": {
-        "committeeScore": 67,
-        "validationDataConfidence": 98,
-        "riskScore": 34,
-        "notionalCapacityEuro": 300
-      }
-    },
-    {
-      "symbol": "TSM",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": 1.1804,
+      "crossSourceSpreadPercent": 0.034,
       "failedGates": [
         "execution-coverage",
         "committee-decision",
@@ -129,21 +88,62 @@
       }
     },
     {
-      "symbol": "MSFT",
-      "classification": "DEFER_PROVIDER_QUORUM",
-      "quorumCompatible": false,
-      "crossSourceSpreadPercent": 1.7492,
+      "symbol": "SPY",
+      "classification": "DEFER_MULTI_GATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0033,
       "failedGates": [
-        "candidate-missing"
+        "committee-decision",
+        "committee-score"
       ],
       "structuralFailedGates": [
-        "candidate-missing"
+        "committee-decision",
+        "committee-score"
       ],
       "metrics": {
-        "committeeScore": 0,
-        "validationDataConfidence": 0,
-        "riskScore": 100,
-        "notionalCapacityEuro": 0
+        "committeeScore": 64,
+        "validationDataConfidence": 98,
+        "riskScore": 30,
+        "notionalCapacityEuro": 300
+      }
+    },
+    {
+      "symbol": "QQQ",
+      "classification": "DEFER_MULTI_GATE",
+      "quorumCompatible": true,
+      "crossSourceSpreadPercent": 0.0056,
+      "failedGates": [
+        "committee-decision",
+        "committee-score"
+      ],
+      "structuralFailedGates": [
+        "committee-decision",
+        "committee-score"
+      ],
+      "metrics": {
+        "committeeScore": 62,
+        "validationDataConfidence": 98,
+        "riskScore": 35,
+        "notionalCapacityEuro": 300
+      }
+    },
+    {
+      "symbol": "ASML",
+      "classification": "DEFER_PROVIDER_QUORUM",
+      "quorumCompatible": false,
+      "crossSourceSpreadPercent": 1.4747,
+      "failedGates": [
+        "execution-coverage",
+        "committee-score"
+      ],
+      "structuralFailedGates": [
+        "committee-score"
+      ],
+      "metrics": {
+        "committeeScore": 69,
+        "validationDataConfidence": 98,
+        "riskScore": 55,
+        "notionalCapacityEuro": 300
       }
     }
   ]
