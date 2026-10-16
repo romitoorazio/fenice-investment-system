@@ -28,6 +28,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Verify Yahoo FX close and timestamp alignment without fabricated freshness
+        run: node --experimental-strip-types scripts/test-fx-research-snapshot.mjs
+
       - name: Verify fresh provider statuses reconcile without false green or stale FINRA 403
         run: node --experimental-strip-types scripts/test-source-status-reconciliation.mjs
 

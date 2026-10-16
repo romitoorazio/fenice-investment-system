@@ -1,3 +1,5 @@
+import { extractYahooEurUsdResearchSnapshot } from "@/lib/ui/fx-research-snapshot";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -16,19 +18,8 @@ async function fetchEurUsd() {
         next: { revalidate: 300 },
       },
     );
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const result = data?.chart?.result?.[0];
-    const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    const rate = [...closes].reverse().find((value) => Number.isFinite(value) && Number(value) > 0);
-    if (!Number.isFinite(rate)) throw new Error("Cambio non disponibile");
-    const timestamp = result?.timestamp?.at(-1);
-    return {
-      eurUsd: Number(rate),
-      observedAt: timestamp ? new Date(Number(timestamp) * 1000).toISOString() : new Date().toISOString(),
-      source: "Yahoo Finance EURUSD=X",
-      status: "operativo",
-    };
+    if (!response.ok) throw new Error("FX_PROVIDER_UNAVAILABLE");
+    return extractYahooEurUsdResearchSnapshot(await response.json(), Date.now());
   } finally {
     clearTimeout(timer);
   }
@@ -41,15 +32,20 @@ export async function GET() {
       headers: { "cache-control": "public, s-maxage=300, stale-while-revalidate=600" },
     });
   } catch (error) {
-    return Response.json(
-      {
-        eurUsd: null,
-        observedAt: new Date().toISOString(),
-        source: "Yahoo Finance EURUSD=X",
-        status: "errore",
-        detail: error instanceof Error ? error.message : "Cambio non disponibile",
-      },
-      { status: 503, headers: { "cache-control": "no-store" } },
-    );
+    // An error's timestamp denotes REPORT creation, never a fictional FX trade.
+    // Never expose the upstream provider body or a credential-bearing exception.
+    return Response.json({
+      eurUsd: null,
+      observedAt: null,
+      generatedAt: new Date().toISOString(),
+      source: "Yahoo Finance EURUSD=X",
+      status: "errore",
+      detail: error instanceof Error && /^FX_[A-Z_]+$/.test(error.message)
+        ? error.message : "Cambio non disponibile",
+      quoteKind: "HISTORICAL_DAILY_CLOSE",
+      researchOnly: true,
+      paperFxEligible: false,
+      liveTradingAllowed: false,
+    }, { status: 503, headers: { "cache-control": "no-store" } });
   }
 }
