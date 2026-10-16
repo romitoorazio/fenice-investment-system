@@ -87,6 +87,7 @@ async function check() {
 const diagnosis = await check();
 const report = {
   generatedAt: now, mode: "FINRA_PUBLIC_READONLY_ENTITLEMENT_DIAGNOSTIC", researchOnly: true,
+  supportCaseIds: ["CAS-3012366-L5Q7D5", "CAS-3012760-W4W5W9"],
   liveTradingAllowed: false, paperEligible: false, brokerSubmissionAllowed: false,
   ...diagnosis, results,
   hint: diagnosis.tokenHttpStatus === 200 && results.some(x => x.httpStatus === 403)
