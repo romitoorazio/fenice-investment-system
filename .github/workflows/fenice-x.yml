@@ -24,6 +24,8 @@ jobs:
       COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
       COINGECKO_PRO_API_KEY: ${{ secrets.COINGECKO_PRO_API_KEY }}
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+      FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
       FENICE_SOURCE_CONCURRENCY: "4"
       FENICE_SOURCE_TIMEOUT_MS: "25000"
       FENICE_SOURCE_RETRIES: "3"
@@ -38,7 +40,7 @@ jobs:
         run: npm install --no-audit --no-fund --package-lock=false
       - name: Safe secret diagnostics
         run: |
-          node -e "for (const n of ['ALPHA_VANTAGE_API_KEY','FRED_API_KEY','EIA_API_KEY','COINGECKO_API_KEY','COINGECKO_PRO_API_KEY','SEC_USER_AGENT']) console.log(n+': '+(process.env[n]?'configured':'missing'))"
+          node -e "for (const n of ['ALPHA_VANTAGE_API_KEY','FRED_API_KEY','EIA_API_KEY','COINGECKO_API_KEY','COINGECKO_PRO_API_KEY','SEC_USER_AGENT','FINRA_CLIENT_ID','FINRA_CLIENT_SECRET']) console.log(n+': '+(process.env[n]?'configured':'missing'))"
       - name: Build Fenice intelligence
         run: npm run foundation
       - name: Validate generated report

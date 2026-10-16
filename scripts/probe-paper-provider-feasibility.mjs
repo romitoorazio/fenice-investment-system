@@ -6,13 +6,14 @@ import {
   normalizeExecutionSymbol,
 } from "../lib/trading/execution-market-data.ts";
 import { DEFAULT_MARKET_DATA_QUORUM_LIMITS } from "../lib/trading/market-data-quorum.ts";
-import { diagnosticQuoteAgeSeconds, diagnosticQuoteFresh, chooseAlpacaIexDiagnosticPrice } from "../lib/intelligence/paper-provider-probe-truth.mjs";
+import { diagnosticQuoteAgeSeconds, diagnosticQuoteFresh, chooseAlpacaIexDiagnosticPrice, recheckProviderProbeQuote, providerProbeMarketOpen } from "../lib/intelligence/paper-provider-probe-truth.mjs";
+import { getAlpacaPaperClock } from "../lib/market/alpaca-paper-clock-runtime.mjs";
 import { parseTwelveDataQuoteTime, unwrapTwelveDataBatchQuote } from "../lib/trading/twelve-data-batch.mjs";
 
-const targetSymbols = String(process.env.FENICE_FEASIBILITY_SYMBOLS || "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN")
+const targetSymbols = [...new Set(String(process.env.FENICE_FEASIBILITY_SYMBOLS || "SPY,QQQ,AAPL,MSFT,ASML,TSM,NVDA")
   .split(",")
   .map(normalizeExecutionSymbol)
-  .filter(Boolean)
+  .filter(Boolean))]
   .slice(0, 8);
 const alpacaKey = String(process.env.APCA_API_KEY_ID || "").trim();
 const alpacaSecret = String(process.env.APCA_API_SECRET_KEY || "").trim();
@@ -138,6 +139,7 @@ function markdown(report) {
     "## Fenice provider feasibility lab",
     "",
     "Read-only diagnostic. No PAPER state, order, broker, campaign evidence or LIVE setting is modified.",
+    `Sampling state: ${report.state}; quote providers queried: ${report.quoteProvidersQueried}.`,
     `Current quorum spread limit: ${report.maxSpreadPercent}%.`,
     "",
     "| Symbol | Venue | Alpaca fresh | Alpaca basis | Twelve Data fresh | Spread % | Quorum-compatible |",
@@ -167,13 +169,18 @@ const instruments = targetSymbols.map((symbol) => {
   };
 });
 
-const twelveMap = await probeTwelveBatch(instruments.filter((instrument) => instrument.twelveDataCandidate));
+const marketSession = await getAlpacaPaperClock();
+const marketOpen = providerProbeMarketOpen(marketSession);
+const twelveMap = marketOpen
+  ? await probeTwelveBatch(instruments.filter((instrument) => instrument.twelveDataCandidate))
+  : new Map();
 const targets = [];
 for (const instrument of instruments) {
-  const alpaca = instrument.alpacaCandidate
+  const skipped = { ok: false, freshVerifiedQuote: false, reason: "authoritative-open-session-unavailable" };
+  const alpaca = !marketOpen ? { configured: Boolean(alpacaKey && alpacaSecret), ...skipped } : instrument.alpacaCandidate
     ? await probeAlpaca(instrument.symbol)
     : { configured: Boolean(alpacaKey && alpacaSecret), ok: false, freshVerifiedQuote: false, reason: "not-paper-candidate" };
-  const twelveData = instrument.twelveDataCandidate
+  const twelveData = !marketOpen ? { configured: Boolean(twelveKey), ...skipped } : instrument.twelveDataCandidate
     ? (twelveMap.get(instrument.symbol) || { configured: Boolean(twelveKey), ok: false, freshVerifiedQuote: false, reason: "not-returned" })
     : { configured: Boolean(twelveKey), ok: false, freshVerifiedQuote: false, reason: "not-paper-candidate" };
   const spread = crossSourceSpread(alpaca.midpoint, twelveData.price);
@@ -190,8 +197,23 @@ for (const instrument of instruments) {
   });
 }
 
+const reportNow = Date.now();
+const sessionStillOpen = providerProbeMarketOpen(marketSession, reportNow);
+for (const row of targets) {
+  row.alpaca = recheckProviderProbeQuote(row.alpaca, reportNow, maxAgeSeconds);
+  row.twelveData = recheckProviderProbeQuote(row.twelveData, reportNow, maxAgeSeconds);
+  row.crossSourceSpreadPercent = crossSourceSpread(row.alpaca.midpoint, row.twelveData.price);
+  row.withinCurrentQuorumSpreadLimit = row.crossSourceSpreadPercent !== null && row.crossSourceSpreadPercent <= maxSpreadPercent;
+  row.dualSourceFeasible = sessionStillOpen && row.alpaca.freshVerifiedQuote && row.twelveData.freshVerifiedQuote;
+  row.quorumCompatible = row.dualSourceFeasible && row.withinCurrentQuorumSpreadLimit;
+}
+
 const report = {
-  generatedAt: new Date().toISOString(),
+  generatedAt: new Date(reportNow).toISOString(),
+  state: !marketOpen ? "SKIPPED_NO_OPEN_SESSION" : sessionStillOpen ? "OPEN_SESSION_SAMPLED" : "SESSION_EXPIRED_DURING_PROBE",
+  quoteProvidersQueried: marketOpen,
+  marketSession,
+  sessionFreshAtReport: sessionStillOpen,
   diagnosticOnly: true,
   paperStateModified: false,
   campaignEvidenceModified: false,

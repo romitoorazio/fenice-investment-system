@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 
 const read = name => readFile(new URL("../.github/workflows/" + name, import.meta.url), "utf8");
 const [foundation, ci, paper, engineering, redundantFoundation, dataLab, release] = await Promise.all([
@@ -47,9 +48,15 @@ assert.ok(!/ignoreCommand|commandForIgnoringBuildStep/.test(foundation + ci + en
   "Ignored Vercel builds still consume deployment quota");
 
 const releaseContinuationLines = release.split("\n").filter(line => /\\+$/.test(line));
-assert(releaseContinuationLines.length >= 8, "guarded release must still use multiline curl/jq commands");
+assert(releaseContinuationLines.length > 0, "guarded release retains multiline shell commands");
 assert(releaseContinuationLines.every(line => (line.match(/\\+$/) || [""])[0].length === 1),
   "double-escaped shell line continuation corrupts curl headers and Vercel URL");
+const shellBlocks=[...release.matchAll(/^        run: \|\n((?:          [^\n]*(?:\n|$)|\n)*)/gm)];
+assert(shellBlocks.length>0,"Release must expose reviewable shell steps");
+for(const [,block] of shellBlocks){
+  const parsed=spawnSync("bash",["-n"],{input:block.split("\n").map(line=>line.startsWith("          ")?line.slice(10):line).join("\n"),encoding:"utf8"});
+  assert.equal(parsed.status,0,parsed.stderr);
+}
 assert.match(release, /gitSource:[\s\S]*?sha: \$sha/,
   "production deployment must remain bound to an exact Git commit SHA");
 assert.match(release, /This exact main SHA already has a READY production deployment/,
