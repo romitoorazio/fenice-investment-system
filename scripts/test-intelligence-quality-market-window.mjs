@@ -12,6 +12,15 @@ assert.match(
   "Intelligence Quality must compute a deterministic regular-session gate before execution provider calls",
 );
 
+// New York business hours alone do not prove the exchange is open. The
+// authoritative read-only Alpaca clock must fail closed for holidays/stale data.
+assert.match(workflow, /node --experimental-strip-types scripts\/check-paper-market-session\.mjs/,
+  "Quality must query an authoritative market clock before quote providers");
+assert.match(workflow, /assessPersistedPaperSession\(session\)\.marketOpen/,
+  "A fresh authenticated OPEN clock is required to spend provider credits");
+assert.match(workflow, /if \(!open\) appendFileSync\(process\.env\.GITHUB_OUTPUT, "allowed=false/,
+  "Closed, unknown and stale clock states must disable execution provider refresh");
+
 for (const stepName of [
   "Build independent execution market evidence",
   "Measure per-symbol PAPER execution quorum coverage",

@@ -70,9 +70,29 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Gate execution provider refresh to regular New York session
+      - name: Gate execution provider refresh to authoritative open US market
         id: execution_session
-        run: node scripts/paper-probe-request-window.mjs --requested-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --github-output "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          # First skip holidays, nights and weekends without quote-provider calls.
+          # The regular-hours gate is a cheap prefilter, NOT market-open proof.
+          node scripts/paper-probe-request-window.mjs --requested-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --github-output "$GITHUB_OUTPUT"
+          if ! grep -Fxq 'allowed=true' "$GITHUB_OUTPUT"; then
+            echo "Skip execution provider quotes: outside NY regular hours."
+            exit 0
+          fi
+          # A weekday can be a US exchange holiday or early close. Fail closed
+          # unless a fresh authenticated read-only Alpaca PAPER clock says OPEN.
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+          node --input-type=module - <<'NODE'
+          import { readFileSync, appendFileSync } from "node:fs";
+          import { assessPersistedPaperSession } from "./lib/intelligence/persisted-paper-session-gate.mjs";
+          const session = JSON.parse(readFileSync("data/paper-market-session.json", "utf8"));
+          const open = assessPersistedPaperSession(session).marketOpen;
+          if (!open) appendFileSync(process.env.GITHUB_OUTPUT, "allowed=false\n");
+          console.log(`Quality execution provider budget: ${open ? "OPEN" : "SKIPPED_CLOSED_OR_UNKNOWN"}`);
+          NODE
 
       - name: Closed-market provider budget regression
         run: node scripts/test-intelligence-quality-market-window.mjs
