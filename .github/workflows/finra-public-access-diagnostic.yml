@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   finra-readonly-diagnostic:
@@ -31,3 +32,24 @@ jobs:
           name: finra-public-readonly-entitlement-diagnostic
           path: finra-public-access-report.json
           retention-days: 7
+      - name: Expose support-safe FINRA request id as commit status
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const report = JSON.parse(fs.readFileSync("finra-public-access-report.json", "utf8"));
+            const failed = (report.results || []).find(
+              (row) => row.httpStatus === 403 && row.finraApiRequestId
+            );
+            const description = failed
+              ? `403 ${failed.id} id=${failed.finraApiRequestId}`
+              : `FINRA diagnostic: ${report.state || "NO_RESULT"}`;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: "success",
+              context: "fenice/finra-diagnostic",
+              description: description.slice(0, 140),
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
