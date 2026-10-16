@@ -1,5 +1,6 @@
 import { evaluatePaperCampaignRunway } from "../lib/intelligence/paper-campaign-runway.mjs";
 import { evaluatePaperValidationCampaign } from "../lib/trading/paper-validation.mjs";
+import { evaluateV6ObserverIntegrity } from "../lib/intelligence/paper-v6-observer-integrity.mjs";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
@@ -10,11 +11,14 @@ const utcDay = (value) => {
   return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : null;
 };
 
-const [campaign, oms, approval, ledger] = await Promise.all([
+const [campaign, oms, approval, ledger, paperQueue, conditionalQueue, plan] = await Promise.all([
   readJson("data/paper-validation-campaign.json"),
   readJson("data/paper-oms-state.json"),
   readJson("data/paper-validation-approval.json"),
   readJson("data/decision-ledger.json"),
+  readJson("data/paper-order-queue.json"),
+  readJson("data/paper-conditional-queue.json"),
+  readJson("data/paper-v6-continuation-plan.json"),
 ]);
 
 const now = Date.now();
@@ -51,11 +55,16 @@ const duplicateProbeDays = [...probesPerDay.entries()]
 const requiredDays = finite(campaign.requiredDays, 30);
 const minEvidenceDays = finite(campaign.minEvidenceDays, 25);
 const minPaperFills = finite(campaign.minPaperFills, 10);
-const evidenceDays = uniqueEvidenceDates.length;
+const recordedEvidenceDays = uniqueEvidenceDates.length;
 const cumulativePaperFills = latest
   ? finite(latest.cumulativePaperFilled, validationExecutions.filter((row) => row?.status === "PAPER_FILLED").length)
   : validationExecutions.filter((row) => row?.status === "PAPER_FILLED").length;
 const canonicalCampaignStatus = evaluatePaperValidationCampaign(campaign, now);
+const observerIntegrity = evaluateV6ObserverIntegrity({
+  campaign, approval, plan, oms, queue:paperQueue, conditionalQueue,
+  certification:canonicalCampaignStatus, now,
+});
+const evidenceDays = observerIntegrity.certifiedSafeDays;
 const elapsedDays = finite(canonicalCampaignStatus?.elapsedCalendarDays, 0);
 
 const runway = evaluatePaperCampaignRunway({
@@ -89,7 +98,7 @@ const historicalPaperEvidence = records.length >= historicalThresholds.records
   && decisionClasses.size >= historicalThresholds.decisionClasses
   && !unsafeExecutionEvidence;
 
-const safetyIssues = [];
+const safetyIssues = [...observerIntegrity.issues];
 const active = Boolean(
   campaign?.version === 6
   && campaign?.startedAt
@@ -133,7 +142,11 @@ if (unsafeExecutionEvidence) historicalBlockers.push("historical ledger contains
 
 const report = {
   generatedAt: new Date(now).toISOString(),
-  state: safetyIssues.length ? "SAFETY_ALERT" : "HEALTHY_VALIDATING",
+  state: safetyIssues.length ? "SAFETY_ALERT"
+    : observerIntegrity.status === "PHASE_B_REQUIRED_NO_NEW_PROBES"
+      ? "OBSERVE_ONLY_PHASE_B_REQUIRED"
+      : observerIntegrity.status === "PASSIVE_OBSERVATION_ONLY"
+        ? "PASSIVE_OBSERVATION" : "HEALTHY_VALIDATING",
   campaign: {
     version: campaign.version,
     startedAt: campaign.startedAt || null,
@@ -142,6 +155,10 @@ const report = {
     elapsedDays,
     requiredDays,
     evidenceDays,
+    recordedEvidenceDays,
+    safetyEvidenceDays:canonicalCampaignStatus.safetyEvidenceDays,
+    fingerprintEvidenceDays:canonicalCampaignStatus.fingerprintEvidenceDays,
+    canonicalState:canonicalCampaignStatus.state,
     minEvidenceDays,
     evidenceProgressPercent: pct(evidenceDays, minEvidenceDays),
     paperFills: cumulativePaperFills,
@@ -193,6 +210,13 @@ const report = {
     evidenceFingerprintDrift,
     duplicateProbeDays,
     issues: safetyIssues,
+    originalApprovalExpiresAt:observerIntegrity.originalApprovalExpiresAt,
+    approvalExpired:observerIntegrity.approvalExpired,
+    pendingPaperOrders:observerIntegrity.pendingPaperOrders,
+    pendingConditionalIntents:observerIntegrity.pendingConditionalIntents,
+    probeStatus:observerIntegrity.status,
+    authorizesNewOrders:false,
+    mutatesQueue:false,
   },
   maturityBlockers: {
     campaign: campaignBlockers,
@@ -221,7 +245,10 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "| Metric | Progress |",
     "| --- | ---: |",
     `| Calendar | ${elapsedDays}/${requiredDays} days |`,
-    `| Valid evidence | ${evidenceDays}/${minEvidenceDays} days (${report.campaign.evidenceProgressPercent}%) |`,
+    `| Verified safe evidence | ${evidenceDays}/${minEvidenceDays} days (${report.campaign.evidenceProgressPercent}%) |`,
+    `| Recorded dates, including unvalidated | ${recordedEvidenceDays} |`,
+    `| Approval / probe status | ${observerIntegrity.approvalExpired ? "EXPIRED" : "CURRENT"} · ${observerIntegrity.status} |`,
+    `| Pending PAPER / conditional orders | ${observerIntegrity.pendingPaperOrders ?? "unknown"} / ${observerIntegrity.pendingConditionalIntents ?? "unknown"} |`,
     `| PAPER fills | ${cumulativePaperFills}/${minPaperFills} (${report.campaign.fillProgressPercent}%) |`,
     `| Fill runway | ${runway.fillRunwayState} · ${runway.remainingFills} remaining / ${runway.availableProbeSlotsBeforeExpiry} weekday slots max |`,
     `| Earliest 10/10 fill date | ${runway.earliestTargetFillDate || "N/A"} |`,
