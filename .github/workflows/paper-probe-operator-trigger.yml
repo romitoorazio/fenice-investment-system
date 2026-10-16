@@ -79,6 +79,9 @@ jobs:
       - name: Regression-test bounded deferred cooldown recheck
         run: node scripts/test-paper-probe-deferred-recheck.mjs
 
+      - name: Regression-test original V6 approval and queue guard
+        run: node scripts/test-paper-probe-operator-gate.mjs
+
       - name: Verify active fail-closed campaign, evidence age and intelligence quality
         if: steps.trigger_gate.outputs.allowed == 'true'
         id: preflight
@@ -88,6 +91,15 @@ jobs:
           set -euo pipefail
           campaign="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-campaign.json?ref=main")"
           approval="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-validation-approval.json?ref=main")"
+          queue="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-order-queue.json?ref=main")"
+          plan="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-v6-continuation-plan.json?ref=main")"
+          gate="$(APPROVAL_JSON="$approval" QUEUE_JSON="$queue" CAMPAIGN_JSON="$campaign" PLAN_JSON="$plan" node scripts/paper-probe-operator-gate.mjs)"
+          if [ "$(jq -r '.allowed == true' <<<"$gate")" != "true" ]; then
+            echo "run_probe=false" >> "$GITHUB_OUTPUT"
+            echo "defer_probe=false" >> "$GITHUB_OUTPUT"
+            echo "PAPER operator suppressed: $(jq -r '.reason' <<<"$gate")"
+            exit 0
+          fi
           oms="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/paper-oms-state.json?ref=main")"
           intelligence="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/intelligence-quality.json?ref=main")"
           source_health="$(gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/global-source-health.json?ref=main")"

@@ -8,6 +8,9 @@ on:
       - "lib/ui/paper-v6-continuation-preflight.ts"
       - "scripts/check-paper-v6-continuation.mjs"
       - "scripts/test-paper-v6-continuation.mjs"
+      - "scripts/paper-probe-operator-gate.mjs"
+      - "scripts/test-paper-probe-operator-gate.mjs"
+      - ".github/workflows/paper-probe-operator-trigger.yml"
       - ".github/workflows/paper-v6-continuation-safety.yml"
   push:
     branches: [main]
@@ -16,6 +19,9 @@ on:
       - "lib/ui/paper-v6-continuation-preflight.ts"
       - "scripts/check-paper-v6-continuation.mjs"
       - "scripts/test-paper-v6-continuation.mjs"
+      - "scripts/paper-probe-operator-gate.mjs"
+      - "scripts/test-paper-probe-operator-gate.mjs"
+      - ".github/workflows/paper-probe-operator-trigger.yml"
       - ".github/workflows/paper-v6-continuation-safety.yml"
   workflow_dispatch:
 
@@ -31,6 +37,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      - name: Check operator dispatcher expiry and duplicate-queue safeguards
+        run: node scripts/test-paper-probe-operator-gate.mjs
       - name: Verify owner preparation has no PAPER or LIVE grant
         run: node --experimental-strip-types scripts/test-paper-v6-continuation.mjs
       - name: Verify original core digest, existing ledger and approval read-only
