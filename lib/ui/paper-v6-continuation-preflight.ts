@@ -13,6 +13,11 @@ type ContinuationPlan = {
   unchangedApprovalLimits?: Record<string, unknown>;
   absoluteRestrictions?: Record<string, unknown>;
   contingency?: Record<string, unknown>;
+  historicalCheckpoint?: {
+    asOfUtcDate?: string; minimumReportedEvidenceDays?: number;
+    minimumReportedPaperFills?: number; minimumLedgerExecutions?: number;
+    minimumAuditEntries?: number; sourceCommit?: string;
+  };
 };
 type Approval = CalendarApproval & Record<string, unknown>;
 type Campaign = CalendarCampaign & {
@@ -55,6 +60,7 @@ export function assessPaperV6ContinuationPreparation({
   };
   const original = plan?.v6;
   const limits = plan?.unchangedApprovalLimits ?? {};
+  const historic = plan?.historicalCheckpoint;
   const restrictions = plan?.absoluteRestrictions ?? {};
   const validClock = Number.isSafeInteger(now) && now >= 0;
   requireMatch(validClock, "CLOCK_INVALID");
@@ -118,6 +124,22 @@ export function assessPaperV6ContinuationPreparation({
     && calendar?.postExpiryFillIncreaseDetected === false, "HISTORICAL_EVIDENCE_REVIEW_REQUIRED");
   requireMatch(filled !== null && filled === calendar.reportedFills,
     "REPORTED_FILLS_LEDGER_MISMATCH");
+  // The preparation snapshot is a monotone lower bound, not an invented
+  // certified count. Losing past evidence may never appear as a clean renewal.
+  requireMatch(historic?.asOfUtcDate === "2026-10-16"
+    && typeof historic?.sourceCommit === "string"
+    && /^[a-f0-9]{40}$/.test(historic.sourceCommit)
+    && historic?.minimumReportedEvidenceDays === 22
+    && historic?.minimumReportedPaperFills === 7
+    && historic?.minimumLedgerExecutions === 9
+    && historic?.minimumAuditEntries === 9
+    && calendar.evidenceDays >= historic.minimumReportedEvidenceDays
+    && calendar.reportedFills >= historic.minimumReportedPaperFills
+    && Array.isArray(ledger?.executions)
+    && ledger.executions.length >= historic.minimumLedgerExecutions
+    && Array.isArray(ledger?.auditChain)
+    && ledger.auditChain.length >= historic.minimumAuditEntries,
+    "HISTORICAL_V6_CHECKPOINT_REGRESSION");
   const expired = calendar.authorizationExpired === true;
   requireMatch(!expired || (Array.isArray(queue?.orders) && queue.orders.length === 0),
     "POST_EXPIRY_PENDING_ORDERS_REQUIRE_QUARANTINE");
