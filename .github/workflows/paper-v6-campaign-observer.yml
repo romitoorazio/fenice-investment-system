@@ -19,10 +19,14 @@ on:
       - "lib/intelligence/paper-campaign-runway.mjs"
       - "scripts/test-paper-v6-campaign-runway.mjs"
       - "scripts/report-paper-v6-progress.mjs"
+      - "lib/intelligence/paper-v6-observer-integrity.mjs"
+      - "scripts/test-paper-v6-observer-integrity.mjs"
       - ".github/workflows/paper-v6-campaign-observer.yml"
   push:
     paths:
       - "scripts/report-paper-v6-progress.mjs"
+      - "lib/intelligence/paper-v6-observer-integrity.mjs"
+      - "scripts/test-paper-v6-observer-integrity.mjs"
       - ".github/workflows/paper-v6-campaign-observer.yml"
 
 permissions:
@@ -50,6 +54,9 @@ jobs:
 
       - name: Test PAPER V6 campaign runway
         run: node scripts/test-paper-v6-campaign-runway.mjs
+
+      - name: Verify certified safe-day counts and expired queue quarantine
+        run: node scripts/test-paper-v6-observer-integrity.mjs
 
       - name: Report PAPER V6 campaign and certification maturity
         env:
