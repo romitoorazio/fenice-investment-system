@@ -3,10 +3,28 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createPaperReviewDemo, buildPaperReviewProposal, decidePaperReview, parsePaperReviewHistory, reviewTermsKey } from "../lib/ui/paper-review.ts";
-import { loadPaperReviewPayload } from "../lib/ui/paper-review-data.ts";
+import { loadPaperReviewPayload, selectPaperOnlyReviewQuotes } from "../lib/ui/paper-review-data.ts";
 import { PAPER_VALIDATION_CORE_FILES, computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
 
 const now = Date.parse("2026-10-05T14:00:00.000Z");
+const paperTime = new Date(now).toISOString();
+const paperQuote = (family, eligibility, price, more = {}) => ({
+  symbol: "DEMO", currency: "EUR", source: family, sourceFamily: family,
+  eligibility, provenanceVerified: true, observedAt: paperTime, price, ...more,
+});
+const pairedPaper = [paperQuote("alpaca","PAPER",49.9), paperQuote("twelve-data","PAPER",49.9)];
+const withLive = [...pairedPaper, paperQuote("alpaca","LIVE",9999)];
+const proof = selectPaperOnlyReviewQuotes(withLive,["alpaca","twelve-data"],"DEMO","EUR",now);
+assert.equal(proof.length,2);
+assert(proof.every(q => q.eligibility === "PAPER" && q.price === 49.9), "LIVE quote cannot contaminate PAPER review proof");
+assert.equal(selectPaperOnlyReviewQuotes(withLive.slice(1),["alpaca","twelve-data"],"DEMO","EUR",now).length,1, "LIVE cannot fill a missing PAPER family");
+assert.deepEqual(selectPaperOnlyReviewQuotes(withLive,["alpaca","alpaca"],"DEMO","EUR",now),[], "duplicate source family cannot satisfy independence");
+assert.deepEqual(selectPaperOnlyReviewQuotes(withLive,["alpaca","unknown"],"DEMO","EUR",now),[], "unknown family cannot become PAPER proof");
+assert.deepEqual(selectPaperOnlyReviewQuotes(withLive,["alpaca","twelve-data"],"OTHER","EUR",now),[], "quote symbol must match");
+assert.deepEqual(selectPaperOnlyReviewQuotes(withLive,["alpaca","twelve-data"],"DEMO","USD",now),[], "quote currency must match");
+assert.equal(selectPaperOnlyReviewQuotes(pairedPaper.map(q => ({...q, observedAt:new Date(now+5000).toISOString()})),["alpaca","twelve-data"],"DEMO","EUR",now).length,0,"future quotes are invalid");
+assert.equal(selectPaperOnlyReviewQuotes(pairedPaper.map(q => ({...q, observedAt:new Date(now-121000).toISOString()})),["alpaca","twelve-data"],"DEMO","EUR",now).length,0,"stale quotes are invalid");
+assert.equal(selectPaperOnlyReviewQuotes(withLive,["alpaca","twelve-data"],"DEMO","EUR",NaN).length,0);
 const demo = createPaperReviewDemo(now);
 assert.deepEqual(demo.blockers, []);
 assert.equal(demo.maxTotalEuro, 51.5);
@@ -109,6 +127,23 @@ try {
   const evidenceBefore = JSON.parse(await readFile(path.join(root, "data", "execution-market-evidence.json"), "utf8"));
   await save("execution-market-evidence.json", { ...evidenceBefore, observations: evidenceBefore.observations.map((row, index) => ({ ...row, sourceFamily: `unregistered-${index}` })) });
   assert((await loadPaperReviewPayload(root, now)).proposals[0].blockers.length > 0, "two forged PAPER labels cannot replace registered source families");
+  await save("execution-market-evidence.json", evidenceBefore);
+  await save("execution-market-evidence.json", {
+    ...evidenceBefore,
+    observations: [
+      ...evidenceBefore.observations,
+      paperQuote("alpaca","LIVE",49.9),
+    ],
+  });
+  const mixedEvidence = await loadPaperReviewPayload(root,now);
+  assert.deepEqual(mixedEvidence.proposals[0].blockers,[], "a valid PAPER pair remains admissible even with supplemental LIVE evidence");
+  assert(mixedEvidence.proposals[0].evidence.quotes.every(row => row.price === 49.9));
+  await save("execution-market-evidence.json", {
+    ...evidenceBefore,
+    observations: [paperQuote("alpaca","LIVE",49.9), paperQuote("twelve-data","PAPER",49.9)],
+  });
+  const liveOnlyFamily = await loadPaperReviewPayload(root,now);
+  assert(liveOnlyFamily.proposals[0].blockers.length > 0, "LIVE evidence must never substitute a missing PAPER source");
   await save("execution-market-evidence.json", evidenceBefore);
   const stateBefore = JSON.parse(snapshotBefore);
   for (const change of [{ liveTradingAllowed: true }, { brokerConnectivityAllowed: true }, { liveTradingAllowed: undefined }, { positions: [null] }, { reconciliation: { balanced: true, breaks: ["unexplained"] } }]) {
