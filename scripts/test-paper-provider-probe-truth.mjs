@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { diagnosticQuoteAgeSeconds,diagnosticQuoteFresh,chooseAlpacaIexDiagnosticPrice }
+import { diagnosticQuoteAgeSeconds,diagnosticQuoteFresh,chooseAlpacaIexDiagnosticPrice,recheckProviderProbeQuote,providerProbeMarketOpen }
   from "../lib/intelligence/paper-provider-probe-truth.mjs";
 const now=Date.parse("2026-10-15T18:00:00.000Z");
 const fresh="2026-10-15T17:59:40.000Z",stale="2026-10-15T17:50:00.000Z",future="2026-10-15T18:04:00.000Z";
@@ -11,6 +11,12 @@ assert.equal(diagnosticQuoteFresh(stale,now,120),false);
 assert.equal(diagnosticQuoteFresh(future,now,120),false);
 assert.equal(diagnosticQuoteAgeSeconds("2026-02-30T18:00:00Z",now),null);
 assert.equal(diagnosticQuoteAgeSeconds("2026-10-15",now),null);
+assert.equal(diagnosticQuoteAgeSeconds("2026-10-15T17:59:40.123456789Z",now),19.877);
+assert.equal(diagnosticQuoteAgeSeconds("2026-10-15T19:59:40.123456789+02:00",now),19.877);
+assert.equal(diagnosticQuoteAgeSeconds("2026-02-30T17:59:40.123456789Z",now),null);
+assert.equal(diagnosticQuoteAgeSeconds("2026-10-15T17:59:40+14:30",now),null);
+assert.equal(diagnosticQuoteFresh("2026-10-15T18:00:01Z",now,120),false);
+assert.equal(chooseAlpacaIexDiagnosticPrice({quote:quote("2026-10-15T17:59:40.123456789Z"),now}).freshVerifiedQuote,true);
 const q=chooseAlpacaIexDiagnosticPrice({quote:quote(fresh),trade:trade(fresh),now});
 assert.equal(q.priceBasis,"IEX_QUOTE_MIDPOINT");
 assert.equal(q.midpoint,301);
@@ -23,6 +29,16 @@ for(const [q,t] of [[future,stale],[stale,stale],[future,future]]){
 }
 assert.equal(chooseAlpacaIexDiagnosticPrice({quote:{bp:0,ap:0,t:fresh},trade:trade(fresh),now}).priceBasis,"IEX_LAST_TRADE_DIAGNOSTIC");
 assert.equal(chooseAlpacaIexDiagnosticPrice({quote:{bp:0,ap:0,t:fresh},trade:null,now}).ok,false);
+assert.equal(recheckProviderProbeQuote(q,now+121000,120).freshVerifiedQuote,false);
+assert.equal(recheckProviderProbeQuote(q,now+121000,120).reason,"quote-expired-or-invalid-at-report");
+assert.equal(recheckProviderProbeQuote({...q,freshVerifiedQuote:false},now,120).freshVerifiedQuote,false);
+assert.equal(recheckProviderProbeQuote({...q,observedAt:future},now,120).freshVerifiedQuote,false);
+const session={configured:true,evidence:{venue:"US_EQUITIES",state:"OPEN",authoritative:true,observedAt:fresh},decision:{state:"OPEN",allowed:true},brokerConnectivityAllowed:false,liveTradingAllowed:false};
+assert.equal(providerProbeMarketOpen(session,now),true);
+assert.equal(providerProbeMarketOpen(session,now+91000),false);
+assert.equal(providerProbeMarketOpen({...session,liveTradingAllowed:true},now),false);
+assert.equal(providerProbeMarketOpen({...session,evidence:{...session.evidence,authoritative:"true"}},now),false);
+assert.equal(providerProbeMarketOpen({...session,evidence:{...session.evidence,state:"CLOSED"}},now),false);
 const workflow=await readFile(new URL("../.github/workflows/paper-provider-feasibility.yml",import.meta.url),"utf8");
-assert(workflow.includes("node scripts/test-paper-provider-probe-truth.mjs"));
+assert(workflow.includes("node --experimental-strip-types scripts/test-paper-provider-probe-truth.mjs"));
 console.log("Fenice strict provider timestamps and read-only IEX fallback: PASS");

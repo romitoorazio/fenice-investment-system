@@ -12,6 +12,9 @@ on:
       - "scripts/probe-paper-provider-feasibility.mjs"
       - "lib/intelligence/paper-provider-probe-truth.mjs"
       - "scripts/test-paper-provider-probe-truth.mjs"
+      - "scripts/test-paper-provider-probe-integration.mjs"
+      - "lib/market/alpaca-paper-clock-runtime.mjs"
+      - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -24,6 +27,9 @@ on:
       - "scripts/probe-paper-provider-feasibility.mjs"
       - "lib/intelligence/paper-provider-probe-truth.mjs"
       - "scripts/test-paper-provider-probe-truth.mjs"
+      - "scripts/test-paper-provider-probe-integration.mjs"
+      - "lib/market/alpaca-paper-clock-runtime.mjs"
+      - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
@@ -42,7 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      FENICE_FEASIBILITY_SYMBOLS: "ASML,TSM,NVDA,IWM,META,GOOGL,AMZN"
+      # Cover the four active PAPER probe symbols before three V7 candidates.
+      # Seven symbols preserve the existing Basic credit ceiling.
+      FENICE_FEASIBILITY_SYMBOLS: "SPY,QQQ,AAPL,MSFT,ASML,TSM,NVDA"
       FENICE_PROVIDER_FEASIBILITY_REPORT: data/v7-provider-feasibility.json
       FENICE_V7_PROBE_PLAN: data/v7-probe-plan.json
       FENICE_V7_PROBE_UNIVERSE_PLAN: data/v7-probe-universe.json
@@ -62,7 +70,9 @@ jobs:
           node-version: 22
 
       - name: Verify strict provider timestamps and IEX fallback
-        run: node scripts/test-paper-provider-probe-truth.mjs
+        run: node --experimental-strip-types scripts/test-paper-provider-probe-truth.mjs
+      - name: Verify closed-session zero-quote budget and report-time freshness
+        run: node --experimental-strip-types scripts/test-paper-provider-probe-integration.mjs
       - name: Probe read-only provider feasibility
         if: github.event_name != 'pull_request'
         run: node --experimental-strip-types scripts/probe-paper-provider-feasibility.mjs

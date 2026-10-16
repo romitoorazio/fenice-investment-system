@@ -91,12 +91,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          RESPONSE="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&target=production&limit=30")"
+          RESPONSE="$(node scripts/vercel-api-request.mjs GET \
+            "/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&target=production&limit=30")"
           FOUND="$(printf '%s' "$RESPONSE" | jq --arg sha "$GITHUB_SHA" \
             '[.deployments[]? | select(.state == "READY" and .meta.githubCommitSha == $sha)] | length')"
           if [[ "$FOUND" -gt 0 ]]; then
+            ALIAS_RESPONSE="$(node scripts/vercel-api-request.mjs GET \
+              "/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+            PUBLISHED="$(jq -n --argjson deployments "$RESPONSE" --argjson alias "$ALIAS_RESPONSE" \
+              '{deployments:$deployments,alias:$alias}' | node scripts/vercel-api-request.mjs PUBLISHED_SHA "$GITHUB_SHA")"
+          else
+            PUBLISHED=false
+          fi
+          if [[ "$PUBLISHED" == "true" ]]; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
             echo "This exact main SHA already has a READY production deployment; skip duplicate."
           else
@@ -140,44 +147,25 @@ jobs:
               }
             }')"
 
-          RESPONSE_FILE="$(mktemp)"
-          HTTP_CODE="$(curl --silent --show-error \
-            -o "$RESPONSE_FILE" \
-            -w '%{http_code}' \
-            -X POST \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data "$BODY" \
-            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_TEAM_ID}")"
-
-          if [[ ! "$HTTP_CODE" =~ ^2 ]]; then
-            echo "Vercel deployment creation failed (HTTP $HTTP_CODE):"
-            cat "$RESPONSE_FILE"
-            rm -f "$RESPONSE_FILE"
-            exit 1
-          fi
-
-          DEPLOYMENT_ID="$(jq -r '.id // .uid // empty' "$RESPONSE_FILE")"
-          DEPLOYMENT_URL="$(jq -r '.url // empty' "$RESPONSE_FILE")"
-          RESPONSE_PROJECT="$(jq -r '.projectId // .project.id // empty' "$RESPONSE_FILE")"
+          RESPONSE="$(printf '%s' "$BODY" | node scripts/vercel-api-request.mjs POST \
+            "/v13/deployments?teamId=${VERCEL_TEAM_ID}")"
+          DEPLOYMENT_ID="$(printf '%s' "$RESPONSE" | jq -r '.id // .uid // empty')"
+          DEPLOYMENT_URL="$(printf '%s' "$RESPONSE" | jq -r '.url // empty')"
+          RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // .project.id // empty')"
 
           if [[ ! "$DEPLOYMENT_ID" =~ ^dpl_ ]]; then
             echo "Vercel did not return a valid deployment id:"
-            cat "$RESPONSE_FILE"
-            rm -f "$RESPONSE_FILE"
             exit 1
           fi
 
           if [[ -n "$RESPONSE_PROJECT" && "$RESPONSE_PROJECT" != "$VERCEL_PROJECT_ID" ]]; then
             echo "Deployment was created for an unexpected Vercel project: $RESPONSE_PROJECT"
-            rm -f "$RESPONSE_FILE"
             exit 1
           fi
 
           echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "Created Fenice deployment: $DEPLOYMENT_ID ($DEPLOYMENT_URL)"
-          rm -f "$RESPONSE_FILE"
 
       - name: Wait for Fenice deployment to become READY
         if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
@@ -187,9 +175,8 @@ jobs:
           ID="${{ steps.deploy.outputs.deployment_id }}"
 
           for attempt in $(seq 1 90); do
-            RESPONSE="$(curl --fail --silent --show-error \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_TEAM_ID}")"
+            RESPONSE="$(node scripts/vercel-api-request.mjs GET \
+              "/v13/deployments/${ID}?teamId=${VERCEL_TEAM_ID}")"
 
             STATE="$(printf '%s' "$RESPONSE" | jq -r '.readyState // .state // .status // "UNKNOWN"')"
             echo "Deployment $ID state: $STATE (attempt $attempt/90)"
@@ -200,7 +187,6 @@ jobs:
 
             if [[ "$STATE" == "ERROR" || "$STATE" == "CANCELED" || "$STATE" == "CANCELLED" ]]; then
               echo "Deployment entered terminal failure state: $STATE"
-              printf '%s' "$RESPONSE" | jq .
               exit 1
             fi
 
@@ -218,9 +204,8 @@ jobs:
           EXPECTED="${{ steps.deploy.outputs.deployment_id }}"
 
           for attempt in $(seq 1 24); do
-            RESPONSE="$(curl --fail --silent --show-error \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
+            RESPONSE="$(node scripts/vercel-api-request.mjs GET \
+              "/v4/aliases/${VERCEL_PRODUCTION_ALIAS}?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}")"
 
             CURRENT="$(printf '%s' "$RESPONSE" | jq -r '.deploymentId // empty')"
             RESPONSE_PROJECT="$(printf '%s' "$RESPONSE" | jq -r '.projectId // empty')"

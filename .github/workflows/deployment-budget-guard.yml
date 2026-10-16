@@ -15,6 +15,9 @@ on:
       - "lib/ui/engineering-evidence-publish-policy.mjs"
       - "scripts/decide-engineering-evidence-publication.mjs"
       - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/vercel-api-request.mjs"
+      - "scripts/test-vercel-api-request.mjs"
+      - "scripts/test-foundation-credential-wiring.mjs"
       - "scripts/test-engineering-evidence-publish-policy.mjs"
       - ".github/workflows/deployment-budget-guard.yml"
   push:
@@ -32,6 +35,9 @@ on:
       - "lib/ui/engineering-evidence-publish-policy.mjs"
       - "scripts/decide-engineering-evidence-publication.mjs"
       - "scripts/test-deployment-budget-policy.mjs"
+      - "scripts/vercel-api-request.mjs"
+      - "scripts/test-vercel-api-request.mjs"
+      - "scripts/test-foundation-credential-wiring.mjs"
       - "scripts/test-engineering-evidence-publish-policy.mjs"
       - ".github/workflows/deployment-budget-guard.yml"
 permissions:
@@ -49,5 +55,9 @@ jobs:
         run: node scripts/test-deployment-budget-policy.mjs
       - name: Verify conservative engineering publication policy
         run: node scripts/test-engineering-evidence-publish-policy.mjs
+      - name: Verify exact release scope and credential-safe API failures
+        run: node scripts/test-vercel-api-request.mjs
+      - name: Verify Foundation receives configured FINRA OAuth credentials
+        run: node scripts/test-foundation-credential-wiring.mjs
       - name: Verify PAPER recovery subscriptions do not fan out into duplicate jobs
         run: node scripts/test-paper-dispatch-fanout-budget.mjs
