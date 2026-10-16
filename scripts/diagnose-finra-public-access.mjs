@@ -62,7 +62,15 @@ async function check() {
         const body = await r.json().catch(() => null);
         shapeValid = id.endsWith("Metadata") ? !!body && typeof body === "object" : Array.isArray(body);
       }
-      results.push({ id, httpStatus: r.status, usable: r.ok && shapeValid });
+      const finraApiRequestId = r.headers.get("finra-api-request-id");
+      results.push({
+        id,
+        method,
+        httpStatus: r.status,
+        usable: r.ok && shapeValid,
+        finraApiRequestId: finraApiRequestId || null,
+        observedAt: new Date().toISOString(),
+      });
     } catch {
       results.push({ id, httpStatus: null, usable: false, error: "network_or_payload" });
     }
