@@ -67,14 +67,15 @@ export function describePersistedPaperQuoteHealth(
   const snapshotCurrent = samePersistedQuoteBatch
     && inFreshWindow(snapshotAgeSeconds, gate.maxQuoteAgeSeconds)
     && inFreshWindow(coverageAgeSeconds, gate.maxQuoteAgeSeconds);
-  const allowed = new Set((coverage?.policy?.approvedIndependentPaperSourceFamilies || [])
+  const allowed = new Set((Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies)
+    ? coverage.policy.approvedIndependentPaperSourceFamilies : [])
     .map((family) => String(family).trim().toLowerCase())
     .filter((family) => KNOWN_PAPER_FAMILIES.has(family)));
   const samplesBySymbol = new Map<string, Map<string, { timestamp: string; age: number | null; price: number; currency: string }>>();
   const currenciesBySymbol = new Map<string, Set<string>>();
   const invalidCurrencySymbols = new Set<string>();
   const conflictedSymbols = new Set<string>();
-  for (const item of evidence?.observations || []) {
+  for (const item of Array.isArray(evidence?.observations) ? evidence.observations : []) {
     if (item?.eligibility !== "PAPER" || item?.provenanceVerified !== true) continue;
     const symbol = String(item.symbol || "").trim().toUpperCase();
     const family = String(item.sourceFamily || "").trim().toLowerCase();
@@ -103,9 +104,9 @@ export function describePersistedPaperQuoteHealth(
     samplesBySymbol.set(symbol, families);
   }
 
-  const rows = (coverage?.rows || []).slice(0, MAX_SYMBOLS_DISPLAY);
+  const rows = (Array.isArray(coverage?.rows) ? coverage.rows : []).slice(0, MAX_SYMBOLS_DISPLAY);
   const symbols = rows.map((row) => {
-    const symbol = String(row.symbol || "").trim().toUpperCase();
+    const symbol = String(row?.symbol || "").trim().toUpperCase();
     const families = samplesBySymbol.get(symbol) || new Map();
     const last = [...families.values()].map((x) => x.age)
       .filter((n): n is number => n !== null)
@@ -127,7 +128,7 @@ export function describePersistedPaperQuoteHealth(
     return {
       symbol,
       state,
-      snapshotPaperEligible: row.paperEligible === true,
+      snapshotPaperEligible: row?.paperEligible === true,
       historicalVerifiedFamilies: [...families.keys()].sort(),
       freshVerifiedFamilies: currentFamilies.sort(),
       newestQuoteAgeSeconds: last[0] ?? null,
