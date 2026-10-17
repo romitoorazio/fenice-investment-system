@@ -71,11 +71,17 @@ export function summarizePerformanceEvidence(
   now: number,
 ) {
   const paperTimestamp = validTimestamp(paper?.generatedAt, now);
+  // A missing/corrupted execution collection is not proof of zero fills.
+  // Structural validation precedes iteration: malformed rows must fail closed,
+  // not throw a server-render error or silently vanish from the totals.
+  const executionsComplete = Array.isArray(paper?.executions)
+    && paper.executions.every(row => row && typeof row === "object"
+      && !Array.isArray(row) && typeof row.status === "string" && row.status.trim().length > 0);
   const paperSafe = paper?.mode === "PAPER"
     && paper?.liveTradingAllowed === false
     && paper?.brokerConnectivityAllowed === false
-    && paperTimestamp !== null;
-  const executions = paperSafe && Array.isArray(paper?.executions) ? paper.executions : [];
+    && paperTimestamp !== null && executionsComplete;
+  const executions = paperSafe ? paper!.executions! : [];
   const filled = executions.filter(row => row.status === "PAPER_FILLED");
   const ids = new Set<string>();
   let completeCosts = paperSafe && filled.length > 0 && filled.every(row => {
