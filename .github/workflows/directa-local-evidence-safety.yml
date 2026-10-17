@@ -1,0 +1,32 @@
+name: Fenice Directa Local Evidence Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/directa-local-snapshot-evidence.mjs"
+      - "scripts/run-directa-readonly.mjs"
+      - "scripts/test-directa-local-snapshot-evidence.mjs"
+      - ".github/workflows/directa-local-evidence-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/directa-local-snapshot-evidence.mjs"
+      - "scripts/run-directa-readonly.mjs"
+      - "scripts/test-directa-local-snapshot-evidence.mjs"
+      - ".github/workflows/directa-local-evidence-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readonly-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify Directa snapshot integrity and redaction
+        run: node scripts/test-directa-local-snapshot-evidence.mjs
+      - name: Verify repository secrets are not present
+        run: node scripts/scan-repository-secrets.mjs
