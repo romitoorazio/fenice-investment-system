@@ -83,10 +83,11 @@ const guardedNames=[
   "Verify current broker read-only production endpoint",
 ];
 for(const name of guardedNames){
-  const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\console.log("Fenice Vercel deployment throttling without frozen PAPER changes: PASS");");
-  assert.match(release,new RegExp(`- name: ${escaped}\\n        if: steps\\.request\\.outputs\\.execute == 'true' && steps\\.ci_guard\\.outputs\\.authorized == 'true'`),
-    `${name} must not run unless the exact main SHA passed CI`);
+  const required = "- name: " + name + "\n        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true'";
+  assert.ok(release.includes(required),
+    name + " must not run unless the exact main SHA passed CI");
 }
+
 const realSha="a".repeat(40);
 const checkNames=[
   "quality","protect-paper-core","paper-evidence-state",
