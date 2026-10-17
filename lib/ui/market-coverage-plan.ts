@@ -27,10 +27,18 @@ export type CoverageInput = {
 };
 const MAX_SNAPSHOT_AGE_MS = 120_000;
 
-function validSnapshotAge(value: unknown, now: number) {
-  if (typeof value !== "string" || !/Z$/.test(value) || !Number.isFinite(now)) return false;
+function evidenceTime(value: unknown): number | null {
+  if (typeof value !== "string"
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return null;
   const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) && timestamp <= now && now - timestamp <= MAX_SNAPSHOT_AGE_MS;
+  if (!Number.isFinite(timestamp) || timestamp < 0) return null;
+  const canonical = value.includes(".") ? value : value.replace(/Z$/, ".000Z");
+  return new Date(timestamp).toISOString() === canonical ? timestamp : null;
+}
+function validSnapshotAge(value: unknown, now: number) {
+  const timestamp = evidenceTime(value);
+  return timestamp !== null && Number.isSafeInteger(now) && now >= 0
+    && timestamp <= now && now - timestamp <= MAX_SNAPSHOT_AGE_MS;
 }
 function ticker(value: unknown) {
   const s = typeof value === "string" ? value.trim().toUpperCase() : "";
@@ -41,8 +49,18 @@ export function buildMarketCoveragePlan(
   coverage: CoverageInput | null | undefined,
   instruments: readonly CoverageInstrument[],
   now: number,
+  persistedEvidenceGeneratedAt?: string | null,
 ) {
-  const snapshotCurrent = validSnapshotAge(coverage?.generatedAt, now)
+  const coverageAt = evidenceTime(coverage?.generatedAt);
+  const evidenceAt = evidenceTime(coverage?.evidenceGeneratedAt);
+  // The report's exact batch pointer must match the persisted quote evidence:
+  // two separately fresh timestamps do not prove the same quotation sample.
+  const evidenceIdentityMatched = evidenceAt !== null
+    && coverage?.evidenceGeneratedAt === persistedEvidenceGeneratedAt;
+  const snapshotCurrent = evidenceIdentityMatched
+    && coverageAt !== null && evidenceAt !== null
+    && coverageAt >= evidenceAt && coverageAt - evidenceAt <= MAX_SNAPSHOT_AGE_MS
+    && validSnapshotAge(coverage?.generatedAt, now)
     && validSnapshotAge(coverage?.evidenceGeneratedAt, now);
   const rows = Array.isArray(coverage?.rows) ? coverage.rows.slice(0, 100) : [];
   const symbolsSeen = new Set<string>();
@@ -89,6 +107,7 @@ export function buildMarketCoveragePlan(
   });
   return {
     snapshotCurrent,
+    evidenceIdentityMatched,
     snapshotGeneratedAt: coverage?.generatedAt ?? null,
     requestedSymbols: Number.isSafeInteger(coverage?.requestedSymbols) ? coverage!.requestedSymbols! : plans.length,
     listedSymbols: plans.length,

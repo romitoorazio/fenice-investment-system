@@ -34,7 +34,7 @@ export default async function MercatiPage() {
   }));
   const quoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage, now);
   const quoteDiagnostics = describePersistedPaperQuoteHealth(executionMarket, executionCoverage, now);
-  const coveragePlan = buildMarketCoveragePlan(executionCoverage, instruments, now);
+  const coveragePlan = buildMarketCoveragePlan(executionCoverage, instruments, now, executionMarket.generatedAt);
   const europeanCalendarCount = sessions.filter((row) => ["XMIL", "XPAR", "XETR"].includes(row.mic)
     && row.calendarAnnualScheduleVerified).length;
   const officialClosedToday = sessions.filter((row) => row.calendarState === "OFFICIAL_CLOSED").length;

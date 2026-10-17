@@ -49,7 +49,14 @@ export function describePersistedPaperQuoteHealth(
   const gate = assessRuntimePaperQuoteGate(evidence, coverage, now);
   const snapshotAgeSeconds = elapsedSeconds(evidence?.generatedAt, now);
   const coverageAgeSeconds = elapsedSeconds(coverage?.generatedAt, now);
-  const snapshotCurrent = inFreshWindow(snapshotAgeSeconds, gate.maxQuoteAgeSeconds)
+  const evidenceAt = Date.parse(String(evidence?.generatedAt || ""));
+  const coverageAt = Date.parse(String(coverage?.generatedAt || ""));
+  const samePersistedQuoteBatch = typeof coverage?.evidenceGeneratedAt === "string"
+    && coverage.evidenceGeneratedAt === evidence?.generatedAt
+    && Number.isFinite(evidenceAt) && Number.isFinite(coverageAt)
+    && coverageAt >= evidenceAt && coverageAt - evidenceAt <= 120_000;
+  const snapshotCurrent = samePersistedQuoteBatch
+    && inFreshWindow(snapshotAgeSeconds, gate.maxQuoteAgeSeconds)
     && inFreshWindow(coverageAgeSeconds, gate.maxQuoteAgeSeconds);
   const allowed = new Set((coverage?.policy?.approvedIndependentPaperSourceFamilies || [])
     .map((family) => String(family).trim().toLowerCase())
@@ -118,6 +125,7 @@ export function describePersistedPaperQuoteHealth(
     snapshotAgeSeconds,
     coverageAgeSeconds,
     snapshotCurrent,
+    samePersistedQuoteBatch,
     snapshotPaperEligibleSymbols: Number(coverage?.paperEligibleSymbols || 0),
     requestedSymbols: Number(coverage?.requestedSymbols || 0),
     symbols,

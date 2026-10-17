@@ -17,7 +17,7 @@ const coverage = {
     { symbol: "UNKNOWN", state: "GREEN", paperEligible: true, approvedIndependentPaperFamilies: ["alpaca", "twelve-data"] },
   ],
 };
-const recent = plan(coverage, master, now);
+const recent = plan(coverage, master, now, coverage.evidenceGeneratedAt);
 assert.equal(recent.snapshotCurrent, true);
 assert.equal(recent.sampleEligibleAtCapture, 1);
 assert.equal(recent.sampleEligibleNow, 1);
@@ -30,16 +30,28 @@ assert.equal(recent.rows[3].status, "IDENTITY_REVIEW");
 assert.equal(recent.realBrokerConnectivityVerified, false);
 assert.equal(recent.liveTradingAllowed, false);
 assert(recent.rows.every(row => row.canBuy === false && row.canSell === false && row.directaPositionVerified === false));
-const old = plan(coverage, master, now + 121_000);
+const old = plan(coverage, master, now + 121_000, coverage.evidenceGeneratedAt);
 assert.equal(old.snapshotCurrent, false);
 assert.equal(old.sampleEligibleAtCapture, 1);
 assert.equal(old.sampleEligibleNow, 0);
 assert.equal(old.rows[0].status, "EXPIRED_SAMPLE");
-assert.equal(plan({ ...coverage, evidenceGeneratedAt: time(-60) }, master, now).sampleEligibleNow, 0);
-assert.equal(plan({ ...coverage, generatedAt: "2026-02-30T00:00:00Z" }, master, now).sampleEligibleNow, 0);
+assert.equal(plan({ ...coverage, evidenceGeneratedAt: time(-60) }, master, now, coverage.evidenceGeneratedAt).sampleEligibleNow, 0);
+assert.equal(plan({ ...coverage, generatedAt: "2026-02-30T00:00:00Z" }, master, now, coverage.evidenceGeneratedAt).sampleEligibleNow, 0);
 const injected = { ...coverage, rows: [{ symbol: "AAPL", state: "GREEN", paperEligible: true,
   approvedIndependentPaperFamilies: ["alpaca", "alpaca", "not-certified"] }] };
-assert.equal(plan(injected, master, now).sampleEligibleAtCapture, 0, "duplicate and unverified families do not form independent quorum");
-assert.equal(plan({ ...coverage, rows: [coverage.rows[0], coverage.rows[0]] }, master, now).identityReviews, 1);
-assert.equal(plan(coverage, [...master, master[0]], now).rows[0].status, "IDENTITY_REVIEW");
+assert.equal(plan(injected, master, now, coverage.evidenceGeneratedAt).sampleEligibleAtCapture, 0, "duplicate and unverified families do not form independent quorum");
+assert.equal(plan({ ...coverage, rows: [coverage.rows[0], coverage.rows[0]] }, master, now, coverage.evidenceGeneratedAt).identityReviews, 1);
+assert.equal(plan(coverage, [...master, master[0]], now, coverage.evidenceGeneratedAt).rows[0].status, "IDENTITY_REVIEW");
+
+// A different quote batch can be equally fresh and must not be misrepresented
+// as the evidence that produced the coverage report.
+const wrongBatch = plan(coverage, master, now, time(19));
+assert.equal(wrongBatch.evidenceIdentityMatched, false);
+assert.equal(wrongBatch.snapshotCurrent, false);
+assert.equal(wrongBatch.sampleEligibleNow, 0);
+assert.equal(wrongBatch.rows[0].status, "EXPIRED_SAMPLE");
+assert.equal(plan(coverage, master, now).sampleEligibleNow, 0, "missing quote-batch identity fails closed");
+assert.equal(plan({ ...coverage, generatedAt: time(25) }, master, now, coverage.evidenceGeneratedAt).sampleEligibleNow, 0,
+  "a report cannot be older than the quote evidence it claims to summarize");
+assert.equal(plan({ ...coverage, generatedAt: "2026-02-30T16:00:00.000Z" }, master, now, coverage.evidenceGeneratedAt).sampleEligibleNow, 0);
 console.log("Fenice world pilot per-symbol PAPER research coverage: PASS");

@@ -30,6 +30,18 @@ const coverage = {
 };
 const current = describePersistedPaperQuoteHealth(evidence, coverage, now);
 assert.equal(current.snapshotCurrent, true);
+assert.equal(current.samePersistedQuoteBatch, true);
+const mismatchedBatch = describePersistedPaperQuoteHealth(evidence,
+  { ...coverage, evidenceGeneratedAt: at(13) }, now);
+assert.equal(mismatchedBatch.samePersistedQuoteBatch, false);
+assert.equal(mismatchedBatch.snapshotCurrent, false);
+assert.equal(mismatchedBatch.symbols[0].state, "SNAPSHOT_EXPIRED");
+const missingBatch = describePersistedPaperQuoteHealth(evidence,
+  { ...coverage, evidenceGeneratedAt: undefined }, now);
+assert.equal(missingBatch.snapshotCurrent, false);
+const invertedBatch = describePersistedPaperQuoteHealth(evidence,
+  { ...coverage, generatedAt: at(20) }, now);
+assert.equal(invertedBatch.snapshotCurrent, false);
 assert.equal(current.diagnosticState, "QUORUM_NOT_MET", "one qualifying symbol never satisfies whole-portfolio quorum");
 assert.equal(current.symbols.length, 3);
 const aapl = current.symbols.find((row) => row.symbol === "AAPL");
