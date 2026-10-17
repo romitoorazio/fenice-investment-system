@@ -8,6 +8,25 @@ export type ReleaseStatus =
 
 export type ComparisonWindow = {pairs:number|null; independentDays:number|null};
 
+export type ProductionCommitEvidence = {
+  state:"DEPLOYMENT_METADATA_UNAVAILABLE"|"PRODUCTION_SHA_MISSING_OR_INVALID"
+    |"CI_RECORD_MISSING_OR_STALE"|"MATCHES_RECORDED_MAIN_CI"|"PRODUCTION_CI_SHA_MISMATCH";
+  deployedSha:string|null;
+  recordedMainCiSha:string|null;
+  deploymentEnvironment:"production"|"unverified";
+  exactShaMatch:boolean;
+  independentlyAttested:false;
+  authorizesPaper:false;
+  authorizesLive:false;
+  note:string;
+};
+
+export declare function assessProductionCommitEvidence(engineeringEvidence?:unknown, options?:{
+  deploymentCommit?:string|null;
+  deploymentEnvironment?:string|null;
+  now?:Date;
+}):ProductionCommitEvidence;
+
 export type Fenice100KReleaseReport = {
   version:1;
   assessedAt:string;
@@ -30,6 +49,7 @@ export type Fenice100KReleaseReport = {
       state:"HISTORICAL_MAIN_CI_VERIFIED"|"CI_EVIDENCE_STALE_OR_MISSING";
       validatedCommit:string|null;
       currentDeployedCommitVerified:false;
+      productionCommitEvidence:ProductionCommitEvidence;
       note:string;
     };
     paperCertification:{
@@ -74,5 +94,7 @@ export declare function assessFenice100KRelease(input?:{
   paperWindow?:unknown;
   engineeringEvidence?:unknown;
   paperApproval?:unknown;
+  deploymentCommit?:string|null;
+  deploymentEnvironment?:string|null;
   now?:Date;
 }):Fenice100KReleaseReport;
