@@ -1,4 +1,5 @@
 import type { HistoricalCredentialRotationAssessment } from "./credential-rotation-gate.mjs";
+import type { ProductionGitHubCI } from "./github-production-checks.mjs";
 
 /** Read-only typing contract for the pure ESM release gate used by Next.js. */
 export type ReleaseStatus =
@@ -24,6 +25,7 @@ export type ProductionCommitEvidence = {
 export declare function assessProductionCommitEvidence(engineeringEvidence?:unknown, options?:{
   deploymentCommit?:string|null;
   deploymentEnvironment?:string|null;
+  externalProductionCI?:ProductionGitHubCI|null;
   now?:Date;
 }):ProductionCommitEvidence;
 
@@ -50,6 +52,8 @@ export type Fenice100KReleaseReport = {
       validatedCommit:string|null;
       currentDeployedCommitVerified:false;
       productionCommitEvidence:ProductionCommitEvidence;
+      externalProductionCI:ProductionGitHubCI|null;
+      externalExactCIObserved:boolean;
       note:string;
     };
     paperCertification:{

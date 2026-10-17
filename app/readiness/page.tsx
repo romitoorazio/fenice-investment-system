@@ -10,6 +10,7 @@ import sourceHealth from "@/data/global-source-health.json";
 import investmentCommittee from "@/data/investment-committee.json";
 import forwardShadowEvidence from "@/data/v7-horizon-shadow-evaluation.json";
 import { assessFenice100KRelease } from "@/lib/ui/fenice100k-release-gate.mjs";
+import { readGitHubProductionChecks } from "@/lib/ui/github-production-checks.mjs";
 import { assessDirectaServiceContinuity } from "@/lib/ui/directa-service-continuity";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
 import { buildPaperContinuityOwnerCheckpoint } from "@/lib/ui/paper-continuity-owner-checkpoint";
@@ -157,7 +158,13 @@ function serverRequestTime() {
 }
 
 export default async function ReadinessPage() {
-  const livePaperClock = await getAlpacaPaperClock();
+  const [livePaperClock, externalProductionCI] = await Promise.all([
+    getAlpacaPaperClock(),
+    readGitHubProductionChecks({
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      environment: process.env.VERCEL_ENV ?? null,
+    }),
+  ]);
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
   const usMarketSession = resolveVenueSession("XNAS", livePaperClock);
@@ -208,6 +215,7 @@ export default async function ReadinessPage() {
     paperApproval,
     deploymentCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     deploymentEnvironment: process.env.VERCEL_ENV ?? null,
+    externalProductionCI,
     now: new Date(),
   });
   const evidenceDays = calendar.evidenceDays;
@@ -297,9 +305,10 @@ export default async function ReadinessPage() {
               <p className="mt-1 text-xs text-slate-400">
                 SHA CI: {releaseGate.gates.riskSystem.validatedCommit?.slice(0,8) ?? "N/D"}.
                 {" "}SHA Vercel: {releaseGate.gates.riskSystem.productionCommitEvidence.deployedSha?.slice(0,8) ?? "N/D"}.
-                {" "}Confronto: {releaseGate.gates.riskSystem.productionCommitEvidence.state === "MATCHES_RECORDED_MAIN_CI"
-                  ? "COMBACIANO (metadata)" : "NON VERIFICATO / NON COINCIDENTE"}.
-                La corrispondenza dei metadati non certifica da sola CI, alias o trading.
+                {" "}CI GitHub sul commit pubblicato: {externalProductionCI.verified ? "8/8 controlli PASS" : "NON VERIFICATA"}.
+                {" "}Rapporto CI incorporato: {releaseGate.gates.riskSystem.productionCommitEvidence.exactShaMatch
+                  ? "SHA coincidente" : "storico o differente"}.
+                Nessun controllo sblocca il trading; la verifica del dominio Vercel rimane distinta.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-3">
