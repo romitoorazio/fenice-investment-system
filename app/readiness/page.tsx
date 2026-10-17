@@ -206,6 +206,8 @@ export default async function ReadinessPage() {
     engineeringEvidence: engineeringValidation,
     paperWindow: calendar,
     paperApproval,
+    deploymentCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    deploymentEnvironment: process.env.VERCEL_ENV ?? null,
     now: new Date(),
   });
   const evidenceDays = calendar.evidenceDays;
@@ -293,8 +295,11 @@ export default async function ReadinessPage() {
                   : "Prove CI non aggiornate"}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                SHA provato: {releaseGate.gates.riskSystem.validatedCommit?.slice(0,8) ?? "N/D"}.
-                Il deploy attuale richiede sempre una verifica separata dello stesso commit.
+                SHA CI: {releaseGate.gates.riskSystem.validatedCommit?.slice(0,8) ?? "N/D"}.
+                {" "}SHA Vercel: {releaseGate.gates.riskSystem.productionCommitEvidence.deployedSha?.slice(0,8) ?? "N/D"}.
+                {" "}Confronto: {releaseGate.gates.riskSystem.productionCommitEvidence.state === "MATCHES_RECORDED_MAIN_CI"
+                  ? "COMBACIANO (metadata)" : "NON VERIFICATO / NON COINCIDENTE"}.
+                La corrispondenza dei metadati non certifica da sola CI, alias o trading.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-3">

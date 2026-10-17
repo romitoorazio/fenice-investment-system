@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { assessFenice100KRelease } from "../lib/ui/fenice100k-release-gate.mjs";
+import { assessFenice100KRelease, assessProductionCommitEvidence } from "../lib/ui/fenice100k-release-gate.mjs";
 import { assessHistoricalCredentialRotation } from "../lib/ui/credential-rotation-gate.mjs";
 
 const now = new Date("2026-10-13T14:00:00.000Z");
@@ -10,10 +10,11 @@ const committee = {generatedAt:"2026-10-13T13:41:00.000Z",allDecisions:[
   {symbol:"QQQ",priceEvidence:{price:null,observedAt:null,evidenceType:"NO_VERIFIED_REGULAR_TRADE"}},
 ]};
 const sourceHealth = {generatedAt:"2026-10-13T13:55:00.000Z",gate:"GREEN",qualityScore:94};
+const fullCiSha = "a".repeat(40);
 const engineeringEvidence = {
   generatedAt:"2026-10-13T13:55:00.000Z",
   state:"VERIFIED",
-  source:{branch:"main",conclusion:"success",validatedCommit:"abc123"},
+  source:{branch:"main",conclusion:"success",validatedCommit:fullCiSha},
   policy:{liveTradingAllowed:false,brokerConnectivityAllowed:false,ciEvidenceCannotAuthorizeLive:true},
 };
 const paperApproval = {approved:true,liveTradingAllowed:false,brokerConnectivityAllowed:false};
@@ -110,6 +111,46 @@ const correlated=assess({shadow:{...shadow,forwardBenchmark:{matured:{
   "30d":{pairedSamples:50,independentEntryDays:1}}}}});
 assert.equal(correlated.gates.performance.state,"NOT_PROVEN","symbols from one day are not independent");
 
+
+const evidenceFor = (deploymentCommit, deploymentEnvironment = "production", patch = {}) =>
+  assessProductionCommitEvidence({...engineeringEvidence,...patch}, {
+    deploymentCommit, deploymentEnvironment, now,
+  });
+assert.equal(evidenceFor(fullCiSha).state, "MATCHES_RECORDED_MAIN_CI");
+assert.equal(evidenceFor(fullCiSha).exactShaMatch, true);
+assert.equal(evidenceFor(fullCiSha).independentlyAttested, false);
+assert.equal(evidenceFor(fullCiSha).authorizesPaper, false);
+assert.equal(evidenceFor(fullCiSha).authorizesLive, false);
+for (const [name, commit, env, expected] of [
+  ["mismatch", "b".repeat(40), "production", "PRODUCTION_CI_SHA_MISMATCH"],
+  ["short", "abc123", "production", "PRODUCTION_SHA_MISSING_OR_INVALID"],
+  ["empty", null, "production", "PRODUCTION_SHA_MISSING_OR_INVALID"],
+  ["future", fullCiSha, "preview", "DEPLOYMENT_METADATA_UNAVAILABLE"],
+  ["local", fullCiSha, null, "DEPLOYMENT_METADATA_UNAVAILABLE"],
+]) {
+  const assessed=evidenceFor(commit,env);
+  assert.equal(assessed.state,expected,name);
+  assert.equal(assessed.exactShaMatch,false,name);
+}
+for (const patch of [
+  {source:{...engineeringEvidence.source,branch:"feature"}},
+  {source:{...engineeringEvidence.source,validatedCommit:"short"}},
+  {source:{...engineeringEvidence.source,conclusion:"failure"}},
+  {generatedAt:"2026-10-10T00:00:00Z"},
+  {generatedAt:"2026-10-18T00:00:00Z"},
+  {policy:{...engineeringEvidence.policy,liveTradingAllowed:true}},
+]) assert.equal(evidenceFor(fullCiSha,"production",patch).state,"CI_RECORD_MISSING_OR_STALE");
+const productionBoard=assess({deploymentCommit:fullCiSha,deploymentEnvironment:"production"});
+assert.equal(productionBoard.gates.riskSystem.productionCommitEvidence.exactShaMatch,true);
+assert.equal(productionBoard.gates.riskSystem.currentDeployedCommitVerified,false,"metadata is not independent release verification");
+assert.equal(productionBoard.completeForRealCapital,false);
+assert.equal(productionBoard.gates.liveLock.state,"LOCKED");
+assert.equal(assess({deploymentCommit:"b".repeat(40),deploymentEnvironment:"production"}).blockers
+  .some(b=>b.id==="P0_PRODUCTION_SHA_CI_MISMATCH_OR_UNVERIFIED"),true);
+assert.equal(assess({deploymentCommit:fullCiSha,deploymentEnvironment:"production"}).blockers
+  .some(b=>b.id==="P0_PRODUCTION_SHA_CI_MISMATCH_OR_UNVERIFIED"),false);
+assert.throws(()=>assessProductionCommitEvidence(engineeringEvidence,{now:new Date("invalid")}),/Invalid production/);
+
 assert.throws(()=>assess({now:new Date("invalid")}),/Invalid release assessment/);
 
 const readiness=await readFile(new URL("../app/readiness/page.tsx",import.meta.url),"utf8");
@@ -119,7 +160,11 @@ assert.match(readiness,/releaseGate\.gates/);
 assert.match(readiness,/completeForRealCapital/);
 assert.match(readiness,/releaseGate\.blockers/);
 assert.match(readiness,/releaseGate\.gates\.credentialRotation/);
+assert.match(readiness,/deploymentCommit: process\.env\.VERCEL_GIT_COMMIT_SHA/);
+assert.match(readiness,/deploymentEnvironment: process\.env\.VERCEL_ENV/);
+assert.match(readiness,/productionCommitEvidence/);
 const api = await readFile(new URL("../app/api/trading/readiness/route.ts",import.meta.url),"utf8");
 assert.match(api,/credentialRotation: assessHistoricalCredentialRotation\(\)/);
+assert.match(api,/releaseCommitEvidence: assessProductionCommitEvidence/);
 assert(!api.includes("credentialsRevokedAtProvidersVerified: true"),"API must not claim key revocation");
 console.log("FENICE100K release acceptance tests: PASS (PAPER/LIVE/real profit fail closed)");
