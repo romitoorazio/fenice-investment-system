@@ -257,9 +257,28 @@ export function derivePaperRuntimeEvidence(
   const auditVerification = auditChain.length > 0
     ? verifyAuditChain(auditChain)
     : { valid: false, brokenAt: null };
-  const auditedExecutionIds = new Set(auditChain.map((event) => String(event?.entityId || "")));
+  // A matching ID alone does not prove that the execution outcome was audited.
+  // Match (order ID, event type) and consume each audit event at most once.
+  // This is read-only readiness; never rewrite the frozen V6 audit chain.
+  const auditedEventCounts = new Map<string, number>();
+  for (const event of auditChain) {
+    if (typeof event?.entityId !== "string" || !event.entityId.trim()
+      || typeof event?.eventType !== "string" || !event.eventType.trim()) continue;
+    const key = JSON.stringify([event.entityId, event.eventType]);
+    auditedEventCounts.set(key, (auditedEventCounts.get(key) ?? 0) + 1);
+  }
   const allExecutionsAudited = executions.length > 0
-    && executions.every((execution) => auditedExecutionIds.has(String(execution?.clientOrderId || "")));
+    && executions.every((execution) => {
+      const id = execution?.clientOrderId;
+      const status = execution?.status;
+      if (typeof id !== "string" || !id.trim()
+        || typeof status !== "string" || !status.trim()) return false;
+      const key = JSON.stringify([id, status]);
+      const remaining = auditedEventCounts.get(key) ?? 0;
+      if (remaining <= 0) return false;
+      auditedEventCounts.set(key, remaining - 1);
+      return true;
+    });
   const auditEvidenceDays = rows.filter((row) => safePaperLocks(row) && row?.auditChainValid === true).length;
   const persistentAuditRuntimeVerified = Boolean(
     oms?.liveTradingAllowed === false
