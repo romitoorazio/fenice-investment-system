@@ -67,6 +67,20 @@ fail(x => { x.positions[0].currency = "EUR"; }, "position currency mismatch");
 fail(x => { x.positions.push(structuredClone(x.positions[0])); }, "duplicate position");
 fail(x => { x.positions = []; }, "missing positions");
 fail(x => { x.executions[0].side = "SELL"; }, "unsupported close-out must not fake realised PnL");
+for (const impossibleTime of [
+  "2026-02-30T15:24:44.836Z", "2026-10-16T17:43:39",
+  "2026-10-16", "2026-10-16T17:43:39+00:00",
+]) {
+  fail(x => { x.generatedAt = impossibleTime; }, "reject noncanonical PAPER snapshot time");
+}
+fail(x => { x.executions[0].filledAt = "2026-02-30T17:24:41.343Z"; }, "reject impossible fill date");
+fail(x => { x.executions[0].fxObservedAt = "2026-09-25T17:23:00"; }, "reject local FX time");
+fail(x => { x.executions.push(null); }, "malformed ledger entry must not crash the dashboard");
+fail(x => { x.positions.push(null); }, "malformed position must not crash the dashboard");
+fail(x => { x.executions[0].estimatedFeeEuro = 1e307; }, "rounding overflow must fail closed");
+fail(x => { x.executions[0].estimatedSlippageEuro = 1e307; }, "large costs must fail closed");
+const invalidClock = reconcile(paper, Number.POSITIVE_INFINITY);
+assert.equal(invalidClock.status, "INSUFFICIENT");
 const incomplete = change(x => { x.executions = []; });
 assert.notEqual(incomplete.status, "RECONCILED");
 assert.equal(incomplete.entryNotionalEuro, null);

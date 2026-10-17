@@ -1,3 +1,5 @@
+import { paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
+
 /**
  * PAPER buy-side lot reconciliation, isolated from frozen V6 execution files.
  * Only historical paper entry evidence is checked. NO current quote, FX mark,
@@ -55,9 +57,10 @@ const nonnegative = (value: unknown): value is number =>
 const symbolPattern = /^[A-Z0-9][A-Z0-9.:-]{0,24}$/;
 const currencyPattern = /^[A-Z]{3}$/;
 const validDate = (value: unknown, now: number) => {
-  if (typeof value !== "string") return null;
-  const n = Date.parse(value);
-  return Number.isFinite(n) && n >= 0 && n <= now ? n : null;
+  // Date.parse accepts local timestamps and silently normalizes impossible days.
+  if (!Number.isSafeInteger(now) || now < 0 || now > 8.64e15) return null;
+  const n = paperTimestamp(value);
+  return n !== null && n <= now ? n : null;
 };
 function failed(reason: string) {
   return {
@@ -91,6 +94,8 @@ export function reconcilePaperPositions(snapshot: PaperPositionSnapshot | null |
   }
   const at = snapshot.generatedAt!;
   if (!Array.isArray(snapshot.executions) || !Array.isArray(snapshot.positions)
+      || snapshot.executions.some(x => !x || typeof x !== "object" || Array.isArray(x))
+      || snapshot.positions.some(x => !x || typeof x !== "object" || Array.isArray(x))
       || snapshot.reconciliation?.balanced !== true
       || !Array.isArray(snapshot.reconciliation.breaks)
       || snapshot.reconciliation.breaks.length !== 0) {
@@ -151,26 +156,43 @@ export function reconcilePaperPositions(snapshot: PaperPositionSnapshot | null |
       return divergent("Posizione OMS senza fill o con valuta diversa.", at);
     }
     const quantity = lots.reduce((acc, lot) => acc + lot.filledQuantity!, 0);
-    const weightedPrice = lots.reduce((acc, lot) => acc + lot.filledQuantity! * lot.fillPrice!, 0) / quantity;
-    if (Math.abs(quantity - stored.quantity) > 1e-6
+    const weightedNumerator = lots.reduce((acc, lot) => acc + lot.filledQuantity! * lot.fillPrice!, 0);
+    const weightedPrice = weightedNumerator / quantity;
+    if (!Number.isFinite(quantity) || !Number.isFinite(weightedNumerator)
+      || !Number.isFinite(weightedPrice)
+      || Math.abs(quantity - stored.quantity) > 1e-6
       || Math.abs(weightedPrice - stored.averagePrice) > 0.0001) {
       return divergent("Quantità o prezzo medio OMS non corrisponde al registro eseguiti.", at);
     }
+    const roundedQuantity = round(quantity, 6);
+    const roundedPrice = round(weightedPrice, 4);
+    const roundedAveragePrice = round(stored.averagePrice!, 4);
+    const entryNotionalEuro = round(lots.reduce((acc, lot) => acc + lot.notionalEuro!, 0));
+    const estimatedEntryCostsEuro = round(lots.reduce((acc, lot) =>
+      acc + lot.estimatedFeeEuro! + lot.estimatedSlippageEuro!, 0));
+    if (![roundedQuantity, roundedPrice, roundedAveragePrice, entryNotionalEuro,
+      estimatedEntryCostsEuro].every(Number.isFinite)) {
+      return divergent("Aggregati PAPER non rappresentabili: nessun importo certificabile.", at);
+    }
     rows.push({
       symbol, currency: stored.currency!, buyLots: lots.length,
-      quantity: round(quantity, 6),
+      quantity: roundedQuantity,
       storedQuantity: stored.quantity!,
-      weightedFillPrice: round(weightedPrice, 4),
-      storedAveragePrice: round(stored.averagePrice!, 4),
-      entryNotionalEuro: round(lots.reduce((acc, lot) => acc + lot.notionalEuro!, 0)),
-      estimatedEntryCostsEuro: round(lots.reduce(
-        (acc, lot) => acc + lot.estimatedFeeEuro! + lot.estimatedSlippageEuro!, 0)),
+      weightedFillPrice: roundedPrice,
+      storedAveragePrice: roundedAveragePrice,
+      entryNotionalEuro,
+      estimatedEntryCostsEuro,
       lastFilledAt: [...lots].sort((a, b) => a.filledAt!.localeCompare(b.filledAt!)).at(-1)!.filledAt!,
     });
   }
   rows.sort((a, b) => a.symbol.localeCompare(b.symbol));
   const totalNotional = rows.reduce((sum, row) => sum + row.entryNotionalEuro, 0);
   const totalCosts = rows.reduce((sum, row) => sum + row.estimatedEntryCostsEuro, 0);
+  const roundedTotalNotional = round(totalNotional);
+  const roundedTotalCosts = round(totalCosts);
+  if (![roundedTotalNotional, roundedTotalCosts].every(Number.isFinite)) {
+    return divergent("Totali PAPER non rappresentabili: riconciliazione non dimostrata.", at);
+  }
   return {
     status: "RECONCILED" as const,
     reason: "Lotti BUY PAPER e posizioni OMS coincidono. Senza prezzi e cambio alla stessa data non esiste una valorizzazione netta verificata.",
@@ -179,8 +201,8 @@ export function reconcilePaperPositions(snapshot: PaperPositionSnapshot | null |
     reconciledPositionCount: rows.length,
     filledBuyLots: fills.length,
     closedTradeCount: 0,
-    entryNotionalEuro: round(totalNotional),
-    estimatedEntryCostsEuro: round(totalCosts),
+    entryNotionalEuro: roundedTotalNotional,
+    estimatedEntryCostsEuro: roundedTotalCosts,
     rows,
     // Entry FX in the ledger is historical, NOT a current exchange rate.
     markedValueEuro: null,
