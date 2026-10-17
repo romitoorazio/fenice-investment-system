@@ -88,6 +88,13 @@ const invalidDate = describePersistedPaperQuoteHealth({
   ...evidence, generatedAt: "2026-02-30T16:00:00.000Z",
 }, { ...coverage, evidenceGeneratedAt: "2026-02-30T16:00:00.000Z" }, now);
 assert.equal(invalidDate.snapshotCurrent, false, "calendar-normalized invalid dates are not a current quote batch");
+const conflictingQuote = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: [...evidence.observations,
+    { ...quote("AAPL", "alpaca", 34), price: 101 }],
+}, coverage, now);
+assert.equal(conflictingQuote.symbols[0].state, "SOURCE_CONFLICT",
+  "two different same-provider prices at the same timestamp are not one valid source");
 const noData = describePersistedPaperQuoteHealth(null, null, now);
 assert.equal(noData.diagnosticState, "SNAPSHOT_EXPIRED");
 assert.equal(noData.symbols.length, 0);
