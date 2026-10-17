@@ -5,6 +5,8 @@ const now = Date.parse("2026-10-09T16:00:00Z");
 const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
 const quote = (symbol, sourceFamily, age, eligibility = "PAPER", verified = true) => ({
   symbol, sourceFamily, eligibility, provenanceVerified: verified,
+  provenanceMethod: sourceFamily === "alpaca" ? "authenticated-alpaca-iex-latest-quote"
+    : sourceFamily === "twelve-data" ? "provider-batch-quote-last_quote_at-us-realtime-venue" : "unknown",
   price: 100, currency: "USD", observedAt: at(age),
 });
 const evidence = {
@@ -70,6 +72,22 @@ const future = describePersistedPaperQuoteHealth({
   observations: [quote("AAPL", "alpaca", -180)],
 }, coverage, now);
 assert.equal(future.symbols[0].state, "NO_VERIFIED_PAPER_SOURCES");
+const falseProvenance = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: evidence.observations.map(row => row.symbol === "AAPL" && row.sourceFamily === "twelve-data"
+    ? { ...row, provenanceMethod: undefined } : row),
+}, coverage, now);
+assert.equal(falseProvenance.symbols[0].state, "FRESH_SOURCE_QUORUM_MISSING",
+  "UI source proof must agree with runtime provenance requirements");
+const quotedString = describePersistedPaperQuoteHealth({
+  ...evidence, observations: evidence.observations.map(row => row.symbol === "AAPL" && row.sourceFamily === "twelve-data"
+    ? { ...row, price: "100" } : row),
+}, coverage, now);
+assert.equal(quotedString.symbols[0].state, "FRESH_SOURCE_QUORUM_MISSING");
+const invalidDate = describePersistedPaperQuoteHealth({
+  ...evidence, generatedAt: "2026-02-30T16:00:00.000Z",
+}, { ...coverage, evidenceGeneratedAt: "2026-02-30T16:00:00.000Z" }, now);
+assert.equal(invalidDate.snapshotCurrent, false, "calendar-normalized invalid dates are not a current quote batch");
 const noData = describePersistedPaperQuoteHealth(null, null, now);
 assert.equal(noData.diagnosticState, "SNAPSHOT_EXPIRED");
 assert.equal(noData.symbols.length, 0);
