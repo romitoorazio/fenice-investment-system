@@ -1,4 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { isGdeltProviderBlock } from "../lib/intelligence/gdelt-recovery-policy.mjs";
+import { collectThemesWithCircuit } from "../lib/intelligence/gdelt-theme-collector.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -129,26 +131,12 @@ async function fetchRssTheme(theme) {
   return items;
 }
 
-async function fetchThemeWithFallback(theme) {
-  try {
-    return { items: await fetchGdeltTheme(theme), primary: true, primaryError: null };
-  } catch (primaryError) {
-    try {
-      return {
-        items: await fetchRssTheme(theme),
-        primary: false,
-        primaryError: errorMessage(primaryError),
-      };
-    } catch (fallbackError) {
-      const error = new Error(`${theme.id}: GDELT ${errorMessage(primaryError)}; RSS ${errorMessage(fallbackError)}`);
-      error.cause = { primaryError, fallbackError };
-      throw error;
-    }
-  }
-}
-
 const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
-const results = await Promise.allSettled(themes.map(fetchThemeWithFallback));
+const { results, circuitOpen, skippedPrimary } = await collectThemesWithCircuit(themes, {
+  fetchPrimary: fetchGdeltTheme,
+  fetchFallback: fetchRssTheme,
+  isProviderBlocked: isGdeltProviderBlock,
+});
 const inheritedWarnings = [...(snapshot.warnings ?? [])];
 const coreGdeltFailures = inheritedWarnings.filter((warning) => /^GDELT .* non acquisit[oa]:/i.test(String(warning)));
 const warnings = inheritedWarnings.filter((warning) => !/^GDELT .* non acquisit[oa]:/i.test(String(warning)));
@@ -226,6 +214,8 @@ snapshot.newsCoverage = {
   primaryThemes,
   fallbackThemes,
   failedThemes: failedThemeNames,
+  providerCircuitOpen: circuitOpen,
+  skippedPrimaryRequests: skippedPrimary,
   fallbackPolicy: "Google News RSS è solo discovery/fallback e non vale come conferma forte o fonte primaria.",
   diagnostics: [
     ...coreGdeltFailures.map((warning) => ({ scope: "core", error: String(warning) })),
