@@ -42,4 +42,8 @@ assert.equal(paper.liveTradingAllowed,false);
 assert.equal(paper.baselineFingerprint.complete,true);
 assert.equal(paper.baselineFingerprint.files.includes(".github/workflows/vercel-deploy.yml"),false);
 assert.ok(workflow.includes("execute=false"),"Dryrun control retained");
+assert.match(workflow, /for attempt in \$\(seq 1 24\)/, "guarded release must wait for same-SHA CI");
+assert.match(workflow, /sleep 20/, "CI wait must be bounded");
+assert.match(workflow, /node scripts\/release-checks-failed\.mjs/, "failed required CI checks stop the wait");
+assert.match(workflow, /authorized=false/, "timeout must fail closed");
 console.log("Fenice exact-SHA daily production deployment contract: PASS");

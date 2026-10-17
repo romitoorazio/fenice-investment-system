@@ -95,15 +95,34 @@ jobs:
 
           CHECKS_FILE="$(mktemp)"
           trap 'rm -f "$CHECKS_FILE"' EXIT
-          if ! gh api -H "Accept: application/vnd.github+json" \
-            "/repos/romitoorazio/fenice-investment-system/commits/${GITHUB_SHA}/check-runs?per_page=100" \
-            > "$CHECKS_FILE"; then
-            echo "authorized=false" >> "$GITHUB_OUTPUT"
-            echo "GitHub CI check-runs unavailable: keep last known-good production."
-            exit 0
-          fi
 
-          node scripts/verify-production-ci-before-deploy.mjs < "$CHECKS_FILE" >> "$GITHUB_OUTPUT"
+          # A guarded operator request starts the CI and this release on the
+          # same main push. Do not treat a still-running exact-SHA CI as failure.
+          # Never borrow checks from another SHA, and never deploy on timeout.
+          for attempt in $(seq 1 24); do
+            if ! gh api -H "Accept: application/vnd.github+json" \
+              "/repos/romitoorazio/fenice-investment-system/commits/${GITHUB_SHA}/check-runs?per_page=100" \
+              > "$CHECKS_FILE"; then
+              echo "GitHub checks unavailable (attempt $attempt/24): no deployment."
+            else
+              DECISION="$(node scripts/verify-production-ci-before-deploy.mjs < "$CHECKS_FILE")"
+              if [[ "$DECISION" == "authorized=true" ]]; then
+                echo "authorized=true" >> "$GITHUB_OUTPUT"
+                echo "Exact-SHA production checks are green; guarded release may continue."
+                exit 0
+              fi
+              # Fail early if any required check is explicitly red, while
+              # pending checks are allowed a bounded interval to complete.
+              if node scripts/release-checks-failed.mjs < "$CHECKS_FILE"; then
+                echo "A required exact-SHA GitHub check failed. Holding production."
+                break
+              fi
+              echo "Exact-SHA checks not yet green (attempt $attempt/24)."
+            fi
+            if [[ "$attempt" -lt 24 ]]; then sleep 20; fi
+          done
+          echo "authorized=false" >> "$GITHUB_OUTPUT"
+          echo "Production stays on its last READY deployment."
 
       - name: Require Vercel token
         if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true'
