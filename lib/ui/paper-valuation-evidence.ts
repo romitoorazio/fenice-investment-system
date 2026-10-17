@@ -109,7 +109,8 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       if (accepted.length < 2) return insufficient(`Mancano due prezzi indipendenti verificati per ${holding.symbol}.`);
       const prices = accepted.map(q => q.price!).sort((a, b) => a - b);
       const median = (prices[0] + prices[1]) / 2;
-      if ((prices.at(-1)! - prices[0]) / median * 100 > 0.75)
+      if (!positive(median) || !Number.isFinite((prices.at(-1)! - prices[0]) / median * 100)
+        || (prices.at(-1)! - prices[0]) / median * 100 > 0.75)
         return insufficient(`Le fonti divergono sul prezzo di ${holding.symbol}.`);
       const rate = fx.ratesToEuro?.[holding.currency];
       if (!rate || !positive(rate.rate) || rate.rate > 5 || !coeval(rate.observedAt)
@@ -117,9 +118,13 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
         || (holding.currency === "EUR" && rate.rate !== 1) || !["EUR", "USD"].includes(holding.currency))
         return insufficient(`Cambio ${holding.currency}/EUR coevo non verificato.`);
       const value = holding.storedQuantity * median * rate.rate;
+      const roundedValue = round(value);
+      const roundedChange = round(value - holding.entryNotionalEuro);
+      if (![value, roundedValue, roundedChange].every(Number.isFinite))
+        return insufficient("Valorizzazione per strumento non numericamente valida.");
       rows.push({ symbol: holding.symbol, currency: holding.currency, recordedQuantity: holding.storedQuantity,
-        medianPrice: median, fxToEuro: rate.rate, estimatedValueEuro: round(value),
-        recordedEntryEuro: holding.entryNotionalEuro, priceFxChangeEuro: round(value - holding.entryNotionalEuro),
+        medianPrice: median, fxToEuro: rate.rate, estimatedValueEuro: roundedValue,
+        recordedEntryEuro: holding.entryNotionalEuro, priceFxChangeEuro: roundedChange,
         quoteSources: [...familyQuotes.keys()].sort(), quoteObservedAt: accepted.map(q => q.observedAt!), fxObservedAt: rate.observedAt! });
     }
     const value = round(rows.reduce((sum, row) => sum + row.estimatedValueEuro, 0));
@@ -127,6 +132,11 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
     const fees = entryFeesAudited ? round(filled.reduce((sum, fill) => sum + fill.estimatedFeeEuro!, 0)) : null;
     // Fill price already includes simulated slippage. Do not deduct it twice.
     const delta = round(value - entry);
+    const afterFees = fees === null ? null : round(delta - fees);
+    if (![value, entry, delta].every(Number.isFinite)
+      || (fees !== null && !Number.isFinite(fees))
+      || (afterFees !== null && !Number.isFinite(afterFees)))
+      return insufficient("Totali e costi della valorizzazione non numericamente validi.");
     return { ...insufficient(""), state: "VALUED_SAMPLE" as const,
       reason: entryFeesAudited
         ? "Campione storico delle quantità PAPER registrate; prezzi mediani e cambio coevi. Costi d'uscita, imposte, dividendi e azioni societarie non riconciliati."
@@ -134,6 +144,6 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       asOf: new Date(asOfMs).toISOString(), ageSeconds: Math.round((now - asOfMs) / 1000),
       sampleCurrentWithin120Seconds: now - asOfMs <= 120_000,
       estimatedRecordedQuantityValueEuro: value, recordedEntryEuro: entry, priceFxChangeEuro: delta,
-      estimatedEntryFeesEuro: fees, changeAfterEstimatedEntryFeesEuro: fees === null ? null : round(delta - fees), rows };
+      estimatedEntryFeesEuro: fees, changeAfterEstimatedEntryFeesEuro: afterFees, rows };
   } catch { return insufficient("Struttura delle prove di valorizzazione non valida."); }
 }
