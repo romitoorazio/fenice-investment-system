@@ -54,6 +54,24 @@ assert.equal(out.profitableStrategyVerified, false);
 
 const unsafeMode = summarize({ ...paper, mode: "LIVE" }, v7, calibration, now);
 assert.equal(unsafeMode.paper.filledCount, null);
+// Absent, null or malformed persisted rows are not a genuine empty PAPER book.
+for (const corrupted of [
+  { ...paper, executions: undefined },
+  { ...paper, executions: null },
+  { ...paper, executions: {} },
+  { ...paper, executions: [null, fill("one")] },
+  { ...paper, executions: [fill("one"), 17] },
+  { ...paper, executions: [fill("one"), { status: "" }] },
+  { ...paper, executions: [fill("one"), { status: 1 }] },
+]) {
+  const observed = summarize(corrupted, v7, calibration, now);
+  assert.equal(observed.paper.safe, false, "invalid ledger cannot claim safe PAPER totals");
+  assert.equal(observed.paper.filledCount, null, "missing ledger is not an empty ledger");
+  assert.equal(observed.paper.estimatedCombinedCostsEuro, null);
+  assert.equal(observed.profitableStrategyVerified, false);
+}
+assert.equal(summarize({ ...paper, executions: [] }, v7, calibration, now).paper.filledCount, 0,
+  "a structurally valid empty ledger remains distinguishable from a missing ledger");
 assert.equal(unsafeMode.paper.estimatedCombinedCostsEuro, null);
 assert.equal(summarize({ ...paper, liveTradingAllowed: true }, v7, calibration, now).paper.safe, false);
 assert.equal(summarize({ ...paper, brokerConnectivityAllowed: true }, v7, calibration, now).paper.safe, false);
