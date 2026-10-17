@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { assessFenice100KRelease, assessProductionCommitEvidence } from "../lib/ui/fenice100k-release-gate.mjs";
 import { assessHistoricalCredentialRotation } from "../lib/ui/credential-rotation-gate.mjs";
+import { assessGitHubProductionChecks, readGitHubProductionChecks, REQUIRED_FENICE_CHECKS } from "../lib/ui/github-production-checks.mjs";
 
 const now = new Date("2026-10-13T14:00:00.000Z");
 const committee = {generatedAt:"2026-10-13T13:41:00.000Z",allDecisions:[
@@ -151,6 +152,73 @@ assert.equal(assess({deploymentCommit:fullCiSha,deploymentEnvironment:"productio
   .some(b=>b.id==="P0_PRODUCTION_SHA_CI_MISMATCH_OR_UNVERIFIED"),false);
 assert.throws(()=>assessProductionCommitEvidence(engineeringEvidence,{now:new Date("invalid")}),/Invalid production/);
 
+const checksNow = Date.parse("2026-10-13T14:00:00.000Z");
+const goodChecks = (sha = fullCiSha) => ({
+  total_count: REQUIRED_FENICE_CHECKS.length,
+  check_runs: REQUIRED_FENICE_CHECKS.map((name,i)=>({
+    id:i+1, name, head_sha:sha, app:{slug:"github-actions"},
+    status:"completed", conclusion:"success", completed_at:"2026-10-13T13:59:00.000Z",
+  })),
+});
+const observed = assessGitHubProductionChecks(goodChecks(), fullCiSha, checksNow);
+assert.equal(observed.state,"EXACT_SHA_CHECKS_VERIFIED");
+assert.equal(observed.verified,true);
+assert.equal(observed.authorizesLive,false);
+assert.equal(observed.authorizesPaper,false);
+assert.equal(observed.verifiesVercelAlias,false);
+const matchingBoard=assess({deploymentCommit:fullCiSha,deploymentEnvironment:"production",
+  externalProductionCI:observed});
+assert.equal(matchingBoard.gates.riskSystem.externalExactCIObserved,true);
+assert.equal(matchingBoard.gates.riskSystem.currentDeployedCommitVerified,false);
+assert.equal(matchingBoard.completeForRealCapital,false);
+assert.equal(matchingBoard.gates.liveLock.state,"LOCKED");
+const olderStored=assess({deploymentCommit:"b".repeat(40),deploymentEnvironment:"production",
+  externalProductionCI:assessGitHubProductionChecks(goodChecks("b".repeat(40)),"b".repeat(40),checksNow)});
+assert.equal(olderStored.gates.riskSystem.productionCommitEvidence.exactShaMatch,false);
+assert.equal(olderStored.gates.riskSystem.externalExactCIObserved,true);
+assert(!olderStored.blockers.some(x=>x.id==="P0_PRODUCTION_SHA_CI_MISMATCH_OR_UNVERIFIED"),
+  "Independent exact Github checks should supersede an old persisted CI snapshot");
+for(const [name,payload] of [
+  ["one missing check",{...goodChecks(),check_runs:goodChecks().check_runs.slice(1)}],
+  ["wrong SHA",goodChecks("b".repeat(40))],
+  ["third party",{...goodChecks(),check_runs:goodChecks().check_runs.map((x,i)=>i?x:{...x,app:{slug:"other"}})}],
+  ["latest failed rerun",{total_count:REQUIRED_FENICE_CHECKS.length+1,check_runs:[
+    ...goodChecks().check_runs, {id:999,name:"quality",head_sha:fullCiSha,
+      app:{slug:"github-actions"},status:"completed",conclusion:"failure",
+      completed_at:"2026-10-13T13:59:50.000Z"}]}],
+  ["future evidence",{...goodChecks(),check_runs:goodChecks().check_runs.map(x=>({...x,completed_at:"2026-10-14T13:59:00.000Z"}))}],
+  ["partial API",{...goodChecks(),total_count:101}],
+]) {
+  assert.equal(assessGitHubProductionChecks(payload,fullCiSha,checksNow).verified,false,name);
+}
+const unverified=assess({deploymentCommit:"b".repeat(40),deploymentEnvironment:"production",
+  externalProductionCI:observed});
+assert(unverified.blockers.some(x=>x.id==="P0_PRODUCTION_SHA_CI_MISMATCH_OR_UNVERIFIED"),
+  "Cannot certify a different SHA with unrelated remote checks");
+const urls=[];
+const probe=async (url,options) => {
+  urls.push({url,options});
+  return {ok:true,json:async()=>goodChecks()};
+};
+const fetched=await readGitHubProductionChecks({
+  commit:fullCiSha,environment:"production",fetcher:probe,nowMs:checksNow,
+});
+assert.equal(fetched.verified,true);
+assert.deepEqual(urls.map(x=>x.url),[
+  `https://api.github.com/repos/romitoorazio/fenice-investment-system/commits/${fullCiSha}/check-runs?per_page=100`]);
+assert.equal(urls[0].options.method,"GET");
+assert.equal(urls[0].options.next.revalidate,300);
+assert(!JSON.stringify(urls).includes("token"));
+const emptyFetch=async()=>{throw new Error("offline");};
+assert.equal((await readGitHubProductionChecks({
+  commit:fullCiSha,environment:"production",fetcher:emptyFetch,nowMs:checksNow,
+})).verified,false);
+assert.equal((await readGitHubProductionChecks({
+  commit:fullCiSha,environment:"preview",fetcher:probe,nowMs:checksNow,
+})).verified,false);
+assert.equal(urls.length,1,"Preview must never contact GitHub");
+
+
 assert.throws(()=>assess({now:new Date("invalid")}),/Invalid release assessment/);
 
 const readiness=await readFile(new URL("../app/readiness/page.tsx",import.meta.url),"utf8");
@@ -163,8 +231,10 @@ assert.match(readiness,/releaseGate\.gates\.credentialRotation/);
 assert.match(readiness,/deploymentCommit: process\.env\.VERCEL_GIT_COMMIT_SHA/);
 assert.match(readiness,/deploymentEnvironment: process\.env\.VERCEL_ENV/);
 assert.match(readiness,/productionCommitEvidence/);
+assert.match(readiness,/readGitHubProductionChecks/);
 const api = await readFile(new URL("../app/api/trading/readiness/route.ts",import.meta.url),"utf8");
 assert.match(api,/credentialRotation: assessHistoricalCredentialRotation\(\)/);
 assert.match(api,/releaseCommitEvidence: assessProductionCommitEvidence/);
+assert.match(api,/externalProductionCI/);
 assert(!api.includes("credentialsRevokedAtProvidersVerified: true"),"API must not claim key revocation");
 console.log("FENICE100K release acceptance tests: PASS (PAPER/LIVE/real profit fail closed)");

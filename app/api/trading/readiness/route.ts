@@ -11,6 +11,7 @@ import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { assessHistoricalCredentialRotation } from "@/lib/ui/credential-rotation-gate.mjs";
 import { assessProductionCommitEvidence } from "@/lib/ui/fenice100k-release-gate.mjs";
+import { readGitHubProductionChecks } from "@/lib/ui/github-production-checks.mjs";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
@@ -25,7 +26,14 @@ export const revalidate = 0;
 
 export async function GET() {
   const now = Date.now();
-  const livePaperClock = await getAlpacaPaperClock(now);
+  const [livePaperClock, externalProductionCI] = await Promise.all([
+    getAlpacaPaperClock(now),
+    readGitHubProductionChecks({
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      environment: process.env.VERCEL_ENV ?? null,
+      nowMs: now,
+    }),
+  ]);
   const snapshotReadiness = evaluateExecutionReadiness(executionMarket, executionCoverage);
   const runtimeQuoteGate = assessRuntimePaperQuoteGate(executionMarket, executionCoverage);
   const usMarketSession = resolveVenueSession("XNAS", livePaperClock, now);
@@ -76,6 +84,7 @@ export async function GET() {
       now: new Date(now),
     }),
     engineeringEvidence,
+    externalProductionCI,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,
     capitalReady: false,

@@ -100,3 +100,23 @@ La chiusura #26 richiede un riscontro esterno dei provider coinvolti:
 
 L'intervento di sola visibilità di questo gate non afferma che la rotazione sia
 stata effettuata: mostra esplicitamente il blocco operativo irrisolto.
+
+
+## Collaudo GitHub sul commit di produzione — 17 ottobre 2026
+
+La relazione CI versionata in `data/engineering-validation-evidence.json` può essere
+più vecchia dell'ultimo commit distribuibile: l'atto di persisterla crea un
+**nuovo commit**. Per questo uno SHA diverso non implica automaticamente che
+la build Vercel sia stata rilasciata senza superare la CI. Il collaudo ora legge
+in modalità **sola lettura** i check-runs pubblici di GitHub per lo SHA esatto
+dichiarato dall'ambiente Vercel di produzione, su URL GitHub fisso e SHA
+rigorosamente esadecimale. Sono richiesti 8 controlli nominati, tutti completati
+con `success`, associati allo SHA identico e all'app GitHub Actions; un
+riesame più recente fallito invalida il controllo vecchio positivo. Risposte
+403/429, eccezioni, dati incompleti, timestamp futuri e commit divergenti
+producono stato **NON VERIFICATO**. Fetch con limite 5 s e cache Next 300 s.
+
+Il rapporto esterno positivo può prevalere soltanto sul **falso allarme
+relativo al vecchio SHA CI registrato**, senza alterare gli altri gate.
+Non verifica autonomamente alias Vercel, browser autenticato, integrità
+PAPER o performance economica. LIVE e broker restano bloccati per costruzione.
