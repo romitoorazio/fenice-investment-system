@@ -95,6 +95,18 @@ const conflictingQuote = describePersistedPaperQuoteHealth({
 }, coverage, now);
 assert.equal(conflictingQuote.symbols[0].state, "SOURCE_CONFLICT",
   "two different same-provider prices at the same timestamp are not one valid source");
+const corruptedCollections = describePersistedPaperQuoteHealth({
+  ...evidence, observations: { invalid: true },
+}, { ...coverage, rows: { invalid: true },
+  policy: { ...coverage.policy, approvedIndependentPaperSourceFamilies: "alpaca" } }, now);
+assert.equal(corruptedCollections.snapshotCurrent, true,
+  "timestamps alone are not a data quality quorum");
+assert.equal(corruptedCollections.diagnosticState, "QUORUM_NOT_MET");
+assert.equal(corruptedCollections.symbols.length, 0);
+const corruptedRow = describePersistedPaperQuoteHealth(evidence,
+  { ...coverage, rows: [null, ...coverage.rows.slice(1)] }, now);
+assert.equal(corruptedRow.symbols[0].snapshotPaperEligible, false);
+assert.equal(corruptedRow.orderAuthorized, false);
 const noData = describePersistedPaperQuoteHealth(null, null, now);
 assert.equal(noData.diagnosticState, "SNAPSHOT_EXPIRED");
 assert.equal(noData.symbols.length, 0);
