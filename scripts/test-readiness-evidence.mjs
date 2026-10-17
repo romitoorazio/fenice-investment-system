@@ -319,6 +319,34 @@ assert.equal(historicalEvidence(historicalRows,historicalOms,Date.parse("2026-10
   .fxExposureVerified, false, "future historical reports cannot certify readiness");
 
 
+// A valid hash chain with the wrong event type must NOT audit a PAPER fill.
+const wrongOutcomeAudit = appendAuditEvent([], {
+  timestamp: "2026-10-08T17:04:27.081Z",
+  eventType: "RISK_REJECTED",
+  entityId: "probe-usd-1",
+  payload: { mode: "PAPER" },
+});
+const wrongOutcomeRuntime = historicalEvidence(historicalRows, {
+  ...historicalOms, auditChain: wrongOutcomeAudit,
+});
+assert.equal(wrongOutcomeRuntime.allExecutionsAudited, false);
+assert.equal(wrongOutcomeRuntime.persistentAuditRuntimeVerified, false);
+// A single audit event cannot certify two duplicated execution records.
+const duplicatedExecutionRuntime = historicalEvidence(historicalRows, {
+  ...historicalOms,
+  executions: [...historicalOms.executions, { ...historicalOms.executions[0] }],
+});
+assert.equal(duplicatedExecutionRuntime.allExecutionsAudited, false);
+assert.equal(duplicatedExecutionRuntime.persistentAuditRuntimeVerified, false);
+// Missing order identity is never satisfied by an unrelated audit event.
+const blankExecutionRuntime = historicalEvidence(historicalRows, {
+  ...historicalOms,
+  executions: [{ ...historicalOms.executions[0], clientOrderId: "" }],
+});
+assert.equal(blankExecutionRuntime.allExecutionsAudited, false);
+assert.equal(blankExecutionRuntime.persistentAuditRuntimeVerified, false);
+assert.equal(historicalEvidence().persistentAuditRuntimeVerified, true);
+
 const persistedPaperRuntime = buildInstitutionalEvidence(intelligence, {
   marketSessionControlsVerified: paperRuntime.marketSessionControlsVerified,
   fxExposureVerified: paperRuntime.fxExposureVerified,
