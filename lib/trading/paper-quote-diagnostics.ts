@@ -1,4 +1,5 @@
 import { assessRuntimePaperQuoteGate } from "./runtime-paper-quote-gate.ts";
+import { paperTimestamp } from "./paper-timestamp-integrity.ts";
 
 /**
  * User-facing diagnostics of PERSISTED PAPER quote evidence.
@@ -10,6 +11,7 @@ type PaperObservation = {
   sourceFamily?: string;
   eligibility?: string;
   provenanceVerified?: boolean;
+  provenanceMethod?: string;
   observedAt?: string;
   price?: number;
   currency?: string;
@@ -29,12 +31,19 @@ type Coverage = {
     liveTradingAllowed?: boolean;
   };
 };
-const KNOWN_PAPER_FAMILIES = new Set(["alpaca", "twelve-data", "directa"]);
+const APPROVED_METHODS: Record<string, Set<string>> = {
+  alpaca: new Set(["authenticated-alpaca-iex-latest-quote", "authenticated-alpaca-iex-latest-quote-readonly-review"]),
+  "twelve-data": new Set(["provider-response-us-realtime-venue",
+    "provider-response-us-realtime-venue-readonly-review",
+    "provider-batch-quote-last_quote_at-us-realtime-venue"]),
+  directa: new Set(["directa-readonly-entitlement-isin-topbook"]),
+};
+const KNOWN_PAPER_FAMILIES = new Set(Object.keys(APPROVED_METHODS));
 const MAX_SYMBOLS_DISPLAY = 50;
 
 function elapsedSeconds(value: string | undefined, now: number): number | null {
-  const t = Date.parse(String(value || ""));
-  if (!Number.isFinite(t) || !Number.isFinite(now)) return null;
+  const t = paperTimestamp(value);
+  if (t === null || !Number.isSafeInteger(now) || now < 0 || now > 8.64e15) return null;
   return Number(((now - t) / 1000).toFixed(1));
 }
 function inFreshWindow(age: number | null, maxAge: number) {
@@ -49,11 +58,11 @@ export function describePersistedPaperQuoteHealth(
   const gate = assessRuntimePaperQuoteGate(evidence, coverage, now);
   const snapshotAgeSeconds = elapsedSeconds(evidence?.generatedAt, now);
   const coverageAgeSeconds = elapsedSeconds(coverage?.generatedAt, now);
-  const evidenceAt = Date.parse(String(evidence?.generatedAt || ""));
-  const coverageAt = Date.parse(String(coverage?.generatedAt || ""));
+  const evidenceAt = paperTimestamp(evidence?.generatedAt);
+  const coverageAt = paperTimestamp(coverage?.generatedAt);
   const samePersistedQuoteBatch = typeof coverage?.evidenceGeneratedAt === "string"
     && coverage.evidenceGeneratedAt === evidence?.generatedAt
-    && Number.isFinite(evidenceAt) && Number.isFinite(coverageAt)
+    && evidenceAt !== null && coverageAt !== null
     && coverageAt >= evidenceAt && coverageAt - evidenceAt <= 120_000;
   const snapshotCurrent = samePersistedQuoteBatch
     && inFreshWindow(snapshotAgeSeconds, gate.maxQuoteAgeSeconds)
@@ -68,7 +77,9 @@ export function describePersistedPaperQuoteHealth(
     if (item?.eligibility !== "PAPER" || item?.provenanceVerified !== true) continue;
     const symbol = String(item.symbol || "").trim().toUpperCase();
     const family = String(item.sourceFamily || "").trim().toLowerCase();
-    if (!symbol || !allowed.has(family) || !Number.isFinite(Number(item.price)) || Number(item.price) <= 0) continue;
+    if (!symbol || !allowed.has(family)
+      || !APPROVED_METHODS[family]?.has(String(item.provenanceMethod || ""))
+      || typeof item.price !== "number" || !Number.isFinite(item.price) || item.price <= 0) continue;
     const currency = String(item.currency || "").trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(currency)) {
       invalidCurrencySymbols.add(symbol);
