@@ -99,6 +99,42 @@ assert.equal(feasible.maturityApprovalBufferHours, -17.7);
 assert.equal(feasible.maturityWindowState, "MISALIGNED");
 assert.ok(Object.values(feasible.safety).every(Boolean));
 
+// Cross-campaign or research PAPER fills must not inflate V6 progress.
+// A foreign validationProbe flag is not proof of V6 membership.
+const mixedExecutions = diagnosePaperV7Runway({
+  campaign,
+  approval,
+  state: {
+    ...state,
+    executions: [
+      ...state.executions,
+      { validationProbe: false, clientOrderId: "research-paper-test", status: "PAPER_FILLED", createdAt: "2026-10-01T18:00:00Z" },
+      { validationProbe: true, clientOrderId: "fenice-paper-validation-v5-2026-09-23-SPY", status: "PAPER_FILLED", createdAt: "2026-09-23T18:00:00Z" },
+    ],
+  },
+  now,
+});
+assert.equal(mixedExecutions.status, "FEASIBLE_UPPER_BOUND");
+assert.equal(mixedExecutions.paperFills, 3);
+assert.equal(mixedExecutions.fillsRemaining, 7);
+assert.equal(mixedExecutions.historicalProbeAttempts, 3);
+assert.equal(mixedExecutions.ignoredNonCampaignPaperFills, 2);
+assert.equal(mixedExecutions.ignoredNonCampaignValidationProbes, 1);
+assert.equal(mixedExecutions.safety.fillCountersMatch, true);
+
+// Missing or generic prefixes must fail closed rather than claiming a safe runway.
+for (const idPrefix of [undefined, "", "fenice-paper-validation-", "fenice-paper-validation-v6-extra-"]) {
+  const report = diagnosePaperV7Runway({
+    campaign,
+    approval: { ...approval, idPrefix },
+    state,
+    now,
+  });
+  assert.equal(report.status, "SAFETY_FAILURE");
+  assert.equal(report.safety.probePrefixValid, false);
+}
+
+
 
 const afterWindowState = {
   ...state,
