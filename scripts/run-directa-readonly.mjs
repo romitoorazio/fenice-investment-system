@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { collectDirectaReadOnlySnapshot } from "../lib/brokers/directa-readonly.ts";
 import { writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
+import { assessDirectaLocalSnapshotEvidence } from "../lib/ui/directa-local-snapshot-evidence.mjs";
 
 function readArg(name) {
   const index = process.argv.indexOf(name);
@@ -23,16 +24,19 @@ try {
   });
 
   await writeJsonStateAtomic(outputPath, snapshot);
+  const integrity = assessDirectaLocalSnapshotEvidence(snapshot);
 
   console.log("Fenice Directa read-only snapshot completed.");
-  console.log(`Connection: ${snapshot.connection.state} (${snapshot.connection.healthy ? "healthy" : "not healthy"})`);
-  console.log(`Positions: ${snapshot.positions.length}`);
-  console.log(`Orders observed: ${snapshot.orders.length}`);
-  console.log(`Write commands blocked: ${snapshot.writeCommandsBlocked}`);
-  console.log(`Live trading allowed: ${snapshot.liveTradingAllowed}`);
-  console.log(`Snapshot saved atomically: ${outputPath}`);
-
-  if (!snapshot.connection.healthy) process.exitCode = 2;
+  console.log("Connection: " + snapshot.connection.state + " (" + (snapshot.connection.healthy ? "healthy" : "not healthy") + ")");
+  console.log("Snapshot integrity: " + integrity.state);
+  console.log("Positions: " + integrity.positionsObserved);
+  console.log("Orders observed: " + integrity.ordersObserved);
+  console.log("Write commands blocked: " + snapshot.writeCommandsBlocked);
+  console.log("Live trading allowed: " + snapshot.liveTradingAllowed);
+  console.log("Broker reconciliation verified: false (separate local evidence required)");
+  if (!integrity.complete) console.error("Incomplete Directa local snapshot: " + integrity.failures.join(", "));
+  console.log("Snapshot saved privately on this computer.");
+  if (!integrity.complete) process.exitCode = 2;
 } catch (error) {
   console.error("Fenice Directa read-only bridge failed:", error instanceof Error ? error.message : String(error));
   console.error("Verify that Darwin is open, the API service is enabled, and the local trading socket is available.");
