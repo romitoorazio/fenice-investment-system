@@ -25,7 +25,6 @@ export type ProductionCommitEvidence = {
 export declare function assessProductionCommitEvidence(engineeringEvidence?:unknown, options?:{
   deploymentCommit?:string|null;
   deploymentEnvironment?:string|null;
-  externalProductionCI?:ProductionGitHubCI|null;
   now?:Date;
 }):ProductionCommitEvidence;
 
@@ -100,5 +99,6 @@ export declare function assessFenice100KRelease(input?:{
   paperApproval?:unknown;
   deploymentCommit?:string|null;
   deploymentEnvironment?:string|null;
+  externalProductionCI?:ProductionGitHubCI|null;
   now?:Date;
 }):Fenice100KReleaseReport;
