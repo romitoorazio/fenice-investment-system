@@ -60,6 +60,9 @@ blocked(x => { x.paper.positions[0].quantity = 2; });
 blocked(x => { x.paper.mode = "LIVE"; });
 blocked(x => { x.quotes.generatedAt = at(-1); });
 blocked(x => { x.paper.generatedAt = "2026-02-30T13:00:00.000Z"; });
+blocked(x => { x.quotes.observations.forEach(q => { q.price = 1e308; }); });
+blocked(x => { x.quotes.observations.forEach(q => { q.price = 1e307; }); });
+blocked(x => { x.quotes.observations.forEach(q => { q.price = Number.MAX_VALUE; }); });
 // Frozen V6 audit payloads do not carry fee proofs: valuation is permitted, after-fee PnL is not.
 const noFee = structuredClone(input);
 const feeLessPayload = { ...noFee.paper.auditChain[0].payload };
