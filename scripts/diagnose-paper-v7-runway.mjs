@@ -23,7 +23,9 @@ function utcDate(value) {
 }
 
 function isProbe(execution, prefix) {
-  return execution?.validationProbe === true || String(execution?.clientOrderId || "").startsWith(prefix);
+  // V6/V7 runway figures must never borrow PAPER fills or probe attempts
+  // from a different campaign, even if that execution is flagged as a probe.
+  return prefix.length > 0 && String(execution?.clientOrderId || "").startsWith(prefix);
 }
 
 function remainingWeekdaySlots({
@@ -58,12 +60,16 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
   const nowMs = typeof now === "number" ? now : parseTime(now);
   const expiresAtMs = parseTime(approval?.expiresAt);
   const executions = Array.isArray(state?.executions) ? state.executions : [];
-  const prefix = String(approval?.idPrefix || "fenice-paper-validation-");
+  const prefix = String(approval?.idPrefix || "").trim();
   const targetFills = boundedInteger(approval?.targetPaperFills, Number(campaign?.minPaperFills || 10), 1, 50);
   const maxAttempts = boundedInteger(approval?.maxProbeAttemptsTotal, Math.max(20, targetFills * 2), targetFills, 100);
   const maxOrdersPerDay = boundedInteger(approval?.maxOrdersPerDay, 1, 1, 5);
   const probes = executions.filter((execution) => isProbe(execution, prefix));
-  const paperFills = executions.filter((execution) => execution?.status === "PAPER_FILLED").length;
+  const paperFills = probes.filter((execution) => execution?.status === "PAPER_FILLED").length;
+  const ignoredNonCampaignPaperFills = executions.filter((execution) =>
+    execution?.status === "PAPER_FILLED" && !isProbe(execution, prefix)).length;
+  const ignoredNonCampaignValidationProbes = executions.filter((execution) =>
+    execution?.validationProbe === true && !isProbe(execution, prefix)).length;
   const latestEvidence = Array.isArray(campaign?.dailyEvidence) ? campaign.dailyEvidence.at(-1) : null;
   const evidencedFills = Number(latestEvidence?.cumulativePaperFilled);
   const today = Number.isFinite(nowMs) ? new Date(nowMs).toISOString().slice(0, 10) : null;
@@ -104,6 +110,7 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
   }
 
   const safety = {
+    probePrefixValid: /^fenice-paper-validation-v\d+-$/.test(prefix),
     clockValid: Number.isFinite(nowMs),
     campaignEvidenceValid: ["ACTIVE", "MATURED"].includes(campaignStatus?.state),
     approvalWindowValid: expiresAtMs !== null,
@@ -162,6 +169,8 @@ export function diagnosePaperV7Runway({ campaign, approval, state, now = Date.no
     currentWeekdayExcludedAfterConservativeRecoveryWindow: true,
     targetFills,
     paperFills,
+    ignoredNonCampaignPaperFills,
+    ignoredNonCampaignValidationProbes,
     fillsRemaining,
     maxProbeAttemptsTotal: maxAttempts,
     historicalProbeAttempts: probes.length,
@@ -190,6 +199,7 @@ function summary(report) {
     "Diagnostic only. Active PAPER V6 remains unchanged.",
     `Status: ${report.status}`,
     `Fills: ${report.paperFills}/${report.targetFills} (remaining ${report.fillsRemaining})`,
+    `Excluded outside-campaign PAPER fills: ${report.ignoredNonCampaignPaperFills}; validation probes: ${report.ignoredNonCampaignValidationProbes}`,
     `Probe attempts: ${report.historicalProbeAttempts}/${report.maxProbeAttemptsTotal} (remaining ${report.attemptsRemaining})`,
     `Weekday slots before approval expiry: ${report.weekdaySlotsRemaining} (upper bound; exchange holidays are not assumed)`,
     `Calendar maturity: ${report.campaignMaturityAt || "N/A"}; approval buffer: ${report.maturityApprovalBufferHours ?? "N/A"}h (${report.maturityWindowState})`,
@@ -221,6 +231,6 @@ if (invokedDirectly) {
   });
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary(report));
-  console.log(`Fenice PAPER V7 runway: status=${report.status}; fills=${report.paperFills}/${report.targetFills}; attempts=${report.historicalProbeAttempts}/${report.maxProbeAttemptsTotal}; weekdaySlots=${report.weekdaySlotsRemaining}; maxAdditionalFills=${report.maxPossibleAdditionalFills}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
+  console.log(`Fenice PAPER V7 runway: status=${report.status}; fills=${report.paperFills}/${report.targetFills}; attempts=${report.historicalProbeAttempts}/${report.maxProbeAttemptsTotal}; ignoredFills=${report.ignoredNonCampaignPaperFills}; weekdaySlots=${report.weekdaySlotsRemaining}; maxAdditionalFills=${report.maxPossibleAdditionalFills}; activationAllowed=false; currentV6Modified=false; liveTradingAllowed=false.`);
   if (report.status === "SAFETY_FAILURE") process.exitCode = 2;
 }
