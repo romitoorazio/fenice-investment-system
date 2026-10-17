@@ -56,7 +56,13 @@ function finitePositive(value: unknown): value is number {
 function count(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
-const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+// An unrounded finite aggregate can still overflow when converted to cents.
+// A financial UI must never render Infinity or NaN as a measured cost.
+const round = (n: number): number | null => {
+  if (!Number.isFinite(n) || !Number.isFinite(n * 100)) return null;
+  const result = Math.round((n + Number.EPSILON) * 100) / 100;
+  return Number.isFinite(result) ? result : null;
+};
 
 export function summarizePerformanceEvidence(
   paper: PaperOmsSnapshot | null | undefined,
@@ -92,10 +98,15 @@ export function summarizePerformanceEvidence(
   const slippage = sumIfFinite("estimatedSlippageEuro");
   const totalCosts = notional !== null && fees !== null && slippage !== null
     && Number.isFinite(fees + slippage) ? fees + slippage : null;
-  completeCosts = completeCosts && notional !== null && fees !== null
-    && slippage !== null && totalCosts !== null;
+  const roundedNotional = notional === null ? null : round(notional);
+  const roundedFees = fees === null ? null : round(fees);
+  const roundedSlippage = slippage === null ? null : round(slippage);
+  const roundedCosts = totalCosts === null ? null : round(totalCosts);
+  // The cost / notional ratio may also overflow before it can be rounded.
   const costImpactPercent = totalCosts !== null && notional !== null && notional > 0
     ? round(100 * totalCosts / notional) : null;
+  completeCosts = completeCosts && roundedNotional !== null && roundedFees !== null
+    && roundedSlippage !== null && roundedCosts !== null && costImpactPercent !== null;
 
   const v7Timestamp = validTimestamp(v7?.generatedAt, now);
   const v7Usable = v7Timestamp !== null;
@@ -132,11 +143,11 @@ export function summarizePerformanceEvidence(
       snapshotAt: paperTimestamp !== null ? paper!.generatedAt! : null,
       safe: paperSafe,
       filledCount: paperSafe ? filled.length : null,
-      estimatedNotionalEuro: notional !== null ? round(notional) : null,
-      estimatedFeesEuro: fees !== null ? round(fees) : null,
-      estimatedSlippageEuro: slippage !== null ? round(slippage) : null,
-      estimatedCombinedCostsEuro: totalCosts !== null ? round(totalCosts) : null,
-      estimatedCostToNotionalPercent: costImpactPercent,
+      estimatedNotionalEuro: completeCosts ? roundedNotional : null,
+      estimatedFeesEuro: completeCosts ? roundedFees : null,
+      estimatedSlippageEuro: completeCosts ? roundedSlippage : null,
+      estimatedCombinedCostsEuro: completeCosts ? roundedCosts : null,
+      estimatedCostToNotionalPercent: completeCosts ? costImpactPercent : null,
       costsComplete: completeCosts,
     },
     v7: {

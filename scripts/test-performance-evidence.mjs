@@ -105,4 +105,25 @@ assert.equal(rawBuySamples.v7.hasObservedBuySamples, true, "presence of research
 assert.equal(rawBuySamples.v7.hasValidatedBuyOutcomes, false,
   "research BUY sample counts cannot prove returns, alpha or valid buys");
 assert.equal(rawBuySamples.profitableStrategyVerified, false);
+
+// Guard against overflow AFTER sums are checked: cents-rounding and the
+// cost/notional percentage must also be representable, or all cost evidence
+// is withheld instead of surfacing Infinity or contradictory partial values.
+for (const row of [
+  { ...fill("huge-notional"), notionalEuro: 1e307, estimatedFeeEuro: 1, estimatedSlippageEuro: 0 },
+  { ...fill("tiny-notional"), notionalEuro: 1e-308, estimatedFeeEuro: 1, estimatedSlippageEuro: 0 },
+  { ...fill("huge-fee"), notionalEuro: 200, estimatedFeeEuro: 1e307, estimatedSlippageEuro: 0 },
+]) {
+  const unsafe = summarize({ ...paper, executions: [row] }, v7, calibration, now);
+  assert.equal(unsafe.paper.costsComplete, false, "non-displayable estimates are incomplete");
+  for (const key of [
+    "estimatedNotionalEuro", "estimatedFeesEuro", "estimatedSlippageEuro",
+    "estimatedCombinedCostsEuro", "estimatedCostToNotionalPercent",
+  ]) assert.equal(unsafe.paper[key], null, key + " must fail closed");
+}
+const noFee = summarize({ ...paper, executions: [{
+  ...fill("fee-free"), estimatedFeeEuro: 0, estimatedSlippageEuro: 0,
+}] }, v7, calibration, now);
+assert.equal(noFee.paper.costsComplete, true, "legitimate zero costs remain measurable");
+assert.equal(noFee.paper.estimatedCostToNotionalPercent, 0);
 console.log("Fenice Performance Center fail-closed evidence tests: PASS");
