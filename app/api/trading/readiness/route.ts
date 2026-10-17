@@ -10,6 +10,7 @@ import paperOms from "@/data/paper-oms-state.json";
 import engineeringValidation from "@/data/engineering-validation-evidence.json";
 import { LIVE_TRADING_RELEASED } from "@/lib/brokers/safety";
 import { assessHistoricalCredentialRotation } from "@/lib/ui/credential-rotation-gate.mjs";
+import { assessProductionCommitEvidence } from "@/lib/ui/fenice100k-release-gate.mjs";
 import { evaluateExecutionReadiness } from "@/lib/trading/execution-readiness";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
@@ -69,6 +70,11 @@ export async function GET() {
     paperCertificationWindow,
     paperContinuityOwnerCheckpoint,
     credentialRotation: assessHistoricalCredentialRotation(),
+    releaseCommitEvidence: assessProductionCommitEvidence(engineeringValidation, {
+      deploymentCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      deploymentEnvironment: process.env.VERCEL_ENV ?? null,
+      now: new Date(now),
+    }),
     engineeringEvidence,
     liveTradingReleased: LIVE_TRADING_RELEASED,
     liveTradingAllowed: false,

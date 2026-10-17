@@ -38,7 +38,17 @@ La schermata `/readiness` include un collaudo dinamico che non conferisce permes
 
 ## Accettazione software
 
-La qualità di una release va confermata contro **lo SHA esatto** nel repository e in Vercel, con controlli GitHub verdi e assenza di errori runtime. L'engine di collaudo è **solo informativo**, non un attestato di compliance o un certificato economico.
+La qualità di una release va confermata contro **lo SHA esatto** nel repository e in Vercel, con controlli GitHub verdi e assenza di errori runtime.
+
+### Confronto automatico del commit (17 ottobre)
+La vista /readiness e l'API /api/trading/readiness confrontano i metadati Vercel
+`VERCEL_GIT_COMMIT_SHA` e `VERCEL_ENV=production` con lo SHA a 40 caratteri
+registrato dalla CI main in `data/engineering-validation-evidence.json`.
+Se mancano i metadati, la CI è stantia, il branch non è main o gli SHA divergono,
+il confronto non passa. La sola corrispondenza è **informativa**: il JSON di CI
+è versionato nel repository e non sostituisce una verifica indipendente dei checks
+GitHub, dello SHA effettivo assegnato all'alias Vercel e dei log runtime.
+Il confronto non abilita PAPER, broker né LIVE e non può certificare profitto. L'engine di collaudo è **solo informativo**, non un attestato di compliance o un certificato economico.
 
 Comandi di test aggiunti:
 ```
