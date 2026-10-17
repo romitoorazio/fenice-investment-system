@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { collectThemesWithCircuit } from "../lib/intelligence/gdelt-theme-collector.mjs";
 import { readFile } from "node:fs/promises";
 import {
   shouldAttemptGdeltRecovery,
@@ -65,4 +66,50 @@ assert.match(reliability, /isGdeltProviderBlock\(error\)/);
 assert.match(reliability, /const \{ text \} = await fetchText\(url, 8000\)/);
 assert.doesNotMatch(reliability, /for \(let attempt = 1; attempt <= 3; attempt \+= 1\)/);
 assert.match(reliability, /createHash\('sha256'\)\.update\(article\.url\)/);
+
+const primaryCalls = [];
+const rssCalls = [];
+const bounded = await collectThemesWithCircuit(["macro", "ai", "biotech", "energy"], {
+  fetchPrimary: async theme => {
+    primaryCalls.push(theme);
+    if (theme === "ai") throw new Error("HTTP 429: free GDELT quota");
+    return [{ theme }];
+  },
+  fetchFallback: async theme => {
+    rssCalls.push(theme);
+    return [{ theme, discoveryOnly: true }];
+  },
+  isProviderBlocked: isGdeltProviderBlock,
+});
+assert.deepEqual(primaryCalls, ["macro", "ai"], "a 429 must suppress all remaining same-run GDELT requests");
+assert.deepEqual(rssCalls, ["ai", "biotech", "energy"], "remaining themes use the discovery-only fallback");
+assert.equal(bounded.circuitOpen, true);
+assert.equal(bounded.skippedPrimary, 2);
+assert.deepEqual(bounded.results.map(row => row.status), ["fulfilled", "fulfilled", "fulfilled", "fulfilled"]);
+assert.deepEqual(bounded.results.map(row => row.value.primary), [true, false, false, false]);
+const nonBlockingCalls = [];
+const nonBlocking = await collectThemesWithCircuit(["a", "b"], {
+  fetchPrimary: async theme => {
+    nonBlockingCalls.push(theme);
+    if (theme === "a") throw new Error("HTTP 404");
+    return [{ theme }];
+  },
+  fetchFallback: async theme => [{ theme, discoveryOnly: true }],
+  isProviderBlocked: isGdeltProviderBlock,
+});
+assert.deepEqual(nonBlockingCalls, ["a", "b"], "non-rate-limit errors must not trip the provider circuit");
+assert.equal(nonBlocking.circuitOpen, false);
+assert.equal(nonBlocking.skippedPrimary, 0);
+const doubleFailure = await collectThemesWithCircuit(["a", "b"], {
+  fetchPrimary: async () => { throw new Error("HTTP 503"); },
+  fetchFallback: async () => { throw new Error("RSS unavailable"); },
+  isProviderBlocked: isGdeltProviderBlock,
+});
+assert.deepEqual(doubleFailure.results.map(row => row.status), ["rejected", "rejected"]);
+assert.equal(doubleFailure.skippedPrimary, 1);
+const broadNews = await readFile(new URL("./enrich-broad-news.mjs", import.meta.url), "utf8");
+assert.match(broadNews, /collectThemesWithCircuit\(themes/);
+assert.doesNotMatch(broadNews, /Promise\.allSettled\(themes\.map\(fetchThemeWithFallback\)\)/);
+assert.match(broadNews, /providerCircuitOpen: circuitOpen/);
+
 console.log("Fenice GDELT optional research budget, validity and no-execution regression: PASS");
