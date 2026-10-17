@@ -88,6 +88,10 @@ for(const name of guardedNames){
     name + " must not run unless the exact main SHA passed CI");
 }
 
+const checkFailureHelper = await readFile(new URL("./release-checks-failed.mjs", import.meta.url), "utf8");
+assert.match(checkFailureHelper, /REQUIRED_FENICE_CHECKS/, "Only tracked checks may stop the release");
+assert.match(release, /for attempt in \$\(seq 1 24\)/, "bounded same-SHA polling required");
+assert.match(release, /node scripts\/release-checks-failed\.mjs/, "failed exact SHA CI must stop polling");
 const realSha="a".repeat(40);
 const checkNames=[
   "quality","protect-paper-core","paper-evidence-state",

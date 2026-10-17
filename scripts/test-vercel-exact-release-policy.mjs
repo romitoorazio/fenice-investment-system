@@ -42,4 +42,22 @@ assert.equal(paper.liveTradingAllowed,false);
 assert.equal(paper.baselineFingerprint.complete,true);
 assert.equal(paper.baselineFingerprint.files.includes(".github/workflows/vercel-deploy.yml"),false);
 assert.ok(workflow.includes("execute=false"),"Dryrun control retained");
+assert.match(workflow, /for attempt in \$\(seq 1 24\)/, "guarded release must wait for same-SHA CI");
+assert.match(workflow, /sleep 20/, "CI wait must be bounded");
+assert.match(workflow, /node scripts\/release-checks-failed\.mjs/, "failed required CI checks stop the wait");
+assert.match(workflow, /authorized=false/, "timeout must fail closed");
+// CI verifier requires all eight required checks for the exact deployed SHA;
+// path-filtered safety workflows must also run when a guarded release is requested.
+for (const path of [
+  ".github/workflows/directa-service-continuity.yml",
+  ".github/workflows/paper-owner-continuity-advisory.yml",
+  ".github/workflows/global-market-session-safety.yml",
+]) {
+  const source = await readFile(new URL("../" + path, import.meta.url), "utf8");
+  const pushPaths = source.split("  push:")[1]?.split("\n  workflow_dispatch:")[0];
+  assert.ok(pushPaths?.includes('".ops/vercel-deploy-request.json"'),
+    path + " must produce same-SHA required check on requested main release");
+  assert.ok(pushPaths?.includes('".github/workflows/vercel-deploy.yml"'),
+    path + " must produce same-SHA required check when the release guard changes");
+}
 console.log("Fenice exact-SHA daily production deployment contract: PASS");
