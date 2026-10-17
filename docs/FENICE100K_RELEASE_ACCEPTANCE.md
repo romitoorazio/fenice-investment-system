@@ -120,3 +120,25 @@ Il rapporto esterno positivo può prevalere soltanto sul **falso allarme
 relativo al vecchio SHA CI registrato**, senza alterare gli altri gate.
 Non verifica autonomamente alias Vercel, browser autenticato, integrità
 PAPER o performance economica. LIVE e broker restano bloccati per costruzione.
+\n## Protezione della pubblicazione schedulata — 17 ottobre 2026
+
+Prima della correzione, il workflow `Fenice Production Deploy` delle 22:41 UTC
+poteva pubblicare lo SHA di `main` anche dopo soli commit automatici di dati,
+che non hanno necessariamente eseguito Production CI. Il controllo del commit
+sul dashboard segnalava poi correttamente **NON VERIFICATO**, ma la release era
+già avvenuta.
+
+Ora, **prima** di usare la credenziale Vercel, la pipeline verifica lo SHA
+esatto del checkout contro `GITHUB_SHA`, interroga GitHub Checks con il token
+effimero Actions e richiede 8 controlli pubblicati con risultato
+`success` per lo stesso SHA (mediante
+`scripts/verify-production-ci-before-deploy.mjs`). Dati mancanti, SHA non
+corrispondente, endpoint non disponibile, risultati incompleti, check falliti
+o timestamp futuri significano **nessun nuovo deployment**. Il precedente
+deployment READY rimane online. Anche il trigger manuale senza richiesta
+esplicita conserva il comportamento dry-run preesistente.
+
+La regola preserva il limite di un'opportunità giornaliera e impedisce
+che aggiornamenti di dati non validati rilascino accidentalmente codice.
+Non abilita PAPER, ordini, connessioni broker o LIVE, non certifica
+alcuna strategia finanziaria e non verifica autonomamente il dominio finale.

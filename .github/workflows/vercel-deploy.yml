@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
 
 concurrency:
   group: fenice-vercel-production-deploy
@@ -75,8 +76,37 @@ jobs:
 
           echo "execute=true" >> "$GITHUB_OUTPUT"
 
-      - name: Require Vercel token
+      # A main branch can advance via data-only commits that have NO CI for
+      # their own SHA. Never release those commits merely because a prior
+      # code commit passed CI. Leave the previous READY deployment serving.
+      - name: Require green GitHub Actions checks for this exact release SHA
         if: steps.request.outputs.execute == 'true'
+        id: ci_guard
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ || "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            echo "Checkout and release SHA differ, or SHA invalid. No deployment."
+            exit 0
+          fi
+
+          CHECKS_FILE="$(mktemp)"
+          trap 'rm -f "$CHECKS_FILE"' EXIT
+          if ! gh api -H "Accept: application/vnd.github+json" \
+            "/repos/romitoorazio/fenice-investment-system/commits/${GITHUB_SHA}/check-runs?per_page=100" \
+            > "$CHECKS_FILE"; then
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub CI check-runs unavailable: keep last known-good production."
+            exit 0
+          fi
+
+          node scripts/verify-production-ci-before-deploy.mjs < "$CHECKS_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Require Vercel token
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -86,7 +116,7 @@ jobs:
           fi
 
       - name: Skip duplicate production deployment for an already READY commit
-        if: steps.request.outputs.execute == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true'
         id: duplicate
         shell: bash
         run: |
@@ -111,7 +141,7 @@ jobs:
           fi
 
       - name: Create exact Fenice production deployment through Vercel API
-        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true' && steps.duplicate.outputs.deploy == 'true'
         id: deploy
         shell: bash
         run: |
@@ -168,7 +198,7 @@ jobs:
           echo "Created Fenice deployment: $DEPLOYMENT_ID ($DEPLOYMENT_URL)"
 
       - name: Wait for Fenice deployment to become READY
-        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -197,7 +227,7 @@ jobs:
           exit 1
 
       - name: Verify production alias points to the new Fenice deployment
-        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -223,7 +253,7 @@ jobs:
           exit 1
 
       - name: Verify current broker read-only production endpoint
-        if: steps.request.outputs.execute == 'true' && steps.duplicate.outputs.deploy == 'true'
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true' && steps.duplicate.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
