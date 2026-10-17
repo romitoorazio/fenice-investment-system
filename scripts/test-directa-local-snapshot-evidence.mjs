@@ -44,6 +44,32 @@ blocked({ ...base, availability: null }, "BROKER_ACCOUNT_FIELDS_INCOMPLETE");
 blocked({ ...base, positions: null }, "BROKER_COLLECTIONS_MISSING");
 blocked({ ...base, orders: [{ state: "UNKNOWN", clientOrderId: "TOPSECRET" }] }, "BROKER_ORDER_STATE_AMBIGUOUS");
 blocked({ ...base, errors: [{ ticker: "SECRET_TICKER", code: 1024 }] }, "BROKER_PROTOCOL_ERRORS");
+blocked({ ...base, positions: [null] }, "BROKER_POSITION_ROWS_INCOMPLETE");
+blocked({ ...base, positions: [{ ticker: "ABC", observedAt: "17:00:07",
+  portfolioQuantity: null, directaQuantity: null, averagePrice: null }] }, "BROKER_POSITION_ROWS_INCOMPLETE");
+blocked({ ...base, positions: [{ ticker: "ABC", observedAt: "17:00:07",
+  portfolioQuantity: 5, directaQuantity: 5, averagePrice: null }] }, "BROKER_POSITION_ROWS_INCOMPLETE");
+blocked({ ...base, positions: [{ ticker: "ABC", observedAt: "17:00:07",
+  portfolioQuantity: Number.NaN, directaQuantity: 1, averagePrice: 10 }] }, "BROKER_POSITION_ROWS_INCOMPLETE");
+blocked({ ...base, orders: [null] }, "BROKER_ORDER_ROWS_INCOMPLETE");
+blocked({ ...base, orders: [{ ticker:"ABC", operation:"BUY", quantity:1,
+  observedAt:"17:00:07", clientOrderId:"sensitive", stateCode:2003, state:"CANCELLED" }] },
+  "BROKER_ORDER_ROWS_INCOMPLETE");
+blocked({ ...base, orders: [{ ticker:"ABC", operation:"BUY", quantity:1,
+  observedAt:"17:00:07", clientOrderId:"sensitive", stateCode:2003, state:"FILLED", brokerReference:null },
+  { ticker:"ABC", operation:"SELL", quantity:0, observedAt:"17:00:07",
+    clientOrderId:"sensitive2", stateCode:2004, state:"CANCELLED" }] },
+  "BROKER_ORDER_ROWS_INCOMPLETE");
+// Non-empty and genuinely complete local snapshots remain acceptable as diagnostics.
+const completeRows = assess({ ...base,
+  positions: [{ ticker:"ABC", observedAt:"17:00:07",
+    portfolioQuantity:3, directaQuantity:3, averagePrice:25 }],
+  orders: [{ ticker:"ABC", observedAt:"17:00:07", operation:"BUY",
+    clientOrderId:"sensitive", brokerReference:null, stateCode:2003,
+    state:"FILLED", quantity:3 }],
+}, now);
+assert.equal(completeRows.complete, true);
+assert.equal(completeRows.brokerReconciliationVerified, false);
 const privacy = JSON.stringify(assess({ ...base,
   positions: [{ ticker: "SECRET_TICKER", portfolioQuantity: 123 }],
   orders: [{ state: "FILLED", clientOrderId: "TOPSECRET" }],
