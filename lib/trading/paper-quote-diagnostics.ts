@@ -70,9 +70,10 @@ export function describePersistedPaperQuoteHealth(
   const allowed = new Set((coverage?.policy?.approvedIndependentPaperSourceFamilies || [])
     .map((family) => String(family).trim().toLowerCase())
     .filter((family) => KNOWN_PAPER_FAMILIES.has(family)));
-  const samplesBySymbol = new Map<string, Map<string, { timestamp: string; age: number | null }>>();
+  const samplesBySymbol = new Map<string, Map<string, { timestamp: string; age: number | null; price: number; currency: string }>>();
   const currenciesBySymbol = new Map<string, Set<string>>();
   const invalidCurrencySymbols = new Set<string>();
+  const conflictedSymbols = new Set<string>();
   for (const item of evidence?.observations || []) {
     if (item?.eligibility !== "PAPER" || item?.provenanceVerified !== true) continue;
     const symbol = String(item.symbol || "").trim().toUpperCase();
@@ -92,8 +93,12 @@ export function describePersistedPaperQuoteHealth(
     if (age === null || age < -5) continue;
     const families = samplesBySymbol.get(symbol) || new Map();
     const last = families.get(family);
+    if (last && last.timestamp === item.observedAt
+      && (last.price !== item.price || last.currency !== currency)) {
+      conflictedSymbols.add(symbol);
+    }
     if (!last || last.age === null || age < last.age) {
-      families.set(family, { timestamp: String(item.observedAt), age });
+      families.set(family, { timestamp: String(item.observedAt), age, price: item.price, currency });
     }
     samplesBySymbol.set(symbol, families);
   }
@@ -114,6 +119,7 @@ export function describePersistedPaperQuoteHealth(
     const currencyConflict = invalidCurrencySymbols.has(symbol) || currencies.size > 1;
     const state = !snapshotCurrent ? "SNAPSHOT_EXPIRED"
       : currencyConflict ? "CURRENCY_NOT_VERIFIED"
+      : conflictedSymbols.has(symbol) ? "SOURCE_CONFLICT"
       : currentFamilies.length >= 2 ? "SOURCE_CANDIDATE_ONLY"
       : families.size === 0 ? "NO_VERIFIED_PAPER_SOURCES"
       : currentFamilies.length === 0 ? "SOURCES_STALE"
