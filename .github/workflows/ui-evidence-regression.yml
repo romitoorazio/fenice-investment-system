@@ -43,6 +43,9 @@ jobs:
       - name: Verify market-open readiness rejects stale stored evidence
         run: node scripts/test-paper-open-readiness-orchestration.mjs
 
+      - name: Verify persisted PAPER quote batches cannot claim false freshness
+        run: node --experimental-strip-types scripts/test-paper-quote-diagnostics.mjs
+
       - name: Verify Compra/Vendi quotes and exchange identity match their exact instrument
         run: node --experimental-strip-types scripts/test-decision-market-evidence.mjs
 

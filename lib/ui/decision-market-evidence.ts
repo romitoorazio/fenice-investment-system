@@ -56,6 +56,11 @@ export function assessDecisionEvidence(input: DecisionEvidenceInput) {
   const quoteSymbolMatches = symbol.length > 0 && String(quote?.symbol || "").trim().toUpperCase() === symbol;
   const quoteCurrencies = Array.isArray(quote?.quoteCurrencies) ? quote.quoteCurrencies : [];
   const observedCurrenciesMatch = quoteCurrencies.length === 1 && quoteCurrencies[0] === instrumentCurrency;
+  // A row claiming two providers cannot bypass per-symbol quote freshness.
+  // The global quorum is necessary but not sufficient for this instrument.
+  const quoteAge = quote?.newestQuoteAgeSeconds;
+  const symbolQuoteFresh = typeof quoteAge === "number" && Number.isFinite(quoteAge)
+    && quoteAge >= 0 && quoteAge <= 120;
   const sourceFamilies = Array.isArray(quote?.freshVerifiedFamilies) ? quote.freshVerifiedFamilies : [];
   const families = sourceFamilies.map(item => String(item).trim().toLowerCase());
   const uniqueTrustedFamilies = families.every(item => APPROVED_PAPER_FAMILIES.has(item))
@@ -71,6 +76,7 @@ export function assessDecisionEvidence(input: DecisionEvidenceInput) {
   else if (!quote) priceStatus = "Nessuna evidenza PAPER per questo titolo";
   else if (!quoteSymbolMatches) priceStatus = "Quotazioni PAPER riferite a un titolo diverso o non identificato";
   else if (quote.state === "CURRENCY_NOT_VERIFIED" || !observedCurrenciesMatch) priceStatus = "Valute PAPER mancanti o incoerenti";
+  else if (!symbolQuoteFresh) priceStatus = "Età della quotazione PAPER del titolo mancante, futura o scaduta";
   else if (quote.state !== "SOURCE_CANDIDATE_ONLY" || validatedSources < 2 || !quote.snapshotPaperEligible) priceStatus = "Mancano almeno due fonti PAPER recenti indipendenti e certificate";
   else if (!input.quoteGateReady) priceStatus = "Quorum complessivo PAPER non verificato";
   else priceStatus = "Fonti PAPER recenti: verifica solo informativa";
@@ -84,7 +90,7 @@ export function assessDecisionEvidence(input: DecisionEvidenceInput) {
     && input.venue?.paperQuoteRefreshCandidate === true
     && input.quoteSnapshotCurrent
     && quote?.state === "SOURCE_CANDIDATE_ONLY"
-    && observedCurrenciesMatch && validatedSources >= 2
+    && observedCurrenciesMatch && symbolQuoteFresh && validatedSources >= 2
     && quote?.snapshotPaperEligible === true && input.quoteGateReady;
   return {
     exchangeMic: mic,
