@@ -72,6 +72,8 @@ for (const requestedSymbols of [0, -1, 2, 3.5, "10", Number.NaN]) {
 assert.equal(evaluate(evidence, { ...coverage, paperEligibleSymbols: 11 }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, rows: [...coverage.rows, coverage.rows[0]] }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, rows: [] }).ready, false);
+assert.equal(evaluate(evidence, { ...coverage, rows: [null, ...coverage.rows.slice(1)] }).ready, false,
+  "null coverage rows must never crash the market diagnostics");
 assert.equal(evaluate(evidence, { ...coverage, rows: coverage.rows.slice(0, 3) }).ready, false, "truncated requested universe fails closed");
 assert.equal(evaluate({ ...evidence, observations: "malformed" }).ready, false);
 assert.equal(evaluate(evidence, { ...coverage, policy: { ...coverage.policy, approvedIndependentPaperSourceFamilies: "malformed" } }).ready, false);
