@@ -30,6 +30,18 @@ type Coverage = {
 const MAX_QUOTE_AGE_SECONDS = 120;
 const MAX_CROSS_SOURCE_SPREAD_PERCENT = 0.75;
 const DIRECTA_PROVENANCE = "directa-readonly-entitlement-isin-topbook";
+const ACCEPTED_PROVENANCE: Record<string, Set<string>> = {
+  alpaca: new Set([
+    "authenticated-alpaca-iex-latest-quote",
+    "authenticated-alpaca-iex-latest-quote-readonly-review",
+  ]),
+  "twelve-data": new Set([
+    "provider-response-us-realtime-venue",
+    "provider-response-us-realtime-venue-readonly-review",
+    "provider-batch-quote-last_quote_at-us-realtime-venue",
+  ]),
+  directa: new Set([DIRECTA_PROVENANCE]),
+};
 
 function ageSeconds(timestamp: unknown, now: number): number {
   const parsed = paperTimestamp(timestamp);
@@ -58,8 +70,10 @@ export function assessRuntimePaperQuoteGate(
     && typeof reportedEligible === "number" && Number.isSafeInteger(reportedEligible)
     && reportedEligible >= 0 && reportedEligible <= requested
     && coverageRows.length > 0 && coverageRows.length === requested
+    && coverageRows.filter(row => row?.paperEligible === true).length === reportedEligible
     && requestedSet.size === coverageRows.length && !requestedSet.has("")
-    && coverageRows.every(row => typeof row.paperEligible === "boolean"
+    && coverageRows.every(row => row && typeof row === "object"
+      && typeof row.paperEligible === "boolean"
       && /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(String(row.symbol || "").trim().toUpperCase()))
     && Array.isArray(evidence?.observations)
     && Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies);
@@ -68,8 +82,9 @@ export function assessRuntimePaperQuoteGate(
   const coverageFresh = isFresh(coverage?.generatedAt, now);
   const evidenceTimestamp = paperTimestamp(evidence?.generatedAt);
   const linkedTimestamp = paperTimestamp(coverage?.evidenceGeneratedAt);
+  // A near-identical timestamp is not proof of the same provider batch.
   const snapshotsMatch = evidenceTimestamp !== null && linkedTimestamp !== null
-    && Math.abs(linkedTimestamp - evidenceTimestamp) <= 1000;
+    && coverage?.evidenceGeneratedAt === evidence?.generatedAt;
 
   if (!evidenceFresh || !coverageFresh) reasons.push("PAPER execution snapshot is older than 120 seconds");
   if (!snapshotsMatch) reasons.push("PAPER execution coverage is not linked to the quoted evidence");
@@ -80,6 +95,7 @@ export function assessRuntimePaperQuoteGate(
   // A source-specific quote includes currency and observation time. Numeric price alone is unsafe.
   const bySymbol = new Map<string, Map<string, { price: number; currency: string; observedMs: number }>>();
   const currencyUnverifiedSymbols = new Set<string>();
+  const conflictingProviderSymbols = new Set<string>();
   let paperObservationsStale = 0;
   let paperObservationsUnverified = 0;
 
@@ -91,7 +107,7 @@ export function assessRuntimePaperQuoteGate(
     const family = normalizeFamily(row.sourceFamily);
     const trusted = approved.has(family) && permitted.has(family)
       && row.provenanceVerified === true
-      && (family !== "directa" || row.provenanceMethod === DIRECTA_PROVENANCE)
+      && ACCEPTED_PROVENANCE[family]?.has(String(row.provenanceMethod || "")) === true
       && row.eligibility === "PAPER";
     const currency = String(row.currency || "").trim().toUpperCase();
     const validCurrency = /^[A-Z]{3}$/.test(currency);
@@ -113,6 +129,11 @@ export function assessRuntimePaperQuoteGate(
     const observedMs = Date.parse(String(row.observedAt));
     const previous = quotes.get(family);
     // Duplicated provider records must not replace the newest quote with an older observation.
+    if (previous && observedMs === previous.observedMs
+      && (previous.price !== row.price || previous.currency !== currency)) {
+      // Equal-provider/equal-time contradictory quotes are NOT independent proof.
+      conflictingProviderSymbols.add(symbol);
+    }
     if (!previous || observedMs > previous.observedMs) {
       quotes.set(family, { price: row.price, currency, observedMs });
     }
@@ -123,6 +144,7 @@ export function assessRuntimePaperQuoteGate(
   const currencyRejectedSymbols = new Set<string>(currencyUnverifiedSymbols);
   const verified = new Set<string>();
   for (const [symbol, familyQuotes] of bySymbol) {
+    if (conflictingProviderSymbols.has(symbol)) continue;
     const quotes = [...familyQuotes.values()];
     if (currencyRejectedSymbols.has(symbol) || new Set(quotes.map((quote) => quote.currency)).size !== 1) {
       currencyRejectedSymbols.add(symbol);
@@ -146,11 +168,13 @@ export function assessRuntimePaperQuoteGate(
     reasons.push(`fresh independent PAPER price quorum is ${eligibleSymbols}/${requestedCount} symbols (${percent.toFixed(1)}%)`);
   }
   if (eligibleSymbols < Number(reportedEligible || 0)
-    || coverageRows.some((row) => row.paperEligible && !verified.has(String(row.symbol || "").toUpperCase()))) {
+    || coverageRows.some((row) => row?.paperEligible && !verified.has(String(row?.symbol || "").toUpperCase()))) {
     reasons.push("persisted PAPER coverage exceeds current quote-valid coverage");
   }
   if (paperObservationsUnverified > 0) reasons.push("unverified or LIVE-eligible observations cannot establish PAPER quorum");
   if (spreadRejectedSymbols > 0) reasons.push("cross-source spread exceeds 0.75%");
+  if (conflictingProviderSymbols.size > 0)
+    reasons.push("contradictory same-provider PAPER quote timestamps");
   if (currencyRejectedSymbols.size > 0) reasons.push("PAPER quote currency missing or inconsistent between sources");
   if (coverage?.policy?.liveTradingAllowed !== false) reasons.push("LIVE policy lock not proven");
 
@@ -166,6 +190,7 @@ export function assessRuntimePaperQuoteGate(
     paperObservationsStale,
     paperObservationsUnverified,
     spreadRejectedSymbols,
+    conflictingProviderSymbols: conflictingProviderSymbols.size,
     currencyRejectedSymbols: currencyRejectedSymbols.size,
     liveTradingAllowed: false,
   };

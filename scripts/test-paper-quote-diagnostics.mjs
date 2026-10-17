@@ -5,6 +5,8 @@ const now = Date.parse("2026-10-09T16:00:00Z");
 const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
 const quote = (symbol, sourceFamily, age, eligibility = "PAPER", verified = true) => ({
   symbol, sourceFamily, eligibility, provenanceVerified: verified,
+  provenanceMethod: sourceFamily === "alpaca" ? "authenticated-alpaca-iex-latest-quote"
+    : sourceFamily === "twelve-data" ? "provider-batch-quote-last_quote_at-us-realtime-venue" : "unknown",
   price: 100, currency: "USD", observedAt: at(age),
 });
 const evidence = {
@@ -70,6 +72,41 @@ const future = describePersistedPaperQuoteHealth({
   observations: [quote("AAPL", "alpaca", -180)],
 }, coverage, now);
 assert.equal(future.symbols[0].state, "NO_VERIFIED_PAPER_SOURCES");
+const falseProvenance = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: evidence.observations.map(row => row.symbol === "AAPL" && row.sourceFamily === "twelve-data"
+    ? { ...row, provenanceMethod: undefined } : row),
+}, coverage, now);
+assert.equal(falseProvenance.symbols[0].state, "FRESH_SOURCE_QUORUM_MISSING",
+  "UI source proof must agree with runtime provenance requirements");
+const quotedString = describePersistedPaperQuoteHealth({
+  ...evidence, observations: evidence.observations.map(row => row.symbol === "AAPL" && row.sourceFamily === "twelve-data"
+    ? { ...row, price: "100" } : row),
+}, coverage, now);
+assert.equal(quotedString.symbols[0].state, "FRESH_SOURCE_QUORUM_MISSING");
+const invalidDate = describePersistedPaperQuoteHealth({
+  ...evidence, generatedAt: "2026-02-30T16:00:00.000Z",
+}, { ...coverage, evidenceGeneratedAt: "2026-02-30T16:00:00.000Z" }, now);
+assert.equal(invalidDate.snapshotCurrent, false, "calendar-normalized invalid dates are not a current quote batch");
+const conflictingQuote = describePersistedPaperQuoteHealth({
+  ...evidence,
+  observations: [...evidence.observations,
+    { ...quote("AAPL", "alpaca", 34), price: 101 }],
+}, coverage, now);
+assert.equal(conflictingQuote.symbols[0].state, "SOURCE_CONFLICT",
+  "two different same-provider prices at the same timestamp are not one valid source");
+const corruptedCollections = describePersistedPaperQuoteHealth({
+  ...evidence, observations: { invalid: true },
+}, { ...coverage, rows: { invalid: true },
+  policy: { ...coverage.policy, approvedIndependentPaperSourceFamilies: "alpaca" } }, now);
+assert.equal(corruptedCollections.snapshotCurrent, true,
+  "timestamps alone are not a data quality quorum");
+assert.equal(corruptedCollections.diagnosticState, "QUORUM_NOT_MET");
+assert.equal(corruptedCollections.symbols.length, 0);
+const corruptedRow = describePersistedPaperQuoteHealth(evidence,
+  { ...coverage, rows: [null, ...coverage.rows.slice(1)] }, now);
+assert.equal(corruptedRow.symbols[0].snapshotPaperEligible, false);
+assert.equal(corruptedRow.orderAuthorized, false);
 const noData = describePersistedPaperQuoteHealth(null, null, now);
 assert.equal(noData.diagnosticState, "SNAPSHOT_EXPIRED");
 assert.equal(noData.symbols.length, 0);
