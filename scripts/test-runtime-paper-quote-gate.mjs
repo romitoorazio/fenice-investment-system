@@ -21,6 +21,20 @@ assert.equal(evaluate().ready, true, "current dual-provider per-symbol PAPER pro
 assert.equal(evaluate(evidence, coverage, now + 130000).ready, false, "historical once-valid quotes cannot stay execution-grade");
 assert.equal(evaluate({ ...evidence, generatedAt: at(160) }).ready, false, "stale evidence file cannot pass");
 assert.equal(evaluate(evidence, { ...coverage, evidenceGeneratedAt: at(18) }).ready, false, "unlinked coverage is rejected");
+assert.equal(evaluate(evidence, { ...coverage, evidenceGeneratedAt: at(15.5) }).ready, false,
+  "half-second timestamp tolerance cannot substitute batch identity");
+assert.equal(evaluate(evidence, { ...coverage, paperEligibleSymbols: 2 }).ready, false,
+  "coverage count must match per-row eligibility");
+assert.equal(evaluate({ ...evidence, observations: observations.map(row =>
+  row.sourceFamily === "twelve-data" ? { ...row, provenanceMethod: undefined } : row,
+) }).ready, false, "unattributed provider evidence cannot establish independent PAPER quorum");
+const contradictory = { ...evidence, observations: [
+  ...observations, { ...observations[0], price: 100.3 },
+]};
+const contradiction = evaluate(contradictory);
+assert.equal(contradiction.ready, false, "same provider, same time, two prices invalidate source proof");
+assert.equal(contradiction.conflictingProviderSymbols, 1);
+assert(contradiction.reasons.some(reason => reason.includes("contradictory")));
 assert.equal(evaluate({ ...evidence, observations: observations.map((x) =>
   x.sourceFamily === "twelve-data" ? { ...x, observedAt: at(130) } : x,
 ) }).ready, false, "one-source quotes cannot satisfy a two-source quorum");
