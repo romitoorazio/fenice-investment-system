@@ -43,6 +43,7 @@ assert.equal(out.paper.estimatedCostToNotionalPercent, 0.55);
 assert.equal(out.v7.ledgerRecordCount, 589);
 assert.equal(out.v7.horizons[1].totalDecisionObservations, 475);
 assert.equal(out.v7.horizons[1].buySamples, 0);
+assert.equal(out.v7.hasObservedBuySamples, false);
 assert.equal(out.v7.hasValidatedBuyOutcomes, false);
 assert.equal(out.calibration.horizons[1].state, "INSUFFICIENT");
 assert.equal(out.netReturnPercent, null);
@@ -68,4 +69,40 @@ assert.equal(summarize(paper, { ...v7, horizons: { ...v7.horizons, "1d": { sampl
   "incoherent buy samples must not be presented as valid");
 assert.equal(summarize(paper, v7, { ...calibration, generatedAt: "2026-11-10T00:00:00.000Z" }, now).calibration.horizons[0].sampleSize, null);
 assert.equal(summarize(paper, v7, { ...calibration, horizons: { "7d": { state: "MATURE", sampleSize: 4 } } }, now).profitableStrategyVerified, false);
+
+// Never accept a PAPER cost estimate from an execution that the recorded
+// snapshot could not have known about, even if it precedes the page view.
+const afterSnapshot = "2026-10-11T13:00:00.000Z";
+assert.equal(summarize({ ...paper, executions: [fill("one", afterSnapshot)] }, v7, calibration, now)
+  .paper.estimatedCombinedCostsEuro, null, "fill after persisted snapshot is not evidence");
+for (const fakeTime of [
+  "2026-02-30T15:24:44.836Z", // Date.parse silently normalizes to March
+  "2026-10-09T15:24:44",     // local timezone depends on server
+  "2026-10-09",              // date-only is not an execution instant
+  "2026-10-09T15:24:44+01:00",
+]) {
+  assert.equal(summarize({ ...paper, executions: [fill("one", fakeTime)] }, v7, calibration, now)
+    .paper.costsComplete, false, "noncanonical PAPER fill timestamp is invalid");
+}
+assert.equal(summarize({ ...paper, generatedAt:"2026-02-30T15:24:44.836Z" }, v7, calibration, now)
+  .paper.safe, false, "invalid PAPER snapshot time is not valid evidence");
+assert.equal(summarize(paper, { ...v7, generatedAt:"2026-02-30T01:55:40.353Z" }, calibration, now)
+  .v7.ledgerRecordCount, null, "impossible V7 date must be rejected");
+assert.equal(summarize(paper, v7, { ...calibration, generatedAt:"2026-02-30T02:00:00.000Z" }, now)
+  .calibration.horizons[0].sampleSize, null);
+const overflow = summarize({ ...paper, executions: [
+  { ...fill("large1"), notionalEuro:1e308, estimatedFeeEuro:1e308, estimatedSlippageEuro:1e308 },
+  { ...fill("large2"), notionalEuro:1e308, estimatedFeeEuro:1e308, estimatedSlippageEuro:1e308 },
+]}, v7, calibration, now);
+assert.equal(overflow.paper.costsComplete, false);
+assert.equal(overflow.paper.estimatedNotionalEuro, null);
+assert.equal(overflow.paper.estimatedCombinedCostsEuro, null);
+const rawBuySamples = summarize(paper, { ...v7, horizons: {
+  ...v7.horizons,
+  "7d": { sampleSize: 2, decisions: { COMPRA: { sampleSize: 1 } } },
+}}, calibration, now);
+assert.equal(rawBuySamples.v7.hasObservedBuySamples, true, "presence of research BUY signals is observed");
+assert.equal(rawBuySamples.v7.hasValidatedBuyOutcomes, false,
+  "research BUY sample counts cannot prove returns, alpha or valid buys");
+assert.equal(rawBuySamples.profitableStrategyVerified, false);
 console.log("Fenice Performance Center fail-closed evidence tests: PASS");

@@ -268,8 +268,8 @@ export default function PerformancePage() {
             </table>
           </div>
           <p className="text-sm text-slate-300">
-            {report.v7.hasValidatedBuyOutcomes
-              ? "Esistono campioni COMPRA da analizzare; servono ancora rendimenti netti, costi e benchmark verificati."
+            {report.v7.hasObservedBuySamples
+              ? "Sono stati registrati segnali COMPRA di ricerca, ma il loro conteggio non prova la riuscita degli acquisti. Mancano rendimenti netti, confronti indipendenti e costi effettivi."
               : "Non ci sono campioni COMPRA sufficienti a dimostrare che Fenice selezioni acquisti redditizi. Le centinaia di osservazioni ATTENDI/EVITA non sono profitti."}
           </p>
         </section>
