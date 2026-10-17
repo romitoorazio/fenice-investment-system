@@ -38,9 +38,14 @@ export type CalibrationSnapshot = {
 };
 
 function validTimestamp(iso: unknown, now: number) {
-  if (typeof iso !== "string" || !Number.isFinite(now)) return null;
+  // Only original, canonical UTC evidence can support financial reporting.
+  // Date.parse alone normalizes impossible dates and accepts local-time strings.
+  if (typeof iso !== "string" || !Number.isSafeInteger(now) || now < 0
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(iso)) return null;
   const timestamp = Date.parse(iso);
-  return Number.isFinite(timestamp) && timestamp >= 0 && timestamp <= now ? timestamp : null;
+  if (!Number.isFinite(timestamp) || timestamp < 0 || timestamp > now) return null;
+  const canonical = iso.includes(".") ? iso : iso.replace(/Z$/, ".000Z");
+  return new Date(timestamp).toISOString() === canonical ? timestamp : null;
 }
 function finiteNonnegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
@@ -67,24 +72,28 @@ export function summarizePerformanceEvidence(
   const executions = paperSafe && Array.isArray(paper?.executions) ? paper.executions : [];
   const filled = executions.filter(row => row.status === "PAPER_FILLED");
   const ids = new Set<string>();
-  const completeCosts = paperSafe && filled.length > 0 && filled.every(row => {
+  let completeCosts = paperSafe && filled.length > 0 && filled.every(row => {
     const id = String(row.clientOrderId ?? "").trim();
     if (!id || ids.has(id)) return false;
     ids.add(id);
     return Boolean(row.symbol?.trim())
-      && validTimestamp(row.filledAt, now) !== null
+      && validTimestamp(row.filledAt, paperTimestamp!) !== null
       && finitePositive(row.notionalEuro)
       && finiteNonnegative(row.estimatedFeeEuro)
       && finiteNonnegative(row.estimatedSlippageEuro);
   });
-  const notional = completeCosts
-    ? filled.reduce((sum, row) => sum + row.notionalEuro!, 0) : null;
-  const fees = completeCosts
-    ? filled.reduce((sum, row) => sum + row.estimatedFeeEuro!, 0) : null;
-  const slippage = completeCosts
-    ? filled.reduce((sum, row) => sum + row.estimatedSlippageEuro!, 0) : null;
+  const sumIfFinite = (field: "notionalEuro" | "estimatedFeeEuro" | "estimatedSlippageEuro") => {
+    if (!completeCosts) return null;
+    const value = filled.reduce((sum, row) => sum + row[field]!, 0);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  };
+  const notional = sumIfFinite("notionalEuro");
+  const fees = sumIfFinite("estimatedFeeEuro");
+  const slippage = sumIfFinite("estimatedSlippageEuro");
   const totalCosts = notional !== null && fees !== null && slippage !== null
-    ? fees + slippage : null;
+    && Number.isFinite(fees + slippage) ? fees + slippage : null;
+  completeCosts = completeCosts && notional !== null && fees !== null
+    && slippage !== null && totalCosts !== null;
   const costImpactPercent = totalCosts !== null && notional !== null && notional > 0
     ? round(100 * totalCosts / notional) : null;
 
@@ -104,7 +113,10 @@ export function summarizePerformanceEvidence(
     };
   });
   const buySampleCount = horizons.map(x => x.buySamples).filter((x): x is number => x !== null);
-  const hasValidatedBuyOutcomes = buySampleCount.length === 4 && buySampleCount.some(n => n > 0);
+  // Counts demonstrate only that research decisions were observed; they
+  // provide no price-series, independent benchmark, or realized net outcomes.
+  const hasObservedBuySamples = buySampleCount.length === 4 && buySampleCount.some(n => n > 0);
+  const hasValidatedBuyOutcomes = false;
   const calibrationTimestamp = validTimestamp(calibration?.generatedAt, now);
   const calibrationEvidence = ["7d", "30d", "90d"].map(horizon => {
     const entry = calibrationTimestamp !== null ? calibration?.horizons?.[horizon] : undefined;
@@ -131,6 +143,7 @@ export function summarizePerformanceEvidence(
       snapshotAt: v7Usable ? v7!.generatedAt! : null,
       ledgerRecordCount: v7Usable ? count(v7?.ledgerRecordCount) : null,
       horizons,
+      hasObservedBuySamples,
       hasValidatedBuyOutcomes,
     },
     calibration: {
