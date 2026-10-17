@@ -72,7 +72,8 @@ export function assessRuntimePaperQuoteGate(
     && coverageRows.length > 0 && coverageRows.length === requested
     && coverageRows.filter(row => row?.paperEligible === true).length === reportedEligible
     && requestedSet.size === coverageRows.length && !requestedSet.has("")
-    && coverageRows.every(row => typeof row.paperEligible === "boolean"
+    && coverageRows.every(row => row && typeof row === "object"
+      && typeof row.paperEligible === "boolean"
       && /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(String(row.symbol || "").trim().toUpperCase()))
     && Array.isArray(evidence?.observations)
     && Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies);
@@ -167,7 +168,7 @@ export function assessRuntimePaperQuoteGate(
     reasons.push(`fresh independent PAPER price quorum is ${eligibleSymbols}/${requestedCount} symbols (${percent.toFixed(1)}%)`);
   }
   if (eligibleSymbols < Number(reportedEligible || 0)
-    || coverageRows.some((row) => row.paperEligible && !verified.has(String(row.symbol || "").toUpperCase()))) {
+    || coverageRows.some((row) => row?.paperEligible && !verified.has(String(row?.symbol || "").toUpperCase()))) {
     reasons.push("persisted PAPER coverage exceeds current quote-valid coverage");
   }
   if (paperObservationsUnverified > 0) reasons.push("unverified or LIVE-eligible observations cannot establish PAPER quorum");
