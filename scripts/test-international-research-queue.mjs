@@ -9,6 +9,8 @@ const report=build(master,fundamentals,terminal,committee,reference,now);
 assert.equal(report.summary.internationalSeedEquities,9);
 assert.equal(report.summary.locallyListed,7);
 assert.equal(report.summary.foreignListedOrAdr,2);
+assert.equal(report.rows.find(r=>r.symbol==="PETR4").issuerRegion,"latin-america-caribbean");
+assert.equal(report.rows.find(r=>r.symbol==="PETR4").listingType,"LOCAL_LISTING");
 assert.equal(report.summary.withIssuerDocuments,2);
 assert.equal(report.summary.withCommitteeResearch,2);
 assert.equal(report.summary.executionGradeInternationalQuotes,0);
