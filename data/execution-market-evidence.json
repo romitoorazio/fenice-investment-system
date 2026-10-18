@@ -1,6 +1,6 @@
 {
   "version": 11,
-  "generatedAt": "2026-10-17T18:50:47.864Z",
+  "generatedAt": "2026-10-18T18:56:34.941Z",
   "requestedSymbols": [
     "ASML",
     "MSFT",
@@ -10,10 +10,10 @@
     "GOOGL",
     "SPY",
     "AAPL",
-    "QQQ",
     "AMZN",
-    "BTC",
-    "IWM"
+    "QQQ",
+    "IWM",
+    "TLT"
   ],
   "observations": [
     {
@@ -73,42 +73,6 @@
       "eligibility": "VALIDATION_ONLY",
       "price": 1641.52,
       "observedAt": "2026-10-16T20:00:01.000Z",
-      "provenanceVerified": false,
-      "provenanceMethod": "unverified-public-quote"
-    },
-    {
-      "symbol": "BTC",
-      "currency": "USD",
-      "assetClass": "crypto",
-      "source": "Coinbase Exchange timestamped public ticker; PAPER provenance not independently verified",
-      "sourceFamily": "coinbase",
-      "eligibility": "VALIDATION_ONLY",
-      "price": 81454.66,
-      "observedAt": "2026-10-17T18:50:46.457Z",
-      "provenanceVerified": false,
-      "provenanceMethod": "public-ticker-validation-only"
-    },
-    {
-      "symbol": "BTC",
-      "currency": "USD",
-      "assetClass": "crypto",
-      "source": "Kraken ticker validation; provider quote timestamp unavailable",
-      "sourceFamily": "kraken",
-      "eligibility": "VALIDATION_ONLY",
-      "price": 81454.6,
-      "observedAt": "2026-10-17T18:50:47.136Z",
-      "provenanceVerified": false,
-      "provenanceMethod": "retrieval-time-only-validation"
-    },
-    {
-      "symbol": "BTC",
-      "currency": "USD",
-      "assetClass": "crypto",
-      "source": "Yahoo Finance public quote validation; PAPER entitlement unproven",
-      "sourceFamily": "yahoo",
-      "eligibility": "VALIDATION_ONLY",
-      "price": 81454.65,
-      "observedAt": "2026-10-17T18:50:41.000Z",
       "provenanceVerified": false,
       "provenanceMethod": "unverified-public-quote"
     },
@@ -305,7 +269,13 @@
       "provenanceMethod": "unverified-public-quote"
     }
   ],
-  "errors": [],
+  "errors": [
+    {
+      "symbol": "TLT",
+      "provider": "yahoo",
+      "code": "UNSUPPORTED_SYMBOL"
+    }
+  ],
   "capabilities": {
     "usingTerminalFallback": true,
     "probeUniverse": [
@@ -320,7 +290,7 @@
       "AMZN",
       "ASML",
       "TSM",
-      "BTC"
+      "TLT"
     ],
     "stooqExecutionValidationEnabled": false,
     "stooqExecutionRole": "validation-only and opt-in; never eligible for PAPER quorum",
