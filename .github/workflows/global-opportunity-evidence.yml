@@ -1,0 +1,33 @@
+name: Fenice Global Opportunity Evidence
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/global-opportunity-audit.ts"
+      - "app/opportunita-mondo/**"
+      - "app/api/research/global-opportunities/**"
+      - "app/global/page.tsx"
+      - "scripts/test-global-opportunity-audit.mjs"
+      - ".github/workflows/global-opportunity-evidence.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/global-opportunity-audit.ts"
+      - "app/opportunita-mondo/**"
+      - "app/api/research/global-opportunities/**"
+      - "app/global/page.tsx"
+      - "scripts/test-global-opportunity-audit.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node --experimental-strip-types scripts/test-global-opportunity-audit.mjs
+      - run: node scripts/scan-repository-secrets.mjs
