@@ -1,0 +1,40 @@
+name: Fenice Global Research Desk Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/global-research-desk.ts"
+      - "app/api/market/global-desk/**"
+      - "app/global/page.tsx"
+      - "lib/market/venue-session-intelligence.ts"
+      - "scripts/test-global-research-desk.mjs"
+      - "scripts/test-venue-session-intelligence.mjs"
+      - ".github/workflows/global-research-desk-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/ui/global-research-desk.ts"
+      - "app/api/market/global-desk/**"
+      - "app/global/page.tsx"
+      - "lib/market/venue-session-intelligence.ts"
+      - "scripts/test-global-research-desk.mjs"
+      - "scripts/test-venue-session-intelligence.mjs"
+      - ".github/workflows/global-research-desk-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Global session and research desk regression
+        run: |
+          node --experimental-strip-types scripts/test-venue-session-intelligence.mjs
+          node --experimental-strip-types scripts/test-global-research-desk.mjs
+      - name: Reject credentials or secrets committed
+        run: node scripts/scan-repository-secrets.mjs

@@ -16,7 +16,7 @@ const freshClock = {
   },
   decision: { allowed: true, state: "OPEN", ageSeconds: 1 },
 };
-assert.equal(VENUE_SCHEDULES.length, 9, "all nine curated MIC sessions are covered");
+assert.equal(VENUE_SCHEDULES.length, 16, "all sixteen curated MIC research schedules are covered");
 assert.equal(indicativeVenuePhase("XNAS", now), "REGULAR_WINDOW");
 assert.equal(indicativeVenuePhase("XNYS", now), "REGULAR_WINDOW");
 assert.equal(indicativeVenuePhase("ARCX", now), "REGULAR_WINDOW");
@@ -31,6 +31,28 @@ assert.equal(indicativeVenuePhase("XTKS", Date.parse("2026-10-09T04:00:00Z")), "
 assert.equal(indicativeVenuePhase("XSHG", Date.parse("2026-10-09T04:00:00Z")), "OUTSIDE_REGULAR_WINDOW", "Shanghai midday break");
 assert.equal(indicativeVenuePhase("XSHG", Date.parse("2026-10-09T06:50:00Z")), "REGULAR_WINDOW");
 assert.equal(indicativeVenuePhase("XNSE", Date.parse("2026-10-09T05:00:00Z")), "REGULAR_WINDOW");
+assert.equal(indicativeVenuePhase("XHKG", Date.parse("2026-10-19T02:00:00Z")), "REGULAR_WINDOW", "Hong Kong morning");
+assert.equal(indicativeVenuePhase("XHKG", Date.parse("2026-10-19T04:30:00Z")), "OUTSIDE_REGULAR_WINDOW", "HK lunch break");
+assert.equal(indicativeVenuePhase("XHKG", Date.parse("2026-10-19T06:00:00Z")), "REGULAR_WINDOW", "HK afternoon");
+assert.equal(indicativeVenuePhase("XSES", Date.parse("2026-10-19T02:00:00Z")), "REGULAR_WINDOW", "SGX morning");
+assert.equal(indicativeVenuePhase("XSES", Date.parse("2026-10-19T04:30:00Z")), "OUTSIDE_REGULAR_WINDOW", "SGX lunch");
+assert.equal(indicativeVenuePhase("XASX", Date.parse("2026-10-19T01:00:00Z")), "REGULAR_WINDOW", "ASX spring daylight saving");
+assert.equal(indicativeVenuePhase("XASX", Date.parse("2026-10-19T06:00:00Z")), "OUTSIDE_REGULAR_WINDOW", "Sydney after close");
+assert.equal(indicativeVenuePhase("XLON", Date.parse("2026-10-19T08:00:00Z")), "REGULAR_WINDOW", "London BST");
+assert.equal(indicativeVenuePhase("XLON", Date.parse("2026-11-02T08:00:00Z")), "REGULAR_WINDOW", "London GMT");
+assert.equal(indicativeVenuePhase("XTSE", Date.parse("2026-10-19T14:00:00Z")), "REGULAR_WINDOW", "Toronto EDT");
+assert.equal(indicativeVenuePhase("XTSE", Date.parse("2026-11-09T15:00:00Z")), "REGULAR_WINDOW", "Toronto EST");
+assert.equal(indicativeVenuePhase("BVMF", Date.parse("2026-10-19T14:00:00Z")), "REGULAR_WINDOW", "Brazil B3");
+assert.equal(indicativeVenuePhase("XJSE", Date.parse("2026-10-19T08:00:00Z")), "REGULAR_WINDOW", "JSE continuous ZA01");
+assert.equal(indicativeVenuePhase("XJSE", Date.parse("2026-10-19T15:00:00Z")), "OUTSIDE_REGULAR_WINDOW", "JSE closing auction is not continuous");
+assert.equal(indicativeVenuePhase("XHKG", Date.parse("2026-10-18T02:00:00Z")), "OUTSIDE_REGULAR_WINDOW", "weekend");
+for (const mic of ["XHKG","XSES","XASX","XLON","XTSE","BVMF","XJSE"]) {
+  const decision = resolveVenueSession(mic, freshClock, now);
+  assert.equal(decision.state, "UNKNOWN", "US clock cannot certify other venues");
+  assert.equal(decision.authoritative, false);
+  assert.equal(decision.executionAuthorized, false);
+  assert.equal(decision.paperQuoteRefreshCandidate, false);
+}
 assert.equal(indicativeVenuePhase("UNKN", now), "UNMAPPED");
 
 const us = resolveVenueSession("XNAS", freshClock, now);

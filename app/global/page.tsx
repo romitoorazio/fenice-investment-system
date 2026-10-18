@@ -1,5 +1,7 @@
 import Link from "next/link";
 import coverageReport from "@/data/global-reference-coverage.json";
+import globalUniverse from "@/data/global-market-universe.json";
+import { buildGlobalResearchDesk } from "@/lib/ui/global-research-desk";
 
 type RegionCoverage = {
   regionId: string;
@@ -55,7 +57,13 @@ const formatNumber = (value: number) => value.toLocaleString("it-IT");
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Server-only time source; avoids impure clock access inside the component render.
+function serverRequestTime() {
+  return Date.now();
+}
+
 export default function GlobalCoveragePage() {
+  const desk = buildGlobalResearchDesk(globalUniverse, coverageReport, serverRequestTime());
   const coveredCountries = report.countryCoverage
     .filter((country) => country.providerCovered)
     .sort((a, b) => b.instrumentCount - a.instrumentCount || a.name.localeCompare(b.name));
@@ -84,6 +92,63 @@ export default function GlobalCoveragePage() {
           </div>
           <Link href="/" className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-white/5">← Fenice</Link>
         </header>
+
+        <section className="rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.04] p-5" aria-label="Ricerca mondiale per sessione">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-cyan-300">Fenice World Research Desk</p>
+              <h2 className="mt-2 text-xl font-black">Asia · Europa · Americhe · Africa</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Orari e finestre per organizzare la ricerca durante tutta la giornata; non sono prezzi, segnali di acquisto
+                né prove che la borsa sia davvero aperta. Festività, sospensioni e accesso ai mercati richiedono conferma.
+              </p>
+            </div>
+            <Link className="rounded-lg border border-cyan-300/30 px-3 py-2 text-xs font-bold text-cyan-200" href="/api/market/global-desk">
+              API diagnostica
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-black/30 p-3"><p className="text-xs text-slate-400">Finestre indicative adesso</p><p className="mt-1 text-2xl font-black">{desk.summary.indicativeResearchWindowsNow}/{desk.summary.curatedVenues}</p></div>
+            <div className="rounded-xl bg-black/30 p-3"><p className="text-xs text-slate-400">Regioni coordinate</p><p className="mt-1 text-2xl font-black">{desk.summary.representedRegions}</p></div>
+            <div className="rounded-xl bg-black/30 p-3"><p className="text-xs text-slate-400">Catalogo provider</p><p className={"mt-1 text-sm font-black " + (desk.referenceState === "REFERENCE_ONLY" ? "text-cyan-300" : "text-amber-200")}>
+              {desk.referenceState === "REFERENCE_ONLY" ? "Riferimenti recenti (non quotazioni)" : desk.referenceState === "REVIEW_OUTDATED" ? "Aggiornamento riferimenti da verificare" : "Riferimenti non verificati"}
+            </p></div>
+          </div>
+          <p className="mt-3 text-xs text-amber-200">
+            Ultima evidenza catalogo: {desk.referenceGeneratedAt ? new Date(desk.referenceGeneratedAt).toLocaleString("it-IT", {timeZone:"Europe/Rome"}) : "non disponibile"}.
+            {" "}Le 205 mila voci circa comprendono anche strumenti non negoziabili con il tuo broker: non equivalgono a opportunità verificate.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {desk.regions.map(region => (
+              <article key={region.id} className="rounded-xl border border-white/10 bg-slate-950/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-black">{region.name}</h3>
+                  <span className={"text-xs font-black " + (region.attention === "REVIEW_NOW" ? "text-cyan-300" : "text-amber-200")}>
+                    {region.attention === "REVIEW_NOW" ? "Ricerca durante la finestra" : region.attention === "VERIFY_REFERENCE" ? "Verificare le fonti" : "Preparare la ricerca"}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">Paesi con riferimenti provider: {region.matchedCountries ?? "?"}/{region.targetCountries}.
+                  {" "}Finestre indicative: {region.indicativeResearchWindows}/{region.curatedVenues}.</p>
+                <p className="mt-1 text-xs text-slate-400">Azioni ordinarie censite: {region.ordinaryShareReferences?.toLocaleString("it-IT") ?? "non verificato"}.
+                  {" "}Warrant: {region.warrantReferences?.toLocaleString("it-IT") ?? "non verificato"}.</p>
+                <div className="mt-3 space-y-2">
+                  {desk.venues.filter(venue => venue.regionId === region.id).map(venue => (
+                    <div key={venue.mic} className="flex items-start justify-between gap-2 border-t border-white/10 pt-2 text-xs">
+                      <div>
+                        <p className="font-semibold text-slate-200">{venue.name}</p>
+                        <p className="text-slate-500">{venue.mic} · ora locale {venue.localTime ?? "?"}</p>
+                      </div>
+                      <span className={venue.researchWindowCandidate ? "text-cyan-300" : "text-slate-400"}>
+                        {venue.researchWindowCandidate ? "Finestra indicativa" : "Fuori finestra / non confermata"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-400">Non vengono richiesti dati a pagamento. Asia, Europa, Americhe e Africa restano in sola ricerca; nessuna operazione PAPER/LIVE internazionale autorizzata. Il PAPER V6 USA è separato e immutato.</p>
+        </section>
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
