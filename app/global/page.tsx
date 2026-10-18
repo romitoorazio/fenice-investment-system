@@ -90,7 +90,9 @@ export default function GlobalCoveragePage() {
               Evidenza reale del catalogo Twelve Data. La presenza di un Paese o di uno strumento prova soltanto la disponibilità di riferimento: non abilita prezzi realtime, PAPER o ordini.
             </p>
           </div>
+          <div className="flex flex-wrap gap-2"><Link href="/opportunita-mondo" className="rounded-xl border border-cyan-300/30 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-white/5">Opportunità · verifica dati →</Link>
           <Link href="/" className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-white/5">← Fenice</Link>
+          </div>
         </header>
 
         <section className="rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.04] p-5" aria-label="Ricerca mondiale per sessione">

@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {evaluateGlobalOpportunityAudit as audit} from "../lib/ui/global-opportunity-audit.ts";
+const get=async(path)=>JSON.parse(await readFile(new URL("../data/"+path,import.meta.url),"utf8"));
+const [c,m,t,r,u]=await Promise.all(["investment-committee.json","instrument-master.json","terminal-intelligence.json","global-reference-coverage.json","global-market-universe.json"].map(get));
+const now=Date.parse("2026-10-19T00:00:00.000Z");
+const x=audit(c,m,t,r,u,now);
+assert.equal(x.summary.reviewedInCommittee,c.allDecisions.length);
+assert.equal(x.summary.verifiedLiveQuotes,0);
+assert.equal(x.summary.tradeReady,0);
+assert.equal(x.dataQuality.referenceCurrent,false,"Oct 13 catalog must not be current Oct 19");
+assert.equal(x.regions.find(q=>q.id==="asia-pacific").ordinaryStockReferences,34825);
+assert.equal(x.regions.find(q=>q.id==="europe").ordinaryStockReferences,97701);
+assert.equal(x.rows.find(q=>q.symbol==="ASML").issuerRegion,"europe");
+assert.equal(x.rows.find(q=>q.symbol==="ASML").venueMic,"XNAS");
+assert.equal(x.rows.find(q=>q.symbol==="ASML").venueRegion,"north-america");
+assert.equal(x.rows.find(q=>q.symbol==="TSM").venueRegion,"north-america");
+assert.equal(x.rows.find(q=>q.symbol==="TLT").identityVerified,false);
+assert.equal(x.rows.find(q=>q.symbol==="RXRX").possibleResearchReview,false);
+for(const row of x.rows){assert.equal(row.quoteVerifiedForExecution,false);assert.equal(row.paperExecutionAllowed,false);assert.equal(row.brokerOrderAllowed,false);assert.equal(row.liveTradingAllowed,false);assert.equal(row.futureReturnForecast,null);assert(row.blocks.includes("NO_FRESH_EXECUTION_QUOTE"));}
+assert.equal(x.policy.liveTradingAllowed,false);
+assert.equal(audit({...c,generatedAt:"2026-10-25T00:00:00.000Z"},m,t,r,u,now).summary.rankedResearchReviews,0);
+assert.equal(audit({...c,generatedAt:"2026-10-12T00:00:00.000Z"},m,t,r,u,now).summary.rankedResearchReviews,0);
+const futureRef=audit(c,m,t,{...r,generatedAt:"2026-10-25T00:00:00.000Z"},u,now);
+assert.equal(futureRef.dataQuality.referenceCurrent,false);
+assert.equal(audit(c,m,t,{...r,safety:{...r.safety,liveTradingAllowed:true}},u,now).dataQuality.sourceLocksValid,false);
+const inconsistent=audit(c,m,t,{...r,regionCoverage:r.regionCoverage.map(q=>q.regionId==="asia-pacific"?{...q,providerMatchedCountries:29}:q)},u,now);
+assert.equal(inconsistent.regions.find(q=>q.id==="asia-pacific").ordinaryStockReferences,null);
+const priceImposter=structuredClone(c);
+priceImposter.allDecisions[0].priceEvidence={observedAt:new Date(now-1000).toISOString(),executionEligible:true};
+const nope=audit(priceImposter,m,t,r,u,now);
+assert.equal(nope.rows.find(q=>q.symbol===priceImposter.allDecisions[0].symbol).quoteVerifiedForExecution,false);
+assert.equal(nope.summary.tradeReady,0);
+const dup=structuredClone(c);dup.allDecisions.push(dup.allDecisions[0]);
+assert.equal(audit(dup,m,t,r,u,now).rows.length,x.rows.length);
+for(const file of ["../app/api/research/global-opportunities/route.ts","../app/opportunita-mondo/page.tsx"]){
+const source=await readFile(new URL(file,import.meta.url),"utf8");
+assert.match(source,/evaluateGlobalOpportunityAudit/);
+assert.doesNotMatch(source,/submitOrder|sendOrder|executeTrade|brokerWritesAuthorized:\s*true/);
+}
+console.log("Fenice global opportunity source age, issuer vs venue, committee and execution lock: PASS");
