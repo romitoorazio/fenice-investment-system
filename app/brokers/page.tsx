@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DirectaBrowserStatus from "@/components/directa-browser-status";
 import { buildMultiBrokerReadiness } from "@/lib/brokers/multi-broker-readiness";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default function BrokersPage() {
             Connessioni ai conti verificate: {overview.verifiedBrokerConnections} · Trading reale: bloccato
           </p>
         </header>
+        <DirectaBrowserStatus />
         <section className="grid gap-4 sm:grid-cols-2" aria-label="Stato broker">
           {overview.brokers.map((broker) => (
             <article key={broker.id} className="rounded-2xl border border-white/10 bg-slate-900 p-6">

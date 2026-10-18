@@ -1,0 +1,24 @@
+name: Directa Browser Status Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/ui/directa-browser-status.ts"
+      - "components/directa-browser-status.tsx"
+      - "app/brokers/page.tsx"
+      - "scripts/test-directa-browser-status.mjs"
+      - ".github/workflows/directa-browser-status.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node --experimental-strip-types scripts/test-directa-browser-status.mjs
+      - run: node scripts/scan-repository-secrets.mjs
