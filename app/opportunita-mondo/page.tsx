@@ -5,6 +5,8 @@ import terminal from "@/data/terminal-intelligence.json";
 import reference from "@/data/global-reference-coverage.json";
 import universe from "@/data/global-market-universe.json";
 import {evaluateGlobalOpportunityAudit} from "@/lib/ui/global-opportunity-audit";
+import fundamentals from "@/data/fundamental-research.json";
+import {buildInternationalResearchQueue} from "@/lib/ui/international-research-queue";
 
 export const dynamic="force-dynamic";
 export const revalidate=0;
@@ -12,6 +14,7 @@ function serverRequestTime(){return Date.now()}
 export default function GlobalOpportunitiesPage(){
   const report=evaluateGlobalOpportunityAudit(committee,master,terminal,reference,universe,serverRequestTime());
   const q=report.dataQuality;
+  const international=buildInternationalResearchQueue(master,fundamentals,terminal,committee,reference,serverRequestTime());
   return <main className="min-h-screen bg-slate-950 px-4 py-8 pb-28 text-slate-100 sm:px-8">
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="space-y-3">
@@ -50,6 +53,32 @@ export default function GlobalOpportunitiesPage(){
             <p className="text-xs text-slate-400">Azioni ordinarie censite: {x.ordinaryStockReferences?.toLocaleString("it-IT")??"non verificato"}</p>
             <p className="mt-1 text-xs text-amber-200">{x.state==="SOURCE_REFRESH_REQUIRED"?"Catalogo da aggiornare":x.state==="EVIDENCE_INVALID"?"Prova insufficiente":"Solo riferimenti"}</p>
           </div>)}
+        </div>
+      </section>
+      <section className="rounded-2xl border border-cyan-300/25 bg-slate-900 p-5" aria-label="Ricerca azioni internazionali">
+        <h2 className="text-xl font-black">Azioni europee e asiatiche: piano dati mancante</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-300">
+          Coda di ricerca sui titoli esteri del catalogo iniziale. Ordine per <strong>documentazione esistente</strong>,
+          mai per rendimento atteso. I riferimenti Twelve Data per Paese non provano la copertura del singolo titolo.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg bg-black/30 p-3"><p className="text-xs text-slate-400">Azioni estere iniziali</p><p className="text-2xl font-black">{international.summary.internationalSeedEquities}</p></div>
+          <div className="rounded-lg bg-black/30 p-3"><p className="text-xs text-slate-400">Documenti SEC disponibili</p><p className="text-2xl font-black">{international.summary.withIssuerDocuments}</p></div>
+          <div className="rounded-lg bg-black/30 p-3"><p className="text-xs text-slate-400">Quotazioni certificate</p><p className="text-2xl font-black">{international.summary.executionGradeInternationalQuotes}</p></div>
+        </div>
+        <p className="mt-3 text-xs text-amber-200">Riferimenti esteri: {international.catalogueRecent?"recenti per sola ricerca":"da aggiornare"}. Nessuna posizione operativa internazionale autorizzata.</p>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {international.rows.map(item=><article key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div><h3 className="font-bold">{item.name}</h3><p className="mt-1 text-xs text-slate-400">{item.symbol} · {item.venueMic??"Borsa non verificata"} · {item.currency} · Paese {item.issuerCountry}</p></div>
+              <span className="shrink-0 text-xs font-bold text-cyan-300">{item.evidenceCount}/4 prove</span>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">{item.listingType==="LOCAL_LISTING"?"Quotazione locale":"Quotazione estera / ADR"} ·
+             {" "}Documenti emittente: {item.issuerDocumentObserved?"presenti":"mancanti"} ·
+             {" "}Serie prezzi storica: {item.researchCandleAvailable?"presente":"mancante"}</p>
+            <p className="mt-2 text-xs text-amber-200">Da verificare: {item.nextDataActions.slice(0,4).join(" · ")}</p>
+            <p className="mt-2 text-xs text-slate-500">Prezzi operativi assenti · Ordini e PAPER internazionale bloccati</p>
+          </article>)}
         </div>
       </section>
       <section className="space-y-3">
