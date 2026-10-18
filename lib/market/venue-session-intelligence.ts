@@ -82,7 +82,7 @@ export const VENUE_SCHEDULES: readonly VenueSpec[] = [
     sourceUrl: "https://tsx.com/en/trading/calendars-and-trading-hours/trading-hours" },
   { mic: "BVMF", name: "B3 Brasil Bolsa Balcao", timeZone: "America/Sao_Paulo",
     regularMinutes: [[toMinute(10), toMinute(16, 55)]],
-    sourceUrl: "https://www.b3.com.br/en_us/solutions/platforms/puma-trading-system/for-members-and-traders/trading-hours/organized-otc/" },
+    sourceUrl: "https://www.b3.com.br/en_us/solutions/platforms/puma-trading-system/for-members-and-traders/trading-hours/equities/" },
   { mic: "XJSE", name: "Johannesburg Stock Exchange (ZA01)", timeZone: "Africa/Johannesburg",
     regularMinutes: [[toMinute(9), toMinute(16, 50)]],
     sourceUrl: "https://www.jse.co.za/sites/default/files/media/documents/jse-factsheeteqm/JSE%20Factsheet_EQM.pdf" },
