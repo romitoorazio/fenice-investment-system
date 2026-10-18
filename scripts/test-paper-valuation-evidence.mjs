@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { appendAuditEvent } from "../lib/trading/audit-chain.ts";
 import { valuePaperRecordedQuantities as value } from "../lib/ui/paper-valuation-evidence.ts";
+import { parseTwelveDataQuoteTime } from "../lib/trading/twelve-data-batch.mjs";
 const now = Date.parse("2026-10-12T13:00:00.000Z");
 const at = seconds => new Date(now - seconds * 1000).toISOString();
 const fill = { clientOrderId: "offline-fixture", symbol: "TEST", side: "BUY", status: "PAPER_FILLED",
@@ -37,6 +38,37 @@ assert.equal(JSON.stringify(input), before);
 assert.equal(value(input, now + 3600_000).sampleCurrentWithin120Seconds, false, "a replayed sample is never labelled current");
 const blocked = mutate => { const copy = structuredClone(input); mutate(copy); const r = value(copy, now);
   assert.equal(r.state, "INSUFFICIENT"); assert.equal(r.estimatedRecordedQuantityValueEuro, null); assert.equal(r.rows.length, 0); };
+const providerTime = parseTwelveDataQuoteTime({ timestamp: (now - 10_000) / 1000 });
+assert.equal(providerTime.paperTimestampVerified, true);
+const fallbackMethods = {
+  alpaca: "authenticated-alpaca-iex-latest-trade-fallback",
+  "twelve-data": `provider-batch-quote-${providerTime.source}-us-realtime-venue`,
+};
+for (const families of [["alpaca"], ["twelve-data"], ["alpaca", "twelve-data"]]) {
+  const copy = structuredClone(input);
+  for (const quote of copy.quotes.observations) {
+    if (families.includes(quote.sourceFamily)) quote.provenanceMethod = fallbackMethods[quote.sourceFamily];
+  }
+  const fallbackValuation = value(copy, now);
+  assert.equal(fallbackValuation.state, "VALUED_SAMPLE", fallbackValuation.reason);
+  assert.equal(fallbackValuation.estimatedRecordedQuantityValueEuro, report.estimatedRecordedQuantityValueEuro,
+    "supported producer fallback prices must agree between valuation and runtime method recognition");
+  assert.equal(fallbackValuation.profitabilityProven, false);
+  assert.equal(fallbackValuation.executionAuthorized, false);
+  for (const patch of [
+    { provenanceVerified: false }, { eligibility: "LIVE" }, { eligibility: "VALIDATION_ONLY" },
+    { observedAt: at(-0.001) }, { observedAt: at(120.001) },
+    { provenanceMethod: "unrecognized-method" },
+  ]) {
+    const invalid = structuredClone(copy);
+    Object.assign(invalid.quotes.observations[0], patch);
+    assert.equal(value(invalid, now).state, "INSUFFICIENT",
+      "method recognition cannot bypass valuation eligibility or chronology");
+  }
+}
+blocked(x => { x.quotes.observations[1].provenanceMethod = fallbackMethods.alpaca; });
+blocked(x => { x.quotes.observations[1].sourceFamily = "directa";
+  x.quotes.observations[1].provenanceMethod = "directa-readonly-entitlement-isin-topbook"; });
 // The observation timestamp must never exceed the timestamp of its own source artifact.
 blocked(x => { x.quotes.generatedAt = at(40); x.quotes.observations[1].observedAt = at(35); });
 blocked(x => { x.fx.generatedAt = at(40); x.fx.ratesToEuro.USD.observedAt = at(35); });

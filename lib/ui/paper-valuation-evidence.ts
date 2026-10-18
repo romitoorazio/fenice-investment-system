@@ -1,5 +1,6 @@
 import { verifyAuditChain, type AuditEvent } from "../trading/audit-chain.ts";
 import { paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
+import { isRecognizedPaperQuoteMethod } from "../trading/runtime-paper-quote-gate.ts";
 import { reconcilePaperPositions, type PaperPositionSnapshot, type PaperLot } from "./paper-position-reconciliation.ts";
 
 type Quote = { symbol?: string; currency?: string; sourceFamily?: string; eligibility?: string;
@@ -19,11 +20,9 @@ type ValueRow = { symbol: string; currency: string; recordedQuantity: number; me
   quoteSources: string[]; quoteObservedAt: string[]; fxObservedAt: string };
 const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const positive = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
-const quoteMethods: Record<string, Set<string>> = {
-  alpaca: new Set(["authenticated-alpaca-iex-latest-quote", "authenticated-alpaca-iex-latest-quote-readonly-review"]),
-  "twelve-data": new Set(["provider-response-us-realtime-venue", "provider-response-us-realtime-venue-readonly-review",
-    "provider-batch-quote-last_quote_at-us-realtime-venue"]),
-};
+// Valuation retains its original provider scope; shared method recognition
+// does not add Directa entitlements or make a last trade a bid/ask quote.
+const quoteFamilies = new Set(["alpaca", "twelve-data"]);
 function insufficient(reason: string) {
   return { state: "INSUFFICIENT" as const, reason, asOf: null as string | null,
     ageSeconds: null as number | null, sampleCurrentWithin120Seconds: false,
@@ -96,7 +95,8 @@ export function valuePaperRecordedQuantities(input: PaperValuationInputs, now = 
       const familyQuotes = new Map<string, Quote>();
       for (const quote of quotes.observations.filter(q => q?.symbol === holding.symbol && q.eligibility === "PAPER")) {
         const family = quote.sourceFamily || "";
-        if (!quoteMethods[family]?.has(quote.provenanceMethod || "") || quote.provenanceVerified !== true) continue;
+        if (!quoteFamilies.has(family) || !isRecognizedPaperQuoteMethod(family, quote.provenanceMethod)
+          || quote.provenanceVerified !== true) continue;
         if (quote.currency !== holding.currency || !positive(quote.price) || !coeval(quote.observedAt)
           || !observedBeforeSnapshot(quote.observedAt, quotes.generatedAt))
           return insufficient(`Prezzo, valuta o data non validi per ${holding.symbol}.`);
