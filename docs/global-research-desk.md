@@ -18,7 +18,7 @@ Sources for newly mapped *indicative continuous equity windows*:
 - [ASX](https://www.asx.com.au/markets/market-resources/trading-hours-calendar/cash-market-trading-hours)
 - [LSE](https://www.londonstockexchange.com/personal-investing/faqs)
 - [TMX](https://tsx.com/en/trading/calendars-and-trading-hours/trading-hours)
-- [B3](https://www.b3.com.br/en_us/solutions/platforms/puma-trading-system/for-members-and-traders/trading-hours/organized-otc/)
+- [B3](https://www.b3.com.br/en_us/solutions/platforms/puma-trading-system/for-members-and-traders/trading-hours/equities/)
 - [JSE ZA01](https://www.jse.co.za/sites/default/files/media/documents/jse-factsheeteqm/JSE%20Factsheet_EQM.pdf)
 
 ## Limits / next phase
