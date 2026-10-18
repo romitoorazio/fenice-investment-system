@@ -73,6 +73,7 @@ const runway = evaluatePaperCampaignRunway({
   approval,
   cumulativePaperFills,
   probesPerDay,
+  historicalProbeAttempts: validationExecutions.length,
 });
 
 // Keep these thresholds exactly aligned with check-certification-readiness.mjs.
@@ -250,7 +251,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| Approval / probe status | ${observerIntegrity.approvalExpired ? "EXPIRED" : "CURRENT"} · ${observerIntegrity.status} |`,
     `| Pending PAPER / conditional orders | ${observerIntegrity.pendingPaperOrders ?? "unknown"} / ${observerIntegrity.pendingConditionalIntents ?? "unknown"} |`,
     `| PAPER fills | ${cumulativePaperFills}/${minPaperFills} (${report.campaign.fillProgressPercent}%) |`,
-    `| Fill runway | ${runway.fillRunwayState} · ${runway.remainingFills} remaining / ${runway.availableProbeSlotsBeforeExpiry} weekday slots max |`,
+    `| Fill runway | ${runway.fillRunwayState} · ${runway.remainingFills} fills missing / ${runway.availableProbeSlotsBeforeExpiry} possible slots (calendar ${runway.calendarSlotsBeforeExpiry}, attempts left ${runway.remainingAttemptBudget ?? "UNVERIFIED"}) |`, 
     `| Earliest 10/10 fill date | ${runway.earliestTargetFillDate || "N/A"} |`,
     `| Calendar maturity | ${runway.calendarMaturityAt || "N/A"} · approval buffer ${runway.maturityApprovalBufferHours ?? "N/A"}h · ${runway.maturityWindowState} |`,
     `| Execution quality | ${latestQuality} |`,
