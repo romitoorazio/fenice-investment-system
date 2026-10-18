@@ -8,7 +8,6 @@ export default function DirectaBrowserStatus() {
   const [value,setValue]=useState<LocalStatus|null>(null);
   const [fresh,setFresh]=useState(false);
   const [message,setMessage]=useState("Nessun file selezionato.");
-  const [supported,setSupported]=useState(true);
   const refresh=useCallback(async()=>{
     if(!handle.current)return;
     try{
@@ -23,7 +22,6 @@ export default function DirectaBrowserStatus() {
     }catch{setValue(null);setFresh(false);setMessage("File non accessibile o non valido. Non selezionare lo snapshot del conto.");}
   },[]);
   useEffect(()=>{
-    setSupported(typeof(window as Picker).showOpenFilePicker==="function");
     const timer=window.setInterval(()=>{void refresh()},10000);
     const onVisible=()=>{if(!document.hidden)void refresh()};
     document.addEventListener("visibilitychange",onVisible);
@@ -48,7 +46,7 @@ export default function DirectaBrowserStatus() {
     <p className="mt-3 text-sm leading-6 text-slate-300">Con Darwin e il monitor aperti sullo stesso PC, seleziona il file
       <code> directa-local-monitor-status.json </code>dalla cartella privata .fenice. Il browser lo rilegge ogni 10 secondi,
       senza caricare il file su Vercel. Non selezionare mai il file dello snapshot del conto.</p>
-    <button type="button" onClick={()=>void choose()} disabled={!supported}
+    <button type="button" onClick={()=>void choose()}
       className="mt-4 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">
       Seleziona riepilogo locale
     </button>
