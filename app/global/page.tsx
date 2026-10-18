@@ -124,6 +124,8 @@ export default function GlobalCoveragePage() {
                 </div>
                 <p className="mt-2 text-xs text-slate-400">Paesi con riferimenti provider: {region.matchedCountries ?? "?"}/{region.targetCountries}.
                   {" "}Finestre indicative: {region.indicativeResearchWindows}/{region.curatedVenues}.</p>
+                <p className="mt-1 text-xs text-slate-400">Azioni ordinarie censite: {region.ordinaryShareReferences?.toLocaleString("it-IT") ?? "non verificato"}.
+                  {" "}Warrant: {region.warrantReferences?.toLocaleString("it-IT") ?? "non verificato"}.</p>
                 <div className="mt-3 space-y-2">
                   {desk.venues.filter(venue => venue.regionId === region.id).map(venue => (
                     <div key={venue.mic} className="flex items-start justify-between gap-2 border-t border-white/10 pt-2 text-xs">
