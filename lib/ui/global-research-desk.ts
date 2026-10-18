@@ -5,7 +5,7 @@ type ReferenceRegion = {
   regionId: string; targetCountries: number; providerMatchedCountries: number;
   instrumentCount: number;
 };
-type CatalogueCountry = { regionId?: string; providerCovered?: boolean; instrumentCount?: number; instrumentTypes?: Record<string, number> };
+type CatalogueCountry = { regionId?: string; providerCovered?: boolean; instrumentCount?: number; instrumentTypes?: Record<string, number | undefined> };
 type Reference = {
   generatedAt?: string;
   countryCoverage?: CatalogueCountry[];
