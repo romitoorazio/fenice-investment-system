@@ -3,16 +3,20 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "lib/brokers/directa-local-readonly.mjs"
       - "lib/ui/directa-local-snapshot-evidence.mjs"
       - "scripts/run-directa-readonly.mjs"
       - "scripts/test-directa-local-snapshot-evidence.mjs"
+      - "scripts/test-directa-local-readonly.mjs"
       - ".github/workflows/directa-local-evidence-safety.yml"
   push:
     branches: [main]
     paths:
+      - "lib/brokers/directa-local-readonly.mjs"
       - "lib/ui/directa-local-snapshot-evidence.mjs"
       - "scripts/run-directa-readonly.mjs"
       - "scripts/test-directa-local-snapshot-evidence.mjs"
+      - "scripts/test-directa-local-readonly.mjs"
       - ".github/workflows/directa-local-evidence-safety.yml"
   workflow_dispatch:
 permissions:
@@ -28,5 +32,7 @@ jobs:
           node-version: 22
       - name: Verify Directa snapshot integrity and redaction
         run: node scripts/test-directa-local-snapshot-evidence.mjs
+      - name: Verify explicit Directa local read-only responses
+        run: node --experimental-strip-types scripts/test-directa-local-readonly.mjs
       - name: Verify repository secrets are not present
         run: node scripts/scan-repository-secrets.mjs

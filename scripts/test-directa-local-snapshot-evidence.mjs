@@ -44,6 +44,8 @@ blocked({ ...base, availability: null }, "BROKER_ACCOUNT_FIELDS_INCOMPLETE");
 blocked({ ...base, positions: null }, "BROKER_COLLECTIONS_MISSING");
 blocked({ ...base, orders: [{ state: "UNKNOWN", clientOrderId: "TOPSECRET" }] }, "BROKER_ORDER_STATE_AMBIGUOUS");
 blocked({ ...base, errors: [{ ticker: "SECRET_TICKER", code: 1024 }] }, "BROKER_PROTOCOL_ERRORS");
+// Existing snapshots cannot be retroactively labelled complete from empty codes.
+blocked({ ...base, errors: [{ ticker: "N/A", code: 1018 }, { ticker: "N/A", code: 1019 }] }, "BROKER_PROTOCOL_ERRORS");
 blocked({ ...base, positions: [null] }, "BROKER_POSITION_ROWS_INCOMPLETE");
 blocked({ ...base, positions: [{ ticker: "ABC", observedAt: "17:00:07",
   portfolioQuantity: null, directaQuantity: null, averagePrice: null }] }, "BROKER_POSITION_ROWS_INCOMPLETE");
