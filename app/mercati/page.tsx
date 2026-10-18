@@ -9,7 +9,7 @@ import { type InstrumentMaster } from "@/lib/market/instrument-master";
 import { resolveVenueSession } from "@/lib/market/venue-session-intelligence";
 import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-status.mjs";
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
-import { describePersistedPaperQuoteHealth } from "@/lib/trading/paper-quote-diagnostics";
+import { describePersistedPaperQuoteHealth, paperQuoteDiagnosticMessage } from "@/lib/trading/paper-quote-diagnostics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -94,16 +94,16 @@ export default async function MercatiPage() {
               <div key={row.symbol} className="rounded-xl border border-white/10 bg-slate-950/60 p-3">
                 <p className="font-bold text-white">{row.symbol}</p>
                 <p className="mt-1 text-xs text-slate-300">
-                  {row.state === "SNAPSHOT_EXPIRED" ? "Prezzi salvati scaduti"
-                    : row.state === "FRESH_SOURCE_QUORUM_MISSING" ? "Serve una seconda fonte indipendente recente"
-                      : row.state === "CURRENCY_NOT_VERIFIED" ? "Valuta PAPER mancante o incoerente tra le fonti"
-                      : row.state === "NO_VERIFIED_PAPER_SOURCES" ? "Nessuna fonte PAPER verificata"
-                        : row.state === "SOURCES_STALE" ? "Fonti presenti, quotazioni scadute"
-                          : "Fonti recenti candidate; serve il controllo globale"}
+                  {paperQuoteDiagnosticMessage(row.state)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Fonti PAPER nell&apos;ultimo campione: {row.historicalVerifiedFamilies.join(", ") || "nessuna"}
                 </p>
+                {row.freshTradeFallbackFamilies.length > 0 && (
+                  <p className="mt-1 text-xs text-amber-200">
+                    Il campione Alpaca proviene dall&apos;ultimo scambio, senza quotazione bid/ask verificata.
+                  </p>
+                )}
               </div>
             ))}
           </div>

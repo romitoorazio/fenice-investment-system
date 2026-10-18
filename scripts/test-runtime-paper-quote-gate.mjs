@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { assessRuntimePaperQuoteGate } from "../lib/trading/runtime-paper-quote-gate.ts";
+import { describePersistedPaperQuoteHealth } from "../lib/trading/paper-quote-diagnostics.ts";
+import { parseTwelveDataQuoteTime } from "../lib/trading/twelve-data-batch.mjs";
 
 const now = Date.parse("2026-10-09T16:00:00.000Z");
 const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
@@ -18,9 +20,52 @@ const coverage = { generatedAt: at(5), evidenceGeneratedAt: at(15), requestedSym
 };
 const evaluate = (ev = evidence, cv = coverage, atNow = now) => assessRuntimePaperQuoteGate(ev, cv, atNow);
 assert.equal(evaluate().ready, true, "current dual-provider per-symbol PAPER proof passes");
+const batchTimestamp = parseTwelveDataQuoteTime({ timestamp: (now - 30_000) / 1000 });
+assert.equal(batchTimestamp.paperTimestampVerified, true);
+const providerFallbacks = {
+  ...evidence,
+  observations: observations.map(row => row.sourceFamily === "alpaca"
+    ? { ...row, provenanceMethod: "authenticated-alpaca-iex-latest-trade-fallback" }
+    : { ...row, provenanceMethod: `provider-batch-quote-${batchTimestamp.source}-us-realtime-venue`,
+      observedAt: batchTimestamp.observedAt }),
+};
+assert.equal(evaluate(providerFallbacks).ready, true,
+  "producer-supported Alpaca trade and Twelve Data timestamp methods preserve PAPER price quorum");
+const fallbackDiagnostic = describePersistedPaperQuoteHealth(providerFallbacks, coverage, now);
+assert.equal(fallbackDiagnostic.diagnosticState, "QUORUM_CURRENT");
+assert(fallbackDiagnostic.symbols.filter(row => symbols.includes(row.symbol))
+  .every(row => row.freshVerifiedFamilies.length === 2
+    && row.freshTradeFallbackFamilies.length === 1));
+assert.equal(fallbackDiagnostic.orderAuthorized, false,
+  "recognizing a research price fallback never authorizes an order");
+for (const sourceFamily of ["alpaca", "twelve-data"]) {
+  const oneFallback = { ...evidence, observations: observations.map(row =>
+    row.sourceFamily === sourceFamily ? providerFallbacks.observations.find(fallback =>
+      fallback.symbol === row.symbol && fallback.sourceFamily === sourceFamily) : row) };
+  assert.equal(evaluate(oneFallback).ready, true);
+  for (const patch of [
+    { provenanceVerified: false }, { eligibility: "LIVE" }, { eligibility: "VALIDATION_ONLY" },
+    { observedAt: at(120.001) }, { observedAt: at(-0.001) },
+    { provenanceMethod: "unknown-provider-method" },
+  ]) {
+    const invalid = { ...oneFallback, observations: oneFallback.observations.map(row =>
+      row.sourceFamily === sourceFamily ? { ...row, ...patch } : row) };
+    assert.equal(evaluate(invalid).ready, false,
+      "fallback provenance cannot bypass verification, eligibility or temporal limits");
+  }
+}
+const wrongFamilyMethod = { ...evidence, observations: observations.map(row =>
+  row.sourceFamily === "twelve-data"
+    ? { ...row, provenanceMethod: "authenticated-alpaca-iex-latest-trade-fallback" } : row) };
+assert.equal(evaluate(wrongFamilyMethod).ready, false,
+  "a recognized method cannot be borrowed from another provider family");
 assert.equal(evaluate(evidence, coverage, now + 130000).ready, false, "historical once-valid quotes cannot stay execution-grade");
 assert.equal(evaluate({ ...evidence, generatedAt: at(160) }).ready, false, "stale evidence file cannot pass");
 assert.equal(evaluate(evidence, { ...coverage, evidenceGeneratedAt: at(18) }).ready, false, "unlinked coverage is rejected");
+const invertedCoverage = evaluate(evidence, { ...coverage, generatedAt: at(20) });
+assert.equal(invertedCoverage.ready, false, "coverage cannot precede the batch it claims to summarize");
+assert.equal(invertedCoverage.chronologyValid, false);
+assert.equal(evaluate().chronologyValid, true);
 assert.equal(evaluate(evidence, { ...coverage, evidenceGeneratedAt: at(15.5) }).ready, false,
   "half-second timestamp tolerance cannot substitute batch identity");
 assert.equal(evaluate(evidence, { ...coverage, paperEligibleSymbols: 2 }).ready, false,

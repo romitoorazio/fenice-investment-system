@@ -1,4 +1,4 @@
-import { assessRuntimePaperQuoteGate } from "./runtime-paper-quote-gate.ts";
+import { assessRuntimePaperQuoteGate, isRecognizedPaperQuoteMethod } from "./runtime-paper-quote-gate.ts";
 import { paperTimestamp } from "./paper-timestamp-integrity.ts";
 
 /**
@@ -31,23 +31,30 @@ type Coverage = {
     liveTradingAllowed?: boolean;
   };
 };
-const APPROVED_METHODS: Record<string, Set<string>> = {
-  alpaca: new Set(["authenticated-alpaca-iex-latest-quote", "authenticated-alpaca-iex-latest-quote-readonly-review"]),
-  "twelve-data": new Set(["provider-response-us-realtime-venue",
-    "provider-response-us-realtime-venue-readonly-review",
-    "provider-batch-quote-last_quote_at-us-realtime-venue"]),
-  directa: new Set(["directa-readonly-entitlement-isin-topbook"]),
-};
-const KNOWN_PAPER_FAMILIES = new Set(Object.keys(APPROVED_METHODS));
+const KNOWN_PAPER_FAMILIES = new Set(["alpaca", "twelve-data", "directa"]);
 const MAX_SYMBOLS_DISPLAY = 50;
 
 function elapsedSeconds(value: string | undefined, now: number): number | null {
   const t = paperTimestamp(value);
   if (t === null || !Number.isSafeInteger(now) || now < 0 || now > 8.64e15) return null;
-  return Number(((now - t) / 1000).toFixed(1));
+  // Keep millisecond precision for safety decisions: -0.001 must not round to -0.
+  return (now - t) / 1000;
 }
 function inFreshWindow(age: number | null, maxAge: number) {
   return age !== null && age >= 0 && age <= maxAge;
+}
+
+export function paperQuoteDiagnosticMessage(state: unknown): string {
+  switch (state) {
+    case "SNAPSHOT_EXPIRED": return "Campione scaduto";
+    case "CURRENCY_NOT_VERIFIED": return "Valuta non verificata: campione bloccato";
+    case "SOURCE_CONFLICT": return "Prezzi in conflitto: campione bloccato";
+    case "FRESH_SOURCE_QUORUM_MISSING": return "Manca una seconda fonte recente";
+    case "NO_VERIFIED_PAPER_SOURCES": return "Nessuna fonte PAPER verificata";
+    case "SOURCES_STALE": return "Fonti presenti, quotazioni scadute";
+    case "SOURCE_CANDIDATE_ONLY": return "Fonti recenti candidate; serve il controllo globale";
+    default: return "Stato del campione non verificato: quorum non dimostrato";
+  }
 }
 
 export function describePersistedPaperQuoteHealth(
@@ -71,7 +78,9 @@ export function describePersistedPaperQuoteHealth(
     ? coverage.policy.approvedIndependentPaperSourceFamilies : [])
     .map((family) => String(family).trim().toLowerCase())
     .filter((family) => KNOWN_PAPER_FAMILIES.has(family)));
-  const samplesBySymbol = new Map<string, Map<string, { timestamp: string; age: number | null; price: number; currency: string }>>();
+  const samplesBySymbol = new Map<string, Map<string, {
+    timestamp: string; age: number | null; price: number; currency: string; provenanceMethod: string;
+  }>>();
   const currenciesBySymbol = new Map<string, Set<string>>();
   const invalidCurrencySymbols = new Set<string>();
   const conflictedSymbols = new Set<string>();
@@ -80,7 +89,7 @@ export function describePersistedPaperQuoteHealth(
     const symbol = String(item.symbol || "").trim().toUpperCase();
     const family = String(item.sourceFamily || "").trim().toLowerCase();
     if (!symbol || !allowed.has(family)
-      || !APPROVED_METHODS[family]?.has(String(item.provenanceMethod || ""))
+      || !isRecognizedPaperQuoteMethod(family, item.provenanceMethod)
       || typeof item.price !== "number" || !Number.isFinite(item.price) || item.price <= 0) continue;
     const currency = String(item.currency || "").trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(currency)) {
@@ -91,7 +100,7 @@ export function describePersistedPaperQuoteHealth(
     currencies.add(currency);
     currenciesBySymbol.set(symbol, currencies);
     const age = elapsedSeconds(item.observedAt, now);
-    if (age === null || age < -5) continue;
+    if (age === null || age < 0) continue;
     const families = samplesBySymbol.get(symbol) || new Map();
     const last = families.get(family);
     if (last && last.timestamp === item.observedAt
@@ -99,7 +108,8 @@ export function describePersistedPaperQuoteHealth(
       conflictedSymbols.add(symbol);
     }
     if (!last || last.age === null || age < last.age) {
-      families.set(family, { timestamp: String(item.observedAt), age, price: item.price, currency });
+      families.set(family, { timestamp: String(item.observedAt), age, price: item.price,
+        currency, provenanceMethod: String(item.provenanceMethod) });
     }
     samplesBySymbol.set(symbol, families);
   }
@@ -131,6 +141,10 @@ export function describePersistedPaperQuoteHealth(
       snapshotPaperEligible: row?.paperEligible === true,
       historicalVerifiedFamilies: [...families.keys()].sort(),
       freshVerifiedFamilies: currentFamilies.sort(),
+      freshTradeFallbackFamilies: [...families.entries()]
+        .filter(([, data]) => inFreshWindow(data.age, gate.maxQuoteAgeSeconds)
+          && data.provenanceMethod === "authenticated-alpaca-iex-latest-trade-fallback")
+        .map(([family]) => family).sort(),
       newestQuoteAgeSeconds: last[0] ?? null,
       quoteCurrencies: [...currencies].sort(),
       liveTradingAllowed: false,

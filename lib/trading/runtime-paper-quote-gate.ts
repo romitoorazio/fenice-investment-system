@@ -34,14 +34,22 @@ const ACCEPTED_PROVENANCE: Record<string, Set<string>> = {
   alpaca: new Set([
     "authenticated-alpaca-iex-latest-quote",
     "authenticated-alpaca-iex-latest-quote-readonly-review",
+    "authenticated-alpaca-iex-latest-trade-fallback",
   ]),
   "twelve-data": new Set([
     "provider-response-us-realtime-venue",
     "provider-response-us-realtime-venue-readonly-review",
     "provider-batch-quote-last_quote_at-us-realtime-venue",
+    "provider-batch-quote-quote_timestamp_1min-us-realtime-venue",
   ]),
   directa: new Set([DIRECTA_PROVENANCE]),
 };
+
+/** Method recognition alone does not prove entitlement, freshness or PAPER eligibility. */
+export function isRecognizedPaperQuoteMethod(family: string, method: unknown): boolean {
+  return Object.hasOwn(ACCEPTED_PROVENANCE, family) && typeof method === "string"
+    && ACCEPTED_PROVENANCE[family].has(method);
+}
 
 function ageSeconds(timestamp: unknown, now: number): number {
   const parsed = paperTimestamp(timestamp);
@@ -81,6 +89,7 @@ export function assessRuntimePaperQuoteGate(
   const evidenceFresh = isFresh(evidence?.generatedAt, now);
   const coverageFresh = isFresh(coverage?.generatedAt, now);
   const evidenceTimestamp = paperTimestamp(evidence?.generatedAt);
+  const coverageTimestamp = paperTimestamp(coverage?.generatedAt);
   const linkedTimestamp = paperTimestamp(coverage?.evidenceGeneratedAt);
   // A near-identical timestamp is not proof of the same provider batch.
   const snapshotsMatch = evidenceTimestamp !== null && linkedTimestamp !== null
@@ -88,6 +97,9 @@ export function assessRuntimePaperQuoteGate(
 
   if (!evidenceFresh || !coverageFresh) reasons.push("PAPER execution snapshot is older than 120 seconds");
   if (!snapshotsMatch) reasons.push("PAPER execution coverage is not linked to the quoted evidence");
+  const chronologyValid = evidenceTimestamp !== null && coverageTimestamp !== null
+    && coverageTimestamp >= evidenceTimestamp;
+  if (!chronologyValid) reasons.push("PAPER coverage must not predate the quoted evidence batch");
 
   const approved = new Set((Array.isArray(coverage?.policy?.approvedIndependentPaperSourceFamilies)
     ? coverage.policy.approvedIndependentPaperSourceFamilies : []).map(normalizeFamily));
@@ -107,7 +119,7 @@ export function assessRuntimePaperQuoteGate(
     const family = normalizeFamily(row.sourceFamily);
     const trusted = approved.has(family) && permitted.has(family)
       && row.provenanceVerified === true
-      && ACCEPTED_PROVENANCE[family]?.has(String(row.provenanceMethod || "")) === true
+      && isRecognizedPaperQuoteMethod(family, row.provenanceMethod)
       && row.eligibility === "PAPER";
     const currency = String(row.currency || "").trim().toUpperCase();
     const validCurrency = /^[A-Z]{3}$/.test(currency);
@@ -185,6 +197,7 @@ export function assessRuntimePaperQuoteGate(
     evidenceFresh,
     coverageFresh,
     snapshotsMatch,
+    chronologyValid,
     eligibleSymbols,
     requestedSymbols: requestedCount,
     paperObservationsStale,

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describePersistedPaperQuoteHealth } from "../lib/trading/paper-quote-diagnostics.ts";
+import { describePersistedPaperQuoteHealth, paperQuoteDiagnosticMessage } from "../lib/trading/paper-quote-diagnostics.ts";
 
 const now = Date.parse("2026-10-09T16:00:00Z");
 const at = (secondsAgo) => new Date(now - secondsAgo * 1000).toISOString();
@@ -72,6 +72,23 @@ const future = describePersistedPaperQuoteHealth({
   observations: [quote("AAPL", "alpaca", -180)],
 }, coverage, now);
 assert.equal(future.symbols[0].state, "NO_VERIFIED_PAPER_SOURCES");
+for (const age of [-0.001, -1, -5, 120.001]) {
+  const boundary = describePersistedPaperQuoteHealth({
+    ...evidence, observations: [quote("AAPL", "alpaca", age), quote("AAPL", "twelve-data", age)],
+  }, coverage, now);
+  assert.equal(boundary.symbols[0].freshVerifiedFamilies.length, 0,
+    "rounded display ages cannot promote future or expired quotes into current candidates");
+  assert.notEqual(boundary.symbols[0].state, "SOURCE_CANDIDATE_ONLY");
+}
+for (const patch of [
+  { generatedAt: at(-0.001) },
+  { generatedAt: at(120.001) },
+]) {
+  const boundary = describePersistedPaperQuoteHealth({ ...evidence, ...patch },
+    { ...coverage, generatedAt: patch.generatedAt, evidenceGeneratedAt: patch.generatedAt }, now);
+  assert.equal(boundary.snapshotCurrent, false,
+    "batch chronology and freshness use unrounded millisecond timestamps");
+}
 const falseProvenance = describePersistedPaperQuoteHealth({
   ...evidence,
   observations: evidence.observations.map(row => row.symbol === "AAPL" && row.sourceFamily === "twelve-data"
@@ -95,6 +112,19 @@ const conflictingQuote = describePersistedPaperQuoteHealth({
 }, coverage, now);
 assert.equal(conflictingQuote.symbols[0].state, "SOURCE_CONFLICT",
   "two different same-provider prices at the same timestamp are not one valid source");
+assert.match(paperQuoteDiagnosticMessage(conflictingQuote.symbols[0].state), /conflitto.*bloccato/i,
+  "source conflicts must be explicitly blocked in the user-facing message");
+assert.doesNotMatch(paperQuoteDiagnosticMessage("UNRECOGNIZED_STATE"), /recenti candidate/,
+  "new/unknown states cannot fall through to a reassuring source label");
+assert.match(paperQuoteDiagnosticMessage("UNRECOGNIZED_STATE"), /non verificato/i);
+const tradeFallback = describePersistedPaperQuoteHealth({
+  ...evidence, observations: evidence.observations.map(row =>
+    row.sourceFamily === "alpaca"
+      ? { ...row, provenanceMethod: "authenticated-alpaca-iex-latest-trade-fallback" } : row),
+}, coverage, now);
+assert.deepEqual(tradeFallback.symbols[0].freshTradeFallbackFamilies, ["alpaca"]);
+assert.deepEqual(current.symbols[0].freshTradeFallbackFamilies, [],
+  "ordinary bid/ask samples are not labelled as trade fallbacks");
 const corruptedCollections = describePersistedPaperQuoteHealth({
   ...evidence, observations: { invalid: true },
 }, { ...coverage, rows: { invalid: true },
