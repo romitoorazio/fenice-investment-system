@@ -37,6 +37,26 @@ identifiers, account amounts, holdings or order references.
 
 ## Scope
 
+### Connection initialization (Windows observation, 18 October 2026)
+
+A status-only probe on the declared trading port 10002 observed UNAVAILABLE at
+80 ms, then CONN_OK at 1013, 1509 and 4516 ms, with datafeed disabled throughout.
+The local collector had finished before that initialization completed and treated
+the initial unavailable status as a permanent failure.
+
+It now waits for an explicit CONN_OK before requesting account/availability and
+either list, retrying DARWINSTATUS at 500 ms intervals only after an unavailable
+response, within the existing total snapshot deadline. Startup account/list rows
+remain ineligible: all values are requested again after readiness. Replies already
+buffered cannot satisfy a subsequent poll, including partial lines present when a
+retry timer fires. Diagnostic counters record the initial unavailable observations
+and retry attempts without exposing account details.
+
+Any non-OK state after readiness still interrupts the snapshot. Protocol errors,
+unknown states, missing acknowledgements/responses and a connection that never
+becomes ready still fail closed. A later OK does not repair a lost connection
+during an account read. No paid datafeed or certification policy is changed.
+
 This is a local, one-shot diagnostic change. The frozen V6 collector/parser,
 fingerprint, risk engine, reconciliation, historical evidence and approvals remain
 unchanged. The new collector is used only by the local read-only command, and is
