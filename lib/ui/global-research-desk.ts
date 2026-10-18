@@ -5,8 +5,10 @@ type ReferenceRegion = {
   regionId: string; targetCountries: number; providerMatchedCountries: number;
   instrumentCount: number;
 };
+type CatalogueCountry = { regionId?: string; providerCovered?: boolean; instrumentCount?: number; instrumentTypes?: Record<string, number> };
 type Reference = {
   generatedAt?: string;
+  countryCoverage?: CatalogueCountry[];
   regionCoverage?: ReferenceRegion[];
   safety?: { researchOnly?: boolean; paperExecutionAllowed?: boolean;
     liveTradingAllowed?: boolean; brokerConnectivityAllowed?: boolean;
@@ -85,6 +87,23 @@ export function buildGlobalResearchDesk(
       && Number.isSafeInteger(ref.providerMatchedCountries) && ref.providerMatchedCountries >= 0
       && ref.providerMatchedCountries <= targetCountries
       && Number.isSafeInteger(ref.instrumentCount) && ref.instrumentCount >= 0;
+    // A provider universe may contain warrants, preferred shares and other
+    // securities. Show ordinary-share references separately, NEVER eligible buys.
+    const countries = Array.isArray(reference?.countryCoverage)
+      ? reference.countryCoverage.filter(x => x?.regionId === region.id && x.providerCovered === true) : [];
+    const validCatalogue = refValid && countries.every(x =>
+      Number.isSafeInteger(x.instrumentCount) && x.instrumentCount! >= 0
+      && Number.isSafeInteger(x.instrumentTypes?.["Common Stock"] ?? 0)
+      && Number.isSafeInteger(x.instrumentTypes?.Warrant ?? 0)
+      && (x.instrumentTypes?.["Common Stock"] ?? 0) >= 0
+      && (x.instrumentTypes?.Warrant ?? 0) >= 0
+      && (x.instrumentTypes?.["Common Stock"] ?? 0) + (x.instrumentTypes?.Warrant ?? 0) <= x.instrumentCount!)
+      && countries.length === ref?.providerMatchedCountries
+      && countries.reduce((n,x)=>n+(x.instrumentCount??0),0) === ref?.instrumentCount;
+    const ordinaryShareReferences = validCatalogue
+      ? countries.reduce((n,x)=>n+(x.instrumentTypes?.["Common Stock"]??0),0) : null;
+    const warrantReferences = validCatalogue
+      ? countries.reduce((n,x)=>n+(x.instrumentTypes?.Warrant??0),0) : null;
     const windowsNow = selected.filter(x => x.researchWindowCandidate).length;
     const attention = !refValid || referenceState === "UNVERIFIED"
       ? "VERIFY_REFERENCE" as const
@@ -94,6 +113,7 @@ export function buildGlobalResearchDesk(
       id: region.id, name: region.name,
       targetCountries, matchedCountries: refValid ? ref!.providerMatchedCountries : null,
       referenceInstrumentCount: refValid ? ref!.instrumentCount : null,
+      ordinaryShareReferences, warrantReferences,
       curatedVenues: selected.length, indicativeResearchWindows: windowsNow,
       attention,
       sourceReviewRequired: !refValid || referenceState !== "REFERENCE_ONLY",
