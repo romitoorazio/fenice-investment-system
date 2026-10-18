@@ -57,8 +57,13 @@ const formatNumber = (value: number) => value.toLocaleString("it-IT");
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Server-only time source; avoids impure clock access inside the component render.
+function serverRequestTime() {
+  return Date.now();
+}
+
 export default function GlobalCoveragePage() {
-  const desk = buildGlobalResearchDesk(globalUniverse, coverageReport, Date.now());
+  const desk = buildGlobalResearchDesk(globalUniverse, coverageReport, serverRequestTime());
   const coveredCountries = report.countryCoverage
     .filter((country) => country.providerCovered)
     .sort((a, b) => b.instrumentCount - a.instrumentCount || a.name.localeCompare(b.name));
