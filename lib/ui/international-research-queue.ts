@@ -28,8 +28,12 @@ export function buildInternationalResearchQueue(
  const uniqueIds=new Set<string>();
  const rows=[];
  for(const row of master.instruments??[]){
+  // Historical seed uses "latin-america" for Petrobras; global reference uses
+  // "latin-america-caribbean". Reconcile ONLY the proven BR/BVMF case.
+  const issuerRegion=row.region==="latin-america"&&row.country==="BR"&&row.exchangeMic==="BVMF"
+    ?"latin-america-caribbean":row.region;
   if(row.status!=="active"||row.assetClass!=="equity"
-    ||!["europe","asia-pacific","latin-america-caribbean","middle-east-africa"].includes(row.region??""))continue;
+    ||!["europe","asia-pacific","latin-america-caribbean","middle-east-africa"].includes(issuerRegion??""))continue;
   if(!row.id||uniqueIds.has(row.id)||!/^[A-Z0-9._-]{1,25}$/.test(row.ticker??""))continue;
   uniqueIds.add(row.id);
   const venue=venueRegion.get(row.exchangeMic??"")??null;
@@ -65,9 +69,9 @@ export function buildInternationalResearchQueue(
   missing.push("SEPARATE_PAPER_APPROVAL_REQUIRED");
   rows.push({
    id:row.id,symbol:row.ticker!,name:row.name??row.ticker!,issuerCountry:row.country??null,
-   issuerRegion:row.region??null,venueMic:namedSecurity?row.exchangeMic??null:null,
+   issuerRegion:issuerRegion??null,venueMic:namedSecurity?row.exchangeMic??null:null,
    tradingRegion:venue,currency:row.currency??null,
-   listingType:venue!==null&&venue!==row.region?"FOREIGN_LISTING_OR_ADR" as const:"LOCAL_LISTING" as const,
+   listingType:venue!==null&&venue!==issuerRegion?"FOREIGN_LISTING_OR_ADR" as const:"LOCAL_LISTING" as const,
    identitySeedVerified:identityVerified,issuerDocumentObserved:!!issuerDocs,
    researchCandleAvailable:!!candle,committeeResearchAvailable:!!committeeEntry,
    countryCatalogueHasReferences:!!countryCovered,
