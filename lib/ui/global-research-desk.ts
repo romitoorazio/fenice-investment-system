@@ -1,4 +1,4 @@
-import { resolveVenueSession, type PaperMarketClock } from "@/lib/market/venue-session-intelligence";
+import { resolveVenueSession, type PaperMarketClock } from "../market/venue-session-intelligence.ts";
 
 type Region = { id: string; name: string; countries: string[] };
 type ReferenceRegion = {
