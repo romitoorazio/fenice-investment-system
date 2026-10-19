@@ -10,7 +10,7 @@ import bakedEod from "@/data/world-v7-eod-research.json";
 
 type GlobalEodRecord={
   venue?:string;status?:string;region?:string;researchSignal?:string;
-  lastCompleteBarDate?:string;analyzedAt?:string;completeSessions?:number;
+  lastCompleteBarDate?:string|null;analyzedAt?:string|null;completeSessions?:number;
   paperFillCount?:number;licensedPaperSource?:boolean;
 };
 type GlobalEodBook={records?:Record<string,GlobalEodRecord>;liveTradingAllowed?:boolean;realtimePaperEligible?:boolean};
