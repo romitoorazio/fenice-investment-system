@@ -2,6 +2,12 @@ name: Fenice PAPER Market-Open Readiness
 
 on:
   workflow_dispatch:
+  # Independent from GitHub cron delivery: Foundation already produces
+  # validated research. Recovery is strictly diagnostic and time-limited.
+  workflow_run:
+    workflows: ["Fenice Foundation"]
+    types: [completed]
+    branches: [main]
   schedule:
     # Opening checks 15 minutes after the US regular session begins.
     # US DST: 13:30 UTC open; standard time: 14:30 UTC open.
@@ -52,10 +58,20 @@ permissions:
 
 concurrency:
   group: fenice-paper-open-readiness-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not cancel a genuine timely scheduled opening audit because a
+  # Foundation completion happens while it is sampling.
+  cancel-in-progress: false
 
 jobs:
   readiness:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'schedule' ||
+        (github.event.workflow_run.event == 'push' &&
+         github.event.workflow_run.name == 'Fenice Foundation')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -82,7 +98,7 @@ jobs:
       - name: Checkout exact audited commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -95,6 +111,11 @@ jobs:
         continue-on-error: true
         env:
           FENICE_SCHEDULE_CRON: ${{ github.event.schedule }}
+          UPSTREAM_NAME: ${{ github.event.workflow_run.name }}
+          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          UPSTREAM_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          UPSTREAM_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
         run: node scripts/verify-market-open-schedule.mjs
 
       - name: Regression-test scheduler delay detection
@@ -183,8 +204,12 @@ jobs:
             data/execution-market-evidence.json
             data/execution-market-coverage.json
 
+      - name: Confirm refused recovery without provider refresh or opening proof
+        if: always() && github.event_name == 'workflow_run' && steps.schedule_guard.outcome == 'failure'
+        run: echo "::notice::Foundation recovery not in approved New York early-session window or missing trusted provenance; no market-data calls or opening proof."
+
       - name: Reject missed scheduled market-open window
-        if: always() && steps.schedule_guard.outcome == 'failure'
+        if: always() && github.event_name == 'schedule' && steps.schedule_guard.outcome == 'failure'
         run: |
           echo "::error::Market-open readiness schedule missed its sampling window. A closed-market success cannot replace an opening-session audit."
           exit 1
