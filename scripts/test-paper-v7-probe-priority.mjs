@@ -56,7 +56,7 @@ const closedPlan=planPaperV7ProbePriority({diagnostic,feasibility:closed,now});
 assert.deepEqual(closedPlan.recommendedExpansionOrder,[],"closed provider sample must never promote");
 assert(closedPlan.rows.every(x=>x.classification==="DEFER_UNOBSERVED_OR_STALE_SESSION"));
 assert.equal(closedPlan.providerSnapshotStatus,"NO_VERIFIED_OPEN_SESSION_SAMPLE");
-assert.equal(closedPlan.rows[0].sourceQuorumClaimUntrustedWhenStale,true);
+assert.equal(closedPlan.rows.find(x=>x.symbol==="A").sourceQuorumClaimUntrustedWhenStale,true);
 const late=planPaperV7ProbePriority({diagnostic,feasibility,now:"2026-10-19T15:24:00.000Z"});
 assert.deepEqual(late.recommendedExpansionOrder,[]);
 assert.equal(late.providerSnapshotStatus,"EXPIRED_OR_INVALID_PROVIDER_SAMPLE");
