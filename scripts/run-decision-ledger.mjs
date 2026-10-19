@@ -1,4 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { retainDecisionLedgerRecords } from '../lib/intelligence/decision-ledger-retention.mjs';
@@ -24,7 +25,12 @@ const round = (value, digits = 2) => {
 
 const committee = await readJson('investment-committee.json', { allDecisions: [], generatedAt: null });
 const terminal = await readJson('terminal-intelligence.json', { assets: [] });
-const previous = await readJson('decision-ledger.json', { version: 1, records: [] });
+// Unlike optional research inputs, the existing historical ledger is
+// irreplaceable certification evidence. Missing/corrupt content must halt the
+// job, never silently create an empty history.
+const previous = JSON.parse(await readFile(ledgerPath, 'utf8'));
+if(previous?.version !== 1 || !Array.isArray(previous.records))
+  throw new Error('DECISION_LEDGER_HISTORY_MISSING_OR_INVALID');
 
 const priceBySymbol = new Map((terminal.assets || []).map((asset) => [String(asset.symbol).toUpperCase(), Number(asset.price)]));
 const records = Array.isArray(previous.records) ? previous.records : [];
@@ -136,5 +142,14 @@ const report = {
   records:preservedRecords,
 };
 
-await writeFile(ledgerPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+// Same-directory rename is atomic on the GitHub Linux runner. An interrupted
+// write must never replace 25+ days of valid evidence with half a JSON file.
+const tmpPath = path.join(dataDir, '.decision-ledger-'+randomUUID()+'.tmp');
+try {
+  await writeFile(tmpPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  await rename(tmpPath,ledgerPath);
+} catch(error) {
+  await rm(tmpPath,{force:true}).catch(()=>{});
+  throw error;
+}
 console.log(`Fenice Decision Ledger: ${report.recordCount} decisioni conservate, ${retention.pending30dRecords} in attesa di 30d; evictions=${retention.safelyEvictedRecords}; LIVE=false.`);
