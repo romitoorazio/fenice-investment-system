@@ -2,6 +2,12 @@ name: Fenice PAPER Provider Feasibility Lab
 
 on:
   workflow_dispatch:
+  # A completed canonical PAPER session is a second genuine in-session
+  # opportunity when GitHub silently delays/omits the provider lab cron.
+  workflow_run:
+    workflows: ["Fenice Paper Validation"]
+    types: [completed]
+    branches: [main]
   schedule:
     - cron: "12 15 * * 1-5"
   push:
@@ -17,6 +23,7 @@ on:
       - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-provider-trigger.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
@@ -32,6 +39,7 @@ on:
       - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-provider-trigger.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
@@ -41,10 +49,20 @@ permissions:
 
 concurrency:
   group: paper-provider-feasibility
-  cancel-in-progress: true
+  # Never discard a started observation simply because two safe triggers
+  # collide. A queued attempt must still check the authoritative market clock.
+  cancel-in-progress: false
 
 jobs:
   provider-feasibility:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.name == 'Fenice Paper Validation' &&
+       (github.event.workflow_run.event == 'workflow_dispatch' ||
+        github.event.workflow_run.event == 'schedule'))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -77,8 +95,11 @@ jobs:
         if: github.event_name != 'pull_request'
         run: node --experimental-strip-types scripts/probe-paper-provider-feasibility.mjs
 
-      - name: Regression-test inactive V7 planner
+      - name: Regression-test inactive V7 planner, including stale/closed market fail-closed
         run: node scripts/test-paper-v7-probe-priority.mjs
+
+      - name: Validate canonical workflow event provenance and cron fallback
+        run: node scripts/test-paper-v7-provider-trigger.mjs
 
       - name: Regression-test fail-closed V7 probe selector
         run: node scripts/test-paper-v7-probe-selection.mjs

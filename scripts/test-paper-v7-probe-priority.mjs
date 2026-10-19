@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { planPaperV7ProbePriority } from "./plan-paper-v7-probe-priority.mjs";
+import { planPaperV7ProbePriority, assessProviderFeasibilitySnapshot } from "./plan-paper-v7-probe-priority.mjs";
 
 const diagnostic = {
   candidates: [
@@ -9,7 +9,14 @@ const diagnostic = {
     { symbol: "D", failedGates: ["execution-coverage", "committee-score", "data-confidence"], metrics: { committeeScore: 60, validationDataConfidence: 80, riskScore: 20, notionalCapacityEuro: 300 } },
   ],
 };
+const observedAt="2026-10-19T15:12:00.000Z";
+const now="2026-10-19T15:12:20.000Z";
 const feasibility = {
+  state: "OPEN_SESSION_SAMPLED",
+  generatedAt: observedAt,
+  sessionFreshAtReport: true,
+  quoteProvidersQueried: true,
+  marketSession: { evidence: { authoritative: true, state: "OPEN", observedAt } },
   targets: [
     { symbol: "A", quorumCompatible: true, crossSourceSpreadPercent: 0.02 },
     { symbol: "B", quorumCompatible: true, crossSourceSpreadPercent: 0.03 },
@@ -19,7 +26,10 @@ const feasibility = {
   ],
 };
 
-const report = planPaperV7ProbePriority({ diagnostic, feasibility });
+const report = planPaperV7ProbePriority({ diagnostic, feasibility, now });
+assert.equal(report.providerSnapshotStatus,"RECENT_VERIFIED_OPEN_SESSION_SAMPLE");
+assert.equal(report.providerSnapshotVerified,true);
+assert.equal(report.providerSampleAgeSeconds,20);
 assert.equal(report.plannedForVersion, 7);
 assert.equal(report.activationAllowed, false);
 assert.equal(report.currentV6Modified, false);
@@ -40,4 +50,23 @@ const missing=planPaperV7ProbePriority({diagnostic:{candidates:[]},feasibility:{
 ]}});
 assert(missing.rows.every(row=>row.crossSourceSpreadPercent===null),
   "missing or negative provider spread must not be invented as 0 percent");
-console.log("paper V7 probe priority planner tests: PASS");
+const closed={...feasibility,state:"SKIPPED_NO_OPEN_SESSION",quoteProvidersQueried:false,
+  sessionFreshAtReport:false};
+const closedPlan=planPaperV7ProbePriority({diagnostic,feasibility:closed,now});
+assert.deepEqual(closedPlan.recommendedExpansionOrder,[],"closed provider sample must never promote");
+assert(closedPlan.rows.every(x=>x.classification==="DEFER_UNOBSERVED_OR_STALE_SESSION"));
+assert.equal(closedPlan.providerSnapshotStatus,"NO_VERIFIED_OPEN_SESSION_SAMPLE");
+assert.equal(closedPlan.rows.find(x=>x.symbol==="A").sourceQuorumClaimUntrustedWhenStale,true);
+const late=planPaperV7ProbePriority({diagnostic,feasibility,now:"2026-10-19T15:24:00.000Z"});
+assert.deepEqual(late.recommendedExpansionOrder,[]);
+assert.equal(late.providerSnapshotStatus,"EXPIRED_OR_INVALID_PROVIDER_SAMPLE");
+const wrongName=planPaperV7ProbePriority({diagnostic,feasibility:{...feasibility,
+  marketSession:{evidence:{authoritative:false,state:"OPEN"}}},now});
+assert.deepEqual(wrongName.recommendedExpansionOrder,[]);
+const future=planPaperV7ProbePriority({diagnostic,feasibility:{...feasibility,
+  generatedAt:"2026-10-19T15:13:01.000Z"},now});
+assert.deepEqual(future.recommendedExpansionOrder,[],"future provider report must be rejected");
+assert.equal(assessProviderFeasibilitySnapshot({state:"OPEN_SESSION_SAMPLED",
+  sessionFreshAtReport:true,quoteProvidersQueried:true},now).verifiedOpenSample,false);
+assert.equal(assessProviderFeasibilitySnapshot(feasibility,"invalid").verifiedOpenSample,false);
+console.log("paper V7 probe priority planner tests: PASS (closed/late/future checks fail closed)");
