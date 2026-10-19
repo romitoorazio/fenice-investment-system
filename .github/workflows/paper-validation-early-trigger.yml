@@ -180,17 +180,26 @@ jobs:
             return !!(p && p.day === marketToday && p.minute >= 570);
           };
           const latest = Array.isArray(paper.dailyEvidence) ? paper.dailyEvidence.at(-1) : null;
+          const ageSeconds = latest?.observedAt && latest?.marketSession?.evidence?.observedAt
+            ? (Date.parse(latest.observedAt) - Date.parse(latest.marketSession.evidence.observedAt)) / 1000
+            : NaN;
           const checks = {
             currentPaperDay: latest?.date === marketToday && afterOpen(latest?.observedAt) && (latest?.paperCycles || 0) > 0,
             authoritativeOpenAtCapture: latest?.marketSession?.evidence?.authoritative === true
               && latest?.marketSession?.evidence?.state === 'OPEN'
-              && afterOpen(latest?.marketSession?.evidence?.observedAt),
-            reconciliationAndAudit: latest?.reconciliationBalanced === true && latest?.auditChainValid === true,
+              && afterOpen(latest?.marketSession?.evidence?.observedAt)
+              && Number.isFinite(ageSeconds) && ageSeconds >= 0 && ageSeconds <= 120,
+            reconciliationAndAudit: latest?.reconciliationBalanced === true && latest?.auditChainValid === true
+              && latest?.decisionDataGate?.ready === true,
             paperNoLiveOrders: latest?.liveOrders === 0 && latest?.liveTradingAllowed === false,
             sourceChecksAfterOpen: afterOpen(sources.generatedAt) && sources.critical?.ready === sources.critical?.total
               && sources.critical?.total > 0,
             researchAfterOpen: afterOpen(committee.generatedAt),
             executionCoverageAtCapture: latest?.executionMarketCoverage?.ready === true
+              && latest?.executionMarketCoverage?.fresh === true
+              && latest?.executionMarketCoverage?.matchesEvidence === true
+              && latest?.executionMarketCoverage?.policyReady === true
+              && (latest?.executionMarketCoverage?.paperEligibleSymbols ?? 0) >= 3
               && (latest?.executionMarketCoverage?.paperEligibleSourceFamilies ?? 0) >= 2,
           };
           const primary = ['currentPaperDay', 'authoritativeOpenAtCapture', 'reconciliationAndAudit', 'paperNoLiveOrders'];
