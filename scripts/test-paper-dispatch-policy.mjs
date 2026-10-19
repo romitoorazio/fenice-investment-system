@@ -6,6 +6,7 @@ import {
   classifyPaperMarketSession,
   evaluatePaperValidationDispatch,
 } from "../lib/trading/paper-dispatch-policy.mjs";
+import { evaluatePaperDispatchRateGuard } from "../lib/trading/paper-dispatch-rate-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const now = Date.parse("2026-12-01T14:35:00.000Z");
@@ -96,35 +97,22 @@ const completedRun = evaluatePaperValidationDispatch({
   now,
 });
 assert.equal(completedRun.shouldDispatch, true);
-const exhaustedAuto = evaluatePaperValidationDispatch({
-  campaign: { dailyEvidence: [] }, marketSession: {}, now,
-  workflowRuns: Array.from({ length: 4 }, (_, index) => ({
-    databaseId: index + 50,
-    status: "completed",
-    createdAt: "2026-12-01T" + String(15 + index).padStart(2,"0") + ":00:00Z",
-  })),
+const completedToday = (length) => Array.from({ length }, (_, index) => ({
+  databaseId: index + 50,
+  status: "completed",
+  createdAt: "2026-12-01T" + String(15 + index).padStart(2, "0") + ":00:00Z",
+}));
+const exhaustedAuto = evaluatePaperDispatchRateGuard({
+  today: "2026-12-01", workflowRuns: completedToday(4),
 });
-assert.equal(exhaustedAuto.shouldDispatch, false, "do not endlessly retry PAPER with provider down");
-assert.equal(exhaustedAuto.automaticDailyLimitReached, true);
-assert.equal(exhaustedAuto.dailyCanonicalRuns, 4);
-const hasBudget = evaluatePaperValidationDispatch({
-  campaign: { dailyEvidence: [] }, marketSession: {}, now,
-  workflowRuns: Array.from({ length: 3 }, (_, index) => ({
-    databaseId: index + 70,
-    status: "completed",
-    createdAt: "2026-12-01T" + String(15 + index) + ":00:00Z",
-  })),
-});
-assert.equal(hasBudget.shouldDispatch, true);
-assert.equal(hasBudget.dailyCanonicalRuns, 3);
-const yesterdayExhausted = evaluatePaperValidationDispatch({
-  campaign: { dailyEvidence: [] }, marketSession: {}, now,
-  workflowRuns: Array.from({ length: 6 }, (_, index) => ({
-    databaseId: index + 80, status:"completed", createdAt:"2026-11-30T17:00:00Z",
-  })),
-});
-assert.equal(yesterdayExhausted.shouldDispatch, true, "yesterday retries cannot exhaust today");
-
+assert.equal(exhaustedAuto.exhausted, true, "4 failed/completed runs must stop automated retries");
+assert.equal(exhaustedAuto.dailyCount, 4);
+assert.equal(evaluatePaperDispatchRateGuard({today:"2026-12-01",workflowRuns:completedToday(3)}).exhausted,false);
+assert.equal(evaluatePaperDispatchRateGuard({today:"2026-12-02",workflowRuns:completedToday(4)}).exhausted,false,
+  "yesterday retry budget must not suppress tomorrow");
+assert.equal(evaluatePaperDispatchRateGuard({today:"2026-12-01",
+  workflowRuns:[...completedToday(2),{status:"queued",createdAt:"2026-12-01T19:00:00Z"}]}).dailyCount,3);
+assert.throws(()=>evaluatePaperDispatchRateGuard({today:"bad-date",workflowRuns:[]}),/INVALID_PAPER_DISPATCH_DAY/);
 
 const unsafeOpenRow = evaluatePaperValidationDispatch({
   campaign: { dailyEvidence: [{ ...safeRow, auditChainValid: false, marketSession: open }] },
