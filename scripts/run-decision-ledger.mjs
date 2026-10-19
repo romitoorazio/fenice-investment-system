@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { retainDecisionLedgerRecords } from '../lib/intelligence/decision-ledger-retention.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -93,8 +94,14 @@ for (const decision of committee.allDecisions || []) {
   });
 }
 
+// Preserve genuine decisions long enough to reach the required 30-day
+// certification horizon. Refuse any future eviction that would destroy
+// unmeasured checkpoint evidence. No dates, prices or fills are backfilled.
+const retention=retainDecisionLedgerRecords(records,{nowIso:now.toISOString()});
+const preservedRecords=retention.records;
+
 function statsFor(decision) {
-  const eligible = records.filter((record) => record.decision === decision && Number.isFinite(record.markToMarketPercent));
+  const eligible = preservedRecords.filter((record) => record.decision === decision && Number.isFinite(record.markToMarketPercent));
   const wins = eligible.filter((record) => record.markToMarketPercent > 0).length;
   const average = eligible.length ? eligible.reduce((sum, record) => sum + record.markToMarketPercent, 0) / eligible.length : null;
   return {
@@ -108,15 +115,26 @@ const report = {
   version: 1,
   generatedAt: now.toISOString(),
   purpose: 'Registro immutabile delle decisioni Fenice per misurare qualità, calibrazione e rendimento nel tempo.',
-  recordCount: records.length,
+  recordCount: preservedRecords.length,
+  retentionPolicy: {
+    maxRecords:retention.maxRecords,
+    requiredCheckpointDays:retention.requiredCheckpointDays,
+    safelyEvictedRecords:retention.safelyEvictedRecords,
+    pending30dRecords:retention.pending30dRecords,
+    oldestRetainedCreatedAt:retention.oldestRetainedCreatedAt,
+    noSyntheticCheckpoints:retention.noSyntheticCheckpoints,
+    noPaperMutations:retention.noPaperMutations,
+    liveTradingAllowed:false,
+    brokerConnectivityAllowed:false,
+  },
   stats: {
     COMPRA: statsFor('COMPRA'),
     OSSERVA: statsFor('OSSERVA'),
     ATTENDI: statsFor('ATTENDI'),
     EVITA: statsFor('EVITA'),
   },
-  records: records.slice(-5000),
+  records:preservedRecords,
 };
 
 await writeFile(ledgerPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-console.log(`Fenice Decision Ledger: ${report.recordCount} decisioni registrate.`);
+console.log(`Fenice Decision Ledger: ${report.recordCount} decisioni conservate, ${retention.pending30dRecords} in attesa di 30d; evictions=${retention.safelyEvictedRecords}; LIVE=false.`);
