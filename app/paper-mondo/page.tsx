@@ -4,13 +4,50 @@ import regionalSeeds from "@/data/world-paper-v7-research-seeds.json";
 import funnel from "@/data/world-equity-funnel-status.json";
 import reference from "@/data/global-reference-coverage.json";
 import { runWorldPaperV7 } from "@/lib/trading/world-paper-v7.mjs";
+import bakedObservations from "@/data/world-v7-provider-observation.json";
+
+type ProviderRecord = {
+  recordedAt?: string; venue?: string;
+  state?: {status?: string; reportedOpen?: boolean | null};
+  quote?: {status?: string; ageSeconds?: number | null; tradeTimestamp?: string | null};
+  paperReady?: boolean; privatePricePublished?: boolean;
+};
+type ProviderObservations = {
+  records?: Record<string, ProviderRecord>;
+  liveTradingAllowed?: boolean; paperReady?: boolean;
+};
+const PROBED_VENUES = [
+  {mic:"XTKS",name:"Tokyo",ticker:"7203"},
+  {mic:"XMIL",name:"Milano",ticker:"ENEL"},
+  {mic:"XETR",name:"Francoforte",ticker:"SIE"},
+] as const;
+
+async function readLatestProviderObservation(): Promise<ProviderObservations> {
+  const fallback: ProviderObservations = bakedObservations;
+  try {
+    const response = await fetch(
+      "https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/world-v7-provider-observation.json",
+      {cache:"no-store",signal:AbortSignal.timeout(3500)}
+    );
+    if (!response.ok) return fallback;
+    const json: unknown = await response.json();
+    if (!json || typeof json !== "object" || Array.isArray(json)) return fallback;
+    const book = json as ProviderObservations;
+    if (book.liveTradingAllowed !== false || book.paperReady !== false ||
+        !book.records || typeof book.records !== "object" || Array.isArray(book.records)) return fallback;
+    return book;
+  } catch { return fallback; }
+}
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 // Independent observation. This page never submits to the V6 OMS or any broker.
-export default function WorldPaperPilotPage() {
+export default async function WorldPaperPilotPage() {
+  const providerBook = await readLatestProviderObservation();
+  const readAt = Date.now();
   const report = runWorldPaperV7({
     nowIso: new Date().toISOString(), instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false, sessions: [], quotes: [], fx: [],
@@ -63,6 +100,34 @@ export default function WorldPaperPilotPage() {
             Riferimenti acquisiti: {funnel.generatedAt} · Copertura Paesi: {reference.coverage.providerMatchedCountries}/{reference.coverage.targetCountries}.
             Il refresh della pagina aggiorna la diagnosi di ammissibilità, non scarica nuove quotazioni né apre ordini.
           </p>
+        </section>
+        <section className="space-y-3 rounded-2xl border border-cyan-300/25 bg-cyan-400/5 p-4" aria-label="Prove dati reali per le Borse estere">
+          <h2 className="text-xl font-black">Accesso reale ai dati: Tokyo, Milano e Francoforte</h2>
+          <p className="text-sm text-slate-300">
+            Diagnostica Twelve Data con richieste limitate alle quotazioni e allo stato del listino.
+            Mostra cosa risponde il provider, non certifica la Borsa o i diritti di utilizzo PAPER.
+            Nessun prezzo proprietario è pubblicato.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PROBED_VENUES.map(venue=>{
+              const item = providerBook.records?.[venue.mic];
+              const ts = item?.recordedAt ? Date.parse(item.recordedAt) : NaN;
+              const fresh = Number.isFinite(ts) && ts <= readAt && readAt - ts <= 24*60*60*1000;
+              const valid = item?.paperReady === false && item?.privatePricePublished === false;
+              return (
+                <article key={venue.mic} className="rounded-xl border border-white/15 bg-slate-950/65 p-3 text-sm">
+                  <p className="font-black text-white">{venue.name} · {venue.mic}</p>
+                  <p className="text-xs text-slate-400">Titolo campione: {venue.ticker}</p>
+                  <p className="mt-2 text-xs text-slate-200">Controllo: {valid ? (fresh ? "REGISTRATO" : "SCADUTO") : "NON ANCORA REGISTRATO"}</p>
+                  <p className="mt-1 text-xs text-slate-300">Borsa secondo provider: {valid ? (item?.state?.status ?? "non disponibile") : "non disponibile"}</p>
+                  <p className="text-xs text-slate-300">Aperta secondo provider: {valid && item?.state?.reportedOpen === true ? "sì (non certificato)" : valid && item?.state?.reportedOpen === false ? "no" : "non verificato"}</p>
+                  <p className="mt-1 text-xs text-slate-300">Prezzo e ora: {valid ? (item?.quote?.status ?? "non disponibile") : "non verificati"}</p>
+                  <p className="text-xs text-slate-400">Rilevamento: {valid ? item?.recordedAt : "nessuno"}</p>
+                  <p className="mt-2 text-xs font-semibold text-amber-200">PAPER: NON AUTORIZZATO — manca certificazione delle fonti indipendenti</p>
+                </article>
+              );
+            })}
+          </div>
         </section>
         <section className="space-y-3">
           <h2 className="text-xl font-black">Stato del pilota per regione</h2>
