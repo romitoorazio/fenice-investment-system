@@ -17,10 +17,12 @@ on:
     - cron: "25 19 * * 1-5"
   workflow_run:
     workflows:
-      # Scheduled Foundation completion is the one supported upstream event.
-      # World Terminal normally runs as a workflow_run event, which the
-      # provenance gate rightly rejects. Five independent intraday crons
-      # and manual dispatch remain with the canonical safety checks.
+      # Subscribe only to successful trusted Foundation completions: scheduled
+      # AND main-branch push runs. Previously the filter permitted only
+      # Production CI push while subscribed exclusively to Foundation,
+      # so every Foundation push was skipped and missed crons had no recovery.
+      # Canonical probe still enforces operator approval, fresh feeds, risk,
+      # one approved probe/day, cooldown, same-day attempt cap and LIVE lock.
       - Fenice Foundation
     types:
       - completed
@@ -50,7 +52,7 @@ jobs:
        github.event.workflow_run.head_repository.full_name == github.repository &&
        (github.event.workflow_run.event == 'schedule' ||
         (github.event.workflow_run.event == 'push' &&
-         github.event.workflow_run.name == 'Fenice Production CI')))
+         github.event.workflow_run.name == 'Fenice Foundation')))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -153,7 +155,7 @@ jobs:
             if [ "$UPSTREAM_CONCLUSION" = "success" ] \
               && [ "$UPSTREAM_HEAD_BRANCH" = "main" ] \
               && { [ "$UPSTREAM_EVENT" = "schedule" ] \
-                || { [ "$UPSTREAM_EVENT" = "push" ] && [ "$UPSTREAM_NAME" = "Fenice Production CI" ]; }; }; then
+                || { [ "$UPSTREAM_EVENT" = "push" ] && [ "$UPSTREAM_NAME" = "Fenice Foundation" ]; }; }; then
               recovery_event_ready=true
             fi
           fi
