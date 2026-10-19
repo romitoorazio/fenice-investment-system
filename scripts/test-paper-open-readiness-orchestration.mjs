@@ -56,7 +56,7 @@ for (const stepName of [
 }
 assert.match(workflow, /if: always\(\)[\s\S]*?fenice-paper-open-readiness/,
   "missed-schedule evidence must still be persisted as an artifact");
-assert.match(workflow, /if: always\(\) && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/,
+assert.match(workflow, /if: always\(\) && github\.event_name == 'schedule' && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/,
   "late scheduled runs must still terminate as failures, never falsely certify PAPER");
 assert.match(workflow, /data\/paper-fx-evidence\.json/, "readiness artifact must retain the canonical FX evidence used by the gate");
 assert.doesNotMatch(workflow, /paper-market-fx\.json/, "workflow must not retain or reference the obsolete/non-produced FX path");
@@ -83,6 +83,19 @@ assert(!workflow.includes('- cron: "5 15 * * 1-5"'), "must not delay the sole ma
 assert(workflow.includes('- cron: "15 16 * * 1-5"'), "must retain a DST-independent intraday recovery sampling window");
 assert.match(workflow, /id: schedule_guard[\s\S]*?continue-on-error: true[\s\S]*?run: node scripts\/verify-market-open-schedule\.mjs/, "workflow must audit schedule timeliness without skipping evidence upload");
 assert.match(workflow, /data\/paper-open-schedule-audit\.json/, "readiness artifact must retain scheduler audit evidence");
-assert.match(workflow, /if: always\(\) && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/, "late market-open checks must never finish green");
+assert.match(workflow, /workflow_run:\\n\\s+workflows: \\["Fenice Foundation"\\]/,
+  "workflow must be independently recoverable after Foundation completion");
+assert.match(workflow, /github\\.event\\.workflow_run\\.conclusion == 'success'[\\s\\S]*head_branch == 'main'[\\s\\S]*head_repository\\.full_name == github\\.repository/,
+  "only a successful main-branch same-repository Foundation event may trigger a runner");
+assert.match(workflow, /UPSTREAM_NAME:.*workflow_run\\.name[\\s\\S]*UPSTREAM_EVENT:.*workflow_run\\.event[\\s\\S]*UPSTREAM_HEAD_REPOSITORY:/,
+  "readiness scheduling guard must authenticate upstream provenance");
+assert.match(workflow, /cancel-in-progress: false/,
+  "Foundation cannot cancel a scheduled opening audit");
+assert.match(workflow, /ref:.*github\\.event_name == 'workflow_run' && 'main' \\|\\| github\\.sha/,
+  "workflow_run must checkout trusted main rather than the upstream event sha");
+assert.match(workflow, /if: always\\(\\) && github\\.event_name == 'workflow_run' && steps\\.schedule_guard\\.outcome == 'failure'/,
+  "untrusted or late Foundation recovery must be documented but must not pretend it checked the opening");
+
+assert.match(workflow, /if: always\(\) && github\.event_name == 'schedule' && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/, "late market-open checks must never finish green");
 
 console.log("Fenice PAPER open-readiness orchestration regression: PASS.");
