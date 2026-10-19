@@ -67,4 +67,14 @@ assert.equal(current.records.length,existing.length);
 assert.equal(current.safelyEvictedRecords,0);
 assert.equal(current.records.filter(x=>x.checkpoints?.["30d"]?.measuredAt).length,
   existing.filter(x=>x.checkpoints?.["30d"]?.measuredAt).length);
+const runner=readFileSync("scripts/run-decision-ledger.mjs","utf8");
+assert.match(runner,/JSON\.parse\(await readFile\(ledgerPath, 'utf8'\)\)/,
+  "historical ledger must be read strictly, not fall back to empty on error");
+assert.doesNotMatch(runner,/readJson\('decision-ledger\.json'/,
+  "JSON corruption must not reset 30-day evidence");
+assert.match(runner,/rename\(tmpPath,ledgerPath\)/,
+  "store decision history using atomic replace");
+assert.match(runner,/records:preservedRecords/,
+  "publication must contain the full protected history, not slice(-5000)");
+assert.doesNotMatch(runner,/records\.slice\(-5000\)/);
 console.log("Decision ledger 30-day retention: PASS; pending checkpoints preserved, silent eviction rejected, no PAPER/LIVE changes.");
