@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { WORLD_V7_PILOT, classifyMarketState, classifyQuote, buildPilotObservation,
+import { WORLD_V7_PILOT, classifyMarketState, classifyQuote, classifyStockCatalogue, buildPilotObservation,
   emptyPilotObservation } from "../lib/market/world-v7-provider-probe.mjs";
 const now="2026-10-20T08:30:00.000Z";
 const state=[{code:"XMIL",is_market_open:true}];
@@ -10,6 +10,23 @@ const good=buildPilotObservation("XMIL",now,state,quote);
 assert.equal(good.state.reportedOpen,true);
 assert.equal(good.state.exactMic,true);
 assert.equal(good.state.authoritativeExchangeProof,false);
+
+const catalog={status:"ok",count:1,data:[{symbol:"ENEL",mic_code:"XMIL",currency:"EUR",
+  access:{global:"Basic",plan:"Pro",plan_business:"Venture"}}]};
+const listing=classifyStockCatalogue(target,catalog);
+assert.equal(listing.status,"EXACT_LISTING_IN_CATALOGUE");
+assert.equal(listing.exactIdentity,true);
+assert.equal(listing.requiredPlan,"Pro");
+assert.equal(listing.paperRightsVerified,false);
+assert.equal(classifyStockCatalogue(target,{...catalog,data:[{...catalog.data[0],mic_code:"XNAS"}]}).status,"SYMBOL_MIC_NOT_IN_PROVIDER_CATALOGUE");
+assert.equal(classifyStockCatalogue(target,{...catalog,data:[...catalog.data,...catalog.data]}).status,"AMBIGUOUS_EXACT_MIC");
+assert.equal(classifyStockCatalogue(target,{...catalog,data:[{...catalog.data[0],currency:"USD"}]}).status,"CATALOGUE_CURRENCY_MISMATCH");
+assert.equal(classifyStockCatalogue(target,{code:403,status:"error"}).status,"NO_ACCESS");
+assert.equal(classifyQuote(target,{code:400,status:"error",message:"This symbol is not available with your current plan, upgrade now"},now).status,"PLAN_ACCESS_DENIED");
+assert.equal(classifyQuote(target,{code:400,status:"error",message:"Unsupported exchange"},now).status,"NOT_FOUND_OR_INVALID_IDENTIFIER");
+const trueInput=buildPilotObservation("XMIL",now,state,quote,catalog);
+assert.equal(trueInput.catalogue.requiredPlan,"Pro");
+assert.equal(trueInput.paperReady,false);
 assert.equal(good.quote.researchFresh,true);
 assert.equal(good.quote.ageSeconds,10);
 assert.equal(good.quote.providerPricePresent,true);
@@ -49,4 +66,4 @@ const dry=JSON.parse(output);
 assert.equal(dry.usedNetwork,false);
 assert.equal(dry.paperReady,false);
 assert.equal(dry.pricePublished,false);
-console.log("WORLD V7 provider rights, quote freshness, venue identity, secrets-free and dry-run tests: PASS");
+console.log("WORLD V7 provider rights, advertised plan, quote freshness, venue identity, secrets-free and dry-run tests: PASS");
