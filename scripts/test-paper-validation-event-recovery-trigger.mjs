@@ -4,7 +4,7 @@ import { evaluatePaperValidationEventRecovery } from "./paper-validation-event-r
 
 const repository = "romitoorazio/fenice-investment-system";
 const goodUpstream = {
-  name: "Fenice Production CI",
+  name: "Fenice Foundation",
   event: "schedule",
   conclusion: "success",
   headBranch: "main",
@@ -22,8 +22,11 @@ function evaluate(overrides = {}) {
 }
 
 assert.deepEqual(evaluate(), { allowed: true, reason: "eligible-daily-evidence-recovery-trigger" });
-assert.equal(evaluate({ now: new Date("2026-10-05T17:04:59.000Z") }).allowed, false);
-assert.equal(evaluate({ now: new Date("2026-10-05T19:31:00.000Z") }).allowed, false);
+assert.equal(evaluate({ now: new Date("2026-10-05T13:34:59.000Z") }).allowed, false);
+assert.equal(evaluate({ now: new Date("2026-10-05T13:35:00.000Z") }).allowed, true);
+assert.equal(evaluate({ now: new Date("2026-10-05T17:04:59.000Z") }).allowed, true);
+assert.equal(evaluate({ now: new Date("2026-10-05T19:31:00.000Z") }).allowed, true);
+assert.equal(evaluate({ now: new Date("2026-10-05T20:46:00.000Z") }).allowed, false);
 assert.equal(evaluate({ now: new Date("2026-10-04T17:10:00.000Z") }).allowed, false);
 assert.equal(evaluate({ eventName: "push" }).allowed, false);
 assert.deepEqual(
@@ -32,6 +35,7 @@ assert.deepEqual(
 );
 assert.equal(evaluate({ upstream: { ...goodUpstream, event: "workflow_dispatch" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, event: "push", name: "Fenice World Terminal" } }).allowed, false);
+assert.equal(evaluate({ upstream: { ...goodUpstream, event: "push", name: "Fenice Production CI" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, conclusion: "failure" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, headBranch: "feature/test" } }).allowed, false);
 assert.equal(evaluate({ upstream: { ...goodUpstream, headRepository: "other/repo" } }).allowed, false);
@@ -51,7 +55,7 @@ assert.equal(parentheses, 0, "PAPER dispatcher expression must balance all paren
 
 assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository/,
   "early trigger must reject cross-repository or non-main workflow_run events before runner work");
-assert.match(workflow, /github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Production CI'/,
+assert.match(workflow, /github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Foundation'/,
   "early trigger must preserve scheduled upstreams and trusted Production CI push recovery only");
 
 console.log("paper validation event recovery trigger tests: PASS");
