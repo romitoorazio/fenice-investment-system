@@ -96,10 +96,10 @@ export default async function MercatiPage() {
     && cycleTimeNy?.day === todayNy && cycleTimeNy.minutes >= 9 * 60 + 30
     && (latestPaper.paperCycles ?? 0) > 0);
   const authoritativePaperOpening = !!(evidenceToday && latestPaper?.marketSession?.evidence?.authoritative
-    && latestPaper.marketSession.evidence.state === "OPEN"
-    && nySessionParts(latestPaper.marketSession.evidence.observedAt)?.day === todayNy);
+    && latestPaper?.marketSession?.evidence?.state === "OPEN"
+    && nySessionParts(latestPaper?.marketSession?.evidence?.observedAt)?.day === todayNy);
   const auditCoherent = !!(authoritativePaperOpening && latestPaper?.reconciliationBalanced
-    && latestPaper?.auditChainValid && latestPaper.liveOrders === 0 && latestPaper.liveTradingAllowed === false);
+    && latestPaper?.auditChainValid && latestPaper?.liveOrders === 0 && latestPaper?.liveTradingAllowed === false);
   const captureQuoteEligible = auditCoherent && latestPaper?.executionMarketCoverage?.ready === true;
   const coverageAgeMinutes = minutesOld(publishedCoverage?.generatedAt, now);
   const livePublishedQuoteEligible = coverageAgeMinutes !== null && coverageAgeMinutes <= 2
@@ -146,7 +146,7 @@ export default async function MercatiPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-black text-white">Prova operativa dopo Wall Street · PAPER</h2>
             <span className={auditCoherent ? "text-emerald-300 font-bold" : "text-amber-200 font-bold"}>
-              {auditCoherent ? "CICLO DOCUMENTATO" : "PROVA ODierna NON COMPLETA"}
+              {auditCoherent ? "CICLO DOCUMENTATO" : "PROVA ODIERNA NON COMPLETA"}
             </span>
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-400">
