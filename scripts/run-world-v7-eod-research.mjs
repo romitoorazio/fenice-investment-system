@@ -10,7 +10,11 @@ const key=String(process.env.ALPHA_VANTAGE_API_KEY||"").trim();
 const network=process.argv.includes("--network") && key.length>=8;
 const maxCalls=6;
 let calls=0;
+let lastRequestAt=0;
 async function alphaRequest(params){
+  const wait=Math.max(0, lastRequestAt+13000-Date.now());
+  if(calls>0 && wait>0)await new Promise(resolve=>setTimeout(resolve,wait));
+  lastRequestAt=Date.now();
   if(++calls>maxCalls)throw Error("WORLD_EOD_REQUEST_BUDGET_EXCEEDED");
   const search=new URLSearchParams({...params,apikey:key});
   // Alpha Vantage expects an API key in the URL. Never print this URL or
