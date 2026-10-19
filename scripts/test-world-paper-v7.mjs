@@ -125,6 +125,10 @@ const staleIntent=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
   intents:[{...intent(assetTokyo,tTokyo,"tokyo-test-stale"),createdAt:"2026-10-18T02:00:00.000Z"}]});
 assert.equal(staleIntent.summary.filledPaperOrders,0);
 assert.throws(()=>runWorldPaperV7({...tokyoInput,nowIso:"2026-10-19"}),/INVALID_WORLD_PAPER_CLOCK/);
+const researchOnly=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
+  instruments:[{...assetTokyo,paperExecutionAllowed:false},assetChina,assetMilan]});
+assert.equal(researchOnly.summary.filledPaperOrders,0,"reference-only non-US seeds never become PAPER fills");
+assert(researchOnly.listings.find(x=>x.key==="XTKS:7203").reasons.includes("LISTING_RESEARCH_ONLY_UNTIL_APPROVED"));
 const noData=runWorldPaperV7({nowIso:tTokyo,instruments:assets,entitlements:{},paperRunAuthorized:true});
 assert.equal(noData.summary.independentlyVerifiedListings,0);
 assert.equal(noData.summary.filledPaperOrders,0);
