@@ -8,11 +8,12 @@ import { runWorldPaperV7 } from "../lib/trading/world-paper-v7.mjs";
 // opt-in and verified venue/source/FX inputs. No broker imports anywhere.
 const read = (name) => JSON.parse(readFileSync(new URL("../data/" + name, import.meta.url), "utf8"));
 const master = read("instrument-master.json");
+const regionalSeeds = read("world-paper-v7-research-seeds.json");
 const funnel = read("world-equity-funnel-status.json");
 const reference = read("global-reference-coverage.json");
 const pilot = runWorldPaperV7({
   nowIso: new Date().toISOString(),
-  instruments: master.instruments,
+  instruments: [...master.instruments, ...regionalSeeds.instruments],
   sessions: [], quotes: [], fx: [], entitlements: { sources: [], sessions: [], fx: [] },
   intents: [], paperRunAuthorized: false,
 });
