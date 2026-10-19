@@ -1,0 +1,73 @@
+name: Fenice World PAPER V7 Regional Pilot
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/world-paper-v7.mjs"
+      - "scripts/run-world-paper-v7.mjs"
+      - "scripts/test-world-paper-v7.mjs"
+      - ".github/workflows/world-paper-v7.yml"
+      - "app/api/paper/world-v7/route.ts"
+  push:
+    branches: [main]
+    paths:
+      - "lib/trading/world-paper-v7.mjs"
+      - "scripts/run-world-paper-v7.mjs"
+      - "scripts/test-world-paper-v7.mjs"
+      - ".github/workflows/world-paper-v7.yml"
+  schedule:
+    # Read-only worldwide observation at Asia, Europe, US and Latin America
+    # handoff times. Schedules are not proof of an exchange being OPEN.
+    - cron: "35 2 * * 1-5"
+    - cron: "35 9 * * 1-5"
+    - cron: "35 15 * * 1-5"
+    - cron: "35 19 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: world-paper-v7-observation-${ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  independent-world-paper-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout source for isolated validation
+        uses: actions/checkout@v5
+      - name: Install Node (no dependencies or provider secrets)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Test worldwide venue, source, FX and risk engine
+        run: node scripts/test-world-paper-v7.mjs
+      - name: Produce world observation report from repository evidence
+        run: node scripts/run-world-paper-v7.mjs --output="$RUNNER_TEMP/fenice-world-paper-v7-readiness.json"
+      - name: Verify report does not unlock LIVE or invent PAPER fills
+        env:
+          REPORT_PATH: ${ runner.temp }}/fenice-world-paper-v7-readiness.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const r = JSON.parse(fs.readFileSync(process.env.REPORT_PATH,"utf8"));
+            const p = r.worldPaper;
+            if (r.globalResearchReference.selectedReferences < 1 ||
+                p.summary.pilotListings < 6 ||
+                p.summary.regions < 3 ||
+                p.summary.independentlyVerifiedListings !== 0 ||
+                p.summary.filledPaperOrders !== 0 ||
+                p.liveTradingAllowed !== false ||
+                p.brokerConnectivityAllowed !== false ||
+                p.modifiesV6 !== false) process.exit(1);
+            console.log("WORLD PAPER V7 read-only observation is correctly blocked pending real venue evidence.");
+          '
+      - name: Save reproducible regional report
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-world-paper-v7-readiness
+          path: ${ runner.temp }}/fenice-world-paper-v7-readiness.json
+          retention-days: 7
+          if-no-files-found: error
