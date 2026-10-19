@@ -36,12 +36,6 @@ for(const mic of ["XTKS","XMIL","XETR"]) {
   assert.equal(normal.licensedPaperSource,false);
 }
 const target=identifyAlphaListing("XMIL",match("XMIL"));
-const daily=mockDaily("XMIL");
-for(const k of Object.keys(daily["Time Series (Daily)"])){
-  const diff=Math.floor((Date.parse("2026-10-16T00:00:00Z")-Date.parse(k+"T00:00:00Z"))/86400000);
-  const targetDate=new Date(Date.parse(k+"T00:00:00Z")+diff*86400000).toISOString().slice(0,10);
-  // keep order and numeric OHLC; reconstruct recent sequence
-}
 const recent={};
 let idx=0;
 for(let day=Date.parse("2026-09-01T00:00:00Z");day<=Date.parse("2026-10-16T00:00:00Z");day+=86400000){
