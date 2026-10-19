@@ -38,6 +38,17 @@ assert.equal(evaluate({ upstream: { ...goodUpstream, headRepository: "other/repo
 assert.equal(evaluate({ upstream: { ...goodUpstream, name: "Unknown workflow" } }).allowed, false);
 
 const workflow = readFileSync(".github/workflows/paper-validation-early-trigger.yml", "utf8");
+
+const dispatchGate = workflow.match(/\n  dispatch:\n    if: >-\n([\s\S]*?)\n    runs-on:/)?.[1] ?? "";
+assert.ok(dispatchGate, "dispatch condition must exist");
+let parentheses = 0;
+for (const char of dispatchGate) {
+  if (char === "(") parentheses++;
+  if (char === ")") parentheses--;
+  assert.ok(parentheses >= 0, "PAPER dispatcher condition must not close parentheses early");
+}
+assert.equal(parentheses, 0, "PAPER dispatcher expression must balance all parentheses");
+
 assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository/,
   "early trigger must reject cross-repository or non-main workflow_run events before runner work");
 assert.match(workflow, /github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Production CI'/,
