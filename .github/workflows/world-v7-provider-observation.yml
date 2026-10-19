@@ -47,7 +47,9 @@ jobs:
       - run: node scripts/test-world-v7-provider-probe.mjs
 
   observation:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    # One initial access diagnostic on the first main push, then daily region-open checks.
+    # Purely read-only; secrets stay in HTTP headers and never reach JSON publication.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
