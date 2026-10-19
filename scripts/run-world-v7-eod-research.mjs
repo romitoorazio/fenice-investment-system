@@ -36,7 +36,8 @@ for(const venue of venues){
   if(!network){
     observations.push({venue,ticker:EOD_PILOTS[venue].ticker,region:EOD_PILOTS[venue].region,
       status:key?"NETWORK_NOT_AUTHORIZED":"ALPHA_VANTAGE_KEY_UNAVAILABLE",
-      researchSignal:"NO_SIGNAL",paperFillCount:0,licensedPaperSource:false});
+      researchSignal:"NO_SIGNAL",paperFillCount:0,licensedPaperSource:false,
+      liveTradingAllowed:false,rawPricePublished:false});
     continue;
   }
   const target=EOD_PILOTS[venue];
