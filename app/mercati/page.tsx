@@ -11,6 +11,64 @@ import { getNasdaqPublicMarketStatus } from "@/lib/market/nasdaq-public-market-s
 import { assessRuntimePaperQuoteGate } from "@/lib/trading/runtime-paper-quote-gate";
 import { describePersistedPaperQuoteHealth, paperQuoteDiagnosticMessage } from "@/lib/trading/paper-quote-diagnostics";
 
+
+type PublicPaperDay = {
+  date: string;
+  observedAt: string;
+  paperCycles?: number;
+  cumulativePaperFilled?: number;
+  newPaperFills?: number;
+  liveOrders?: number;
+  liveTradingAllowed?: boolean;
+  reconciliationBalanced?: boolean;
+  auditChainValid?: boolean;
+  marketSession?: { evidence?: { authoritative?: boolean; state?: string; observedAt?: string } };
+  executionMarketCoverage?: { ready?: boolean; paperEligibleSymbols?: number; requestedSymbols?: number; paperEligibleSourceFamilies?: number };
+  decisionDataGate?: { ready?: boolean };
+};
+type PublicPaperCampaign = { dailyEvidence?: PublicPaperDay[]; minEvidenceDays?: number; minPaperFills?: number };
+type PublicMarketCoverage = { generatedAt?: string; paperEligibleSymbols?: number; requestedSymbols?: number };
+type PublicSourceHealth = { generatedAt?: string; gate?: string; summary?: { healthy?: number; degraded?: number }; critical?: { ready?: number; total?: number } };
+type PublicCommittee = { generatedAt?: string; candidateCount?: number; buyCandidateCount?: number; executionGate?: string };
+const PUBLIC_EVIDENCE_ROOT = "https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/";
+const PUBLIC_EVIDENCE_FILES = [
+  "paper-validation-campaign.json", "execution-market-coverage.json",
+  "global-source-health.json", "investment-committee.json",
+] as const;
+
+// Read-only public GitHub source of record, NOT a Vercel build-time JSON snapshot.
+// A network error never becomes an implicit PASS; no provider or broker call is made.
+async function readCurrentPublishedEvidence<T>(file: typeof PUBLIC_EVIDENCE_FILES[number]): Promise<T | null> {
+  try {
+    const response = await fetch(PUBLIC_EVIDENCE_ROOT + file, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(6000),
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    return payload as T;
+  } catch {
+    return null;
+  }
+}
+const nyPartsFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York", year: "numeric", month: "2-digit",
+  day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+});
+function nySessionParts(raw: string | number | undefined) {
+  const timestamp = typeof raw === "number" ? raw : Date.parse(raw ?? "");
+  if (!Number.isFinite(timestamp)) return null;
+  const parts = Object.fromEntries(nyPartsFormatter.formatToParts(timestamp).map((part) => [part.type, part.value]));
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, minutes };
+}
+function minutesOld(raw: string | undefined, now: number): number | null {
+  const time = Date.parse(raw ?? "");
+  return Number.isFinite(time) && time <= now ? (now - time) / 60000 : null;
+}
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -25,6 +83,32 @@ export default async function MercatiPage() {
     getNasdaqPublicMarketStatus(now),
     getAlpacaPaperClock(now),
   ]);
+  const [publishedCampaign, publishedCoverage, publishedHealth, publishedCommittee] = await Promise.all([
+    readCurrentPublishedEvidence<PublicPaperCampaign>("paper-validation-campaign.json"),
+    readCurrentPublishedEvidence<PublicMarketCoverage>("execution-market-coverage.json"),
+    readCurrentPublishedEvidence<PublicSourceHealth>("global-source-health.json"),
+    readCurrentPublishedEvidence<PublicCommittee>("investment-committee.json"),
+  ]);
+  const todayNy = nySessionParts(now)?.day ?? null;
+  const latestPaper = publishedCampaign?.dailyEvidence?.at(-1) ?? null;
+  const cycleTimeNy = nySessionParts(latestPaper?.observedAt);
+  const evidenceToday = !!(todayNy && latestPaper?.date === todayNy
+    && cycleTimeNy?.day === todayNy && cycleTimeNy.minutes >= 9 * 60 + 30
+    && (latestPaper.paperCycles ?? 0) > 0);
+  const authoritativePaperOpening = !!(evidenceToday && latestPaper?.marketSession?.evidence?.authoritative
+    && latestPaper.marketSession.evidence.state === "OPEN"
+    && nySessionParts(latestPaper.marketSession.evidence.observedAt)?.day === todayNy);
+  const auditCoherent = !!(authoritativePaperOpening && latestPaper?.reconciliationBalanced
+    && latestPaper?.auditChainValid && latestPaper.liveOrders === 0 && latestPaper.liveTradingAllowed === false);
+  const captureQuoteEligible = auditCoherent && latestPaper?.executionMarketCoverage?.ready === true;
+  const coverageAgeMinutes = minutesOld(publishedCoverage?.generatedAt, now);
+  const livePublishedQuoteEligible = coverageAgeMinutes !== null && coverageAgeMinutes <= 2
+    && (publishedCoverage?.paperEligibleSymbols ?? 0) >= 3;
+  const latestCommitteeNy = nySessionParts(publishedCommittee?.generatedAt);
+  const committeeAfterOpen = !!(latestCommitteeNy && latestCommitteeNy.day === todayNy
+    && latestCommitteeNy.minutes >= 9 * 60 + 30);
+  const sourceHealthAge = minutesOld(publishedHealth?.generatedAt, now);
+  const sourceHealthCurrent = sourceHealthAge !== null && sourceHealthAge <= 120;
   const instruments = (masterData as InstrumentMaster).instruments.filter((row) => row.status === "active");
   const mics = [...new Set(instruments.map((row) => row.exchangeMic).filter((mic): mic is string => Boolean(mic)))];
   const sessions = mics.map((mic) => ({
@@ -56,6 +140,56 @@ export default async function MercatiPage() {
           </div>
           <Link href="/" className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold">Oggi</Link>
         </header>
+
+
+        <section aria-label="Prova operativa dopo l'apertura dei mercati" className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.05] p-5 text-sm text-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-black text-white">Prova operativa dopo Wall Street · PAPER</h2>
+            <span className={auditCoherent ? "text-emerald-300 font-bold" : "text-amber-200 font-bold"}>
+              {auditCoherent ? "CICLO DOCUMENTATO" : "PROVA ODierna NON COMPLETA"}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Controllo eseguito alle {new Date(now).toLocaleString("it-IT", { timeZone: "Europe/Rome" })}.
+            Fonte: file pubblici del ramo main GitHub letti senza cache; non i dati congelati nell&apos;ultimo deployment.
+            La finestra oraria di New York è soltanto un riferimento temporale; l&apos;apertura verificata richiede l&apos;orologio Alpaca nel record PAPER.
+          </p>
+          {!publishedCampaign && (
+            <p className="mt-3 text-rose-300 font-bold">Registro PAPER non raggiungibile: prova NON disponibile, nessun PASS presunto.</p>
+          )}
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
+              <dt className="font-bold text-white">Ciclo PAPER di oggi (New York {todayNy ?? "non determinabile"})</dt>
+              <dd className="mt-1">{evidenceToday ? "Registrato dopo le 09:30 ET" : "NON ancora documentato dopo l’apertura"}</dd>
+              <dd className="text-xs text-slate-400">Ultima registrazione: {latestPaper?.observedAt ?? "non disponibile"}</dd>
+              <dd className="text-xs text-slate-400">Orologio Alpaca nel record: {authoritativePaperOpening ? "OPEN autorevole" : "mancante, non attuale o non OPEN"}</dd>
+              <dd className="text-xs text-slate-400">Riconciliazione e catena audit: {auditCoherent ? "coerenti" : "non dimostrate per oggi"}</dd>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
+              <dt className="font-bold text-white">Esecuzioni simulate</dt>
+              <dd className="mt-1">Fill PAPER cumulativi: {latestPaper?.cumulativePaperFilled ?? "non disponibili"}/{publishedCampaign?.minPaperFills ?? 10}</dd>
+              <dd className="text-xs text-slate-400">Nuovi fill nell&apos;ultimo ciclo: {latestPaper?.newPaperFills ?? "non disponibili"} (zero può essere una decisione valida)</dd>
+              <dd className="text-xs text-slate-400">Quote idonee nel ciclo di oggi: {captureQuoteEligible ? "SÌ, con audit coerente" : "NON provate"}</dd>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
+              <dt className="font-bold text-white">Quotazioni di esecuzione · GitHub</dt>
+              <dd className="mt-1">{livePublishedQuoteEligible ? "Campione corrente, soglia minimo 3 titoli" : "Campione scaduto, insufficiente o non disponibile"}</dd>
+              <dd className="text-xs text-slate-400">Ultimo campione: {publishedCoverage?.generatedAt ?? "non disponibile"}</dd>
+              <dd className="text-xs text-slate-400">Titoli idonei a raccolta: {publishedCoverage?.paperEligibleSymbols ?? "?"}/{publishedCoverage?.requestedSymbols ?? "?"}; durata massima 120 s</dd>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
+              <dt className="font-bold text-white">Analisi mondiale e qualità fonti</dt>
+              <dd className="mt-1">{committeeAfterOpen ? "Comitato ricalcolato dopo l’apertura USA" : "Comitato NON ricalcolato dopo l’apertura USA"}</dd>
+              <dd className="text-xs text-slate-400">Comitato: {publishedCommittee?.generatedAt ?? "non disponibile"} · {publishedCommittee?.candidateCount ?? "?"} titoli, {publishedCommittee?.buyCandidateCount ?? "?"} BUY</dd>
+              <dd className="text-xs text-slate-400">Fonti: {publishedHealth?.summary?.healthy ?? "?"}/21 sane; gate {publishedHealth?.gate ?? "non disponibile"} ({sourceHealthCurrent ? "aggiornato" : "non recente o non disponibile"})</dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-xs text-amber-100">
+            Europa e Asia: il catalogo e i report non dimostrano esecuzioni PAPER su quelle borse.
+            Questo pannello non effettua scambi né richieste di nuovi prezzi. LIVE resta bloccato.
+            {" "}<a className="underline" target="_blank" rel="noopener noreferrer" href="https://github.com/romitoorazio/fenice-investment-system/actions/workflows/paper-validation.yml">Apri workflow PAPER</a>
+          </p>
+        </section>
 
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
