@@ -4,20 +4,24 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows:
+      # Canonical daily validation is the source of truth for campaign days.
+      # Probe-only listening missed ordinary days with no qualifying signal.
+      - Fenice Paper Validation
       - Fenice PAPER Validation Probe Cycle
     types:
       - completed
   schedule:
-    # 21:15 UTC is after the US cash close in both DST and standard-time seasons.
-    - cron: "15 21 * * 1-5"
+    # Read-only every calendar day. The original campaign matures Sunday
+    # 2026-10-25T15:40:35Z; a weekdays-only cron would miss that deadline.
+    # 21:15 UTC remains safely after cash close in both US DST regimes.
+    - cron: "15 21 * * *"
   pull_request:
     branches:
       - main
     paths:
       - "lib/intelligence/paper-campaign-runway.mjs"
       - "scripts/test-paper-v6-campaign-runway.mjs"
-      - "lib/intelligence/paper-campaign-runway.mjs"
-      - "scripts/test-paper-v6-campaign-runway.mjs"
+      - "scripts/test-paper-v6-observer-orchestration.mjs"
       - "scripts/report-paper-v6-progress.mjs"
       - "lib/intelligence/paper-v6-observer-integrity.mjs"
       - "scripts/test-paper-v6-observer-integrity.mjs"
@@ -27,6 +31,7 @@ on:
       - "scripts/report-paper-v6-progress.mjs"
       - "lib/intelligence/paper-v6-observer-integrity.mjs"
       - "scripts/test-paper-v6-observer-integrity.mjs"
+      - "scripts/test-paper-v6-observer-orchestration.mjs"
       - ".github/workflows/paper-v6-campaign-observer.yml"
 
 permissions:
@@ -34,11 +39,21 @@ permissions:
 
 concurrency:
   group: fenice-paper-v6-campaign-observer-${{ github.ref }}
-  cancel-in-progress: true
+  # A Sunday checkpoint or successful canonical completion must never cancel
+  # another observer mid-audit. Read-only overlap is safer than losing evidence.
+  cancel-in-progress: false
 
 jobs:
   observe:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.name == 'Fenice Paper Validation' ||
+        github.event.workflow_run.name == 'Fenice PAPER Validation Probe Cycle') &&
+       (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -57,6 +72,9 @@ jobs:
 
       - name: Verify certified safe-day counts and expired queue quarantine
         run: node scripts/test-paper-v6-observer-integrity.mjs
+
+      - name: Verify exact 30-day maturity checkpoint and trusted event provenance
+        run: node scripts/test-paper-v6-observer-orchestration.mjs
 
       - name: Report PAPER V6 campaign and certification maturity
         env:
