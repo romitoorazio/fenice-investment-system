@@ -47,12 +47,12 @@ export const revalidate = 0;
 // Independent observation. This page never submits to the V6 OMS or any broker.
 export default async function WorldPaperPilotPage() {
   const providerBook = await readLatestProviderObservation();
-  const readAt = Date.now();
   const report = runWorldPaperV7({
     nowIso: new Date().toISOString(), instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false, sessions: [], quotes: [], fx: [],
     entitlements: { sources: [], sessions: [], fx: [] },
   });
+  const readAt = Date.parse(report.generatedAt);
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-white sm:p-8">
       <div className="mx-auto max-w-5xl space-y-6">
