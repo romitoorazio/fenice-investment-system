@@ -1,0 +1,142 @@
+name: Fenice World V7 Real Provider Diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      venue:
+        description: MIC to probe - two API credits at most
+        type: choice
+        required: true
+        options: [XMIL, XETR, XTKS]
+        default: XMIL
+  schedule:
+    - cron: "35 1 * * 1-5"
+    - cron: "35 9 * * 1-5"
+    - cron: "35 11 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/market/world-v7-provider-probe.mjs"
+      - "scripts/probe-world-v7-market-data.mjs"
+      - "scripts/test-world-v7-provider-probe.mjs"
+      - ".github/workflows/world-v7-provider-observation.yml"
+      - "app/paper-mondo/page.tsx"
+  push:
+    branches: [main]
+    paths:
+      - "lib/market/world-v7-provider-probe.mjs"
+      - "scripts/probe-world-v7-market-data.mjs"
+      - "scripts/test-world-v7-provider-probe.mjs"
+      - ".github/workflows/world-v7-provider-observation.yml"
+permissions:
+  contents: read
+concurrency:
+  group: world-v7-real-provider-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node scripts/test-world-v7-provider-probe.mjs
+
+  observation:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Offline source and market clock regression
+        run: node scripts/test-world-v7-provider-probe.mjs
+      - name: Exact venue selection
+        id: venue
+        shell: bash
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          CHOICE: ${{ inputs.venue }}
+        run: |
+          set -euo pipefail
+          case "$SCHEDULE" in
+            "35 1 * * 1-5") venue=XTKS ;;
+            "35 9 * * 1-5") venue=XMIL ;;
+            "35 11 * * 1-5") venue=XETR ;;
+            "") venue="$CHOICE"; if [ -z "$venue" ]; then venue=XMIL; fi ;;
+            *) exit 1 ;;
+          esac
+          case "$venue" in XTKS|XMIL|XETR) ;; *) exit 1 ;; esac
+          echo "mic=$venue" >> "$GITHUB_OUTPUT"
+      - name: Actual bounded provider check (maximum 2 credits, no retries)
+        env:
+          MIC: ${{ steps.venue.outputs.mic }}
+          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
+        run: node scripts/probe-world-v7-market-data.mjs --probe --venue="$MIC" --output="$RESULT_FILE"
+      - name: Validate no price, entitlement or LIVE claim is published
+        env:
+          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const v=JSON.parse(fs.readFileSync(process.env.RESULT_FILE));
+            if(v.paperReady!==false || v.liveTradingAllowed!==false ||
+               v.brokerConnectivityAllowed!==false || v.quote?.paperEligible===true ||
+               v.privatePricePublished!==false || v.quoteFamiliesApproved!==0 ||
+               Object.hasOwn(v.quote,"price")) process.exit(1);
+          '
+      - name: Merge sanitized venue status safely into main
+        shell: bash
+        env:
+          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-world-v7-observer"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const file="data/world-v7-provider-observation.json";
+          const old=JSON.parse(fs.readFileSync(file,"utf8"));
+          const incoming=JSON.parse(fs.readFileSync(process.env.RESULT_FILE,"utf8"));
+          if(!["XTKS","XMIL","XETR"].includes(incoming.venue) ||
+             incoming.paperReady!==false || incoming.liveTradingAllowed!==false ||
+             incoming.privatePricePublished!==false || incoming.brokerConnectivityAllowed!==false ||
+             !old.records || typeof old.records!=="object" || Array.isArray(old.records)) throw Error("UNSAFE_OBSERVATION");
+          const merged={schemaVersion:1,generatedAt:incoming.recordedAt,
+            mode:"PROVIDER_ACCESS_DIAGNOSTIC_ONLY",
+            note:"One-provider access diagnostics are not sufficient for PAPER and do not grant quote rights.",
+            records:{...old.records,[incoming.venue]:incoming},
+            paperReady:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+          fs.writeFileSync(file,JSON.stringify(merged,null,2)+"\n");
+          NODE
+            git add -- data/world-v7-provider-observation.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data(world-v7): record sanitised exchange evidence"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep "$attempt"
+          done
+          exit 1
+      - name: Retain bounded proof artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-v7-provider-proof
+          path: ${{ runner.temp }}/world-v7-observation.json
+          retention-days: 7
+          if-no-files-found: ignore
