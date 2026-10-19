@@ -20,6 +20,8 @@ on:
       - "lib/intelligence/committee-valuation-numbers.mjs"
       - "scripts/test-committee-valuation-numbers.mjs"
       - "scripts/run-decision-ledger.mjs"
+      - "lib/intelligence/decision-ledger-retention.mjs"
+      - "scripts/test-decision-ledger-retention.mjs"
       - "scripts/run-calibration-analysis.mjs"
       - "lib/intelligence/calibration-engine.mjs"
       - "lib/intelligence/catalyst-matching.mjs"
@@ -75,6 +77,9 @@ jobs:
 
       - name: Guard missing DCF values from becoming zero
         run: node scripts/test-committee-valuation-numbers.mjs
+
+      - name: Guard 30-day certification evidence before updating terminal ledger
+        run: node scripts/test-decision-ledger-retention.mjs
 
       - name: Build technical intelligence, DCF and Investment Committee
         run: npm run terminal
