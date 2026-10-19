@@ -1,6 +1,7 @@
 import Link from "next/link";
 import coverageReport from "@/data/global-reference-coverage.json";
 import globalUniverse from "@/data/global-market-universe.json";
+import worldEquityFunnel from "@/data/world-equity-funnel-status.json";
 import { buildGlobalResearchDesk } from "@/lib/ui/global-research-desk";
 
 type RegionCoverage = {
@@ -150,6 +151,34 @@ export default function GlobalCoveragePage() {
             ))}
           </div>
           <p className="mt-4 text-xs leading-5 text-slate-400">Non vengono richiesti dati a pagamento. Asia, Europa, Americhe e Africa restano in sola ricerca; nessuna operazione PAPER/LIVE internazionale autorizzata. Il PAPER V6 USA è separato e immutato.</p>
+        </section>
+
+        <section className="rounded-2xl border border-sky-400/25 bg-slate-900 p-5" aria-label="Screening azionario mondiale">
+          <h2 className="text-xl font-black">Screening azionario mondiale · 2.000 riferimenti massimi</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Scansione automatica dei metadati azionari del provider, con eliminazione di warrant,
+            duplicati e borse non riconciliate. Il campione è distribuito fra mercati, non selezionato per rendimento.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {[
+              ["Strumenti esaminati",worldEquityFunnel.read],
+              ["Azioni con identità di riferimento",worldEquityFunnel.accepted],
+              ["Campione per la ricerca",worldEquityFunnel.selected],
+              ["Regioni raggiunte",worldEquityFunnel.regions],
+            ].map(([label,value])=><div key={label} className="rounded-xl bg-black/30 p-3">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="mt-2 text-2xl font-black">{Number(value).toLocaleString("it-IT")}</p>
+            </div>)}
+          </div>
+          <p className="mt-3 text-xs text-amber-200">
+            {worldEquityFunnel.status==="AWAITING_FIRST_PROVIDER_SCAN"
+              ?"In attesa della prima scansione completa del provider."
+              :"Ultimo censimento: "+worldEquityFunnel.generatedAt+" · riferimenti anagrafici, NON segnali di acquisto."}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Nessuna quotazione, valutazione finanziaria o redditività è deducibile da questo risultato.
+            L&apos;elenco individuale non viene pubblicato nel sito; PAPER internazionale e ordini reali bloccati.
+          </p>
         </section>
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
