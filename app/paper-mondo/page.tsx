@@ -8,6 +8,7 @@ import bakedObservations from "@/data/world-v7-provider-observation.json";
 
 type ProviderRecord = {
   recordedAt?: string; venue?: string;
+  target?: {providerMic?: string; mic?: string; canonicalSegmentProof?: boolean};
   state?: {status?: string; reportedOpen?: boolean | null};
   quote?: {status?: string; ageSeconds?: number | null; tradeTimestamp?: string | null};
   catalogue?: {status?: string; requiredPlan?: string; exactIdentity?: boolean};
@@ -119,6 +120,7 @@ export default async function WorldPaperPilotPage() {
                 <article key={venue.mic} className="rounded-xl border border-white/15 bg-slate-950/65 p-3 text-sm">
                   <p className="font-black text-white">{venue.name} · {venue.mic}</p>
                   <p className="text-xs text-slate-400">Titolo campione: {venue.ticker}</p>
+                  {item?.target?.providerMic && item.target.providerMic !== venue.mic && <p className="text-xs text-amber-300">MIC del provider: {item.target.providerMic} (operativo, non prova del segmento {venue.mic})</p>}
                   <p className="mt-2 text-xs text-slate-200">Controllo: {valid ? (fresh ? "REGISTRATO" : "SCADUTO") : "NON ANCORA REGISTRATO"}</p>
                   <p className="mt-1 text-xs text-slate-300">Borsa secondo provider: {valid ? (item?.state?.status ?? "non disponibile") : "non disponibile"}</p>
                   <p className="text-xs text-slate-300">Aperta secondo provider: {valid && item?.state?.reportedOpen === true ? "sì (non certificato)" : valid && item?.state?.reportedOpen === false ? "no" : "non verificato"}</p>
