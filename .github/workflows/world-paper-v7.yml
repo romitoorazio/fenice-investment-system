@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: world-paper-v7-observation-${ github.ref }}
+  group: world-paper-v7-observation-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
         run: node scripts/run-world-paper-v7.mjs --output="$RUNNER_TEMP/fenice-world-paper-v7-readiness.json"
       - name: Verify report does not unlock LIVE or invent PAPER fills
         env:
-          REPORT_PATH: ${ runner.temp }}/fenice-world-paper-v7-readiness.json
+          REPORT_PATH: ${{ runner.temp }}/fenice-world-paper-v7-readiness.json
         run: |
           node --input-type=module -e '
             import fs from "node:fs";
@@ -68,6 +68,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fenice-world-paper-v7-readiness
-          path: ${ runner.temp }}/fenice-world-paper-v7-readiness.json
+          path: ${{ runner.temp }}/fenice-world-paper-v7-readiness.json
           retention-days: 7
           if-no-files-found: error
