@@ -149,6 +149,7 @@ export default async function MercatiPage() {
             </p>
           </div>
           <Link href="/" className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold">Oggi</Link>
+          <Link href="/paper-mondo" className="rounded-xl border border-amber-300/40 px-4 py-2 text-sm font-bold text-amber-200">PAPER mondiale V7 →</Link>
         </header>
 
 

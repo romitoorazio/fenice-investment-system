@@ -93,6 +93,7 @@ export default function GlobalCoveragePage() {
           </div>
           <div className="flex flex-wrap gap-2"><Link href="/opportunita-mondo" className="rounded-xl border border-cyan-300/30 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-white/5">Opportunità · verifica dati →</Link>
           <Link href="/" className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-white/5">← Fenice</Link>
+          <Link href="/paper-mondo" className="rounded-xl border border-amber-300/40 px-4 py-2 text-sm font-bold text-amber-200">PAPER mondiale V7 →</Link>
           </div>
         </header>
 
