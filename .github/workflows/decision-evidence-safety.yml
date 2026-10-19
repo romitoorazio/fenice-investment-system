@@ -5,6 +5,9 @@ on:
     paths:
       - "lib/ui/decision-market-evidence.ts"
       - "scripts/test-decision-market-evidence.mjs"
+      - "scripts/run-decision-ledger.mjs"
+      - "lib/intelligence/decision-ledger-retention.mjs"
+      - "scripts/test-decision-ledger-retention.mjs"
       - "app/decisioni/page.tsx"
       - ".github/workflows/decision-evidence-safety.yml"
   push:
@@ -12,6 +15,9 @@ on:
     paths:
       - "lib/ui/decision-market-evidence.ts"
       - "scripts/test-decision-market-evidence.mjs"
+      - "scripts/run-decision-ledger.mjs"
+      - "lib/intelligence/decision-ledger-retention.mjs"
+      - "scripts/test-decision-ledger-retention.mjs"
       - "app/decisioni/page.tsx"
       - ".github/workflows/decision-evidence-safety.yml"
   workflow_dispatch:
@@ -30,3 +36,5 @@ jobs:
           node-version: 22
       - name: Verify per-title PAPER data labels never permit real orders
         run: node --experimental-strip-types scripts/test-decision-market-evidence.mjs
+      - name: Verify 30-day research checkpoint evidence is not evicted or backfilled
+        run: node scripts/test-decision-ledger-retention.mjs
