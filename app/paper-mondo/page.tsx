@@ -10,6 +10,7 @@ type ProviderRecord = {
   recordedAt?: string; venue?: string;
   state?: {status?: string; reportedOpen?: boolean | null};
   quote?: {status?: string; ageSeconds?: number | null; tradeTimestamp?: string | null};
+  catalogue?: {status?: string; requiredPlan?: string; exactIdentity?: boolean};
   paperReady?: boolean; privatePricePublished?: boolean;
 };
 type ProviderObservations = {
@@ -121,6 +122,8 @@ export default async function WorldPaperPilotPage() {
                   <p className="mt-2 text-xs text-slate-200">Controllo: {valid ? (fresh ? "REGISTRATO" : "SCADUTO") : "NON ANCORA REGISTRATO"}</p>
                   <p className="mt-1 text-xs text-slate-300">Borsa secondo provider: {valid ? (item?.state?.status ?? "non disponibile") : "non disponibile"}</p>
                   <p className="text-xs text-slate-300">Aperta secondo provider: {valid && item?.state?.reportedOpen === true ? "sì (non certificato)" : valid && item?.state?.reportedOpen === false ? "no" : "non verificato"}</p>
+                  <p className="mt-1 text-xs text-slate-300">Catalogo/identità: {valid ? (item?.catalogue?.status ?? "non verificato") : "non verificato"}</p>
+                  <p className="text-xs text-slate-300">Piano dichiarato per il simbolo: {valid ? (item?.catalogue?.requiredPlan ?? "sconosciuto") : "sconosciuto"} (non è un diritto di utilizzo)</p>
                   <p className="mt-1 text-xs text-slate-300">Prezzo e ora: {valid ? (item?.quote?.status ?? "non disponibile") : "non verificati"}</p>
                   <p className="text-xs text-slate-400">Rilevamento: {valid ? item?.recordedAt : "nessuno"}</p>
                   <p className="mt-2 text-xs font-semibold text-amber-200">PAPER: NON AUTORIZZATO — manca certificazione delle fonti indipendenti</p>
