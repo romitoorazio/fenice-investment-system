@@ -18,8 +18,10 @@ const probing = process.argv.includes("--probe") && key.length >= 8;
 async function request(kind) {
   const params = kind === "state"
     ? new URLSearchParams({code: target.exchangeMic})
+    : kind === "catalogue"
+    ? new URLSearchParams({symbol: target.symbol, mic_code: target.exchangeMic, show_plan: "true", outputsize: "40"})
     : new URLSearchParams({symbol: target.symbol, mic_code: target.exchangeMic});
-  const endpoint = kind === "state" ? "/market_state" : "/quote";
+  const endpoint = kind === "state" ? "/market_state" : kind === "catalogue" ? "/stocks" : "/quote";
   const timeout = AbortSignal.timeout(7000);
   try {
     const response = await fetch("https://api.twelvedata.com" + endpoint + "?" + params, {
@@ -48,9 +50,11 @@ if (!probing) {
   const state=await request("state");
   // Basic is 8 credits/minute; do not retry/overlap or exhaust shared quota.
   await new Promise(resolve=>setTimeout(resolve,1400));
+  const catalogue=await request("catalogue");
+  await new Promise(resolve=>setTimeout(resolve,1400));
   const quote=await request("quote");
-  observed=buildPilotObservation(venue, new Date().toISOString(), state, quote);
-  observed.requestedApiCreditsMax=2;
+  observed=buildPilotObservation(venue, new Date().toISOString(), state, quote, catalogue);
+  observed.requestedApiCreditsMax=3;
 }
 mkdirSync(path.dirname(output),{recursive:true});
 writeFileSync(output,JSON.stringify(observed,null,2)+"\n",{mode:0o600});
@@ -58,6 +62,7 @@ const log={venue, recordedAt:observed.recordedAt, state:observed.state.status,
   reportedOpen:observed.state.reportedOpen, quote:observed.quote.status,
   quoteAgeSeconds:observed.quote.ageSeconds ?? null,
   blockers:observed.blockers, paperReady:false, usedNetwork:probing, pricePublished:false,
+  catalogueStatus:observed.catalogue?.status, advertisedPlan:observed.catalogue?.requiredPlan,
   file:output};
 console.log(JSON.stringify(log));
 if (process.env.GITHUB_STEP_SUMMARY) {
