@@ -5,10 +5,15 @@ on:
     branches: [main]
     paths:
       - "scripts/diagnose-paper-v7-runway.mjs"
+      - "scripts/report-paper-candidate-bottlenecks.mjs"
+      - "scripts/test-report-paper-candidate-bottlenecks.mjs"
       - "scripts/test-paper-v7-runway.mjs"
       - ".github/workflows/paper-candidate-diagnostics.yml"
   workflow_run:
+    # The normal daily PAPER validation must ALWAYS generate diagnostics,
+    # even when no discretionary probe is staged for lack of qualifying signals.
     workflows:
+      - Fenice Paper Validation
       - Fenice PAPER Validation Probe Cycle
     types:
       - completed
@@ -38,6 +43,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Regression test strict archival candidate evidence
+        run: node scripts/test-report-paper-candidate-bottlenecks.mjs
+
+      - name: Record historical blockers for all 12 validated-symbol candidates
+        env:
+          FENICE_CANDIDATE_BLOCKERS_REPORT: paper-candidate-blockers.json
+        run: node scripts/report-paper-candidate-bottlenecks.mjs
 
       - name: Explain PAPER candidate eligibility
         run: node scripts/explain-paper-validation-candidates.mjs
@@ -76,5 +89,6 @@ jobs:
             paper-candidate-opportunities.json
             paper-v6-committee-sensitivity.json
             paper-v7-runway.json
+            paper-candidate-blockers.json
           if-no-files-found: error
           retention-days: 14
