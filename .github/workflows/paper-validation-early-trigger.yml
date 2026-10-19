@@ -24,10 +24,11 @@ on:
     - cron: "5 19 * * 0,6"
     - cron: "35 19 * * 0,6"
   workflow_run:
-    # One scheduled upstream recovery signal is enough: Foundation itself
-    # runs on a schedule, so event provenance can pass the existing strict
-    # scheduled-upstream gate. Daily/weekend cron checkpoints remain backup.
-    # Re-subscribing all five upstream workflows produced redundant jobs.
+    # Only subscribed upstream is Foundation. Its successful scheduled AND
+    # push runs may repair missed weekday cron dispatches. A push from any
+    # other workflow cannot satisfy this workflow_run filter. The dispatcher
+    # must also pass the date, active-run and daily-rate-limit policy.
+    # No PAPER V6 engine files or LIVE permissions are affected.
     workflows:
       - "Fenice Foundation"
     types: [completed]
@@ -57,7 +58,7 @@ jobs:
        github.event.workflow_run.head_repository.full_name == github.repository &&
        (github.event.workflow_run.event == 'schedule' ||
         (github.event.workflow_run.event == 'push' &&
-         github.event.workflow_run.name == 'Fenice Production CI'))))
+         github.event.workflow_run.name == 'Fenice Foundation'))))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

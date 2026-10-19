@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 import { PAPER_PROBE_RECOVERY_UPSTREAMS } from "./paper-probe-recovery-trigger.mjs";
 
 // Event-driven fallback for the lightweight PAPER daily-evidence dispatcher.
-// It deliberately starts later than probe recovery so normal probe opportunities
-// run first. Passing this gate never creates evidence itself: it only permits the
+// Only successful trusted upstreams during the actual US window may recover
+// missed dispatcher cron events. Canonical PAPER still checks Alpaca, data, risk
+// and independently verified quote evidence before any simulated action. Passing this gate never creates evidence itself: it only permits the
 // existing dispatcher to re-check final evidence and active canonical runs.
 export function evaluatePaperValidationEventRecovery({
   now = new Date(),
@@ -20,19 +21,22 @@ export function evaluatePaperValidationEventRecovery({
 
   const weekday = instant.getUTCDay();
   const minutes = instant.getUTCHours() * 60 + instant.getUTCMinutes();
-  if (weekday === 0 || weekday === 6 || minutes < 1025 || minutes > 1170) {
+  // 13:35 UTC covers US summer time; winter time still waits for the Alpaca
+  // clock. Permit Foundation push completions into the late session as a
+  // fallback when GitHub silently skips every weekday schedule.
+  // No additional trading entitlement is created by this timing gate.
+  if (weekday === 0 || weekday === 6 || minutes < 815 || minutes > 1245) {
     return blocked("outside-daily-evidence-recovery-window");
   }
 
   if (!PAPER_PROBE_RECOVERY_UPSTREAMS.includes(upstream.name)) return blocked("unapproved-upstream");
 
-  // Scheduled trusted upstreams remain the normal recovery source. A successful
-  // Production CI push on main is also trusted because it is the repository's
-  // post-merge safety gate and can occur after GitHub has already missed the
-  // day's final scheduled dispatcher checkpoint. Other push-triggered workflows
-  // remain excluded to avoid broadening recovery provenance unnecessarily.
+  // This workflow only subscribes to Fenice Foundation, so gating on a
+  // Production CI push made the entire fallback path unreachable. Authorize
+  // Foundation's completed push on the same trusted main branch instead.
+  // Other workflow names and repository forks remain excluded.
   const approvedUpstreamEvent = upstream.event === "schedule"
-    || (upstream.event === "push" && upstream.name === "Fenice Production CI");
+    || (upstream.event === "push" && upstream.name === "Fenice Foundation");
   if (!approvedUpstreamEvent || upstream.conclusion !== "success") {
     return blocked("upstream-not-successful-approved-event");
   }
