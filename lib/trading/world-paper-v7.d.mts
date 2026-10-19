@@ -1,6 +1,6 @@
 export type WorldPaperV7Instrument = {
   ticker: string; exchangeMic?: string; currency: string; region: string;
-  country?: string; status: string; assetClass: string;
+  country?: string; status: string; assetClass: string; paperExecutionAllowed?: boolean;
 };
 export type WorldPaperV7Listing = {
   key: string; symbol: string; mic: string; country?: string; region: string;
