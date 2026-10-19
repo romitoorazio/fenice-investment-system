@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       venue:
-        description: MIC to probe - two API credits at most
+        description: MIC to probe - three API credits at most
         type: choice
         required: true
         options: [XMIL, XETR, XTKS]
@@ -83,7 +83,7 @@ jobs:
           esac
           case "$venue" in XTKS|XMIL|XETR) ;; *) exit 1 ;; esac
           echo "mic=$venue" >> "$GITHUB_OUTPUT"
-      - name: Actual bounded provider check (maximum 2 credits, no retries)
+      - name: Actual bounded provider check (maximum 3 credits, no retries)
         env:
           MIC: ${{ steps.venue.outputs.mic }}
           RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
