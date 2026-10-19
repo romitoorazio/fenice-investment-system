@@ -1,0 +1,89 @@
+name: Fenice World Equity Reference Funnel
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/research/world-equity-funnel.mjs"
+      - "scripts/collect-world-equity-funnel.mjs"
+      - "scripts/test-world-equity-funnel.mjs"
+      - "scripts/check-world-equity-funnel-status.mjs"
+      - "data/world-equity-funnel-status.json"
+      - "app/global/page.tsx"
+      - ".github/workflows/world-equity-funnel.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/research/world-equity-funnel.mjs"
+      - "scripts/collect-world-equity-funnel.mjs"
+      - "scripts/test-world-equity-funnel.mjs"
+      - ".github/workflows/world-equity-funnel.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 3"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: World scanner synthetic regression
+        run: node scripts/test-world-equity-funnel.mjs
+      - name: Public summary safety contract
+        run: node scripts/check-world-equity-funnel-status.mjs
+      - name: No repository secrets
+        run: node scripts/scan-repository-secrets.mjs
+  collect:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: fenice-data-writer
+      cancel-in-progress: false
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Bounded free global stocks and exchanges reference scan
+        run: node scripts/collect-world-equity-funnel.mjs --limit=2000
+      - name: Check output before publication
+        run: node scripts/check-world-equity-funnel-status.mjs
+      - name: Keep individual selected references only as expiring workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-equity-research-references
+          path: ${{ runner.temp }}/fenice-world-equity-references.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Commit aggregate statistics only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-world-reference-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp data/world-equity-funnel-status.json "${{ runner.temp }}/summary.json"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "${{ runner.temp }}/summary.json" data/world-equity-funnel-status.json
+            node scripts/check-world-equity-funnel-status.mjs
+            git add data/world-equity-funnel-status.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data: update world equity funnel public summary"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1

@@ -4,7 +4,14 @@ import {buildInternationalResearchQueue as build} from "../lib/ui/international-
 const read=async file=>JSON.parse(await readFile(new URL("../data/"+file,import.meta.url),"utf8"));
 const [master,fundamentals,terminal,committee,reference]=await Promise.all(
  ["instrument-master.json","fundamental-research.json","terminal-intelligence.json","investment-committee.json","global-reference-coverage.json"].map(read));
-const now=Date.parse("2026-10-19T00:00:00.000Z");
+// Provider snapshots are refreshed by scheduled bots. Fix the test clock AFTER
+// all source snapshots so fresh SEC evidence is not incorrectly called future.
+const now=Math.max(
+ Date.parse("2026-10-19T00:00:00.000Z"),
+ Date.parse(fundamentals.generatedAt),
+ Date.parse(terminal.generatedAt),
+ Date.parse(committee.generatedAt)
+)+60_000;
 const report=build(master,fundamentals,terminal,committee,reference,now);
 assert.equal(report.summary.internationalSeedEquities,9);
 assert.equal(report.summary.locallyListed,7);
