@@ -1,0 +1,27 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const workflow=readFileSync(".github/workflows/paper-provider-feasibility.yml","utf8");
+const planner=readFileSync("scripts/plan-paper-v7-probe-priority.mjs","utf8");
+const lines=workflow.split("\n");
+const job=workflow.split("\n  provider-feasibility:\n")[1]?.split("\n    runs-on:")[0]||"";
+assert.match(workflow,/workflow_run:\n\s+workflows: \["Fenice Paper Validation"\]\n\s+types: \[completed\]\n\s+branches: \[main\]/);
+assert.match(job,/github\.event\.workflow_run\.conclusion == 'success'/);
+assert.match(job,/github\.event\.workflow_run\.head_branch == 'main'/);
+assert.match(job,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
+assert.match(job,/github\.event\.workflow_run\.name == 'Fenice Paper Validation'/);
+assert.match(job,/github\.event\.workflow_run\.event == 'workflow_dispatch'/);
+assert.match(job,/github\.event\.workflow_run\.event == 'schedule'/);
+assert.match(workflow,/cancel-in-progress: false/);
+assert.match(workflow,/ref: \$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.head\.sha \|\| 'main' \}\}/);
+assert.match(workflow,/if: github\.event_name != 'pull_request'\n\s+run: node --experimental-strip-types scripts\/probe-paper-provider-feasibility\.mjs/);
+assert.match(workflow,/run: node scripts\/test-paper-v7-probe-priority\.mjs/);
+assert.match(planner,/NO_VERIFIED_OPEN_SESSION_SAMPLE/);
+assert.match(planner,/EXPIRED_OR_INVALID_PROVIDER_SAMPLE/);
+assert.match(planner,/DEFER_UNOBSERVED_OR_STALE_SESSION/);
+assert.match(workflow,/activationAllowed !== false/);
+assert.match(workflow,/currentV6Modified !== false/);
+assert.match(workflow,/liveTradingAllowed !== false/);
+const cron=lines.filter(x=>/\- cron:/.test(x));
+assert.deepEqual(cron.map(x=>x.trim()),['- cron: "12 15 * * 1-5"']);
+console.log("V7 provider trigger safety: PASS (trusted canonical completion, cron fallback, no quote rights inferred).");
