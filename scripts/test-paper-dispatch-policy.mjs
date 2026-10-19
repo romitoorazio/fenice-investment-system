@@ -96,6 +96,35 @@ const completedRun = evaluatePaperValidationDispatch({
   now,
 });
 assert.equal(completedRun.shouldDispatch, true);
+const exhaustedAuto = evaluatePaperValidationDispatch({
+  campaign: { dailyEvidence: [] }, marketSession: {}, now,
+  workflowRuns: Array.from({ length: 4 }, (_, index) => ({
+    databaseId: index + 50,
+    status: "completed",
+    createdAt: "2026-12-01T" + String(15 + index).padStart(2,"0") + ":00:00Z",
+  })),
+});
+assert.equal(exhaustedAuto.shouldDispatch, false, "do not endlessly retry PAPER with provider down");
+assert.equal(exhaustedAuto.automaticDailyLimitReached, true);
+assert.equal(exhaustedAuto.dailyCanonicalRuns, 4);
+const hasBudget = evaluatePaperValidationDispatch({
+  campaign: { dailyEvidence: [] }, marketSession: {}, now,
+  workflowRuns: Array.from({ length: 3 }, (_, index) => ({
+    databaseId: index + 70,
+    status: "completed",
+    createdAt: "2026-12-01T" + String(15 + index) + ":00:00Z",
+  })),
+});
+assert.equal(hasBudget.shouldDispatch, true);
+assert.equal(hasBudget.dailyCanonicalRuns, 3);
+const yesterdayExhausted = evaluatePaperValidationDispatch({
+  campaign: { dailyEvidence: [] }, marketSession: {}, now,
+  workflowRuns: Array.from({ length: 6 }, (_, index) => ({
+    databaseId: index + 80, status:"completed", createdAt:"2026-11-30T17:00:00Z",
+  })),
+});
+assert.equal(yesterdayExhausted.shouldDispatch, true, "yesterday retries cannot exhaust today");
+
 
 const unsafeOpenRow = evaluatePaperValidationDispatch({
   campaign: { dailyEvidence: [{ ...safeRow, auditChainValid: false, marketSession: open }] },
@@ -130,7 +159,8 @@ assert.match(early, /check-paper-validation-dispatch\.mjs/);
 assert.match(early, /steps\.today\.outputs\.should_dispatch == 'true'/);
 assert.match(early, /-f dispatch_token=/);
 assert.equal((early.match(/^  workflow_run:/gm) || []).length, 1, "early dispatcher must define workflow_run exactly once");
-assert.match(early, /Fenice Production CI/);
+assert.match(early, /Fenice Foundation/);
+assert.match(early, /workflow_run\.name == 'Fenice Foundation'/);
 assert.match(early, /paper-validation-event-recovery-trigger\.mjs/);
 assert.doesNotMatch(early, /workflows:\s*\["Fenice PAPER Validation Probe Cycle"\]/);
 assert.match(early, /github\.event_name != 'workflow_run'/);
