@@ -21,10 +21,10 @@ for (const name of PAPER_PROBE_RECOVERY_UPSTREAMS) {
 assert.equal(
   evaluatePaperProbeRecoveryTrigger({
     ...base,
-    upstream: { ...base.upstream, name: "Fenice Production CI", event: "push" },
+    upstream: { ...base.upstream, name: "Fenice Foundation", event: "push" },
   }).allowed,
   true,
-  "successful Production CI push on main is an approved recovery opportunity",
+  "successful subscribed Foundation push on main is an approved recovery opportunity",
 );
 assert.equal(
   evaluatePaperProbeRecoveryTrigger({
@@ -32,7 +32,7 @@ assert.equal(
     upstream: { ...base.upstream, name: "Fenice World Terminal", event: "push" },
   }).allowed,
   false,
-  "non-Production-CI push workflow_run must remain blocked",
+  "non-Foundation push workflow_run must remain blocked",
 );
 
 for (const [now, allowed, label] of [
@@ -57,6 +57,7 @@ for (const [now, allowed, label] of [
 for (const [override, reason] of [
   [{ name: "Fenice Intelligence Quality" }, "unapproved-upstream"],
   [{ event: "push" }, "upstream-not-approved-success"],
+  [{ event: "push", name: "Fenice Production CI" }, "upstream-not-approved-success"],
   [{ event: "pull_request" }, "upstream-not-approved-success"],
   [{ event: "workflow_dispatch" }, "upstream-not-approved-success"],
   [{ conclusion: "failure" }, "upstream-not-approved-success"],

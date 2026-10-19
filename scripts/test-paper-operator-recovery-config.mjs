@@ -14,8 +14,8 @@ assert.deepEqual(configuredUpstreams, ["Fenice Foundation"], "only a genuinely s
 assert.ok(configuredUpstreams.every((name) => PAPER_PROBE_RECOVERY_UPSTREAMS.includes(name)),
   "subscribed workflow must remain within the independently tested provenance allow-list");
 assert.match(workflowRun, /types:\n\s+- completed\b/, "recovery must only inspect completed upstream runs");
-assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository[\s\S]*github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Production CI'/,
-  "runner-level filter must allow scheduled upstreams or successful Production CI push on repository main only");
+assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository[\s\S]*github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Foundation'/,
+  "runner-level filter must allow scheduled upstreams or successful Foundation push on repository main only");
 
 const schedule = workflow.match(/  schedule:\n([\s\S]*?)\n  workflow_run:/)?.[1] ?? "";
 const recoveryTimes = [...schedule.matchAll(/cron: "(\d+) (\d+) \* \* 1-5"/g)]
@@ -40,7 +40,7 @@ const requiredFailClosedChecks = [
   '[ "$UPSTREAM_CONCLUSION" = "success" ]',
   '[ "$UPSTREAM_EVENT" = "schedule" ]',
   '[ "$UPSTREAM_EVENT" = "push" ]',
-  '[ "$UPSTREAM_NAME" = "Fenice Production CI" ]',
+  '[ "$UPSTREAM_NAME" = "Fenice Foundation" ]',
   '[ "$UPSTREAM_HEAD_BRANCH" = "main" ]',
   '[ "$utc_weekday" -le 5 ]',
   '[ "$utc_minutes" -ge 875 ]',

@@ -10,8 +10,10 @@ export const PAPER_PROBE_RECOVERY_UPSTREAMS = [
   "Fenice Production CI",
 ];
 
-// This is only a conservative dispatch window. The frozen canonical workflow
-// still requires the authoritative Alpaca session and every PAPER risk gate.
+// Only the pre-approved Foundation main-branch provenance can recover a missing
+// scheduled probe via workflow_run. It never grants an order: the original
+// frozen V6 probe still requires approval, fresh quote quorum, Alpaca OPEN,
+// risk checks, execution accounting, cooldown and hard trading LIVE lock.
 export function evaluatePaperProbeRecoveryTrigger({
   now = new Date(),
   eventName,
@@ -32,7 +34,7 @@ export function evaluatePaperProbeRecoveryTrigger({
   if (eventName === "workflow_run") {
     if (!PAPER_PROBE_RECOVERY_UPSTREAMS.includes(upstream.name)) return blocked("unapproved-upstream");
     const allowedUpstreamEvent = upstream.event === "schedule"
-      || (upstream.event === "push" && upstream.name === "Fenice Production CI");
+      || (upstream.event === "push" && upstream.name === "Fenice Foundation");
     if (!allowedUpstreamEvent || upstream.conclusion !== "success") {
       return blocked("upstream-not-approved-success");
     }
