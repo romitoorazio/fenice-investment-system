@@ -90,11 +90,12 @@ export default async function MercatiPage() {
     readCurrentPublishedEvidence<PublicCommittee>("investment-committee.json"),
   ]);
   const todayNy = nySessionParts(now)?.day ?? null;
-  const latestPaper = publishedCampaign?.dailyEvidence?.at(-1) ?? null;
+  const latestPaper = Array.isArray(publishedCampaign?.dailyEvidence)
+    ? publishedCampaign.dailyEvidence.at(-1) ?? null : null;
   const cycleTimeNy = nySessionParts(latestPaper?.observedAt);
   const evidenceToday = !!(todayNy && latestPaper?.date === todayNy
     && cycleTimeNy?.day === todayNy && cycleTimeNy.minutes >= 9 * 60 + 30
-    && (latestPaper.paperCycles ?? 0) > 0);
+    && typeof latestPaper.paperCycles === "number" && latestPaper.paperCycles > 0);
   const lastSessionClockMs = Date.parse(latestPaper?.marketSession?.evidence?.observedAt ?? "");
   const lastPaperCycleMs = Date.parse(latestPaper?.observedAt ?? "");
   const sessionClockAgeSeconds = Number.isFinite(lastSessionClockMs) && Number.isFinite(lastPaperCycleMs)
@@ -108,11 +109,11 @@ export default async function MercatiPage() {
     && latestPaper?.liveOrders === 0 && latestPaper?.liveTradingAllowed === false);
   const paperCoverage = latestPaper?.executionMarketCoverage;
   const captureQuoteEligible = !!(auditCoherent && paperCoverage?.ready === true
-    && (paperCoverage?.paperEligibleSymbols ?? 0) >= 3
-    && (paperCoverage?.paperEligibleSourceFamilies ?? 0) >= 2);
+    && typeof paperCoverage?.paperEligibleSymbols === "number" && paperCoverage.paperEligibleSymbols >= 3
+    && typeof paperCoverage?.paperEligibleSourceFamilies === "number" && paperCoverage.paperEligibleSourceFamilies >= 2);
   const coverageAgeMinutes = minutesOld(publishedCoverage?.generatedAt, now);
   const livePublishedQuoteEligible = coverageAgeMinutes !== null && coverageAgeMinutes <= 2
-    && (publishedCoverage?.paperEligibleSymbols ?? 0) >= 3;
+    && typeof publishedCoverage?.paperEligibleSymbols === "number" && publishedCoverage.paperEligibleSymbols >= 3;
   const latestCommitteeNy = nySessionParts(publishedCommittee?.generatedAt);
   const committeeAfterOpen = !!(latestCommitteeNy && latestCommitteeNy.day === todayNy
     && latestCommitteeNy.minutes >= 9 * 60 + 30);
