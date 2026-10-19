@@ -16,9 +16,6 @@ on:
     # lightweight dispatch-policy read when final evidence already exists; it
     # does not call market-data providers or dispatch the canonical workflow.
     - cron: "5 17 * * 1-5"
-    # Independent audit checkpoints; these NEVER dispatch an OMS or broker order.
-    - cron: "15 16 * * 1-5"
-    - cron: "35 18 * * 1-5"
     # GitHub occasionally omits the canonical weekend schedule entirely. These
     # guarded recovery checkpoints only read the dispatch policy first: they
     # dispatch at most one canonical run when today's final CLOSED evidence is
@@ -53,8 +50,6 @@ concurrency:
 jobs:
   dispatch:
     if: >-
-      (github.event_name != 'schedule' ||
-        (github.event.schedule != '15 16 * * 1-5' && github.event.schedule != '35 18 * * 1-5')) &&
       (github.event_name != 'workflow_dispatch' || inputs.audit_only != true) &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -123,11 +118,12 @@ jobs:
         run: echo "Event-driven PAPER evidence recovery suppressed; reason=${{ steps.event_recovery.outputs.reason }}."
 
   after-open-proof:
+    # Reuse existing fallback events to avoid extra GitHub Actions and provider-budget fanout.
     name: Independent after-open evidence proof (read-only)
     if: >-
       (github.event_name == 'schedule' &&
-       (github.event.schedule == '15 16 * * 1-5' ||
-        github.event.schedule == '35 18 * * 1-5')) ||
+       (github.event.schedule == '35 16 * * 1-5' ||
+        github.event.schedule == '5 17 * * 1-5')) ||
       (github.event_name == 'workflow_dispatch' && inputs.audit_only == true)
     runs-on: ubuntu-latest
     timeout-minutes: 6
