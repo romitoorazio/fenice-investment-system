@@ -1,0 +1,127 @@
+name: Fenice World V7 EOD Research
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "lib/market/world-v7-eod-research.mjs"
+      - "scripts/run-world-v7-eod-research.mjs"
+      - "scripts/test-world-v7-eod-research.mjs"
+      - ".github/workflows/world-v7-eod-research.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/market/world-v7-eod-research.mjs"
+      - "scripts/run-world-v7-eod-research.mjs"
+      - "scripts/test-world-v7-eod-research.mjs"
+      - ".github/workflows/world-v7-eod-research.yml"
+      - "app/paper-mondo/page.tsx"
+  schedule:
+    # After European session, and after Tokyo finished; all today's daily bars
+    # are ignored until their exchange-local calendar date rolls over.
+    - cron: "40 23 * * 1-5"
+
+permissions:
+  contents: read
+concurrency:
+  group: fenice-world-v7-eod-research
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Prove closed bars and non-lookahead accounting
+        run: node scripts/test-world-v7-eod-research.mjs
+
+  observe:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: write
+    env:
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node scripts/test-world-v7-eod-research.mjs
+      - name: Probe three global EOD research venues within 6 API calls
+        env:
+          RESULT: ${{ runner.temp }}/world-v7-eod-report.json
+        run: node scripts/run-world-v7-eod-research.mjs --network --venue=ALL --output="$RESULT"
+      - name: Verify no OHLC, provider secrets or false fills in public report
+        env:
+          RESULT: ${{ runner.temp }}/world-v7-eod-report.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const x=JSON.parse(fs.readFileSync(process.env.RESULT,"utf8"));
+            if(x.liveTradingAllowed!==false || x.realtimePaperEligible!==false ||
+               x.brokerConnectivityAllowed!==false || x.simulatedOrders!==0 ||
+               x.requestsUsed>6 || x.observations?.length!==3 ||
+               x.observations.some(o=>o.paperFillCount!==0 && o.paperFillCount!==undefined) ||
+               x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))))
+              process.exit(1);
+          '
+      - name: Publish independent metadata only, never quotes or orders
+        shell: bash
+        env:
+          RESULT: ${{ runner.temp }}/world-v7-eod-report.json
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-world-eod-research"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const file="data/world-v7-eod-research.json";
+          const old=JSON.parse(fs.readFileSync(file,"utf8"));
+          const incoming=JSON.parse(fs.readFileSync(process.env.RESULT,"utf8"));
+          if(incoming.liveTradingAllowed!==false || incoming.simulatedOrders!==0 ||
+             !Array.isArray(incoming.observations) || incoming.observations.length!==3 ||
+             !old.records || Array.isArray(old.records)) throw Error("INVALID_EOD_PUBLICATION");
+          const records={...old.records};
+          for(const r of incoming.observations){
+            if(!["XMIL","XETR","XTKS"].includes(r.venue) ||
+               r.paperFillCount!==0 || r.liveTradingAllowed!==false && r.liveTradingAllowed!==undefined ||
+               Object.hasOwn(r,"price") || Object.hasOwn(r,"close")) throw Error("INVALID_EOD_ROW");
+            records[r.venue]=r;
+          }
+          const output={version:1,generatedAt:incoming.generatedAt,
+            mode:"WORLD_V7_EOD_RESEARCH_ONLY",
+            note:"Derived trend from completed historical bars. No raw OHLC, broker orders or certified PAPER fills.",
+            records,realProviderQueried:incoming.realProviderQueried,
+            dataRights:incoming.dataRights,requestsUsed:incoming.requestsUsed,
+            realtimePaperEligible:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+          fs.writeFileSync(file,JSON.stringify(output,null,2)+"\n");
+          NODE
+            git add -- data/world-v7-eod-research.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data(world-v7): publish sanitized EOD research health"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep "$attempt"
+          done
+          exit 1
+      - name: Keep finite EOD observation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-world-eod-research
+          path: ${{ runner.temp }}/world-v7-eod-report.json
+          retention-days: 7
+          if-no-files-found: ignore
