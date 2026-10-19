@@ -1,5 +1,6 @@
 import Link from "next/link";
 import master from "@/data/instrument-master.json";
+import regionalSeeds from "@/data/world-paper-v7-research-seeds.json";
 import funnel from "@/data/world-equity-funnel-status.json";
 import reference from "@/data/global-reference-coverage.json";
 import { runWorldPaperV7 } from "@/lib/trading/world-paper-v7.mjs";
@@ -11,7 +12,7 @@ export const revalidate = 0;
 // Independent observation. This page never submits to the V6 OMS or any broker.
 export default function WorldPaperPilotPage() {
   const report = runWorldPaperV7({
-    nowIso: new Date().toISOString(), instruments: master.instruments,
+    nowIso: new Date().toISOString(), instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false, sessions: [], quotes: [], fx: [],
     entitlements: { sources: [], sessions: [], fx: [] },
   });
