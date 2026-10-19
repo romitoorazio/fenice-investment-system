@@ -95,12 +95,21 @@ export default async function MercatiPage() {
   const evidenceToday = !!(todayNy && latestPaper?.date === todayNy
     && cycleTimeNy?.day === todayNy && cycleTimeNy.minutes >= 9 * 60 + 30
     && (latestPaper.paperCycles ?? 0) > 0);
+  const lastSessionClockMs = Date.parse(latestPaper?.marketSession?.evidence?.observedAt ?? "");
+  const lastPaperCycleMs = Date.parse(latestPaper?.observedAt ?? "");
+  const sessionClockAgeSeconds = Number.isFinite(lastSessionClockMs) && Number.isFinite(lastPaperCycleMs)
+    ? (lastPaperCycleMs - lastSessionClockMs) / 1000 : null;
   const authoritativePaperOpening = !!(evidenceToday && latestPaper?.marketSession?.evidence?.authoritative
     && latestPaper?.marketSession?.evidence?.state === "OPEN"
-    && nySessionParts(latestPaper?.marketSession?.evidence?.observedAt)?.day === todayNy);
+    && nySessionParts(latestPaper?.marketSession?.evidence?.observedAt)?.day === todayNy
+    && sessionClockAgeSeconds !== null && sessionClockAgeSeconds >= 0 && sessionClockAgeSeconds <= 120);
   const auditCoherent = !!(authoritativePaperOpening && latestPaper?.reconciliationBalanced
-    && latestPaper?.auditChainValid && latestPaper?.liveOrders === 0 && latestPaper?.liveTradingAllowed === false);
-  const captureQuoteEligible = auditCoherent && latestPaper?.executionMarketCoverage?.ready === true;
+    && latestPaper?.auditChainValid && latestPaper?.decisionDataGate?.ready === true
+    && latestPaper?.liveOrders === 0 && latestPaper?.liveTradingAllowed === false);
+  const paperCoverage = latestPaper?.executionMarketCoverage;
+  const captureQuoteEligible = !!(auditCoherent && paperCoverage?.ready === true
+    && (paperCoverage?.paperEligibleSymbols ?? 0) >= 3
+    && (paperCoverage?.paperEligibleSourceFamilies ?? 0) >= 2);
   const coverageAgeMinutes = minutesOld(publishedCoverage?.generatedAt, now);
   const livePublishedQuoteEligible = coverageAgeMinutes !== null && coverageAgeMinutes <= 2
     && (publishedCoverage?.paperEligibleSymbols ?? 0) >= 3;
@@ -162,7 +171,7 @@ export default async function MercatiPage() {
               <dt className="font-bold text-white">Ciclo PAPER di oggi (New York {todayNy ?? "non determinabile"})</dt>
               <dd className="mt-1">{evidenceToday ? "Registrato dopo le 09:30 ET" : "NON ancora documentato dopo l’apertura"}</dd>
               <dd className="text-xs text-slate-400">Ultima registrazione: {latestPaper?.observedAt ?? "non disponibile"}</dd>
-              <dd className="text-xs text-slate-400">Orologio Alpaca nel record: {authoritativePaperOpening ? "OPEN autorevole" : "mancante, non attuale o non OPEN"}</dd>
+              <dd className="text-xs text-slate-400">Orologio Alpaca nel record: {authoritativePaperOpening ? "OPEN autorevole" : "assente, non OPEN o con età superiore a 120 secondi"}</dd>
               <dd className="text-xs text-slate-400">Riconciliazione e catena audit: {auditCoherent ? "coerenti" : "non dimostrate per oggi"}</dd>
             </div>
             <div className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
