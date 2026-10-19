@@ -23,6 +23,7 @@ on:
       - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-provider-trigger.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
@@ -38,6 +39,7 @@ on:
       - "lib/trading/paper-timestamp-integrity.ts"
       - "scripts/plan-paper-v7-probe-priority.mjs"
       - "scripts/test-paper-v7-probe-priority.mjs"
+      - "scripts/test-paper-v7-provider-trigger.mjs"
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
@@ -95,6 +97,9 @@ jobs:
 
       - name: Regression-test inactive V7 planner, including stale/closed market fail-closed
         run: node scripts/test-paper-v7-probe-priority.mjs
+
+      - name: Validate canonical workflow event provenance and cron fallback
+        run: node scripts/test-paper-v7-provider-trigger.mjs
 
       - name: Regression-test fail-closed V7 probe selector
         run: node scripts/test-paper-v7-probe-selection.mjs
