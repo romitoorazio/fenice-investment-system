@@ -1,4 +1,5 @@
 import master from "@/data/instrument-master.json";
+import regionalSeeds from "@/data/world-paper-v7-research-seeds.json";
 import reference from "@/data/world-equity-funnel-status.json";
 import { runWorldPaperV7 } from "@/lib/trading/world-paper-v7.mjs";
 
@@ -11,7 +12,7 @@ export const revalidate = 0;
 export async function GET() {
   const report = runWorldPaperV7({
     nowIso: new Date().toISOString(),
-    instruments: master.instruments,
+    instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false,
     sessions: [], quotes: [], fx: [], entitlements: { sources: [], sessions: [], fx: [] },
   });
