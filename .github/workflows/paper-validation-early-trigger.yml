@@ -32,6 +32,12 @@ on:
       - "Fenice Foundation"
     types: [completed]
   workflow_dispatch:
+    inputs:
+      audit_only:
+        description: Run only the read-only after-open evidence audit
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   actions: write
@@ -44,7 +50,8 @@ concurrency:
 jobs:
   dispatch:
     if: >-
-      github.event_name != 'workflow_run' ||
+      (github.event_name != 'workflow_dispatch' || inputs.audit_only != true) &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
@@ -109,3 +116,135 @@ jobs:
       - name: Confirm event recovery suppression
         if: github.event_name == 'workflow_run' && steps.event_recovery.outputs.allowed != 'true'
         run: echo "Event-driven PAPER evidence recovery suppressed; reason=${{ steps.event_recovery.outputs.reason }}."
+
+  after-open-proof:
+    # Reuse existing fallback events to avoid extra GitHub Actions and provider-budget fanout.
+    name: Independent after-open evidence proof (read-only)
+    if: >-
+      (github.event_name == 'schedule' &&
+       (github.event.schedule == '35 16 * * 1-5' ||
+        github.event.schedule == '5 17 * * 1-5')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.audit_only == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout audit runner
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Fetch independent current GitHub evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fenice-after-open"
+          for dataset in paper-validation-campaign execution-market-coverage global-source-health investment-committee; do
+            gh api -H "Accept: application/vnd.github.raw+json" "repos/$GITHUB_REPOSITORY/contents/data/$dataset.json?ref=main" > "$RUNNER_TEMP/fenice-after-open/$dataset.json"
+          done
+      - name: Build audited after-open proof without inventing trade evidence
+        env:
+          PROOF_INPUT_DIR: ${{ runner.temp }}/fenice-after-open
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const dir = process.env.PROOF_INPUT_DIR;
+          const data = (name) => JSON.parse(fs.readFileSync(path.join(dir, name + '.json'), 'utf8'));
+          const paper = data('paper-validation-campaign');
+          const coverage = data('execution-market-coverage');
+          const sources = data('global-source-health');
+          const committee = data('investment-committee');
+          const now = new Date();
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
+            day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+          });
+          const parts = (value) => {
+            if (!value || !Number.isFinite(Date.parse(value))) return null;
+            const fields = Object.fromEntries(formatter.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+            return { day: fields.year + '-' + fields.month + '-' + fields.day,
+              minute: Number(fields.hour) * 60 + Number(fields.minute) };
+          };
+          const marketToday = parts(now.toISOString())?.day;
+          const afterOpen = (value) => {
+            const p = parts(value);
+            return !!(p && p.day === marketToday && p.minute >= 570);
+          };
+          const latest = Array.isArray(paper.dailyEvidence) ? paper.dailyEvidence.at(-1) : null;
+          const ageSeconds = latest?.observedAt && latest?.marketSession?.evidence?.observedAt
+            ? (Date.parse(latest.observedAt) - Date.parse(latest.marketSession.evidence.observedAt)) / 1000
+            : NaN;
+          const checks = {
+            currentPaperDay: latest?.date === marketToday && afterOpen(latest?.observedAt) && (latest?.paperCycles || 0) > 0,
+            authoritativeOpenAtCapture: latest?.marketSession?.evidence?.authoritative === true
+              && latest?.marketSession?.evidence?.state === 'OPEN'
+              && afterOpen(latest?.marketSession?.evidence?.observedAt)
+              && Number.isFinite(ageSeconds) && ageSeconds >= 0 && ageSeconds <= 120,
+            reconciliationAndAudit: latest?.reconciliationBalanced === true && latest?.auditChainValid === true
+              && latest?.decisionDataGate?.ready === true,
+            paperNoLiveOrders: latest?.liveOrders === 0 && latest?.liveTradingAllowed === false,
+            sourceChecksAfterOpen: afterOpen(sources.generatedAt) && sources.critical?.ready === sources.critical?.total
+              && sources.critical?.total > 0,
+            researchAfterOpen: afterOpen(committee.generatedAt),
+            executionCoverageAtCapture: latest?.executionMarketCoverage?.ready === true
+              && latest?.executionMarketCoverage?.fresh === true
+              && latest?.executionMarketCoverage?.matchesEvidence === true
+              && latest?.executionMarketCoverage?.policyReady === true
+              && (latest?.executionMarketCoverage?.paperEligibleSymbols ?? 0) >= 3
+              && (latest?.executionMarketCoverage?.paperEligibleSourceFamilies ?? 0) >= 2,
+          };
+          const primary = ['currentPaperDay', 'authoritativeOpenAtCapture', 'reconciliationAndAudit', 'paperNoLiveOrders'];
+          const paperProof = primary.every((key) => checks[key]);
+          const status = !paperProof ? 'MISSING_OR_INVALID_PAPER'
+            : Object.values(checks).every(Boolean) ? 'PASS' : 'PARTIAL';
+          const proof = {
+            schemaVersion: 1, generatedAt: now.toISOString(), marketDayNewYork: marketToday,
+            status, checks,
+            latestPaperObservedAt: latest?.observedAt ?? null,
+            lastPaperDate: latest?.date ?? null,
+            cumulativePaperFills: latest?.cumulativePaperFilled ?? null,
+            newPaperFills: latest?.newPaperFills ?? null,
+            minPaperFills: paper.minPaperFills ?? null,
+            executionCoverageCapturedAt: coverage.generatedAt ?? null,
+            paperEligibleSymbolsAtLatestSnapshot: coverage.paperEligibleSymbols ?? null,
+            latestSourceHealthAt: sources.generatedAt ?? null,
+            criticalSourcesHealthy: sources.critical?.ready ?? null,
+            criticalSourcesTotal: sources.critical?.total ?? null,
+            committeeAt: committee.generatedAt ?? null,
+            candidatesAnalyzed: committee.candidateCount ?? null,
+            buyCandidates: committee.buyCandidateCount ?? null,
+            notes: [
+              'A GitHub timestamp alone is not an independent real-time price.',
+              'No zero-fill day is treated as a failed OMS cycle when evidence is otherwise sound.',
+              'No LIVE order is authorized by this proof.',
+              'European and Asian trading execution is not certified by a US PAPER proof.',
+            ],
+          };
+          fs.writeFileSync('after-open-proof.json', JSON.stringify(proof, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '# FENICE after-open verification\n\n' +
+            '**Session (New York):** ' + (marketToday || 'unknown') + '\n\n' +
+            '**Result:** ' + status + '\n\n' +
+            '| Proof check | Passed |\n|---|---|\n' +
+            Object.entries(checks).map(([key, value]) => '| ' + key + ' | ' + (value ? 'YES' : 'NO') + ' |').join('\n') +
+            '\n\nLatest PAPER: ' + (latest?.observedAt || 'missing') +
+            '\n\nFills: ' + (latest?.cumulativePaperFilled ?? 'unknown') + '/' + (paper.minPaperFills ?? 'unknown') +
+            '\n\nStored snapshots are not proof of current quotes; LIVE remains locked.\n');
+          console.log(JSON.stringify(proof, null, 2));
+          NODE
+      - name: Upload permanent run evidence (never source secrets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-after-open-proof
+          path: after-open-proof.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Fail audit when proof is absent or incomplete
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('after-open-proof.json')); if (p.status !== 'PASS') { console.error('AFTER-OPEN PROOF NOT COMPLETE: ' + p.status); process.exit(1); }"
