@@ -5,6 +5,29 @@ import funnel from "@/data/world-equity-funnel-status.json";
 import reference from "@/data/global-reference-coverage.json";
 import { runWorldPaperV7 } from "@/lib/trading/world-paper-v7.mjs";
 import bakedObservations from "@/data/world-v7-provider-observation.json";
+import bakedEod from "@/data/world-v7-eod-research.json";
+
+
+type GlobalEodRecord={
+  venue?:string;status?:string;region?:string;researchSignal?:string;
+  lastCompleteBarDate?:string;analyzedAt?:string;completeSessions?:number;
+  paperFillCount?:number;licensedPaperSource?:boolean;
+};
+type GlobalEodBook={records?:Record<string,GlobalEodRecord>;liveTradingAllowed?:boolean;realtimePaperEligible?:boolean};
+async function readLatestEod(): Promise<GlobalEodBook> {
+  const fallback:GlobalEodBook=bakedEod;
+  try {
+    const r=await fetch("https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/world-v7-eod-research.json",
+      {cache:"no-store",signal:AbortSignal.timeout(3500)});
+    if(!r.ok)return fallback;
+    const json:unknown=await r.json();
+    if(!json||typeof json!=="object"||Array.isArray(json))return fallback;
+    const book=json as GlobalEodBook;
+    if(book.liveTradingAllowed!==false || book.realtimePaperEligible!==false ||
+      !book.records || typeof book.records!=="object" || Array.isArray(book.records))return fallback;
+    return book;
+  }catch {return fallback;}
+}
 
 type ProviderRecord = {
   recordedAt?: string; venue?: string;
@@ -48,7 +71,7 @@ export const revalidate = 0;
 
 // Independent observation. This page never submits to the V6 OMS or any broker.
 export default async function WorldPaperPilotPage() {
-  const providerBook = await readLatestProviderObservation();
+  const [providerBook,eodBook] = await Promise.all([readLatestProviderObservation(),readLatestEod()]);
   const report = runWorldPaperV7({
     nowIso: new Date().toISOString(), instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false, sessions: [], quotes: [], fx: [],
@@ -130,6 +153,33 @@ export default async function WorldPaperPilotPage() {
                   <p className="text-xs text-slate-400">Rilevamento: {valid ? item?.recordedAt : "nessuno"}</p>
                   <p className="mt-2 text-xs font-semibold text-amber-200">PAPER: NON AUTORIZZATO — manca certificazione delle fonti indipendenti</p>
                 </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-2xl border border-indigo-300/25 bg-indigo-400/5 p-4" aria-label="Ricerca mondiale di fine giornata">
+          <h2 className="text-xl font-black">Seconda fonte: ricerca mondiale di fine giornata</h2>
+          <p className="text-sm text-slate-300">
+            Alpha Vantage è un canale EOD distinto da Twelve Data. Usa solo candele giornaliere
+            completate e segnala il trend successivamente alla seduta; nessun prezzo grezzo viene
+            ripubblicato. Non è una quotazione intraday, non crea fill PAPER e non prova
+            automaticamente il listino MIC né i diritti per ordini.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PROBED_VENUES.map(venue=>{
+              const eod=eodBook.records?.[venue.mic];
+              const timestamp=eod?.analyzedAt ? Date.parse(eod.analyzedAt) : NaN;
+              const recent=Number.isFinite(timestamp) && timestamp<=readAt && readAt-timestamp<=48*3600000;
+              const valid=!!eod && eod.paperFillCount===0 && eod.licensedPaperSource===false;
+              return (
+                <div key={venue.mic} className="rounded-xl border border-white/15 bg-slate-950/65 p-3 text-sm">
+                  <p className="font-bold">{venue.name} · {venue.mic}</p>
+                  <p className="mt-1 text-xs text-slate-400">Analisi EOD: {valid ? eod.status : "IN ATTESA DEL PRIMO CONTROLLO"}</p>
+                  <p className="text-xs text-slate-400">Ultima seduta completa: {valid ? (eod.lastCompleteBarDate??"non provata") : "non provata"}</p>
+                  <p className="mt-1 text-xs text-indigo-200">Trend osservato: {valid && recent ? (eod.researchSignal??"NO_SIGNAL") : "NON DISPONIBILE / SCADUTO"}</p>
+                  <p className="mt-1 text-xs text-amber-300">Solo ricerca; nessun acquisto o fill certificato</p>
+                </div>
               );
             })}
           </div>
