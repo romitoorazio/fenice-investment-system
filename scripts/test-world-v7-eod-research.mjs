@@ -18,7 +18,9 @@ function mockDaily(mic,forceToday=false) {
       "3. low":String(c-0.3),"4. close":String(c),"5. volume":"120000"};
   }
   // Only latest 33 weekday bars; controlled independently of intraday.
-  if(forceToday)bars["2026-10-19"]={"1. open":"999","2. high":"9999","3. low":"1","4. close":"999","5. volume":"1"};
+  // Tokyo is already 20 October at the same instant; Europe is still 19 October.
+  const localToday=mic==="XTKS" ? "2026-10-20" : "2026-10-19";
+  if(forceToday)bars[localToday]={"1. open":"999","2. high":"9999","3. low":"1","4. close":"999","5. volume":"1"};
   return {"Meta Data":{"2. Symbol":sym[mic]},"Time Series (Daily)":bars};
 }
 for(const mic of ["XTKS","XMIL","XETR"]) {
