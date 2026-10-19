@@ -57,6 +57,15 @@ assert(closed.blockers.includes("PROVIDER_REPORTED_CLOSED"));
 const tokyo=buildPilotObservation("XTKS",now,[{code:"XTKS",is_market_open:true}],
   {...quote,symbol:"7203",mic_code:"XTKS",currency:"JPY"});
 assert(tokyo.blockers.includes("INDEPENDENT_FX_EUR_QUOTE_MISSING"));
+assert.equal(WORLD_V7_PILOT.XTKS.providerMic,"XJPX");
+const tokyoCorrect=buildPilotObservation("XTKS",now,[{code:"XJPX",is_market_open:true}],
+  {...quote,symbol:"7203",mic_code:"XJPX",currency:"JPY"},
+  {status:"ok",data:[{symbol:"7203",mic_code:"XJPX",currency:"JPY",access:{plan:"Pro"}}]});
+assert.equal(tokyoCorrect.state.exactMic,true);
+assert.equal(tokyoCorrect.state.operatingMicIsNotSegmentProof,true);
+assert.equal(tokyoCorrect.catalogue.exactIdentity,true);
+assert(tokyoCorrect.blockers.includes("OPERATING_MIC_DOES_NOT_PROVE_SEGMENT_OPEN"));
+assert.equal(tokyoCorrect.paperReady,false);
 assert.equal(emptyPilotObservation("XTKS",now).quote.status,"CREDENTIAL_NOT_CONFIGURED");
 assert.throws(()=>emptyPilotObservation("XNYS",now),/NOT|INVALID_WORLD_V7_OBSERVATION_REQUEST/);
 const outfile="/tmp/fenice-world-v7-probe-test.json";
