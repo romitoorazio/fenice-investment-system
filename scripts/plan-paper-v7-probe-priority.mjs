@@ -10,9 +10,33 @@ function numeric(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function priorityClass(candidate, feasibility) {
+export function assessProviderFeasibilitySnapshot(feasibility, now = Date.now()) {
+  const checkedAt = typeof now === "number" ? now : Date.parse(String(now));
+  const generatedAt = typeof feasibility?.generatedAt === "string"
+    ? Date.parse(feasibility.generatedAt) : Number.NaN;
+  const ageMs = Number.isFinite(generatedAt) && Number.isFinite(checkedAt)
+    ? checkedAt - generatedAt : null;
+  const sampled = feasibility?.state === "OPEN_SESSION_SAMPLED"
+    && feasibility?.sessionFreshAtReport === true
+    && feasibility?.quoteProvidersQueried === true
+    && feasibility?.marketSession?.evidence?.authoritative === true
+    && feasibility?.marketSession?.evidence?.state === "OPEN";
+  const recent = ageMs !== null && ageMs >= -30_000 && ageMs <= 600_000;
+  return {
+    verifiedOpenSample: sampled && recent,
+    status: !sampled ? "NO_VERIFIED_OPEN_SESSION_SAMPLE" :
+      !recent ? "EXPIRED_OR_INVALID_PROVIDER_SAMPLE" : "RECENT_VERIFIED_OPEN_SESSION_SAMPLE",
+    reportAgeSeconds: ageMs === null ? null : Math.round(ageMs / 1000),
+    maximumPlannerSampleAgeSeconds: 600,
+    observationOnly: true,
+    liveTradingAllowed: false,
+  };
+}
+
+function priorityClass(candidate, feasibility, snapshotValid) {
   const failed = Array.isArray(candidate?.failedGates) ? candidate.failedGates : [];
   const structuralFailed = failed.filter((gate) => gate !== "execution-coverage");
+  if (!snapshotValid) return "DEFER_UNOBSERVED_OR_STALE_SESSION";
   if (feasibility?.quorumCompatible !== true) return "DEFER_PROVIDER_QUORUM";
   if (failed.includes("candidate-missing")) return "DEFER_MISSING_CANDIDATE";
   if (structuralFailed.length === 0 && failed.includes("execution-coverage")) return "PROMOTE_COVERAGE_ONLY";
@@ -20,17 +44,19 @@ function priorityClass(candidate, feasibility) {
   return "DEFER_MULTI_GATE";
 }
 
-export function planPaperV7ProbePriority({ diagnostic, feasibility }) {
+export function planPaperV7ProbePriority({ diagnostic, feasibility, now = Date.now() }) {
+  const snapshot = assessProviderFeasibilitySnapshot(feasibility, now);
   const candidateBySymbol = new Map((diagnostic?.candidates || []).map((candidate) => [upper(candidate?.symbol), candidate]));
   const rows = (feasibility?.targets || []).map((provider) => {
     const symbol = upper(provider?.symbol);
     const candidate = candidateBySymbol.get(symbol) || { symbol, failedGates: ["candidate-missing"], metrics: {} };
     const failedGates = Array.isArray(candidate.failedGates) ? candidate.failedGates : [];
-    const classification = priorityClass(candidate, provider);
+    const classification = priorityClass(candidate, provider, snapshot.verifiedOpenSample);
     return {
       symbol,
       classification,
-      quorumCompatible: provider?.quorumCompatible === true,
+      quorumCompatible: snapshot.verifiedOpenSample && provider?.quorumCompatible === true,
+      sourceQuorumClaimUntrustedWhenStale: !snapshot.verifiedOpenSample && provider?.quorumCompatible === true,
       crossSourceSpreadPercent: provider?.crossSourceSpreadPercent != null
         && provider.crossSourceSpreadPercent !== ""
         && Number.isFinite(Number(provider.crossSourceSpreadPercent))
@@ -53,6 +79,7 @@ export function planPaperV7ProbePriority({ diagnostic, feasibility }) {
     DEFER_MISSING_CANDIDATE: 2,
     DEFER_MULTI_GATE: 3,
     DEFER_PROVIDER_QUORUM: 4,
+    DEFER_UNOBSERVED_OR_STALE_SESSION: 5,
   };
   rows.sort((a, b) => (order[a.classification] - order[b.classification])
     || (b.metrics.committeeScore - a.metrics.committeeScore)
@@ -72,6 +99,10 @@ export function planPaperV7ProbePriority({ diagnostic, feasibility }) {
     liveTradingAllowed: false,
     brokerConnectivityAllowed: false,
     recommendedExpansionOrder,
+    providerSnapshotStatus: snapshot.status,
+    providerSnapshotVerified: snapshot.verifiedOpenSample,
+    providerSampleAgeSeconds: snapshot.reportAgeSeconds,
+    observationOnly: true,
     rows,
   };
 }
@@ -96,6 +127,8 @@ function summary(report) {
     "## Fenice PAPER V7 probe planner",
     "",
     "Planning only. The active V6 campaign is not modified.",
+    `Provider status: ${report.providerSnapshotStatus}; qualified recent US open sample: ${report.providerSnapshotVerified}.`,
+    "A missed or delayed market-closed check means NOT OBSERVED, not a failed entitlement or rejected symbol.",
     `Recommended expansion order: ${report.recommendedExpansionOrder.join(", ") || "none"}`,
     "",
     "| Symbol | Class | Quorum | Spread % | Failed gates |",
