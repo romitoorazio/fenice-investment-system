@@ -57,6 +57,13 @@ const ordinaryReject=diagnosePaperEvidenceBottlenecks(evidence,coverage,{
 assert.equal(ordinaryReject.historicalCompositeVetoAttempts,0);
 assert.equal(ordinaryReject.lastRiskRejection.attribution,"OTHER_REPORTED_PRETRADE_REJECTION");
 assert.equal(ordinaryReject.lastRiskRejection.actualKillSwitchAtAttempt,null);
+const reasonOnly=diagnosePaperEvidenceBottlenecks(evidence,coverage,{
+  executions:[{symbol:"SPY",status:"RISK_REJECTED",createdAt:iso(-80),
+    risk:{reasons:["kill-switch engaged"],checks:[]}}],
+  killSwitch:{engaged:false},
+},now);
+assert.equal(reasonOnly.lastRiskRejection.attribution,"COMPOSITE_VETO_CAUSE_UNKNOWN",
+  "even a legacy reason string without a separate check must not claim actual emergency stop");
 const noReject=diagnosePaperEvidenceBottlenecks(evidence,coverage,{executions:[]},now);
 assert.equal(noReject.lastRiskRejection,null);
 assert.equal(noReject.historicalRejectedAttempts,0);

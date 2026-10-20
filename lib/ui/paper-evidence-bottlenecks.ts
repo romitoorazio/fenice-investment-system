@@ -73,7 +73,7 @@ export function diagnosePaperEvidenceBottlenecks(
   const isCompositeVeto = (rejection: Execution) =>
     rejection.risk?.checks?.some(c => c.code === "kill-switch" && c.passed === false) === true
     || rejection.risk?.reasons?.some(r => typeof r === "string"
-      && /^kill-switch(?:\\b|:)/i.test(r)) === true;
+      && /^kill-switch(?:\b|:)/i.test(r)) === true;
   const ambiguousVeto = latest ? isCompositeVeto(latest) : false;
   return {
     diagnosticOnly: true as const,
