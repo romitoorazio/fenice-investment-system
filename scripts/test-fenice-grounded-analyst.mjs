@@ -99,6 +99,11 @@ const staleWorld = ask("Borsa di Milano", {...context, world: {
   ...context.world, providers: { ...context.world.providers, generatedAt: "2026-10-01T12:00:00.000Z" },
 }});
 assert.ok(staleWorld.blockers.some(x => /provider mondiale scaduta/i.test(x)));
+assert.equal(staleWorld.evidenceQualityVerified, false,
+  "stale international provider evidence must not reach a metered generative model");
+const freshWorld = ask("Mercati mondiali");
+assert.equal(freshWorld.evidenceQualityVerified, true,
+  "fresh independently grounded world diagnostics can be explained by the existing manual AI");
 assert.equal(ask("Mercati mondiali", {...context, world: undefined}).brokerOrderAllowed, false);
 
 const stale = ask("comprare ASML", { ...context, committee: {
