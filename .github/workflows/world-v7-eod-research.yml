@@ -8,6 +8,8 @@ on:
       - "lib/market/world-v7-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
+      - "scripts/test-world-v7-daily-historical-replay.mjs"
+      - "lib/market/world-v7-daily-historical-replay.mjs"
       - ".github/workflows/world-v7-eod-research.yml"
   pull_request:
     branches: [main]
@@ -15,6 +17,8 @@ on:
       - "lib/market/world-v7-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
+      - "scripts/test-world-v7-daily-historical-replay.mjs"
+      - "lib/market/world-v7-daily-historical-replay.mjs"
       - ".github/workflows/world-v7-eod-research.yml"
       - "app/paper-mondo/page.tsx"
   schedule:
@@ -39,7 +43,9 @@ jobs:
         with:
           node-version: 24
       - name: Prove closed bars and non-lookahead accounting
-        run: node scripts/test-world-v7-eod-research.mjs
+        run: |
+          node scripts/test-world-v7-eod-research.mjs
+          node scripts/test-world-v7-daily-historical-replay.mjs
 
   observe:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
@@ -57,7 +63,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: node scripts/test-world-v7-eod-research.mjs
+      - run: |
+          node scripts/test-world-v7-eod-research.mjs
+          node scripts/test-world-v7-daily-historical-replay.mjs
       - name: Probe three global EOD research venues within 6 API calls
         env:
           RESULT: ${{ runner.temp }}/world-v7-eod-report.json
@@ -73,7 +81,10 @@ jobs:
                x.brokerConnectivityAllowed!==false || x.simulatedOrders!==0 ||
                x.requestsUsed>6 || x.observations?.length!==3 ||
                x.observations.some(o=>o.paperFillCount!==0 && o.paperFillCount!==undefined) ||
-               x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))))
+               x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))) ||
+               x.historicalReplay?.forwardVerifiedPaperFills!==0 || x.historicalReplay?.liveTradingAllowed!==false ||
+               x.historicalReplay?.marketDataRightsCertified!==false ||
+               Object.keys(x.historicalReplay||{}).some(k=>["price","open","high","low","close","volume","ohlc","historicalTrades","pendingPositions"].includes(k)))
               process.exit(1);
           '
       - name: Publish independent metadata only, never quotes or orders
@@ -95,6 +106,9 @@ jobs:
           if(incoming.liveTradingAllowed!==false || incoming.simulatedOrders!==0 ||
              !Array.isArray(incoming.observations) || incoming.observations.length!==3 ||
              !old.records || Array.isArray(old.records)) throw Error("INVALID_EOD_PUBLICATION");
+          const replay=incoming.historicalReplay;
+          if(!replay || replay.forwardVerifiedPaperFills!==0 || replay.liveTradingAllowed!==false ||
+             replay.marketDataRightsCertified!==false || replay.realtimePaperEligible!==false) throw Error("INVALID_EOD_REPLAY");
           const records={...old.records};
           for(const r of incoming.observations){
             if(!["XMIL","XETR","XTKS"].includes(r.venue) ||
@@ -105,7 +119,7 @@ jobs:
           const output={version:1,generatedAt:incoming.generatedAt,
             mode:"WORLD_V7_EOD_RESEARCH_ONLY",
             note:"Derived trend from completed historical bars. No raw OHLC, broker orders or certified PAPER fills.",
-            records,realProviderQueried:incoming.realProviderQueried,
+            records,historicalReplay:replay,realProviderQueried:incoming.realProviderQueried,
             dataRights:incoming.dataRights,requestsUsed:incoming.requestsUsed,
             realtimePaperEligible:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
           fs.writeFileSync(file,JSON.stringify(output,null,2)+"\n");
