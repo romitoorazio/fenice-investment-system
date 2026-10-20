@@ -222,7 +222,7 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
           + "; diritto PAPER e sessione aperta autorevole NON attestati.",
       };
     });
-    return go("WORLD", "RICERCA MONDIALE - PAPER NON VERIFICATO",
+    const worldReply = go("WORLD", "RICERCA MONDIALE - PAPER NON VERIFICATO",
       "Mercati mondiali: perché mancano fill certificati",
       [
         "Il radar comprende " + (selected === null ? "N/D" : String(selected))
@@ -248,6 +248,10 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
         { label: "Radar mondiale", href: "/global" },
         { label: "Sicurezza", href: "/readiness" },
       ]);
+    // Never spend optional OpenAI credits summarizing stale or unverifiable
+    // worldwide provider evidence. Deterministic diagnosis remains available.
+    return { ...worldReply, evidenceQualityVerified: dataGuard && recentProvider
+      && funnelAt !== null && safeNow - funnelAt <= MAX_RESEARCH_AGE_MS };
   }
 
   // Unknown free-text prompts are not passed to external models or providers.
