@@ -13,7 +13,11 @@ type GlobalEodRecord={
   lastCompleteBarDate?:string|null;analyzedAt?:string|null;completeSessions?:number;
   paperFillCount?:number;licensedPaperSource?:boolean;
 };
-type GlobalEodBook={records?:Record<string,GlobalEodRecord>;liveTradingAllowed?:boolean;realtimePaperEligible?:boolean};
+type GlobalEodBook={records?:Record<string,GlobalEodRecord>;liveTradingAllowed?:boolean;realtimePaperEligible?:boolean;
+  historicalReplay?: {historicalResearchTransactions?:number;historicalResearchBuys?:number;
+    historicalResearchSells?:number;estimatedNetReturnPct?:number|null;forwardVerifiedPaperFills?:number;
+    marketDataRightsCertified?:boolean;liveTradingAllowed?:boolean};
+};
 async function readLatestEod(): Promise<GlobalEodBook> {
   const fallback:GlobalEodBook=bakedEod;
   try {
@@ -166,6 +170,14 @@ export default async function WorldPaperPilotPage() {
             ripubblicato. Non è una quotazione intraday, non crea fill PAPER e non prova
             automaticamente il listino MIC né i diritti per ordini.
           </p>
+          <div className="rounded-xl border border-indigo-300/20 bg-slate-950/50 p-3 text-xs text-slate-300">
+            <p className="font-bold text-indigo-200">Simulazione storica giornaliera (NON fill PAPER)</p>
+            <p>Operazioni storiche ricostruite: {eodBook.historicalReplay?.marketDataRightsCertified===false &&
+              eodBook.historicalReplay?.forwardVerifiedPaperFills===0 &&
+              eodBook.historicalReplay?.liveTradingAllowed===false
+              ? (eodBook.historicalReplay?.historicalResearchTransactions??0) : "non disponibili"}.
+              Nessuna esecuzione futura verificata: i dati storici, il MIC e i diritti d'uso restano da convalidare.</p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROBED_VENUES.map(venue=>{
               const eod=eodBook.records?.[venue.mic];

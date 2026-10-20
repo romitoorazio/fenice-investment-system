@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
-import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch } from "../lib/market/world-v7-eod-research.mjs";
+import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyBars } from "../lib/market/world-v7-eod-research.mjs";
+import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
 
 const options = Object.fromEntries(process.argv.slice(2).filter(s=>s.startsWith("--")&&s.includes("=")).map(s=>s.slice(2).split(/=(.*)/s).slice(0,2)));
 const venues=options.venue && options.venue!=="ALL" ? [options.venue] : ["XTKS","XMIL","XETR"];
@@ -32,6 +33,7 @@ async function alphaRequest(params){
 }
 const startedAt=new Date().toISOString();
 const observations=[];
+const historicalInputs=[];
 for(const venue of venues){
   if(!network){
     observations.push({venue,ticker:EOD_PILOTS[venue].ticker,region:EOD_PILOTS[venue].region,
@@ -49,9 +51,19 @@ for(const venue of venues){
   }else{
     const daily=await alphaRequest({function:"TIME_SERIES_DAILY",symbol:listing.alphaSymbol,outputsize:"compact"});
     result=evaluateEodResearch(venue,listing,daily,new Date().toISOString());
+    const parsed=parseAlphaDailyBars(daily,listing.alphaSymbol);
+    if(parsed.status==="PARSED"){
+      // Alpha's region/currency match is NOT independent MIC certification.
+      // Historical replay only; no raw bars or trades in public reports.
+      historicalInputs.push({venue,ticker:target.ticker,currency:target.currency,
+        region:target.region,provider:"alpha-vantage",bars:parsed.bars});
+    }
   }
   observations.push(result);
 }
+const historicalReplay=summarizeWorldV7DailyHistoricalReplay(
+  runWorldV7DailyHistoricalReplay({histories:historicalInputs,asOfDate:startedAt.slice(0,10)})
+);
 const report={
   version:1,generatedAt:new Date().toISOString(),mode:"WORLD_V7_EOD_RESEARCH_ONLY",
   note:"EOD research, never broker orders or PAPER fills. Does not redistribute raw provider quotes.",
@@ -62,13 +74,14 @@ const report={
   simulatedOrders:0,liveTradingAllowed:false,brokerConnectivityAllowed:false,modifiesV6:false,
   regions:{asiaPacific:observations.filter(x=>x.region==="asia-pacific").length,
     europe:observations.filter(x=>x.region==="europe").length},
-  observations,
+  observations,historicalReplay,
 };
 mkdirSync(path.dirname(outfile),{recursive:true});
 writeFileSync(outfile,JSON.stringify(report,null,2)+"\n",{mode:0o600});
 const consoleReport={generatedAt:report.generatedAt,mode:report.mode,requestsUsed:calls,network,
   data:observations.map(x=>({venue:x.venue,status:x.status,date:x.lastCompleteBarDate??null,
     signal:x.researchSignal??"NO_SIGNAL",fill:x.paperFillCount})),
+  historicalResearchTransactions:historicalReplay.historicalResearchTransactions,
   noRealOrders:true,noPrivatePricePublished:true};
 console.log(JSON.stringify(consoleReport));
 if(process.env.GITHUB_STEP_SUMMARY){
