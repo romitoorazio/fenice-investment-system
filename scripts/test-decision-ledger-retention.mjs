@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {MAX_DECISION_LEDGER_RECORDS,REQUIRED_CHECKPOINT_DAYS,retainDecisionLedgerRecords}
   from "../lib/intelligence/decision-ledger-retention.mjs";
+import {dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark}
+  from "../lib/intelligence/decision-ledger-price-evidence.mjs";
 
 const now="2026-11-15T18:00:00.000Z";
 const pending={createdAt:"2026-11-01T00:00:00.000Z",entryReferencePrice:100,
@@ -77,4 +79,42 @@ assert.match(runner,/rename\(tmpPath,ledgerPath\)/,
 assert.match(runner,/records:preservedRecords/,
   "publication must contain the full protected history, not slice(-5000)");
 assert.doesNotMatch(runner,/records\.slice\(-5000\)/);
-console.log("Decision ledger 30-day retention: PASS; pending checkpoints preserved, silent eviction rejected, no PAPER/LIVE changes.");
+
+const observationClock = Date.parse('2026-10-20T18:00:00.000Z');
+const sampleAsset = {
+  symbol: 'SPY', currency: 'USD', price: 700,
+  technical: {currency: 'USD', observedAt: '2026-10-20T13:30:00.000Z',
+    timestampSemantics: 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE'},
+};
+const mark = dailyResearchMark(sampleAsset, observationClock);
+assert.equal(mark.evidenceKind, 'DAILY_SESSION_BUCKET_RESEARCH_ONLY');
+assert.equal(mark.executionEligible, false);
+assert.equal(mark.price, 700);
+assert.equal(dailyResearchMark({...sampleAsset, price:0},observationClock),null);
+assert.equal(dailyResearchMark({...sampleAsset, price:NaN},observationClock),null);
+assert.equal(dailyResearchMark({...sampleAsset, currency:'EUR'},observationClock),null);
+assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,observedAt:'2026-10-21T13:30:00.000Z'}},observationClock),null);
+assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,observedAt:'2026-10-01T13:30:00.000Z'}},observationClock),null);
+assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,timestampSemantics:'LIVE_LAST_TRADE'}},observationClock),null);
+const recordAfterQuote = {currency:'USD',entryReferencePrice:680,createdAt:'2026-10-20T14:00:00.000Z'};
+assert.equal(eligibleDecisionMark(recordAfterQuote,mark,observationClock),false,
+  'Same-day candle predating a decision must not mark its performance');
+const previousRecord = {currency:'USD',entryReferencePrice:680,createdAt:'2026-10-19T13:00:00.000Z'};
+assert.equal(eligibleDecisionMark(previousRecord,mark,observationClock),true);
+assert.equal(eligibleDecisionCheckpoint(previousRecord,mark,1,observationClock),true);
+assert.equal(eligibleDecisionCheckpoint({...previousRecord,currency:'EUR'},mark,1,observationClock),false);
+assert.equal(eligibleDecisionMark({...previousRecord,currency:'EUR'},mark,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint(previousRecord,mark,7,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint({entryReferencePrice:0,createdAt:previousRecord.createdAt},mark,1,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint({...previousRecord,createdAt:'2026-10-19T15:00:00.000Z'},mark,1,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint({...previousRecord,createdAt:'2026-11-01T00:00:00.000Z'},mark,1,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint({...previousRecord,createdAt:'2026-02-30T00:00:00.000Z'},mark,1,observationClock),false);
+assert.equal(eligibleDecisionCheckpoint(previousRecord,mark,1,Date.parse('2026-10-20T12:00:00.000Z')),false);
+const ledgerRunnerText=readFileSync('scripts/run-decision-ledger.mjs','utf8');
+assert.match(ledgerRunnerText,/dailyResearchMark\(asset, now\.getTime\(\)\)/);
+assert.match(ledgerRunnerText,/eligibleDecisionCheckpoint\(record, mark, minimumDays, now\.getTime\(\)\)/);
+assert.match(ledgerRunnerText,/lastPriceObservedAt/);
+assert.match(ledgerRunnerText,/markToMarketPercent: null/);
+assert.match(ledgerRunnerText,/typeof value !== 'number'/);
+
+console.log("Decision ledger as-of provenance + retention: PASS; no fake horizon evidence, PAPER/LIVE untouched.");
