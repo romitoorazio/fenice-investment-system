@@ -64,6 +64,7 @@ for (const record of records) {
   if (record.lastPriceObservedAt && Date.parse(record.lastPriceObservedAt) > mark.observedMs) continue;
   record.lastPrice = round(mark.price);
   record.lastPriceObservedAt = mark.observedAt;
+  record.lastPriceCurrency = mark.currency;
   record.lastPriceEvidenceKind = mark.evidenceKind;
   record.lastMarkedAt = now.toISOString();
   record.markToMarketPercent = round(((mark.price - record.entryReferencePrice) / record.entryReferencePrice) * 100);
@@ -119,7 +120,7 @@ function statsFor(decision) {
   // Historical rows without a verified post-decision price vintage are not outcomes.
   const eligible = preservedRecords.filter(record => record.decision === decision
     && Number.isFinite(record.markToMarketPercent)
-    && eligibleDecisionMark(record, {price: record.lastPrice, observedAt: record.lastPriceObservedAt}, now.getTime()));
+    && eligibleDecisionMark(record, {price: record.lastPrice, observedAt: record.lastPriceObservedAt, currency: record.lastPriceCurrency}, now.getTime()));
   const wins = eligible.filter((record) => record.markToMarketPercent > 0).length;
   const average = eligible.length ? eligible.reduce((sum, record) => sum + record.markToMarketPercent, 0) / eligible.length : null;
   return {
