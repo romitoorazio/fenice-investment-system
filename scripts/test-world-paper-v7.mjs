@@ -74,6 +74,39 @@ assert(buy.paperLedger.cashEuro > 950);
 const repeated=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,previousLedger:buy.paperLedger});
 assert.equal(repeated.summary.filledPaperOrders,0,"same intent cannot be replayed");
 assert(repeated.rejectedIntents[0].reasons.includes("DUPLICATE_OR_INVALID_INTENT_ID"));
+const fabricatedCash=structuredClone(buy.paperLedger);
+fabricatedCash.cashEuro+=500;
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fabricatedCash}),
+  /INVALID_WORLD_PAPER_LEDGER/, "hash chain alone cannot validate invented simulated cash");
+const fabricatedPosition=structuredClone(buy.paperLedger);
+fabricatedPosition.positions["XTKS:7203"].quantity+=20;
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fabricatedPosition}),
+  /INVALID_WORLD_PAPER_LEDGER/, "tampered positions must not bypass portfolio sizing");
+const fabricatedCost=structuredClone(buy.paperLedger);
+fabricatedCost.positions["XTKS:7203"].unitCostEuro+=10;
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fabricatedCost}),
+  /INVALID_WORLD_PAPER_LEDGER/, "stored cost basis must match replayed fills");
+const fakeChainTip=structuredClone(buy.paperLedger);
+fakeChainTip.lastHash="b".repeat(64);
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fakeChainTip}),
+  /INVALID_WORLD_PAPER_LEDGER/, "lastHash must equal verified event chain tip");
+const emptyLedgerWithFakeCash={cashEuro:5000,positions:{},events:[],lastHash:"GENESIS"};
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:emptyLedgerWithFakeCash}),
+  /INVALID_WORLD_PAPER_LEDGER/, "empty history cannot carry extra balance");
+const soldAt=new Date(Date.parse(tTokyo)+30_000).toISOString();
+const sell=runWorldPaperV7({...tokyoInput,
+  nowIso:soldAt,
+  sessions:tokyoInput.sessions.map(x=>({...x,observedAt:new Date(Date.parse(soldAt)-10_000).toISOString()})),
+  quotes:tokyoInput.quotes.map(x=>({...x,observedAt:new Date(Date.parse(soldAt)-8_000).toISOString()})),
+  fx:tokyoInput.fx.map(x=>({...x,observedAt:new Date(Date.parse(soldAt)-20_000).toISOString()})),
+  previousLedger:buy.paperLedger,paperRunAuthorized:true,
+  intents:[{...intent(assetTokyo,soldAt,"tokyo-sell-001"),side:"SELL"}],
+});
+assert.equal(sell.summary.filledPaperOrders,1, "valid SELL still works after ledger replay");
+assert.equal(runWorldPaperV7({...tokyoInput,nowIso:soldAt,
+  previousLedger:sell.paperLedger}).paperLedger.lastHash,sell.paperLedger.lastHash,
+  "multi-event BUY/SELL journal can be replayed exactly");
+
 const tampered=structuredClone(buy.paperLedger);
 tampered.events[0].notionalEuro=999999;
 assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:tampered}),/INVALID_WORLD_PAPER_LEDGER/);
@@ -99,6 +132,21 @@ const wrongVenue=runWorldPaperV7({
 assert.equal(wrongVenue.summary.filledPaperOrders,0);
 const noFx=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,fx:[]});
 assert.equal(noFx.summary.filledPaperOrders,0);
+// Separate sourceFamily strings must not count twice when owned by one
+// upstream provider, even when both are present in the entitlement registry.
+const singleVendorRegistry={
+  ...registry,
+  sources:registry.sources.map(s=>s.sourceFamily==="provider-two" ? {...s,provider:"provider-one"} : s),
+};
+const singleVendorQuotes=tokyoInput.quotes.map(q=>
+  q.sourceFamily==="provider-two" ? {...q,provider:"provider-one"} : q);
+const masqueraded=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
+  entitlements:singleVendorRegistry,quotes:singleVendorQuotes});
+assert.equal(masqueraded.summary.filledPaperOrders,0,
+  "two labels on the SAME licensed vendor do not create independent quotations");
+assert.equal(masqueraded.summary.independentlyVerifiedListings,0);
+assert(masqueraded.listings.some(x=>x.reasons.includes("TWO_ENTITLED_INDEPENDENT_REALTIME_QUOTES_REQUIRED")));
+
 const oneFamily=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
   quotes:tokyoInput.quotes.filter(x=>x.sourceFamily==="provider-one")});
 assert.equal(oneFamily.summary.filledPaperOrders,0);
