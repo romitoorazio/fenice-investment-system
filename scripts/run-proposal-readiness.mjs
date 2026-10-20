@@ -28,6 +28,10 @@ await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 const top = report.rows.slice(0, 8)
   .map((row) => `${row.symbol}:v6=${row.validationCandidateReady ? "READY" : row.validationCandidateBlockers.join("+")};review=${row.reviewProposalCandidateReady ? "READY" : row.reviewProposalCandidateBlockers.join("+")}`)
   .join(" | ");
+const blockers = (category) => Object.entries(report.blockersByCategory?.[category] || {})
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .slice(0, 5).map(([code, count]) => `${code}:${count}`).join(",") || "none";
+
 console.log(
-  `Fenice V7 proposal readiness: candidates=${report.candidateCount}; validationStructural=${report.validationStructurallyReadyCount}; reviewStructural=${report.reviewProposalStructurallyReadyCount}; validationCandidates=${report.validationCandidateReadyCount}; reviewCandidates=${report.reviewProposalCandidateReadyCount}; shared=${report.sharedGlobalBlockers.join(",") || "none"}; validationGlobal=${report.validationGlobalBlockers.join(",") || "none"}; ${top}; diagnosticOnly=true; queueWritesAllowed=false; liveTradingAllowed=false.`,
+  `Fenice V7 proposal readiness: candidates=${report.candidateCount}; validationStructural=${report.validationStructurallyReadyCount}; reviewStructural=${report.reviewProposalStructurallyReadyCount}; validationCandidates=${report.validationCandidateReadyCount}; reviewCandidates=${report.reviewProposalCandidateReadyCount}; shared=${report.sharedGlobalBlockers.join(",") || "none"}; validationGlobal=${report.validationGlobalBlockers.join(",") || "none"}; topReviewBlockers=${blockers("review")}; topValidationBlockers=${blockers("validation")}; ${top}; diagnosticOnly=true; queueWritesAllowed=false; liveTradingAllowed=false.`,
 );
