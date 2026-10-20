@@ -569,10 +569,23 @@ export default async function ReadinessPage() {
           </p>
           <p className="mt-2 text-xs text-amber-200">
             Ultimo rifiuto: <strong>{evidenceBottlenecks.lastRiskRejection?.symbol ?? "nessuno"}</strong>
-            {" "}· causa: <strong>{evidenceBottlenecks.lastRiskRejection?.reasons.join("; ") || "nessun motivo attestato"}</strong>
+            {" "}· controllo registrato: <strong>{evidenceBottlenecks.lastRiskRejection?.reasons.join("; ") || "nessun motivo attestato"}</strong>
             {" "}· data: {evidenceBottlenecks.lastRiskRejection?.createdAt ?? "N/D"}.
-            {" "}Kill-switch persistito ora: <strong>{evidenceBottlenecks.currentKillSwitchEngaged === false ? "non inserito" : "non verificato / inserito"}</strong>.
-            {" "}Lo stato storico dell’ordine non viene sostituito dallo stato attuale.
+            {" "}Rifiuti storici: <strong>{evidenceBottlenecks.historicalRejectedAttempts}</strong>
+            {" "}· con veto composito: <strong>{evidenceBottlenecks.historicalCompositeVetoAttempts}</strong>.
+            {" "}Kill-switch persistito ora: <strong>{evidenceBottlenecks.currentKillSwitchEngaged === false ? "disinserito" : evidenceBottlenecks.currentKillSwitchEngaged === true ? "inserito" : "non verificato"}</strong>.
+          </p>
+          {evidenceBottlenecks.lastRiskRejection?.attribution === "COMPOSITE_VETO_CAUSE_UNKNOWN" && (
+            <p className="mt-2 text-xs font-medium text-amber-200">
+              Attribuzione storica NON DETERMINABILE: nella V6 il controllo chiamato «kill-switch»
+              comprende anche i veto operativi e di rischio portafoglio.
+              Non sappiamo quale sia intervenuto nel tentativo. Lo stato attuale del kill-switch
+              non dimostra la causa storica e non autorizza a bypassare alcun blocco.
+            </p>
+          )}
+          <p className="mt-2 text-xs text-slate-400">
+            La correzione per distinguere le tre cause al momento di ogni futuro tentativo
+            richiede una nuova baseline approvata: l'esecuzione V6 rimane invariata.
           </p>
           <p className="mt-2 text-xs text-slate-500">Diagnosi read-only; nessun refresh provider, ordine, rilascio LIVE o rinnovo PAPER.</p>
         </section>

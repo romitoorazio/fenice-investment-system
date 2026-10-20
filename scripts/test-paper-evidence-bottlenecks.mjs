@@ -36,6 +36,30 @@ assert.equal(missingBatchIdentity.currentPaperEligibleSymbols,null);
 assert.equal(diagnosis.lastRiskRejection.symbol,"SPY");
 assert.deepEqual(diagnosis.lastRiskRejection.reasons,["kill-switch: engaged"]);
 assert.equal(diagnosis.currentKillSwitchEngaged,false);
+assert.equal(diagnosis.currentKillSwitchProvesHistoricalCause,false);
+assert.equal(diagnosis.historicalRejectedAttempts,1);
+assert.equal(diagnosis.historicalCompositeVetoAttempts,1);
+assert.equal(diagnosis.lastRiskRejection.attribution,"COMPOSITE_VETO_CAUSE_UNKNOWN");
+assert.equal(diagnosis.lastRiskRejection.actualKillSwitchAtAttempt,null);
+assert.equal(diagnosis.lastRiskRejection.operationalVetoAtAttempt,null);
+assert.equal(diagnosis.lastRiskRejection.portfolioVetoAtAttempt,null);
+// A current ON/OFF toggle cannot retrospectively prove what blocked V6.
+const engagedNow=diagnosePaperEvidenceBottlenecks(evidence,coverage,
+  {...oms,killSwitch:{engaged:true}},now);
+assert.equal(engagedNow.currentKillSwitchEngaged,true);
+assert.equal(engagedNow.lastRiskRejection.attribution,"COMPOSITE_VETO_CAUSE_UNKNOWN");
+assert.equal(engagedNow.lastRiskRejection.actualKillSwitchAtAttempt,null);
+const ordinaryReject=diagnosePaperEvidenceBottlenecks(evidence,coverage,{
+  executions:[{symbol:"QQQ",status:"RISK_REJECTED",createdAt:iso(-100),
+    risk:{checks:[{code:"data-confidence",passed:false}],reasons:["data-confidence: insufficient"]}}],
+  killSwitch:{engaged:false},
+},now);
+assert.equal(ordinaryReject.historicalCompositeVetoAttempts,0);
+assert.equal(ordinaryReject.lastRiskRejection.attribution,"OTHER_REPORTED_PRETRADE_REJECTION");
+assert.equal(ordinaryReject.lastRiskRejection.actualKillSwitchAtAttempt,null);
+const noReject=diagnosePaperEvidenceBottlenecks(evidence,coverage,{executions:[]},now);
+assert.equal(noReject.lastRiskRejection,null);
+assert.equal(noReject.historicalRejectedAttempts,0);
 assert.equal(diagnosis.runtimeSnapshotFresh,true);
 assert.equal(diagnosis.liveTradingAllowed,false);
 assert.equal(diagnosis.brokerSubmissionAllowed,false);

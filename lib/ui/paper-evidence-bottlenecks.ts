@@ -66,6 +66,15 @@ export function diagnosePaperEvidenceBottlenecks(
   const reasons = Array.isArray(latest?.risk?.reasons)
     ? latest.risk.reasons.filter((r): r is string => typeof r === "string").slice(0,4)
     : [];
+  // The frozen V6 runner passes a three-way OR (actual kill switch OR
+  // operational veto OR portfolio veto) into the pre-trade "kill-switch"
+  // check. Neither the failed check nor the latest persisted kill-switch
+  // state can identify which veto fired on an earlier attempt.
+  const isCompositeVeto = (rejection: Execution) =>
+    rejection.risk?.checks?.some(c => c.code === "kill-switch" && c.passed === false) === true
+    || rejection.risk?.reasons?.some(r => typeof r === "string"
+      && /^kill-switch(?:\\b|:)/i.test(r)) === true;
+  const ambiguousVeto = latest ? isCompositeVeto(latest) : false;
   return {
     diagnosticOnly: true as const,
     paperCertificationEligible: false as const,
@@ -79,11 +88,21 @@ export function diagnosePaperEvidenceBottlenecks(
     paperEligibleSymbols: count(coverage?.paperEligibleSymbols), // historical count only
     currentPaperEligibleSymbols: runtimeSnapshotFresh ? coverage!.paperEligibleSymbols! : null,
     sources: { alpaca: byFamily("alpaca"), "twelve-data": byFamily("twelve-data") },
+    historicalRejectedAttempts: rejections.length,
+    historicalCompositeVetoAttempts: rejections.filter(isCompositeVeto).length,
     lastRiskRejection: latest ? {
       symbol: String(latest.symbol || "").slice(0,25),
       createdAt: timestamp(latest.createdAt) === null ? null : latest.createdAt!,
       reasons: reasons.length ? reasons : failureCodes,
+      // Only the risk check name is known. Do not mislabel the cause as a
+      // real emergency stop or infer it from the current OMS snapshot.
+      attribution: ambiguousVeto ? "COMPOSITE_VETO_CAUSE_UNKNOWN" as const
+        : "OTHER_REPORTED_PRETRADE_REJECTION" as const,
+      actualKillSwitchAtAttempt: null,
+      operationalVetoAtAttempt: null,
+      portfolioVetoAtAttempt: null,
     } : null,
     currentKillSwitchEngaged: typeof oms?.killSwitch?.engaged === "boolean" ? oms.killSwitch.engaged : null,
+    currentKillSwitchProvesHistoricalCause: false as const,
   };
 }
