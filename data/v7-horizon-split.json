@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T01:15:50.073Z",
+  "generatedAt": "2026-10-20T01:42:55.665Z",
   "purpose": "V7 diagnostic horizon split: preserve short-term caution while testing medium-term staged accumulation hypotheses.",
   "safety": {
     "diagnosticOnly": true,
@@ -24,9 +24,9 @@
     "deepOvervaluationBlocksStrategicAccumulation": true
   },
   "evidence": {
-    "marketRegime": "ATTENDERE",
+    "marketRegime": "VALUTARE",
     "sourceGate": "GREEN",
-    "dataQuality": 99,
+    "dataQuality": 98,
     "bias": {
       "sevenDay": {
         "sampleSize": 377,
@@ -43,79 +43,38 @@
       "tooCautiousMediumTerm": true
     },
     "regime": {
-      "regime": "ATTENDERE",
+      "regime": "VALUTARE",
       "oneSession": {
-        "sampleSize": 13,
-        "utilityRatePercent": 92.31
+        "sampleSize": 17,
+        "utilityRatePercent": 50
       },
       "fiveSessions": {
-        "sampleSize": 11,
-        "utilityRatePercent": 81.82
+        "sampleSize": 15,
+        "utilityRatePercent": 46.67
       }
     }
   },
   "candidateCount": 19,
-  "strategicShadowCount": 1,
-  "strategicShadowSymbols": [
-    "SPY"
-  ],
+  "strategicShadowCount": 0,
+  "strategicShadowSymbols": [],
   "rows": [
     {
       "rank": 1,
-      "symbol": "SPY",
-      "name": "S&P 500 ETF",
-      "positionType": "CORE",
-      "currentDecision": "OSSERVA",
-      "terminalDecision": "ACCUMULA",
-      "committeeScore": 70,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 30,
-      "valuationScore": 50,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "ACCUMULA_A_TRANCHE_SHADOW",
-        "structurallyEligible": true,
-        "blockers": [],
-        "researchTranchePlan": {
-          "trancheCount": 3,
-          "horizonDays": 30,
-          "notionalEuro": null,
-          "orderCreationAllowed": false,
-          "purpose": "Research-only staged-entry hypothesis; never an order or PAPER certification event."
-        }
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 2,
       "symbol": "ASML",
       "name": "ASML HOLDING NV",
       "positionType": "CORE",
       "currentDecision": "OSSERVA",
       "terminalDecision": "MANTIENI",
-      "committeeScore": 69,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 56,
+      "committeeScore": 68,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 55,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "OSSERVA",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -135,28 +94,66 @@
       }
     },
     {
-      "rank": 3,
-      "symbol": "QQQ",
-      "name": "Nasdaq 100 ETF",
-      "positionType": "CORE",
+      "rank": 2,
+      "symbol": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "ACCUMULA",
-      "committeeScore": 67,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 34,
+      "terminalDecision": "MANTIENI",
+      "committeeScore": 64,
+      "calibratedConfidence": 77,
+      "rawConfidence": 85,
+      "riskScore": 54,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
-        "state": "WATCHLIST_STRATEGICA",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
         "structurallyEligible": false,
         "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "RAW_CONFIDENCE_BELOW_90"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
+      "rank": 3,
+      "symbol": "SPY",
+      "name": "S&P 500 ETF",
+      "positionType": "CORE",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "MANTIENI",
+      "committeeScore": 62,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 30,
+      "valuationScore": 50,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
           "COMMITTEE_SCORE_BELOW_68"
         ],
         "researchTranchePlan": null
@@ -171,21 +168,21 @@
     },
     {
       "rank": 4,
-      "symbol": "TSM",
-      "name": "Taiwan Semiconductor Manufacturing Company Limited",
-      "positionType": "GROWTH",
+      "symbol": "QQQ",
+      "name": "Nasdaq 100 ETF",
+      "positionType": "CORE",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "MANTIENI",
-      "committeeScore": 65,
-      "calibratedConfidence": 82,
-      "rawConfidence": 91,
-      "riskScore": 54,
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 61,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 35,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -211,17 +208,17 @@
       "name": "AMAZON COM INC",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "MANTIENI",
-      "committeeScore": 62,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 59,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
       "riskScore": 51,
-      "valuationScore": 35,
+      "valuationScore": 36,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -248,16 +245,16 @@
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 57,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 32,
+      "committeeScore": 55,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 33,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -284,16 +281,16 @@
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 56,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
+      "committeeScore": 54,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
       "riskScore": 30,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -320,16 +317,16 @@
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 54,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
+      "committeeScore": 53,
+      "calibratedConfidence": 88,
+      "rawConfidence": 98,
       "riskScore": 78,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -352,60 +349,21 @@
     },
     {
       "rank": 9,
-      "symbol": "RXRX",
-      "name": "Recursion Pharmaceuticals, Inc.",
-      "positionType": "SPECULATIVA",
-      "currentDecision": "EVITA",
-      "terminalDecision": "SPECULATIVA",
-      "committeeScore": 51,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 100,
-      "valuationScore": 35,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "EVITA",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "CURRENT_DECISION_NOT_WAITING",
-          "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68",
-          "RISK_ABOVE_58",
-          "POSITION_CLASS_NOT_CORE_GROWTH"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 10,
       "symbol": "GLD",
       "name": "Oro ETF",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "EVITA",
-      "committeeScore": 48,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
+      "committeeScore": 47,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
       "riskScore": 46,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -426,22 +384,22 @@
       }
     },
     {
-      "rank": 11,
+      "rank": 10,
       "symbol": "ETH",
       "name": "Ethereum",
       "positionType": "GROWTH",
       "currentDecision": "EVITA",
       "terminalDecision": "EVITA",
-      "committeeScore": 47,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
-      "riskScore": 85,
+      "committeeScore": 46,
+      "calibratedConfidence": 88,
+      "rawConfidence": 98,
+      "riskScore": 86,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
         "state": "EVITA",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -464,22 +422,22 @@
       }
     },
     {
-      "rank": 12,
-      "symbol": "CRSP",
-      "name": "CRISPR THERAPEUTICS AG",
+      "rank": 11,
+      "symbol": "RXRX",
+      "name": "Recursion Pharmaceuticals, Inc.",
       "positionType": "SPECULATIVA",
       "currentDecision": "EVITA",
       "terminalDecision": "SPECULATIVA",
       "committeeScore": 46,
-      "calibratedConfidence": 84,
-      "rawConfidence": 93,
-      "riskScore": 87,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 100,
       "valuationScore": 35,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
         "state": "EVITA",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -503,22 +461,22 @@
       }
     },
     {
-      "rank": 13,
+      "rank": 12,
       "symbol": "META",
       "name": "Meta Platforms, Inc.",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "MANTIENI",
-      "committeeScore": 45,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 67,
-      "valuationScore": 5,
+      "committeeScore": 44,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 68,
+      "valuationScore": 7,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -541,22 +499,62 @@
       }
     },
     {
+      "rank": 13,
+      "symbol": "CRSP",
+      "name": "CRISPR THERAPEUTICS AG",
+      "positionType": "SPECULATIVA",
+      "currentDecision": "EVITA",
+      "terminalDecision": "SPECULATIVA",
+      "committeeScore": 44,
+      "calibratedConfidence": 79,
+      "rawConfidence": 88,
+      "riskScore": 88,
+      "valuationScore": 35,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "EVITA",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "CURRENT_DECISION_NOT_WAITING",
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "RAW_CONFIDENCE_BELOW_90",
+          "RISK_ABOVE_58",
+          "POSITION_CLASS_NOT_CORE_GROWTH"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
       "rank": 14,
       "symbol": "NVDA",
       "name": "NVIDIA CORP",
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
       "terminalDecision": "MANTIENI",
-      "committeeScore": 44,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
+      "committeeScore": 43,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
       "riskScore": 51,
-      "valuationScore": 0,
+      "valuationScore": 1,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -584,16 +582,16 @@
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ACCUMULA",
-      "committeeScore": 43,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 53,
+      "committeeScore": 42,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 54,
       "valuationScore": 0,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "VALUTA",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -620,16 +618,16 @@
       "positionType": "GROWTH",
       "currentDecision": "EVITA",
       "terminalDecision": "EVITA",
-      "committeeScore": 43,
-      "calibratedConfidence": 84,
-      "rawConfidence": 93,
-      "riskScore": 86,
+      "committeeScore": 42,
+      "calibratedConfidence": 79,
+      "rawConfidence": 88,
+      "riskScore": 89,
       "valuationScore": 45,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
         "state": "EVITA",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -639,6 +637,7 @@
           "CURRENT_DECISION_NOT_WAITING",
           "TERMINAL_NOT_ACCUMULA",
           "COMMITTEE_SCORE_BELOW_68",
+          "RAW_CONFIDENCE_BELOW_90",
           "RISK_ABOVE_58"
         ],
         "researchTranchePlan": null
@@ -653,21 +652,21 @@
     },
     {
       "rank": 17,
-      "symbol": "GOOGL",
-      "name": "Alphabet Inc.",
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "MANTIENI",
-      "committeeScore": 42,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 50,
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 39,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 45,
       "valuationScore": 0,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -690,21 +689,21 @@
     },
     {
       "rank": 18,
-      "symbol": "AAPL",
-      "name": "Apple Inc.",
+      "symbol": "GOOGL",
+      "name": "Alphabet Inc.",
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "ATTENDI",
-      "committeeScore": 40,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 45,
+      "terminalDecision": "MANTIENI",
+      "committeeScore": 39,
+      "calibratedConfidence": 81,
+      "rawConfidence": 90,
+      "riskScore": 51,
       "valuationScore": 0,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDERE",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "state": "ATTENDI",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -732,16 +731,16 @@
       "positionType": "SPECULATIVA",
       "currentDecision": "EVITA",
       "terminalDecision": "SPECULATIVA",
-      "committeeScore": 40,
-      "calibratedConfidence": 84,
-      "rawConfidence": 93,
+      "committeeScore": 39,
+      "calibratedConfidence": 79,
+      "rawConfidence": 88,
       "riskScore": 100,
       "valuationScore": 35,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
         "state": "EVITA",
-        "rationale": "Regime corrente prudente: il motore non anticipa il Comitato nel brevissimo."
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
         "horizon": "7-30 days",
@@ -751,6 +750,7 @@
           "CURRENT_DECISION_NOT_WAITING",
           "TERMINAL_NOT_ACCUMULA",
           "COMMITTEE_SCORE_BELOW_68",
+          "RAW_CONFIDENCE_BELOW_90",
           "RISK_ABOVE_58",
           "POSITION_CLASS_NOT_CORE_GROWTH"
         ],
