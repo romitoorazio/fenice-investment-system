@@ -45,12 +45,6 @@ for (const mark of researchMarks) {
 for (const symbol of duplicateSymbols) priceBySymbol.delete(symbol);
 const records = Array.isArray(previous.records) ? previous.records : [];
 
-function ageDays(date) {
-  const timestamp = new Date(date || 0).getTime();
-  if (!Number.isFinite(timestamp)) return 0;
-  return Math.max(0, (now.getTime() - timestamp) / 86_400_000);
-}
-
 function checkpoint(record, label, minimumDays, mark) {
   if (record.checkpoints?.[label] || !eligibleDecisionCheckpoint(record, mark, minimumDays, now.getTime())) return;
   record.checkpoints ??= {};
