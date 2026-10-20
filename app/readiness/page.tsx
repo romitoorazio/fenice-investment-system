@@ -585,7 +585,7 @@ export default async function ReadinessPage() {
           )}
           <p className="mt-2 text-xs text-slate-400">
             La correzione per distinguere le tre cause al momento di ogni futuro tentativo
-            richiede una nuova baseline approvata: l'esecuzione V6 rimane invariata.
+            richiede una nuova baseline approvata: l&apos;esecuzione V6 rimane invariata.
           </p>
           <p className="mt-2 text-xs text-slate-500">Diagnosi read-only; nessun refresh provider, ordine, rilascio LIVE o rinnovo PAPER.</p>
         </section>
