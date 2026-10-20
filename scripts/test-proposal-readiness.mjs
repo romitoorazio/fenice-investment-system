@@ -122,7 +122,7 @@ const missingScore = buildV7ProposalReadiness({
     {...committee.allDecisions[0], committeeScore: null, confidence: "", rawConfidenceBeforeCalibration: "95"}]},
   terminal, coverage, marketSession,
 }, now);
-const missingRow = missingScore.rows[0];
+const missingRow = missingScore.rows.find(row => row.symbol === "READY");
 assert.equal(missingRow.committeeScore, null);
 assert.equal(missingRow.calibratedConfidence, null);
 assert.equal(missingRow.rawCommitteeConfidence, null);
@@ -134,10 +134,10 @@ const noRisk = buildV7ProposalReadiness({
   approval, committee: {...committee, allDecisions: [
     {...committee.allDecisions[0], riskScore: null}]}, terminal, coverage, marketSession,
 }, now);
-assert.equal(noRisk.rows[0].riskScore, null);
-assert.equal(noRisk.rows[0].validationCandidateReady, false);
-assert.equal(noRisk.rows[0].reviewProposalCandidateReady, false);
-assert(noRisk.rows[0].reviewProposalLocalBlockers.includes("RISK_SCORE_ABOVE_REVIEW_MAXIMUM"));
+assert.equal(noRisk.rows.find(row => row.symbol === "READY").riskScore, null);
+assert.equal(noRisk.rows.find(row => row.symbol === "READY").validationCandidateReady, false);
+assert.equal(noRisk.rows.find(row => row.symbol === "READY").reviewProposalCandidateReady, false);
+assert(noRisk.rows.find(row => row.symbol === "READY").reviewProposalLocalBlockers.includes("RISK_SCORE_ABOVE_REVIEW_MAXIMUM"));
 
 for (const invalid of [null, undefined, "", "0", 0, 10, 69.9]) {
   const changed = buildV7ProposalReadiness({
@@ -199,14 +199,14 @@ const wrongCurrency = buildV7ProposalReadiness({
   approval, committee:{...committee,allDecisions:[
     {...committee.allDecisions[0],currency:"EUR"}]},terminal,coverage,marketSession,
 },now);
-assert(wrongCurrency.rows[0].reviewProposalLocalBlockers.includes("COMMITTEE_TERMINAL_CURRENCY_MISMATCH"));
+assert(wrongCurrency.rows.find(row => row.symbol === "READY").reviewProposalLocalBlockers.includes("COMMITTEE_TERMINAL_CURRENCY_MISMATCH"));
 const inventedSourceCount = buildV7ProposalReadiness({
   approval, committee, terminal,
   coverage:{...coverage,rows:coverage.rows.map(row=>
     row.symbol==="READY"?{...row,independentSourceFamilies:"2"}:row)},marketSession,
 },now);
-assert.equal(inventedSourceCount.rows[0].executionCoverage.independentSourceFamilies,0);
-assert.equal(inventedSourceCount.rows[0].reviewProposalCandidateReady,false);
+assert.equal(inventedSourceCount.rows.find(row => row.symbol === "READY").executionCoverage.independentSourceFamilies,0);
+assert.equal(inventedSourceCount.rows.find(row => row.symbol === "READY").reviewProposalCandidateReady,false);
 assert.equal(report.blockersByCategory.review.COMMITTEE_NOT_BUY,2);
 assert.equal(report.blockersByCategory.validation.DECISION_STATE_NOT_PERMITTED_FOR_V6_PROBE,1);
 
