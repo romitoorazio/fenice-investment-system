@@ -9,6 +9,7 @@ on:
       - "data/world-paper-v7-research-seeds.json"
       - "scripts/run-world-paper-v7.mjs"
       - "scripts/test-world-paper-v7.mjs"
+      - "scripts/test-world-paper-v7-session-window.mjs"
       - ".github/workflows/world-paper-v7.yml"
       - "app/api/paper/world-v7/route.ts"
   push:
@@ -19,12 +20,15 @@ on:
       - "data/world-paper-v7-research-seeds.json"
       - "scripts/run-world-paper-v7.mjs"
       - "scripts/test-world-paper-v7.mjs"
+      - "scripts/test-world-paper-v7-session-window.mjs"
       - ".github/workflows/world-paper-v7.yml"
   schedule:
     # Read-only worldwide observation at Asia, Europe, US and Latin America
-    # handoff times. Schedules are not proof of an exchange being OPEN.
-    - cron: "35 2 * * 1-5"
-    - cron: "35 9 * * 1-5"
+    # handoff times. 02:05 UTC is 11:05 JST (Japan morning, NOT lunch);
+    # 08:35 UTC is 09:35 CET / 10:35 CEST (Milan open-hour).
+    # Schedules are never proof of an exchange being OPEN.
+    - cron: "05 2 * * 1-5"
+    - cron: "35 8 * * 1-5"
     - cron: "35 15 * * 1-5"
     - cron: "35 19 * * 1-5"
 
@@ -48,6 +52,8 @@ jobs:
           node-version: 24
       - name: Test worldwide venue, source, FX and risk engine
         run: node scripts/test-world-paper-v7.mjs
+      - name: Protect early Asia-Europe observation windows and PAPER safety
+        run: node scripts/test-world-paper-v7-session-window.mjs
       - name: Produce world observation report from repository evidence
         run: node scripts/run-world-paper-v7.mjs --output="$RUNNER_TEMP/fenice-world-paper-v7-readiness.json"
       - name: Verify report does not unlock LIVE or invent PAPER fills
