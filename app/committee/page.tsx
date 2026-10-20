@@ -20,6 +20,17 @@ type Decision = {
   riskScore: number;
   maxWeightPercent: number;
   scorecard: Record<string, number>;
+  strategyResearch?: {
+    kind: "HISTORICAL_OOS_RESEARCH_ONLY";
+    strategyAsOf: string;
+    family: string;
+    selectedVariant: string;
+    historicalRobustnessScore: number;
+    historicalMedianOosExcessAnnualizedPercent: number;
+    historicalMedianOosDrawdownImprovementPoints: number;
+    executionAuthorized: false;
+    profitableStrategyVerified: false;
+  } | null;
   valuation: {
     status: string;
     fairValueLow: number | null;
@@ -466,6 +477,15 @@ export default function CommitteePage() {
                 <Panel title="Scorecard">
                   {Object.entries(item.scorecard).map(([key, value]) => <Row key={key} label={key} value={`${value}/100`} />)}
                 </Panel>
+                {item.strategyResearch?.kind === "HISTORICAL_OOS_RESEARCH_ONLY" && (
+                  <Panel title="Strategy Lab · storico, non operativo">
+                    <Row label="Famiglia / variante" value={`${item.strategyResearch.family} · ${item.strategyResearch.selectedVariant}`} />
+                    <Row label="Robustezza storica" value={`${item.strategyResearch.historicalRobustnessScore}/100`} />
+                    <Row label="Extra-rendimento OOS annualizzato storico" value={`${item.strategyResearch.historicalMedianOosExcessAnnualizedPercent}%`} />
+                    <Row label="Riduzione drawdown vs SPY (punti)" value={`${item.strategyResearch.historicalMedianOosDrawdownImprovementPoints}`} />
+                    <p className="text-xs leading-5 text-amber-200">Campione del {item.strategyResearch.strategyAsOf}. Backtest selezionato a posteriori: non predice rendimenti futuri, non cambia lo score, non abilita ordini.</p>
+                  </Panel>
+                )
               </div>
 
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
