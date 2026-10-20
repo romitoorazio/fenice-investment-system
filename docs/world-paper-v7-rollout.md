@@ -89,3 +89,43 @@ Non modificare i 92 file fingerprinted della campagna PAPER V6 attiva.
 - L'archivio PAPER V7 viene ricalcolato dagli eventi BUY/SELL: liquidità, costo medio, quantità, hash finale, commissioni e prezzi simulati devono risultare coerenti.
 - Il limite del 5% si applica alla **posizione complessiva**: nuovi intenti di acquisto non possono aggirarlo con identificativi differenti.
 - Sono interventi solo al motore simulato V7; non apportano nuove licenze, prove di rendimento, ordini broker o cambi alla campagna V6.
+
+## G1 source intake privato (20 ottobre 2026)
+
+Il precedente osservatore V7 passa volutamente `sessions:[]`, `quotes:[]`,
+`fx:[]` e `entitlements:[]`: i suoi zero fill sono veri, non un errore
+nel motore simulato. Il nuovo `scripts/run-world-v7-private-preflight.mjs`
+è una **porta di sola lettura** per future prove acquisite direttamente dai
+provider autorizzati: non effettua chiamate di rete, non richiede credenziali,
+non invia ordini, non produce fill e non modifica la campagna V6.
+
+Esempio *solo dopo che un feed esterno indipendente abbia raccolto dati validi*:
+
+```bash
+node scripts/run-world-v7-private-preflight.mjs \
+  --observations=/percorso/privato/world-v7-observations.json \
+  --rights-registry=/percorso/privato/world-v7-verified-rights.json \
+  --output=/percorso/privato/world-v7-preflight.json
+```
+
+I due file devono stare **fuori dal repository**. Il primo contiene array
+`sessions`, `quotes`, `fx`; il secondo è una registry indipendente
+con array `sources`, `sessions`, `fx`. Non basta scrivere a mano
+`VERIFIED` o copiare due volte lo stesso provider: prima servono contratti,
+prove di attribuzione e timestamp autentici. Il codice ricontrolla MIC,
+quorum indipendente, freschezza, sessione e FX usando l'engine V7 reale.
+Il report salva **solo conteggi e motivi dei blocchi**, mai prezzi o
+dettagli contrattuali; il bridge non certifica legalmente la registry da sé.
+
+`node scripts/test-world-v7-private-preflight.mjs` esegue regressioni
+con **fixture sintetiche**; anche la fixture valida produce zero fill,
+perché manca una distinta autorizzazione PAPER per la V7. Il workflow
+`world-paper-v7.yml` esegue ora questa verifica e salva un artifact
+sanitizzato. Senza dati privati autorizzati resta correttamente a zero:
+non trasformare tale risultato in un fill né in una certificazione.
+
+**Passo ancora mancante e indispensabile:** contratti/fonti indipendenti
+realmente utilizzabili per XMIL/XTKS/XETR, feed market-state autorevole,
+FX certificato se necessario, segnale di strategia verificabile e una
+autorizzazione V7 PAPER separata. Soltanto dopo il superamento di questi
+requisiti si può progettare il ciclo persistente con veri fill simulati.
