@@ -96,12 +96,14 @@ assert.equal(dailyResearchMark({...sampleAsset, currency:'EUR'},observationClock
 assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,observedAt:'2026-10-21T13:30:00.000Z'}},observationClock),null);
 assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,observedAt:'2026-10-01T13:30:00.000Z'}},observationClock),null);
 assert.equal(dailyResearchMark({...sampleAsset, technical:{...sampleAsset.technical,timestampSemantics:'LIVE_LAST_TRADE'}},observationClock),null);
-const recordAfterQuote = {entryReferencePrice:680,createdAt:'2026-10-20T14:00:00.000Z'};
+const recordAfterQuote = {currency:'USD',entryReferencePrice:680,createdAt:'2026-10-20T14:00:00.000Z'};
 assert.equal(eligibleDecisionMark(recordAfterQuote,mark,observationClock),false,
   'Same-day candle predating a decision must not mark its performance');
-const previousRecord = {entryReferencePrice:680,createdAt:'2026-10-19T13:00:00.000Z'};
+const previousRecord = {currency:'USD',entryReferencePrice:680,createdAt:'2026-10-19T13:00:00.000Z'};
 assert.equal(eligibleDecisionMark(previousRecord,mark,observationClock),true);
 assert.equal(eligibleDecisionCheckpoint(previousRecord,mark,1,observationClock),true);
+assert.equal(eligibleDecisionCheckpoint({...previousRecord,currency:'EUR'},mark,1,observationClock),false);
+assert.equal(eligibleDecisionMark({...previousRecord,currency:'EUR'},mark,observationClock),false);
 assert.equal(eligibleDecisionCheckpoint(previousRecord,mark,7,observationClock),false);
 assert.equal(eligibleDecisionCheckpoint({entryReferencePrice:0,createdAt:previousRecord.createdAt},mark,1,observationClock),false);
 assert.equal(eligibleDecisionCheckpoint({...previousRecord,createdAt:'2026-10-19T15:00:00.000Z'},mark,1,observationClock),false);
