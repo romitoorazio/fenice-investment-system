@@ -485,7 +485,7 @@ export default function CommitteePage() {
                     <Row label="Riduzione drawdown vs SPY (punti)" value={`${item.strategyResearch.historicalMedianOosDrawdownImprovementPoints}`} />
                     <p className="text-xs leading-5 text-amber-200">Campione del {item.strategyResearch.strategyAsOf}. Backtest selezionato a posteriori: non predice rendimenti futuri, non cambia lo score, non abilita ordini.</p>
                   </Panel>
-                )
+                )}
               </div>
 
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
