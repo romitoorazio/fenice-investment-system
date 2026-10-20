@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 const reject=reason=>({allowed:false,reason,authorizesOrders:false,liveTradingAllowed:false});
 export function gate({approval,queue,campaign,plan,now=Date.now()}={}){
   if(!Number.isSafeInteger(now)||now<0)return reject("clock-invalid");
@@ -28,11 +30,37 @@ export function gate({approval,queue,campaign,plan,now=Date.now()}={}){
   if(queue.orders.length!==0)return reject("queue-pending");
   return {allowed:true,reason:"pre-dispatch-only",authorizesOrders:false,liveTradingAllowed:false};
 }
-if(process.argv[1]&&import.meta.url===new URL("file://"+process.argv[1]).href){
-  try{console.log(JSON.stringify(gate({
-    approval:JSON.parse(process.env.APPROVAL_JSON||"null"),
-    queue:JSON.parse(process.env.QUEUE_JSON||"null"),
-    campaign:JSON.parse(process.env.CAMPAIGN_JSON||"null"),
-    plan:JSON.parse(process.env.PLAN_JSON||"null")
-  })))}catch{console.log(JSON.stringify(reject("input-invalid")))}
+// The campaign grows past Linux's per-argument/environment-string limit.
+// Read files directly; retain env input only for existing non-workflow callers.
+function readCliInputs(args) {
+  if (args.length === 0) return {
+    approval: JSON.parse(process.env.APPROVAL_JSON || "null"),
+    queue: JSON.parse(process.env.QUEUE_JSON || "null"),
+    campaign: JSON.parse(process.env.CAMPAIGN_JSON || "null"),
+    plan: JSON.parse(process.env.PLAN_JSON || "null"),
+  };
+  const required = ["--approval-file", "--queue-file", "--campaign-file", "--plan-file"];
+  if (args.length !== required.length * 2) throw new Error("invalid file args");
+  const files = new Map();
+  for (let i = 0; i < args.length; i += 2) {
+    const flag = args[i];
+    if (!required.includes(flag) || files.has(flag) || !args[i + 1]) throw new Error("invalid file flag");
+    files.set(flag, args[i + 1]);
+  }
+  if (required.some(flag => !files.has(flag))) throw new Error("missing file");
+  return {
+    approval: JSON.parse(readFileSync(files.get("--approval-file"), "utf8")),
+    queue: JSON.parse(readFileSync(files.get("--queue-file"), "utf8")),
+    campaign: JSON.parse(readFileSync(files.get("--campaign-file"), "utf8")),
+    plan: JSON.parse(readFileSync(files.get("--plan-file"), "utf8")),
+  };
+}
+
+if (process.argv[1] && import.meta.url === new URL("file://" + process.argv[1]).href) {
+  try {
+    console.log(JSON.stringify(gate(readCliInputs(process.argv.slice(2)))));
+  } catch {
+    // A missing/malformed file must never be interpreted as operator consent.
+    console.log(JSON.stringify(reject("input-invalid")));
+  }
 }

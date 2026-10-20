@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readFileSync, mkdtempSync, writeFileSync, rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {fileURLToPath} from "node:url";
+import {spawnSync} from "node:child_process";
 import {gate} from "./paper-probe-operator-gate.mjs";
 const plan=JSON.parse(readFileSync(new URL("../data/paper-v6-continuation-plan.json",import.meta.url),"utf8"));
 const approval=JSON.parse(readFileSync(new URL("../data/paper-validation-approval.json",import.meta.url),"utf8"));
@@ -27,4 +31,53 @@ for(const [name,patch,reason] of [
  assert.equal(result.reason,reason,name);
  assert.equal(result.authorizesOrders,false,name);
 }
+
+// Regression: large campaign history must never enter execve's argv/env.
+// Passing CAMPAIGN_JSON in an environment variable failed at ~128 KiB (E2BIG).
+const temp = mkdtempSync(join(tmpdir(), "fenice-paper-operator-"));
+try {
+  const farFuture = "2099-01-01T00:00:00.000Z";
+  const fixtures = {
+    approval: {...approval, expiresAt: farFuture},
+    queue,
+    campaign: {...campaign, historicalEvidencePadding: "x".repeat(400_000)},
+    plan: {...plan, v6: {...plan.v6, originalExpiresAt: farFuture}},
+  };
+  for (const [name, payload] of Object.entries(fixtures)) {
+    writeFileSync(join(temp, name + ".json"), JSON.stringify(payload), "utf8");
+  }
+  const command = fileURLToPath(new URL("./paper-probe-operator-gate.mjs", import.meta.url));
+  const args = [
+    "--approval-file", join(temp, "approval.json"),
+    "--queue-file", join(temp, "queue.json"),
+    "--campaign-file", join(temp, "campaign.json"),
+    "--plan-file", join(temp, "plan.json"),
+  ];
+  const invoke = (passedArgs = args) => {
+    const child = spawnSync(process.execPath, [command, ...passedArgs], {
+      encoding: "utf8", timeout: 15_000, maxBuffer: 64 * 1024,
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stderr);
+    return JSON.parse(child.stdout);
+  };
+  assert.equal(readFileSync(join(temp, "campaign.json")).length > 131_072, true);
+  const validFiles = invoke();
+  assert.equal(validFiles.allowed, true, "oversized input should reach pre-dispatch gate");
+  assert.equal(validFiles.authorizesOrders, false);
+  assert.equal(validFiles.liveTradingAllowed, false);
+
+  // Fail-closed parsing: malformed or missing inputs must never allow probes.
+  writeFileSync(join(temp, "approval.json"), "{malformed", "utf8");
+  assert.equal(invoke().reason, "input-invalid");
+  assert.equal(invoke().allowed, false);
+  assert.equal(invoke(args.slice(0, -2)).reason, "input-invalid");
+  writeFileSync(join(temp, "approval.json"), JSON.stringify({...fixtures.approval, humanConfirmation:false}), "utf8");
+  const denied = invoke();
+  assert.equal(denied.allowed, false);
+  assert.equal(denied.reason, "safety-lock-invalid");
+} finally {
+  rmSync(temp, {recursive:true, force:true});
+}
+
 console.log("Fenice V6 operator pre-dispatch safety gate PASS");
