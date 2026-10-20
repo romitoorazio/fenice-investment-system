@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { runWorldPaperV7 } from "../lib/trading/world-paper-v7.mjs";
 
 const H = "a".repeat(64);
@@ -106,6 +107,40 @@ assert.equal(sell.summary.filledPaperOrders,1, "valid SELL still works after led
 assert.equal(runWorldPaperV7({...tokyoInput,nowIso:soldAt,
   previousLedger:sell.paperLedger}).paperLedger.lastHash,sell.paperLedger.lastHash,
   "multi-event BUY/SELL journal can be replayed exactly");
+const resealOne=(journal)=>{
+  const evt=journal.events[0];
+  const {hash:previousHash,...body}=evt;
+  void previousHash;
+  evt.hash=createHash("sha256").update(JSON.stringify(body)).digest("hex");
+  journal.lastHash=evt.hash;
+};
+const fakedPrice=structuredClone(buy.paperLedger);
+fakedPrice.events[0].unitPrice*=2;
+resealOne(fakedPrice);
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fakedPrice}),
+  /INVALID_WORLD_PAPER_LEDGER/, "rehashed impossible fill price must still fail");
+const fakeFee=structuredClone(buy.paperLedger);
+const oldFee=fakeFee.events[0].feeEuro;
+fakeFee.events[0].feeEuro=0;
+fakeFee.cashEuro=Number((fakeFee.cashEuro+oldFee).toFixed(4));
+const first=fakeFee.events[0];
+fakeFee.positions[first.key].unitCostEuro=Number((first.notionalEuro/first.quantity).toFixed(4));
+resealOne(fakeFee);
+assert.throws(()=>runWorldPaperV7({...tokyoInput,previousLedger:fakeFee}),
+  /INVALID_WORLD_PAPER_LEDGER/, "rehashed fee-free event with altered cash/cost still fails");
+const repeatedBuys=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
+  intents:[
+    intent(assetTokyo,tTokyo,"tokyo-risk-001"),
+    intent(assetTokyo,tTokyo,"tokyo-risk-002"),
+    intent(assetTokyo,tTokyo,"tokyo-risk-003"),
+  ],
+});
+assert.equal(repeatedBuys.summary.filledPaperOrders,2,
+  "2nd BUY may fill remaining 5% room, 3rd is denied");
+assert.equal(repeatedBuys.summary.rejectedIntents,1);
+const tokyoMarkedNotional=repeatedBuys.paperLedger.positions["XTKS:7203"].quantity
+  * repeatedBuys.listings.find(row=>row.key==="XTKS:7203").verifiedPrice * .006;
+assert(tokyoMarkedNotional<=50.01,"same asset total must remain at or below 5% synthetic equity");
 
 const tampered=structuredClone(buy.paperLedger);
 tampered.events[0].notionalEuro=999999;

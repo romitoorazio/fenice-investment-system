@@ -82,3 +82,10 @@ I test utilizzano dati intenzionalmente **sintetici**, non eseguiti dal vivo;
 sono test del software e non giornate certificabili per il conto reale.
 
 Non modificare i 92 file fingerprinted della campagna PAPER V6 attiva.
+
+## V7 provider e rischio aggregato (20 ottobre 2026)
+
+- Due famiglie di feed dello stesso provider non dimostrano due fonti indipendenti: de-duplicazione e quorum per provider reale.
+- L'archivio PAPER V7 viene ricalcolato dagli eventi BUY/SELL: liquidità, costo medio, quantità, hash finale, commissioni e prezzi simulati devono risultare coerenti.
+- Il limite del 5% si applica alla **posizione complessiva**: nuovi intenti di acquisto non possono aggirarlo con identificativi differenti.
+- Sono interventi solo al motore simulato V7; non apportano nuove licenze, prove di rendimento, ordini broker o cambi alla campagna V6.
