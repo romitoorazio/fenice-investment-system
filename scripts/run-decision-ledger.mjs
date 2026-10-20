@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { retainDecisionLedgerRecords } from '../lib/intelligence/decision-ledger-retention.mjs';
+import { dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark } from '../lib/intelligence/decision-ledger-price-evidence.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -32,7 +33,15 @@ const previous = JSON.parse(await readFile(ledgerPath, 'utf8'));
 if(previous?.version !== 1 || !Array.isArray(previous.records))
   throw new Error('DECISION_LEDGER_HISTORY_MISSING_OR_INVALID');
 
-const priceBySymbol = new Map((terminal.assets || []).map((asset) => [String(asset.symbol).toUpperCase(), Number(asset.price)]));
+// A single unambiguous, current research daily candle is the only mark.
+const researchMarks = (terminal.assets || []).map(asset => dailyResearchMark(asset, now.getTime())).filter(Boolean);
+const priceBySymbol = new Map();
+const duplicateSymbols = new Set();
+for (const mark of researchMarks) {
+  if (priceBySymbol.has(mark.symbol)) duplicateSymbols.add(mark.symbol);
+  else priceBySymbol.set(mark.symbol, mark);
+}
+for (const symbol of duplicateSymbols) priceBySymbol.delete(symbol);
 const records = Array.isArray(previous.records) ? previous.records : [];
 
 function ageDays(date) {
@@ -41,31 +50,34 @@ function ageDays(date) {
   return Math.max(0, (now.getTime() - timestamp) / 86_400_000);
 }
 
-function checkpoint(record, label, minimumDays, currentPrice) {
-  if (record.checkpoints?.[label] || ageDays(record.createdAt) < minimumDays || !Number.isFinite(currentPrice) || !Number.isFinite(record.entryReferencePrice)) return;
+function checkpoint(record, label, minimumDays, mark) {
+  if (record.checkpoints?.[label] || !eligibleDecisionCheckpoint(record, mark, minimumDays, now.getTime())) return;
   record.checkpoints ??= {};
   record.checkpoints[label] = {
     measuredAt: now.toISOString(),
-    price: round(currentPrice),
-    returnPercent: round(((currentPrice - record.entryReferencePrice) / record.entryReferencePrice) * 100),
+    price: round(mark.price),
+    priceObservedAt: mark.observedAt,
+    priceEvidenceKind: mark.evidenceKind,
+    returnPercent: round(((mark.price - record.entryReferencePrice) / record.entryReferencePrice) * 100),
   };
 }
 
 for (const record of records) {
-  const currentPrice = priceBySymbol.get(String(record.symbol).toUpperCase());
-  if (Number.isFinite(currentPrice)) {
-    record.lastPrice = round(currentPrice);
-    record.lastMarkedAt = now.toISOString();
-    record.markToMarketPercent = Number.isFinite(record.entryReferencePrice)
-      ? round(((currentPrice - record.entryReferencePrice) / record.entryReferencePrice) * 100)
-      : null;
-    checkpoint(record, '1d', 1, currentPrice);
-    checkpoint(record, '7d', 7, currentPrice);
-    checkpoint(record, '30d', 30, currentPrice);
-    checkpoint(record, '90d', 90, currentPrice);
-    checkpoint(record, '180d', 180, currentPrice);
-    checkpoint(record, '365d', 365, currentPrice);
-  }
+  const mark = priceBySymbol.get(String(record.symbol).toUpperCase());
+  if (!eligibleDecisionMark(record, mark, now.getTime())) continue;
+  // Never regress to an older session bucket.
+  if (record.lastPriceObservedAt && Date.parse(record.lastPriceObservedAt) > mark.observedMs) continue;
+  record.lastPrice = round(mark.price);
+  record.lastPriceObservedAt = mark.observedAt;
+  record.lastPriceEvidenceKind = mark.evidenceKind;
+  record.lastMarkedAt = now.toISOString();
+  record.markToMarketPercent = round(((mark.price - record.entryReferencePrice) / record.entryReferencePrice) * 100);
+  checkpoint(record, '1d', 1, mark);
+  checkpoint(record, '7d', 7, mark);
+  checkpoint(record, '30d', 30, mark);
+  checkpoint(record, '90d', 90, mark);
+  checkpoint(record, '180d', 180, mark);
+  checkpoint(record, '365d', 365, mark);
 }
 
 const cycleId = committee.generatedAt || now.toISOString();
@@ -97,7 +109,7 @@ for (const decision of committee.allDecisions || []) {
     executionGate: committee.executionGate,
     lastPrice: Number.isFinite(price) ? round(price) : null,
     lastMarkedAt: now.toISOString(),
-    markToMarketPercent: 0,
+    markToMarketPercent: null, // not a return until a later candle is observed
     checkpoints: {},
   });
 }
@@ -109,7 +121,10 @@ const retention=retainDecisionLedgerRecords(records,{nowIso:now.toISOString()});
 const preservedRecords=retention.records;
 
 function statsFor(decision) {
-  const eligible = preservedRecords.filter((record) => record.decision === decision && Number.isFinite(record.markToMarketPercent));
+  // Historical rows without a verified post-decision price vintage are not outcomes.
+  const eligible = preservedRecords.filter(record => record.decision === decision
+    && Number.isFinite(record.markToMarketPercent)
+    && eligibleDecisionMark(record, {price: record.lastPrice, observedAt: record.lastPriceObservedAt}, now.getTime()));
   const wins = eligible.filter((record) => record.markToMarketPercent > 0).length;
   const average = eligible.length ? eligible.reduce((sum, record) => sum + record.markToMarketPercent, 0) / eligible.length : null;
   return {
