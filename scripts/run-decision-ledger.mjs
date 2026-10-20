@@ -19,7 +19,8 @@ async function readJson(name, fallback) {
 }
 
 const round = (value, digits = 2) => {
-  if (!Number.isFinite(Number(value))) return null;
+  // Null, empty and boolean inputs must never become a fabricated zero return.
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   const factor = 10 ** digits;
   return Math.round(Number(value) * factor) / factor;
 };
