@@ -47,10 +47,10 @@ if (args.has("observations")) {
     "liveTradingAllowed","brokerConnectivityAllowed","approval","instruments"]) {
     if (Object.hasOwn(observations,key)) throw Error("UNTRUSTED_EXECUTION_FIELD_IN_OBSERVATIONS");
   }
-  for (const key of ["sources","sessions","fx"]) {
-    if (!Array.isArray(rights[key]) || !Array.isArray(observations[key]))
-      throw Error("PRIVATE_EVIDENCE_ARRAY_MISSING");
-  }
+  // Raw observations carry quotes; operator registry carries source rights.
+  if (["quotes","sessions","fx"].some(key => !Array.isArray(observations[key])) ||
+      ["sources","sessions","fx"].some(key => !Array.isArray(rights[key])))
+    throw Error("PRIVATE_EVIDENCE_ARRAY_MISSING");
   if (Object.keys(rights).some(key => !["sources","sessions","fx"].includes(key)))
     throw Error("RIGHTS_REGISTRY_UNEXPECTED_FIELD");
 }
