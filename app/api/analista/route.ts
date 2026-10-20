@@ -1,15 +1,11 @@
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
-import committee from "@/data/investment-committee.json";
-import quality from "@/data/intelligence-quality.json";
-import sourceHealth from "@/data/global-source-health.json";
-import campaign from "@/data/paper-validation-campaign.json";
-import calibration from "@/data/calibration-analysis.json";
+import { feniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const context = { committee, quality, sources: sourceHealth, campaign, calibration };
+const context = feniceAnalystContext;
 const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff" };
 
 export async function GET() {
