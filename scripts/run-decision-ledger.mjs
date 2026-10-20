@@ -83,6 +83,8 @@ for (const decision of committee.allDecisions || []) {
     name: decision.name,
     decision: decision.decision,
     committeeScore: decision.committeeScore,
+    // Research vintage at decision time, never a BUY signal.
+    strategyResearch: decision.strategyResearch ?? null,
     confidence: decision.confidence,
     riskScore: decision.riskScore,
     positionType: decision.positionType,

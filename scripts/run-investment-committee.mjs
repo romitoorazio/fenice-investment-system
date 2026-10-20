@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
-import { scoreResearchFreshness, positiveResearchReferencePrice } from '../lib/intelligence/committee-input-integrity.mjs';
+import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot } from '../lib/intelligence/committee-input-integrity.mjs';
 import { optionalDcfNumber } from '../lib/intelligence/committee-valuation-numbers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -94,7 +94,7 @@ function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
   };
 }
 
-function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calibrationPolicy) {
+function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calibrationPolicy, strategies) {
   const fundamentalScore = Math.round(clamp(fundamental?.scores?.overall ?? asset.fundamentalScore ?? asset.unifiedScore ?? 50));
   const qualityScore = Math.round(clamp(fundamental?.scores?.quality ?? fundamentalScore));
   const technicalScore = Math.round(clamp(asset.technicalScore ?? asset.technical?.scores?.technical ?? 50));
@@ -154,6 +154,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
 
   return {
     rank: 0,
+    strategyResearch: researchStrategySnapshot(strategies, asset.symbol, now.getTime()),
     symbol: asset.symbol,
     name: asset.name,
     assetClass: asset.assetClass,
@@ -240,6 +241,7 @@ const dcf = await readJson('dcf-analysis.json', { companies: [] });
 const snapshot = await readJson('latest-snapshot.json', { discoveries: [], warnings: [] });
 const sourceHealth = await readJson('global-source-health.json', { qualityScore: null, gate: 'UNKNOWN' });
 const calibration = await readJson('calibration-analysis.json', { horizons: {} });
+const strategies = await readJson('strategy-lab.json', null);
 const calibrationPolicy = selectCalibrationPolicy(calibration);
 
 const fundamentalBySymbol = new Map((fundamentals.companies || []).map((item) => [String(item.ticker).toUpperCase(), item]));
@@ -258,6 +260,7 @@ const candidates = (terminal.assets || [])
     snapshot.discoveries || [],
     dataQuality,
     calibrationPolicy,
+    strategies,
   ))
   .sort((a, b) => b.committeeScore - a.committeeScore || b.confidence - a.confidence || a.riskScore - b.riskScore)
   .map((item, index) => ({ ...item, rank: index + 1 }));

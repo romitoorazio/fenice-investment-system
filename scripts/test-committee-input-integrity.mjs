@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { scoreResearchFreshness, positiveResearchReferencePrice } from "../lib/intelligence/committee-input-integrity.mjs";
+import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot } from "../lib/intelligence/committee-input-integrity.mjs";
 
 const now = Date.parse("2026-10-14T19:00:00.000Z");
 const observed = new Date(now - 5 * 3600_000).toISOString();
@@ -35,6 +35,7 @@ const campaign = JSON.parse(await readFile(new URL("../data/paper-validation-cam
 assert.equal(campaign.liveTradingAllowed,false);
 assert.equal(campaign.baselineFingerprint.complete,true);
 for(const file of ["scripts/run-investment-committee.mjs","lib/intelligence/committee-input-integrity.mjs",
+ "scripts/run-decision-ledger.mjs","app/committee/page.tsx",
  "scripts/test-committee-input-integrity.mjs"])
  assert.equal(campaign.baselineFingerprint.files.includes(file),false,
   "Must stay outside frozen V6 PAPER fingerprint: "+file);
@@ -47,4 +48,49 @@ for(const row of rows){
      "Current valid market references should be stable: "+row.symbol);
  }
 }
-console.log("Fenice Committee as-of freshness, positive research prices and V6 isolation: PASS");
+
+const t = Date.parse("2026-10-20T12:00:00.000Z");
+const sampleBook = {
+  mode: "live", generatedAt: "2026-10-18T12:00:00.000Z",
+  assets: [{
+    symbol: "ASML", observedAt: "2026-10-16T00:00:00.000Z", status: "operativo",
+    conclusion: "ROBUSTA", bestFamily: "trend",
+    families: [{ id: "trend", verdict: "ROBUSTA", robustnessScore: 98,
+      medianOutOfSampleExcessPercent: 22.2,
+      medianOutOfSampleDrawdownImprovementPercent: -3.2,
+      selectedVariantId: "trend-60-220",
+      variants: [{ id: "trend-60-220", parameters: {fast:60,slow:220} }] }]
+  }]
+};
+const frozen = JSON.stringify(sampleBook);
+const strategy = researchStrategySnapshot(sampleBook, "ASML", t);
+assert.equal(strategy?.kind, "HISTORICAL_OOS_RESEARCH_ONLY");
+assert.equal(strategy?.historicalMedianOosExcessAnnualizedPercent, 22.2);
+assert.equal(strategy?.historicalMedianOosDrawdownImprovementPoints, -3.2);
+assert.deepEqual(strategy?.parameters, {fast:60,slow:220});
+assert.equal(strategy?.executionAuthorized, false);
+assert.equal(strategy?.affectsCommitteeScore, false);
+assert.equal(strategy?.profitableStrategyVerified, false);
+assert.equal(JSON.stringify(sampleBook), frozen, "Evidence selection must not mutate the Strategy Lab.");
+const invalidBook = mutate => {
+  const copy = structuredClone(sampleBook);
+  mutate(copy);
+  assert.equal(researchStrategySnapshot(copy, "ASML", t), null);
+};
+invalidBook(x => { x.generatedAt = "2026-10-21T12:00:00.000Z"; });
+invalidBook(x => { x.generatedAt = "2026-02-30T12:00:00.000Z"; });
+invalidBook(x => { x.generatedAt = "2026-10-01T12:00:00.000Z"; });
+invalidBook(x => { x.assets[0].conclusion = "INSUFFICIENTE"; });
+invalidBook(x => { x.assets[0].families[0].verdict = "FRAGILE"; });
+invalidBook(x => { x.assets[0].families[0].selectedVariantId = "missing"; });
+invalidBook(x => { x.assets[0].families[0].medianOutOfSampleExcessPercent = Infinity; });
+invalidBook(x => { x.assets[0].observedAt = "2026-10-19T00:00:00.000Z"; });
+invalidBook(x => { x.assets.push(structuredClone(x.assets[0])); });
+assert.equal(researchStrategySnapshot(sampleBook, "SPY", t), null);
+const ledgerRunner = await readFile(new URL("./run-decision-ledger.mjs",import.meta.url),"utf8");
+assert.match(ledgerRunner,/strategyResearch: decision\.strategyResearch \?\? null/);
+const committeePage = await readFile(new URL("../app/committee/page.tsx",import.meta.url),"utf8");
+assert.match(committeePage,/Strategy Lab · storico, non operativo/);
+assert.match(runner,/researchStrategySnapshot\(strategies, asset\.symbol, now\.getTime\(\)\)/);
+
+console.log("Fenice Committee timestamp and strategy vintage, V6 isolation: PASS");
