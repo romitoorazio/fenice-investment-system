@@ -10,6 +10,8 @@ on:
       - ".github/workflows/paper-provider-feasibility.yml"
       - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/test-paper-operator-recovery-config.mjs"
+      - "scripts/paper-probe-operator-gate.mjs"
+      - "scripts/test-paper-probe-operator-gate.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
       - "scripts/paper-validation-event-recovery-trigger.mjs"
@@ -37,6 +39,8 @@ on:
       - ".github/workflows/paper-provider-feasibility.yml"
       - "lib/trading/paper-v7-probe-selection.mjs"
       - "scripts/test-paper-operator-recovery-config.mjs"
+      - "scripts/paper-probe-operator-gate.mjs"
+      - "scripts/test-paper-probe-operator-gate.mjs"
       - "scripts/paper-probe-recovery-trigger.mjs"
       - "scripts/test-paper-probe-recovery-trigger.mjs"
       - "scripts/paper-validation-event-recovery-trigger.mjs"
@@ -77,6 +81,8 @@ jobs:
         run: node scripts/test-paper-probe-recovery-trigger.mjs
       - name: Verify event-driven recovery remains fail-closed
         run: node scripts/test-paper-operator-recovery-config.mjs
+      - name: Verify oversized V6 campaign gate and consent rejection
+        run: node scripts/test-paper-probe-operator-gate.mjs
       - name: Verify daily PAPER evidence event recovery remains fail-closed
         run: node scripts/test-paper-validation-event-recovery-trigger.mjs
       - name: Verify provider cooldown and canonical PAPER run suppression
