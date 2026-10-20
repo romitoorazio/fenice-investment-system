@@ -4,6 +4,7 @@ import { buildV7ProposalReadiness } from "../lib/intelligence/proposal-readiness
 const now = Date.parse("2026-10-06T17:40:00Z");
 const approval = {
   approved: true,
+  humanConfirmation: true,
   mode: "PAPER",
   expiresAt: "2026-10-24T21:59:59Z",
   minCommitteeScore: 70,
@@ -57,8 +58,8 @@ const coverage = {
 const marketSession = {
   configured: true,
   liveTradingAllowed: false,
-  decision: { allowed: true },
-  evidence: { observedAt: "2026-10-06T17:39:30Z" },
+  decision: { allowed: true, state: "OPEN" },
+  evidence: { observedAt: "2026-10-06T17:39:30Z", authoritative: true, state: "OPEN" },
 };
 
 const report = buildV7ProposalReadiness({ approval, committee, terminal, coverage, marketSession }, now);
@@ -113,4 +114,100 @@ const staleProbe = stale.rows.find((row) => row.symbol === "PROBE");
 assert.equal(staleProbe.validationStructurallyReady, true, "transient freshness blockers must not erase structural candidate readiness");
 assert.equal(staleProbe.validationCandidateReady, false, "current readiness must still fail closed while coverage is stale");
 
-console.log("Fenice V7 proposal readiness semantic-separation tests: PASS");
+
+// The bridge is diagnostic-only, but must never show a falsely READY candidate.
+// Numeric strings, blank fields and null do not constitute risk/score evidence.
+const missingScore = buildV7ProposalReadiness({
+  approval, committee: {...committee, allDecisions: [
+    {...committee.allDecisions[0], committeeScore: null, confidence: "", rawConfidenceBeforeCalibration: "95"}]},
+  terminal, coverage, marketSession,
+}, now);
+const missingRow = missingScore.rows[0];
+assert.equal(missingRow.committeeScore, null);
+assert.equal(missingRow.calibratedConfidence, null);
+assert.equal(missingRow.rawCommitteeConfidence, null);
+assert.equal(missingRow.validationDataConfidence, null);
+assert.equal(missingRow.reviewProposalCandidateReady, false);
+assert(missingRow.reviewProposalLocalBlockers.includes("COMMITTEE_SCORE_BELOW_REVIEW_MINIMUM"));
+
+const noRisk = buildV7ProposalReadiness({
+  approval, committee: {...committee, allDecisions: [
+    {...committee.allDecisions[0], riskScore: null}]}, terminal, coverage, marketSession,
+}, now);
+assert.equal(noRisk.rows[0].riskScore, null);
+assert.equal(noRisk.rows[0].validationCandidateReady, false);
+assert.equal(noRisk.rows[0].reviewProposalCandidateReady, false);
+assert(noRisk.rows[0].reviewProposalLocalBlockers.includes("RISK_SCORE_ABOVE_REVIEW_MAXIMUM"));
+
+for (const invalid of [null, undefined, "", "0", 0, 10, 69.9]) {
+  const changed = buildV7ProposalReadiness({
+    approval: {...approval, minCommitteeScore: invalid}, committee, terminal, coverage, marketSession,
+  }, now);
+  assert(changed.validationGlobalBlockers.includes("PAPER_APPROVAL_THRESHOLDS_INVALID"),
+    "Invalid committee minimum must not silently relax V6 constraints: "+String(invalid));
+  assert(changed.rows.every(row => row.validationCandidateReady === false));
+}
+for (const invalid of [null, "", 0, 89, "90"]) {
+  const changed = buildV7ProposalReadiness({
+    approval: {...approval, minValidationDataConfidence: invalid}, committee, terminal, coverage, marketSession,
+  }, now);
+  assert(changed.validationGlobalBlockers.includes("PAPER_APPROVAL_THRESHOLDS_INVALID"));
+}
+for (const invalid of [null, "", 76, 100, "75"]) {
+  const changed = buildV7ProposalReadiness({
+    approval: {...approval, maxRiskScore: invalid}, committee, terminal, coverage, marketSession,
+  }, now);
+  assert(changed.validationGlobalBlockers.includes("PAPER_APPROVAL_THRESHOLDS_INVALID"));
+}
+const unsigned = buildV7ProposalReadiness({
+  approval: {...approval, humanConfirmation:false}, committee, terminal, coverage, marketSession,
+}, now);
+assert(unsigned.validationGlobalBlockers.includes("PAPER_APPROVAL_NOT_ACTIVE"));
+assert(unsigned.rows.every(row => !row.validationCandidateReady));
+
+for (const alteredSession of [
+  {...marketSession, evidence: {...marketSession.evidence, authoritative:false}},
+  {...marketSession, evidence: {...marketSession.evidence, state:"UNKNOWN"}},
+  {...marketSession, decision: {...marketSession.decision, state:"CLOSED"}},
+]) {
+  const notVerified = buildV7ProposalReadiness({
+    approval, committee, terminal, coverage, marketSession: alteredSession,
+  }, now);
+  assert(notVerified.sharedGlobalBlockers.includes("MARKET_OPEN_EVIDENCE_NOT_AUTHORITATIVE"));
+  assert(notVerified.rows.every(row => !row.reviewProposalCandidateReady && !row.validationCandidateReady));
+}
+const duplicateCoverage = buildV7ProposalReadiness({
+  approval, committee, terminal,
+  coverage: {...coverage, rows: [...coverage.rows, {...coverage.rows[0], paperEligible:false}]},
+  marketSession,
+}, now);
+assert(duplicateCoverage.rows.find(row=>row.symbol==="READY").validationLocalBlockers.includes("AMBIGUOUS_INSTRUMENT_IDENTITY"));
+assert(duplicateCoverage.rows.find(row=>row.symbol==="READY").reviewProposalCandidateReady === false);
+const duplicateTerminal = buildV7ProposalReadiness({
+  approval, committee,
+  terminal: {...terminal, assets: [...terminal.assets, {...terminal.assets[0], riskScore:10}]},
+  coverage, marketSession,
+}, now);
+assert(duplicateTerminal.rows.find(row=>row.symbol==="READY").reviewProposalCandidateReady === false);
+const duplicateDecision = buildV7ProposalReadiness({
+  approval, committee: {...committee, allDecisions: [
+    ...committee.allDecisions, {...committee.allDecisions[0], committeeScore:99}]},
+  terminal, coverage, marketSession,
+}, now);
+assert(duplicateDecision.rows.filter(row=>row.symbol==="READY").every(row=>!row.reviewProposalCandidateReady));
+const wrongCurrency = buildV7ProposalReadiness({
+  approval, committee:{...committee,allDecisions:[
+    {...committee.allDecisions[0],currency:"EUR"}]},terminal,coverage,marketSession,
+},now);
+assert(wrongCurrency.rows[0].reviewProposalLocalBlockers.includes("COMMITTEE_TERMINAL_CURRENCY_MISMATCH"));
+const inventedSourceCount = buildV7ProposalReadiness({
+  approval, committee, terminal,
+  coverage:{...coverage,rows:coverage.rows.map(row=>
+    row.symbol==="READY"?{...row,independentSourceFamilies:"2"}:row)},marketSession,
+},now);
+assert.equal(inventedSourceCount.rows[0].executionCoverage.independentSourceFamilies,0);
+assert.equal(inventedSourceCount.rows[0].reviewProposalCandidateReady,false);
+assert.equal(report.blockersByCategory.review.COMMITTEE_NOT_BUY,2);
+assert.equal(report.blockersByCategory.validation.DECISION_STATE_NOT_PERMITTED_FOR_V6_PROBE,1);
+
+console.log("Fenice V7 proposal readiness strict input, venue and identity tests: PASS");
