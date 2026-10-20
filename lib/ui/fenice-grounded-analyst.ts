@@ -44,7 +44,18 @@ export type CampaignSnapshot = {
   dailyEvidence?: Array<{ date?: string; cumulativePaperFilled?: number }>;
 };
 export type CalibrationSnapshot = { horizons?: Record<string, { state?: string; sampleSize?: number }> };
+export type WorldEvidenceContext = {
+  funnel?: { generatedAt?: string; selected?: number; regions?: number };
+  providers?: { generatedAt?: string; records?: Record<string, {
+    quote?: { status?: string; paperEligible?: boolean };
+    catalogue?: { requiredPlan?: string };
+    state?: { reportedOpen?: boolean; authoritativeExchangeProof?: boolean };
+    paperReady?: boolean;
+  }> };
+  eod?: { generatedAt?: string };
+};
 export type AnalystContext = {
+  world?: WorldEvidenceContext;
   committee: CommitteeSnapshot;
   quality: QualitySnapshot;
   sources: SourceSnapshot;
@@ -52,7 +63,7 @@ export type AnalystContext = {
   calibration: CalibrationSnapshot;
 };
 export type AnalystReply = {
-  intent: "MARKET" | "SYMBOL" | "RISK" | "PAPER" | "PERFORMANCE" | "UNSUPPORTED";
+  intent: "MARKET" | "WORLD" | "SYMBOL" | "RISK" | "PAPER" | "PERFORMANCE" | "UNSUPPORTED";
   verdict: string;
   title: string;
   paragraphs: string[];
@@ -114,6 +125,9 @@ const sources = {
   sourceHealth: "data/global-source-health.json",
   paper: "data/paper-validation-campaign.json",
   calibration: "data/calibration-analysis.json",
+  worldFunnel: "data/world-equity-funnel-status.json",
+  worldProviders: "data/world-v7-provider-observation.json",
+  worldEod: "data/world-v7-eod-research.json",
 } as const;
 const safetyLinks = [
   { label: "Compra/Vendi", href: "/decisioni" },
@@ -175,6 +189,66 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
     blockers = commonBlockers, extra: AnalystReply["evidence"] = [], links = safetyLinks): AnalystReply => ({
     ...base, intent, verdict, title, paragraphs, blockers, evidence: [...evidence, ...extra], links,
   });
+
+  // The worldwide PAPER V7 observer has no certified realtime inputs.
+  // Vendor OPEN flags and trading hours are not authoritative exchange proof.
+  // This research-only branch cannot change PAPER V6 or trigger new fills.
+  const worldQuestion = /bors[ae]|listin|milano|italia|europ|asia|tokyo|francofort|mondial|international|world|mercat.*(?:apert|global)|(?:apert|orari).*(?:mercat|bors)/i.test(lower);
+  if (!asset && worldQuestion) {
+    const world = input?.world;
+    const selected = safeNumber(world?.funnel?.selected);
+    const regions = safeNumber(world?.funnel?.regions);
+    const funnelAt = timestamp(world?.funnel?.generatedAt, safeNow);
+    const providerAt = timestamp(world?.providers?.generatedAt, safeNow);
+    const recentProvider = providerAt !== null && safeNow - providerAt <= MAX_RESEARCH_AGE_MS;
+    const venues = [
+      { mic: "XMIL", name: "Milano" },
+      { mic: "XETR", name: "Francoforte" },
+      { mic: "XTKS", name: "Tokyo" },
+    ] as const;
+    const safeCode = (value: unknown) =>
+      typeof value === "string" && /^[A-Z][A-Z0-9_]{2,64}$/.test(value)
+        ? value : "NON_VERIFICATO";
+    const venueData = venues.map(venue => {
+      const record = world?.providers?.records?.[venue.mic];
+      const code = safeCode(record?.quote?.status);
+      const plan = record?.catalogue?.requiredPlan;
+      const tier = typeof plan === "string" && /^[a-zA-Z0-9 -]{2,24}$/.test(plan)
+        ? plan : "non verificato";
+      return {
+        mic: venue.mic, code,
+        description: venue.name + " (" + venue.mic + "): quotazione " + code
+          + ", piano indicato " + tier
+          + "; diritto PAPER e sessione aperta autorevole NON attestati.",
+      };
+    });
+    return go("WORLD", "RICERCA MONDIALE - PAPER NON VERIFICATO",
+      "Mercati mondiali: perché mancano fill certificati",
+      [
+        "Il radar comprende " + (selected === null ? "N/D" : String(selected))
+          + " riferimenti in " + (regions === null ? "N/D" : String(regions))
+          + " regioni: un catalogo non equivale a prezzi ammessi al trading.",
+        ...venueData.map(row => row.description),
+        "Un normale orario di Borsa o un flag OPEN del provider non prova da solo la seduta: servono sessione autorevole, quote indipendenti autorizzate e cambio verificato.",
+        "Il motore World V7 non ha ancora le prove necessarie per fill internazionali. I fill V7 non possono contribuire alla certificazione americana V6.",
+      ], [
+        ...(funnelAt === null || safeNow - funnelAt > MAX_RESEARCH_AGE_MS
+          ? ["Radar mondiale privo di snapshot attuale verificato."] : []),
+        ...(!recentProvider ? ["Diagnostica provider mondiale scaduta o non verificata."] : []),
+        "Quote realtime con due fonti e licenza PAPER, MIC, FX e sessione del listino non verificati.",
+        "Nessun ordine reale, bypass dei controlli o fill fittizio per colmare i 10 richiesti dalla V6.",
+        ...commonBlockers,
+      ], [
+        { label: "Riferimenti ricerca mondiale", value: selected === null ? "N/D" : String(selected), source: sources.worldFunnel },
+        { label: "Provider mondo", value: recentProvider ? plain(world?.providers?.generatedAt) : "SCADUTO / NON VERIFICATO", source: sources.worldProviders },
+        ...venueData.map(row => ({ label: "Prezzo " + row.mic, value: row.code, source: sources.worldProviders })),
+        { label: "Snapshot EOD", value: plain(world?.eod?.generatedAt), source: sources.worldEod },
+      ], [
+        { label: "Pilota PAPER mondiale", href: "/paper-mondo" },
+        { label: "Radar mondiale", href: "/global" },
+        { label: "Sicurezza", href: "/readiness" },
+      ]);
+  }
 
   // Unknown free-text prompts are not passed to external models or providers.
   if (!query || /^(stato|oggi|panoramica|cosa fare|che fare|migliori|opportunita|mercato|comprare|compra|investire)/.test(lower)

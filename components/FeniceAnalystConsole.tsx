@@ -10,6 +10,8 @@ const quickQuestions = [
   "Controlla i rischi",
   "Certificazione PAPER",
   "Guadagni e performance",
+  "Perché nessun fill a Milano?",
+  "Mercati mondiali",
 ];
 
 export default function FeniceAnalystConsole({ initialReply, initialQuestion = "Stato Fenice oggi" }: {

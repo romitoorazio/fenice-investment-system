@@ -35,6 +35,16 @@ const context = {
     ],
   },
   calibration: { horizons: { "30d": { state: "INSUFFICIENT", sampleSize: 0 } } },
+  world: {
+    funnel: { generatedAt: "2026-10-11T16:00:00.000Z", selected: 2000, regions: 5 },
+    providers: { generatedAt: "2026-10-11T17:40:00.000Z", records: {
+      XMIL: { quote: { status: "NOT_FOUND_OR_INVALID_IDENTIFIER", paperEligible: false },
+        catalogue: { requiredPlan: "Pro" }, paperReady: false },
+      XTKS: { quote: { status: "NOT_FOUND_OR_INVALID_IDENTIFIER" },
+        state: { reportedOpen: true, authoritativeExchangeProof: false } },
+    } },
+    eod: { generatedAt: "2026-10-11T16:00:00.000Z" },
+  },
 };
 const ask = (q, ctx = context, at = now) => answerFeniceResearch(q, ctx, at);
 
@@ -62,6 +72,34 @@ assert.equal(ask("Certificazione PAPER").intent, "PAPER");
 assert.match(ask("Certificazione PAPER").paragraphs.join(" "), /6\/10/);
 assert.equal(ask("guadagni e performance").verdict, "PROFITTO NON DIMOSTRATO");
 assert.equal(ask("guadagni e performance").brokerOrderAllowed, false);
+for (const question of ["Perché nessun fill a Milano?", "Borsa italiana aperta", "mercati mondiali", "Asia e Europa perché non operano?"]) {
+  const world = ask(question);
+  assert.equal(world.intent, "WORLD", question);
+  assert.equal(world.brokerOrderAllowed, false);
+  assert.equal(world.providerCalls, 0);
+  assert.match(world.paragraphs.join(" "), /2000 riferimenti/);
+  assert.match(world.paragraphs.join(" "), /Milano.*NOT_FOUND_OR_INVALID_IDENTIFIER/);
+  assert.match(world.paragraphs.join(" "), /Tokyo/);
+  assert.match(world.paragraphs.join(" "), /NON attestati/);
+  assert.ok(world.evidence.some(x => x.source === "data/world-v7-provider-observation.json"));
+  assert.ok(world.blockers.some(x => /V6/.test(x)));
+}
+const spoofed = ask("Borsa italiana aperta?", {
+  ...context,
+  world: { ...context.world,
+    providers: { generatedAt: "2026-10-11T17:40:00.000Z",
+      records: { XMIL: { quote: { status: "PAPER_READY", paperEligible: true },
+        paperReady: true, state: { reportedOpen: true, authoritativeExchangeProof: false } } } },
+  },
+});
+assert.equal(spoofed.intent, "WORLD");
+assert.match(spoofed.paragraphs.join(" "), /NON attestati/);
+assert.equal(spoofed.brokerOrderAllowed, false);
+const staleWorld = ask("Borsa di Milano", {...context, world: {
+  ...context.world, providers: { ...context.world.providers, generatedAt: "2026-10-01T12:00:00.000Z" },
+}});
+assert.ok(staleWorld.blockers.some(x => /provider mondiale scaduta/i.test(x)));
+assert.equal(ask("Mercati mondiali", {...context, world: undefined}).brokerOrderAllowed, false);
 
 const stale = ask("comprare ASML", { ...context, committee: {
   ...context.committee, generatedAt: "2026-10-01T17:45:00.000Z",

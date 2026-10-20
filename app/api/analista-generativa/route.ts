@@ -1,17 +1,13 @@
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
 import { feniceSameOrigin, feniceSessionCookieFromRequest, verifyFeniceOwnerSession } from "@/lib/ai/fenice-owner-session";
 import { generateGroundedExplanation, generativeAvailability, isOwnerAuthorized, FENICE_GENERATIVE_MODEL, FENICE_AI_MAX_REQUEST_BYTES } from "@/lib/ai/fenice-generative-research";
-import committee from "@/data/investment-committee.json";
-import quality from "@/data/intelligence-quality.json";
-import sourceHealth from "@/data/global-source-health.json";
-import campaign from "@/data/paper-validation-campaign.json";
-import calibration from "@/data/calibration-analysis.json";
+import { feniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const context = { committee, quality, sources: sourceHealth, campaign, calibration };
+const context = feniceAnalystContext;
 const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
 const json = (payload: unknown, status = 200) => Response.json(payload, { status, headers });
 const environment = () => ({
