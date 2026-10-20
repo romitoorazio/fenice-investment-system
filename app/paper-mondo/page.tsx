@@ -176,7 +176,7 @@ export default async function WorldPaperPilotPage() {
               eodBook.historicalReplay?.forwardVerifiedPaperFills===0 &&
               eodBook.historicalReplay?.liveTradingAllowed===false
               ? (eodBook.historicalReplay?.historicalResearchTransactions??0) : "non disponibili"}.
-              Nessuna esecuzione futura verificata: i dati storici, il MIC e i diritti d'uso restano da convalidare.</p>
+              Nessuna esecuzione futura verificata: i dati storici, il MIC e i diritti di utilizzo restano da convalidare.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROBED_VENUES.map(venue=>{
