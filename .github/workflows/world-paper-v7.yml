@@ -8,6 +8,8 @@ on:
       - "lib/trading/world-paper-v7.d.mts"
       - "data/world-paper-v7-research-seeds.json"
       - "scripts/run-world-paper-v7.mjs"
+      - "scripts/run-world-v7-private-preflight.mjs"
+      - "scripts/test-world-v7-private-preflight.mjs"
       - "scripts/test-world-paper-v7.mjs"
       - "scripts/test-world-paper-v7-session-window.mjs"
       - ".github/workflows/world-paper-v7.yml"
@@ -19,6 +21,8 @@ on:
       - "lib/trading/world-paper-v7.d.mts"
       - "data/world-paper-v7-research-seeds.json"
       - "scripts/run-world-paper-v7.mjs"
+      - "scripts/run-world-v7-private-preflight.mjs"
+      - "scripts/test-world-v7-private-preflight.mjs"
       - "scripts/test-world-paper-v7.mjs"
       - "scripts/test-world-paper-v7-session-window.mjs"
       - ".github/workflows/world-paper-v7.yml"
@@ -54,6 +58,17 @@ jobs:
         run: node scripts/test-world-paper-v7.mjs
       - name: Protect early Asia-Europe observation windows and PAPER safety
         run: node scripts/test-world-paper-v7-session-window.mjs
+      - name: Test private V7 evidence intake and fail-closed authorization
+        run: node scripts/test-world-v7-private-preflight.mjs
+      - name: Diagnose operational market-data gap with read-only V7 bridge
+        run: node scripts/run-world-v7-private-preflight.mjs --output="$RUNNER_TEMP/fenice-world-v7-private-readiness.json"
+      - name: Save sanitized V7 source-intake readiness without private quotes
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-world-v7-private-intake-readiness
+          path: ${{ runner.temp }}/fenice-world-v7-private-readiness.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Produce world observation report from repository evidence
         run: node scripts/run-world-paper-v7.mjs --output="$RUNNER_TEMP/fenice-world-paper-v7-readiness.json"
       - name: Verify report does not unlock LIVE or invent PAPER fills
