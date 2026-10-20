@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
 
-const asOfDate="2026-11-20";
+const asOfDate="2026-11-13";
 const days=[];
 for(let d=Date.parse("2026-09-01T00:00:00Z");days.length<53;d+=86400000){
   const dt=new Date(d),w=dt.getUTCDay();
