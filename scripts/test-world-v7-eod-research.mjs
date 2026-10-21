@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { identifyAlphaListing, evaluateEodResearch, EOD_PILOTS, tentativeAlphaDailyCandidate } from "../lib/market/world-v7-eod-research.mjs";
 const now="2026-10-19T20:30:00.000Z";
-const sym={XMIL:"ENEL.MIL",XETR:"SIE.DEX",XTKS:"7203.TYO"};
+const sym={XMIL:"ENEL.MIL",XETR:"DTE.DEX",XTKS:"7203.TYO"};
 const match=(mic)=>({bestMatches:[{
   "1. symbol":sym[mic],"3. type":"Equity","4. region":EOD_PILOTS[mic].country,
   "8. currency":EOD_PILOTS[mic].currency,

@@ -49,7 +49,7 @@ type ProviderObservations = {
 const PROBED_VENUES = [
   {mic:"XTKS",name:"Tokyo",ticker:"7203"},
   {mic:"XMIL",name:"Milano",ticker:"ENEL"},
-  {mic:"XETR",name:"Francoforte",ticker:"SIE"},
+  {mic:"XETR",name:"Francoforte",ticker:"DTE"},
 ] as const;
 
 async function readLatestProviderObservation(): Promise<ProviderObservations> {
