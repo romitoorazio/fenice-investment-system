@@ -10,6 +10,8 @@ on:
       - "scripts/test-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-daily-historical-replay.mjs"
       - "lib/market/world-v7-daily-historical-replay.mjs"
+      - "lib/market/world-v7-ecb-daily-fx.mjs"
+      - "scripts/test-world-v7-ecb-daily-fx.mjs"
       - ".github/workflows/world-v7-eod-research.yml"
   pull_request:
     branches: [main]
@@ -19,6 +21,8 @@ on:
       - "scripts/test-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-daily-historical-replay.mjs"
       - "lib/market/world-v7-daily-historical-replay.mjs"
+      - "lib/market/world-v7-ecb-daily-fx.mjs"
+      - "scripts/test-world-v7-ecb-daily-fx.mjs"
       - ".github/workflows/world-v7-eod-research.yml"
       - "app/paper-mondo/page.tsx"
   schedule:
@@ -46,6 +50,7 @@ jobs:
         run: |
           node scripts/test-world-v7-eod-research.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
+          node scripts/test-world-v7-ecb-daily-fx.mjs
 
   observe:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
@@ -66,6 +71,7 @@ jobs:
       - run: |
           node scripts/test-world-v7-eod-research.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
+          node scripts/test-world-v7-ecb-daily-fx.mjs
       - name: Probe three global EOD research venues within 6 API calls
         env:
           RESULT: ${{ runner.temp }}/world-v7-eod-report.json
@@ -84,6 +90,8 @@ jobs:
                x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))) ||
                x.historicalReplay?.forwardVerifiedPaperFills!==0 || x.historicalReplay?.liveTradingAllowed!==false ||
                x.historicalReplay?.marketDataRightsCertified!==false ||
+               x.fxHistory?.pricingExecutionEligible!==false || x.fxHistory?.dailyReferenceOnly!==true ||
+               Array.isArray(x.fxHistory?.rates) ||
                Object.keys(x.historicalReplay||{}).some(k=>["price","open","high","low","close","volume","ohlc","historicalTrades","pendingPositions"].includes(k)))
               process.exit(1);
           '
@@ -109,6 +117,9 @@ jobs:
           const replay=incoming.historicalReplay;
           if(!replay || replay.forwardVerifiedPaperFills!==0 || replay.liveTradingAllowed!==false ||
              replay.marketDataRightsCertified!==false || replay.realtimePaperEligible!==false) throw Error("INVALID_EOD_REPLAY");
+          if(incoming.fxHistory?.pricingExecutionEligible!==false ||
+             incoming.fxHistory?.dailyReferenceOnly!==true ||
+             Array.isArray(incoming.fxHistory?.rates)) throw Error("INVALID_FX_PROVENANCE");
           const records={...old.records};
           for(const r of incoming.observations){
             if(!["XMIL","XETR","XTKS"].includes(r.venue) ||
@@ -119,7 +130,7 @@ jobs:
           const output={version:1,generatedAt:incoming.generatedAt,
             mode:"WORLD_V7_EOD_RESEARCH_ONLY",
             note:"Derived trend from completed historical bars. No raw OHLC, broker orders or certified PAPER fills.",
-            records,historicalReplay:replay,realProviderQueried:incoming.realProviderQueried,
+            records,historicalReplay:replay,fxHistory:incoming.fxHistory,realProviderQueried:incoming.realProviderQueried,
             dataRights:incoming.dataRights,requestsUsed:incoming.requestsUsed,
             realtimePaperEligible:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
           fs.writeFileSync(file,JSON.stringify(output,null,2)+"\n");

@@ -38,6 +38,19 @@ assert(!JSON.stringify(safe).includes("quantity"));
 assert(!JSON.stringify(safe).includes("notionalEuro"));
 assert(!JSON.stringify(safe).includes("pendingPositions"));
 assert.equal(safe.marketDataRightsCertified,false);
+assert.equal(runWorldV7DailyHistoricalReplay({histories:[],asOfDate}).estimatedNetReturnPct,null,
+  "never show zero percent return with no valid historic bars");
+assert.equal(runWorldV7DailyHistoricalReplay({histories:[],asOfDate}).performanceStatus,
+  "NO_VERIFIED_HISTORICAL_DATA");
+// Tokyo's ECB fixing for the signal date is not public before Tokyo closes.
+// Altering the signal-date FX must not change the hypothetical NEXT-session fill.
+const fxLeak=japan();
+fxLeak.fxRates=fxLeak.fxRates.map(f=>f.date==="2026-09-29"
+  ? {...f,rateToEuro:1000} : f);
+const original=runWorldV7DailyHistoricalReplay({histories:[japan()],asOfDate});
+const changed=runWorldV7DailyHistoricalReplay({histories:[fxLeak],asOfDate});
+assert.deepEqual(changed.historicalTrades.filter(t=>t.date==="2026-09-30"),
+  original.historicalTrades.filter(t=>t.date==="2026-09-30"),"reject same-day ECB FX lookahead");
 const noFx=runWorldV7DailyHistoricalReplay({histories:[{...japan(),fxRates:[]}],asOfDate});
 assert.equal(noFx.transactions,0);
 assert.equal(noFx.blocked[0].status,"PRIOR_DAY_FX_REQUIRED");
