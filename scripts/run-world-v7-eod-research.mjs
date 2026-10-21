@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
-import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyBars } from "../lib/market/world-v7-eod-research.mjs";
+import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyBars, tentativeAlphaDailyCandidate } from "../lib/market/world-v7-eod-research.mjs";
 import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
 import { fetchEcbJpyEurDailyHistory } from "../lib/market/world-v7-ecb-daily-fx.mjs";
 
@@ -45,17 +45,23 @@ for(const venue of venues){
   }
   const target=EOD_PILOTS[venue];
   const search=await alphaRequest({function:"SYMBOL_SEARCH",keywords:target.ticker});
-  const listing=identifyAlphaListing(venue,search);
+  const searched=identifyAlphaListing(venue,search);
+  // Some global Alpha Vantage names have search labels that are not country
+  // names. A single *fixed* direct probe can discover real daily history
+  // without claiming that mapping, exchange, or usage rights are certified.
+  const listing=searched.status==="MATCHED_FOR_DAILY_RESEARCH"
+    ? searched : (tentativeAlphaDailyCandidate(venue,searched) ?? searched);
   let result;
-  if(listing.status!=="MATCHED_FOR_DAILY_RESEARCH"){
+  if(!listing.alphaSymbol){
     result=evaluateEodResearch(venue,listing,null,new Date().toISOString());
   }else{
     const daily=await alphaRequest({function:"TIME_SERIES_DAILY",symbol:listing.alphaSymbol,outputsize:"compact"});
     result=evaluateEodResearch(venue,listing,daily,new Date().toISOString());
     const parsed=parseAlphaDailyBars(daily,listing.alphaSymbol);
-    if(parsed.status==="PARSED"){
-      // Alpha's region/currency match is NOT independent MIC certification.
-      // Historical replay only; no raw bars or trades in public reports.
+    if(parsed.status==="PARSED" &&
+       ["COMPLETE_EOD_RESEARCH","TENTATIVE_COMPLETED_DAILY_RESEARCH"].includes(result.status)){
+      // Quoted-currency and exact MIC rights are unverified; keep this RESEARCH
+      // ONLY and use synthetic cash, never count these as forward PAPER fills.
       historicalInputs.push({venue,ticker:target.ticker,currency:target.currency,
         region:target.region,provider:"alpha-vantage",bars:parsed.bars});
     }
