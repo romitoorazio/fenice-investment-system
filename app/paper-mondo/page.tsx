@@ -14,8 +14,9 @@ type GlobalEodRecord={
   paperFillCount?:number;licensedPaperSource?:boolean;
 };
 type GlobalEodBook={records?:Record<string,GlobalEodRecord>;liveTradingAllowed?:boolean;realtimePaperEligible?:boolean;
+  fxHistory?: {source?:string;status?:string;observations?:number;dailyReferenceOnly?:boolean};
   historicalReplay?: {historicalResearchTransactions?:number;historicalResearchBuys?:number;
-    historicalResearchSells?:number;estimatedNetReturnPct?:number|null;forwardVerifiedPaperFills?:number;
+    historicalResearchSells?:number;estimatedNetReturnPct?:number|null;performanceStatus?:string;forwardVerifiedPaperFills?:number;
     marketDataRightsCertified?:boolean;liveTradingAllowed?:boolean};
 };
 async function readLatestEod(): Promise<GlobalEodBook> {
@@ -176,7 +177,11 @@ export default async function WorldPaperPilotPage() {
               eodBook.historicalReplay?.forwardVerifiedPaperFills===0 &&
               eodBook.historicalReplay?.liveTradingAllowed===false
               ? (eodBook.historicalReplay?.historicalResearchTransactions??0) : "non disponibili"}.
-              Nessuna esecuzione futura verificata: i dati storici, il MIC e i diritti di utilizzo restano da convalidare.</p>
+              Risultato economico: {eodBook.historicalReplay?.performanceStatus==="NO_VERIFIED_HISTORICAL_DATA"
+                ? "NON CALCOLABILE (nessuna serie validata)"
+                : "solo stima storica, non profitti reali"}.
+              Cambio JPY/EUR storico: {eodBook.fxHistory?.status??"non disponibile"}.
+              Nessuna esecuzione futura verificata: dati storici, MIC e diritti di utilizzo restano da convalidare.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROBED_VENUES.map(venue=>{

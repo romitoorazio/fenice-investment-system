@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyBars } from "../lib/market/world-v7-eod-research.mjs";
 import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
+import { fetchEcbJpyEurDailyHistory } from "../lib/market/world-v7-ecb-daily-fx.mjs";
 
 const options = Object.fromEntries(process.argv.slice(2).filter(s=>s.startsWith("--")&&s.includes("=")).map(s=>s.slice(2).split(/=(.*)/s).slice(0,2)));
 const venues=options.venue && options.venue!=="ALL" ? [options.venue] : ["XTKS","XMIL","XETR"];
@@ -61,6 +62,18 @@ for(const venue of venues){
   }
   observations.push(result);
 }
+// ECB daily JPY-per-EUR reference: use only historical fixing dates strictly
+// before each signal session. This is not a realtime or executable FX quote.
+let fxHistory={source:"ECB",status:"NOT_NEEDED_OR_NO_VALID_TOKYO_HISTORY",observations:0,
+  dailyReferenceOnly:true,pricingExecutionEligible:false};
+if(historicalInputs.some(h=>h.venue==="XTKS")){
+  const from=new Date(Date.parse(startedAt.slice(0,10)+"T00:00:00Z")-300*86400000).toISOString().slice(0,10);
+  const ecb=await fetchEcbJpyEurDailyHistory({startDate:from,endDate:startedAt.slice(0,10)});
+  if(ecb.status==="ECB_DAILY_REFERENCE_HISTORY_PARSED"){
+    for(const h of historicalInputs)if(h.venue==="XTKS")h.fxRates=ecb.fxRates;
+  }
+  fxHistory={...fxHistory,status:ecb.status,observations:ecb.fxRates.length};
+}
 const historicalReplay=summarizeWorldV7DailyHistoricalReplay(
   runWorldV7DailyHistoricalReplay({histories:historicalInputs,asOfDate:startedAt.slice(0,10)})
 );
@@ -74,7 +87,7 @@ const report={
   simulatedOrders:0,liveTradingAllowed:false,brokerConnectivityAllowed:false,modifiesV6:false,
   regions:{asiaPacific:observations.filter(x=>x.region==="asia-pacific").length,
     europe:observations.filter(x=>x.region==="europe").length},
-  observations,historicalReplay,
+  observations,historicalReplay,fxHistory,
 };
 mkdirSync(path.dirname(outfile),{recursive:true});
 writeFileSync(outfile,JSON.stringify(report,null,2)+"\n",{mode:0o600});
@@ -82,6 +95,7 @@ const consoleReport={generatedAt:report.generatedAt,mode:report.mode,requestsUse
   data:observations.map(x=>({venue:x.venue,status:x.status,date:x.lastCompleteBarDate??null,
     signal:x.researchSignal??"NO_SIGNAL",fill:x.paperFillCount})),
   historicalResearchTransactions:historicalReplay.historicalResearchTransactions,
+  historicalReplayStatus:historicalReplay.performanceStatus,fxStatus:fxHistory.status,
   noRealOrders:true,noPrivatePricePublished:true};
 console.log(JSON.stringify(consoleReport));
 if(process.env.GITHUB_STEP_SUMMARY){
