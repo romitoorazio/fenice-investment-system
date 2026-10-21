@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { identifyAlphaListing, evaluateEodResearch, EOD_PILOTS } from "../lib/market/world-v7-eod-research.mjs";
+import { identifyAlphaListing, evaluateEodResearch, EOD_PILOTS, tentativeAlphaDailyCandidate } from "../lib/market/world-v7-eod-research.mjs";
 const now="2026-10-19T20:30:00.000Z";
 const sym={XMIL:"ENEL.MIL",XETR:"SIE.DEX",XTKS:"7203.TYO"};
 const match=(mic)=>({bestMatches:[{
@@ -75,6 +75,32 @@ const bad=structuredClone(payload);
 bad["Time Series (Daily)"]["2026-10-16"]["2. high"]="1";
 assert.equal(evaluateEodResearch("XMIL",target,bad,now).status,"INVALID_OHLC_BAR");
 assert.equal(evaluateEodResearch("XMIL",{status:"NO_SYMBOL_SEARCH_RESULTS"},null,now).paperFillCount,0);
+// Search can miss an international listing. Direct daily probe stays a
+// tentative mapping; a valid EOD series alone cannot certify exact MIC.
+for(const mic of ["XTKS","XMIL","XETR"]){
+  const absent={status:"SYMBOL_REGION_CURRENCY_UNCONFIRMED"};
+  const tentative=tentativeAlphaDailyCandidate(mic,absent);
+  assert.equal(tentative.status,"TENTATIVE_DIRECT_DAILY_RESEARCH");
+  assert.equal(tentative.exactMicProof,false);
+  assert.equal(tentative.currencyProof,false);
+  assert.equal(tentative.automatedPaperAllowed,false);
+  assert.equal(tentative.alphaSymbol,sym[mic]);
+  assert.equal(tentativeAlphaDailyCandidate(mic,{status:"RATE_LIMIT_OR_PLAN_RESTRICTION"}),null,
+    "never work around a provider entitlement/rate error");
+  assert.equal(tentativeAlphaDailyCandidate(mic,{status:"AMBIGUOUS_PROVIDER_SYMBOL"}),null,
+    "do not ignore a genuinely ambiguous mapped symbol");
+}
+const tentative=tentativeAlphaDailyCandidate("XMIL",{status:"NO_SYMBOL_SEARCH_RESULTS"});
+const diagnostic=evaluateEodResearch("XMIL",tentative,payload,now);
+assert.equal(diagnostic.status,"TENTATIVE_COMPLETED_DAILY_RESEARCH");
+assert.equal(diagnostic.provisionalResearchMapping,true);
+assert.equal(diagnostic.providerSymbolConfirmed,false);
+assert.equal(diagnostic.exactMicCertified,false);
+assert.equal(diagnostic.licensedPaperSource,false);
+assert.equal(diagnostic.paperFillCount,0);
+assert.equal(diagnostic.liveTradingAllowed,false);
+assert.equal(evaluateEodResearch("XMIL",tentative,
+  {...payload,"Meta Data":{"2. Symbol":"SIE.DEX"}},now).status,"RETURNED_SYMBOL_MISMATCH");
 const file="/tmp/fenice-eod-dryrun.json";
 const printed=execFileSync(process.execPath,["scripts/run-world-v7-eod-research.mjs","--venue=XMIL","--output="+file],
   {encoding:"utf8",env:{...process.env,ALPHA_VANTAGE_API_KEY:""}});
