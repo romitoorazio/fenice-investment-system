@@ -12,7 +12,7 @@ const bars=(base=10)=>days.map((date,i)=>{
   return {date,open:p,high:p+.5,low:p-.5,close:p+.1,volume:20000};
 });
 const italy=()=>({venue:"XMIL",ticker:"ENEL",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars()});
-const germany=()=>({venue:"XETR",ticker:"SIE",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars(160)});
+const germany=()=>({venue:"XETR",ticker:"DTE",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars(160)});
 const japan=()=>({venue:"XTKS",ticker:"7203",currency:"JPY",region:"asia-pacific",provider:"j-quants",
   bars:bars(2500),fxRates:days.map(date=>({date,rateToEuro:.006}))});
 const replay=runWorldV7DailyHistoricalReplay({histories:[italy(),germany(),japan()],asOfDate});
@@ -28,7 +28,7 @@ assert(replay.historicalTrades.every(t=>t.signalDate<t.date),"no same-session op
 assert(replay.historicalTrades.every(t=>t.simulatedHistorical===true));
 assert(replay.estimatedFeesEuro>=2);
 assert(Number.isFinite(replay.estimatedNetReturnPct));
-assert(replay.discarded.some(x=>x.venue==="XETR"),"unaffordable whole-share SIE must be excluded");
+assert(replay.discarded.some(x=>x.venue==="XETR"),"unaffordable whole-share fixture must be excluded");
 assert.deepEqual(runWorldV7DailyHistoricalReplay({histories:[japan(),germany(),italy()],asOfDate}).historicalTrades,
   replay.historicalTrades,"input order cannot change deterministic historical replay");
 const safe=summarizeWorldV7DailyHistoricalReplay(replay);
@@ -51,6 +51,15 @@ const original=runWorldV7DailyHistoricalReplay({histories:[japan()],asOfDate});
 const changed=runWorldV7DailyHistoricalReplay({histories:[fxLeak],asOfDate});
 assert.deepEqual(changed.historicalTrades.filter(t=>t.date==="2026-09-30"),
   original.historicalTrades.filter(t=>t.date==="2026-09-30"),"reject same-day ECB FX lookahead");
+// An affordable Xetra share may be simulated under the same 5%-of-cash
+// whole-share rule; this deliberately does not guarantee net profitability.
+const affordable=()=>({...germany(),bars:bars(25)});
+const affordableReplay=runWorldV7DailyHistoricalReplay({histories:[affordable()],asOfDate});
+assert(affordableReplay.buys>=1,"under €50 a hypothetical Xetra share should be buyable");
+assert(affordableReplay.sells>=1,"completed EOD trend reversal should hypothetically sell");
+assert(affordableReplay.historicalTrades.every(x=>x.signalDate<x.date));
+assert.equal(affordableReplay.certifiedPaperFills,0);
+assert.equal(affordableReplay.liveTradingAllowed,false);
 const noFx=runWorldV7DailyHistoricalReplay({histories:[{...japan(),fxRates:[]}],asOfDate});
 assert.equal(noFx.transactions,0);
 assert.equal(noFx.blocked[0].status,"PRIOR_DAY_FX_REQUIRED");

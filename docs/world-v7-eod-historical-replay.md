@@ -19,7 +19,7 @@ This is an EOD historical *backtest*, not a live/forward PAPER fill system. V6's
 - Source rights, redistribution limits, strategy robustness, FX source terms, survivorship bias and adjustment for corporate actions remain unresolved. Inputs remain RESEARCH ONLY.
 - The replay uses daily-bar opens retrospectively, with no intraday liquidity, bid/ask, market-halt events, partial fills, audited opening timestamps or independent walk-forward validation. Same-date sorting across regions is a deterministic research convention, not the actual chronology of market openings.
 - The backtest cannot prove profitability or future executability on Directa.
-- Tokyo stays blocked until a legitimate dated FX-to-EUR history is connected. ENEL/Siemens can remain unavailable if the feed fails to identify their exact research symbols.
+- Tokyo stays blocked until a legitimate dated FX-to-EUR history is connected. ENEL/Deutsche Telekom can remain unavailable if the feed fails to identify their exact research symbols.
 - Subsequent work: verified global price ingestion, independent instrument identity, FX, proper corporate-action-adjusted data, benchmark comparison, drawdown analysis and durable forward ledger before operational readiness claims.
 
 ## Regression commands
@@ -27,3 +27,7 @@ This is an EOD historical *backtest*, not a live/forward PAPER fill system. V6's
 - node scripts/test-world-v7-daily-historical-replay.mjs
 
 Tests use **synthetic fixtures only**. An offline test PASS does not establish external provider availability. Never commit API keys or raw licensed quote files.
+
+## Pilota accessibile (21 ottobre 2026)
+
+XETR usa temporaneamente DTE (Deutsche Telekom) al posto di SIE (Siemens) **solo nel pilota di replay giornaliero**. La prova del 21 ottobre ha restituito 100 barre EOD per SIE.DEX ma 20 BUY scartati perché una singola azione Siemens era più costosa del limite sintetico di €50 per posizione. Il prezzo storico Xetra DTE del 20 ottobre è indicato intorno a €25,72 da fonti pubbliche; **non è un prezzo accettato da FENICE finché il provider non restituisce barre verificate**. Questa modifica non cancella Siemens dal master strumenti o dalle analisi globali. Non introduce ordini LIVE e non cambia la V6.
