@@ -9,7 +9,7 @@ import bakedEod from "@/data/world-v7-eod-research.json";
 
 
 type GlobalEodRecord={
-  venue?:string;status?:string;region?:string;researchSignal?:string;
+  venue?:string;ticker?:string;status?:string;region?:string;researchSignal?:string;
   lastCompleteBarDate?:string|null;analyzedAt?:string|null;completeSessions?:number;
   paperFillCount?:number;licensedPaperSource?:boolean;
 };
@@ -36,7 +36,7 @@ async function readLatestEod(): Promise<GlobalEodBook> {
 
 type ProviderRecord = {
   recordedAt?: string; venue?: string;
-  target?: {providerMic?: string; mic?: string; canonicalSegmentProof?: boolean};
+  target?: {symbol?:string; providerMic?: string; mic?: string; canonicalSegmentProof?: boolean};
   state?: {status?: string; reportedOpen?: boolean | null};
   quote?: {status?: string; ageSeconds?: number | null; tradeTimestamp?: string | null};
   catalogue?: {status?: string; requiredPlan?: string; exactIdentity?: boolean};
@@ -140,7 +140,10 @@ export default async function WorldPaperPilotPage() {
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROBED_VENUES.map(venue=>{
-              const item = providerBook.records?.[venue.mic];
+              const candidate = providerBook.records?.[venue.mic];
+              // The ticker for a MIC can change in the EOD pilot. Never
+              // relabel a previous instrument's diagnostic as the new one.
+              const item = candidate?.target?.symbol===venue.ticker ? candidate : undefined;
               const ts = item?.recordedAt ? Date.parse(item.recordedAt) : NaN;
               const fresh = Number.isFinite(ts) && ts <= readAt && readAt - ts <= 24*60*60*1000;
               const valid = item?.paperReady === false && item?.privatePricePublished === false;
@@ -185,7 +188,8 @@ export default async function WorldPaperPilotPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROBED_VENUES.map(venue=>{
-              const eod=eodBook.records?.[venue.mic];
+              const eodCandidate=eodBook.records?.[venue.mic];
+              const eod=eodCandidate?.ticker===venue.ticker ? eodCandidate : undefined;
               const timestamp=eod?.analyzedAt ? Date.parse(eod.analyzedAt) : NaN;
               const recent=Number.isFinite(timestamp) && timestamp<=readAt && readAt-timestamp<=48*3600000;
               const valid=!!eod && eod.paperFillCount===0 && eod.licensedPaperSource===false;
