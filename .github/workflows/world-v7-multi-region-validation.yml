@@ -1,0 +1,119 @@
+name: Fenice World V7 Multi-Region Validation
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Fenice PAPER Provider Feasibility Lab
+      - Fenice World V7 EOD Research
+      - Fenice World V7 Real Provider Diagnostic
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "20 0 * * *"
+    - cron: "20 12 * * 1-5"
+    - cron: "20 16 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/world-v7-validation-ledger.mjs"
+      - "scripts/run-world-v7-validation-ledger.mjs"
+      - "scripts/test-world-v7-validation-ledger.mjs"
+      - ".github/workflows/world-v7-multi-region-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/world-v7-validation-ledger.mjs"
+      - "scripts/run-world-v7-validation-ledger.mjs"
+      - "scripts/test-world-v7-validation-ledger.mjs"
+      - ".github/workflows/world-v7-multi-region-validation.yml"
+permissions:
+  contents: read
+concurrency:
+  group: fenice-world-v7-multiregion-ledger
+  cancel-in-progress: false
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Verify regional isolation, data freshness, idempotence and no fake PAPER
+        run: node scripts/test-world-v7-validation-ledger.mjs
+  observe:
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch' ||
+        github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Test worldwide evidence gating and bounded forward collection
+        run: node scripts/test-world-v7-validation-ledger.mjs
+      - name: Read latest published observations without provider API calls
+        run: node scripts/run-world-v7-validation-ledger.mjs
+      - name: Verify no PAPER LIVE or entitlement promotion
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const r=JSON.parse(fs.readFileSync("data/world-v7-validation-ledger.json","utf8"));
+          const expected=["ARCX","XNAS","XNYS","XMIL","XETR","XTKS","BVMF","XASX"];
+          if(r.diagnosticOnly!==true || r.paperEligible!==false ||
+             r.brokerSubmissionAllowed!==false || r.liveTradingAllowed!==false ||
+             r.certifiedPaperFills!==0 ||
+             expected.some(m=>r.venues?.[m]?.paperEligible!==false ||
+               r.venues?.[m]?.certifiedPaperFills!==0) ||
+             r.observations.some(x=>x.paperEligible!==false||
+               x.certifiedPaperFills!==0 ||
+               ["price","close","open","high","low","bid","ask","account"].some(k=>Object.hasOwn(x,k))))
+            throw Error("WORLD_V7_VALIDATION_SAFETY_GATE_FAILED");
+          console.log("World V7 research-only regional evidence:",r.summary.researchDaysByRegion);
+          NODE
+      - name: Upload sanitized regional evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-world-v7-multi-region
+          path: data/world-v7-validation-ledger.json
+          retention-days: 21
+          if-no-files-found: error
+      - name: Publish on latest main without overwriting parallel bot observations
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-world-v7-observer"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            node scripts/run-world-v7-validation-ledger.mjs
+            git add -- data/world-v7-validation-ledger.json
+            if git diff --cached --quiet; then
+              echo "No new qualifying market observation"
+              exit 0
+            fi
+            git commit -m "data(world-v7): append authentic regional provider observations"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep "$attempt"
+          done
+          echo "Unable to publish regional evidence after retries"
+          exit 1
