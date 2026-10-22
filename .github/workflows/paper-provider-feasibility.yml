@@ -27,6 +27,9 @@ on:
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
+      - "lib/intelligence/v7-provider-continuity.mjs"
+      - "scripts/record-v7-provider-continuity.mjs"
+      - "scripts/test-v7-provider-continuity.mjs"
   pull_request:
     paths:
       - ".github/workflows/paper-provider-feasibility.yml"
@@ -43,6 +46,9 @@ on:
       - "scripts/plan-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-universe.mjs"
       - "scripts/test-paper-v7-probe-selection.mjs"
+      - "lib/intelligence/v7-provider-continuity.mjs"
+      - "scripts/record-v7-provider-continuity.mjs"
+      - "scripts/test-v7-provider-continuity.mjs"
 
 permissions:
   contents: write
@@ -91,6 +97,9 @@ jobs:
         run: node --experimental-strip-types scripts/test-paper-provider-probe-truth.mjs
       - name: Verify closed-session zero-quote budget and report-time freshness
         run: node --experimental-strip-types scripts/test-paper-provider-probe-integration.mjs
+      - name: Verify forward-only continuity accounting without provider credentials
+        run: node scripts/test-v7-provider-continuity.mjs
+
       - name: Probe read-only provider feasibility
         if: github.event_name != 'pull_request'
         run: node --experimental-strip-types scripts/probe-paper-provider-feasibility.mjs
@@ -177,6 +186,7 @@ jobs:
           cp data/v7-provider-feasibility.json "$generated_dir/feasibility.json"
           cp data/v7-probe-plan.json "$generated_dir/plan.json"
           cp data/v7-probe-universe.json "$generated_dir/universe.json"
+          cp data/v7-provider-feasibility.json "$generated_dir/current-observation.json"
 
           for attempt in 1 2 3; do
             git fetch origin main
@@ -184,7 +194,12 @@ jobs:
             cp "$generated_dir/feasibility.json" data/v7-provider-feasibility.json
             cp "$generated_dir/plan.json" data/v7-probe-plan.json
             cp "$generated_dir/universe.json" data/v7-probe-universe.json
-            git add data/v7-provider-feasibility.json data/v7-probe-plan.json data/v7-probe-universe.json
+            cp "$generated_dir/current-observation.json" data/v7-provider-feasibility.json
+            # Merge only an actually observed current-session sample onto the
+            # *latest* main ledger after every retry; never overwrite newer
+            # evidence with a stale checkout and never infer past sessions.
+            node scripts/record-v7-provider-continuity.mjs
+            git add data/v7-provider-feasibility.json data/v7-probe-plan.json data/v7-probe-universe.json data/v7-provider-continuity.json
 
             if git diff --cached --quiet; then
               echo "No V7 provider planning changes to commit"
