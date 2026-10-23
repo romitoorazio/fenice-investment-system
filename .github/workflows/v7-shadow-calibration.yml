@@ -4,6 +4,15 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 22 * * 1-5"
+  # Refresh the derived V7 report immediately after relevant code merges.
+  # Path filter intentionally excludes data/ to prevent self-triggering loops.
+  push:
+    branches: ["main"]
+    paths:
+      - "lib/intelligence/shadow-calibration.mjs"
+      - "scripts/run-shadow-calibration.mjs"
+      - "scripts/test-shadow-calibration.mjs"
+      - ".github/workflows/v7-shadow-calibration.yml"
   pull_request:
     paths:
       - "lib/intelligence/shadow-calibration.mjs"
