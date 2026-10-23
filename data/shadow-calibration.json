@@ -1,13 +1,18 @@
 {
-  "version": 3,
-  "generatedAt": "2026-10-23T00:44:03.570Z",
-  "purpose": "V7 research-only shadow predictions and directional outcome calibration. Never grants execution permission.",
+  "version": 4,
+  "generatedAt": "2026-10-23T19:19:47.869Z",
+  "purpose": "V7 research-only directional outcomes and valid probabilistic calibration. Never grants execution permission.",
   "methodology": {
     "signal": "terminal ACCUMULA observed as committee OSSERVA/ATTENDI with strong raw data confidence",
     "positiveOutcomeDefinition": "checkpoint returnPercent > 0",
     "deDuplication": "maximum one observation per symbol per UTC day",
     "historicalBootstrap": "persisted committee-history only; comparable raw-confidence snapshots only; weekends excluded",
     "minimumCalibrationSamples": 30,
+    "calibrationInput": "ONLY_EXPLICIT_ASOF_POSITIVE_RETURN_PROBABILITY",
+    "committeeRawConfidenceMeaning": "SOURCE_AND_DATA_QUALITY_NOT_PROBABILITY_OF_PROFIT",
+    "calibrationRequiresVerifiedForecastProvenance": true,
+    "historicalBackfillExcludedFromProbabilityCalibration": true,
+    "directionalOutcomeRatesAreDescriptiveOnly": true,
     "feedsV6CalibrationPolicy": false
   },
   "historicalBootstrap": {
@@ -25,51 +30,111 @@
   "candidateCount": 0,
   "candidates": [],
   "ledgerRecordCount": 53,
+  "directionalOutcomes": {
+    "1d": {
+      "state": "DESCRIPTIVE_RESEARCH_ONLY",
+      "sampleSize": 53,
+      "independentObservationDays": 21,
+      "historicalBackfillSamples": 29,
+      "forwardTrackedSamples": 24,
+      "positiveCount": 20,
+      "negativeCount": 24,
+      "flatCount": 9,
+      "observedPositiveRate": 0.3774,
+      "meanReturnPercent": -0.1338,
+      "medianReturnPercent": 0,
+      "dataQualityIsNotForecastProbability": true,
+      "probabilityOfProfitCertified": false,
+      "marketBenchmarkNetAlphaCertified": false,
+      "executionEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    "7d": {
+      "state": "DESCRIPTIVE_RESEARCH_ONLY",
+      "sampleSize": 50,
+      "independentObservationDays": 18,
+      "historicalBackfillSamples": 29,
+      "forwardTrackedSamples": 21,
+      "positiveCount": 17,
+      "negativeCount": 33,
+      "flatCount": 0,
+      "observedPositiveRate": 0.34,
+      "meanReturnPercent": -1.7682,
+      "medianReturnPercent": -0.82,
+      "dataQualityIsNotForecastProbability": true,
+      "probabilityOfProfitCertified": false,
+      "marketBenchmarkNetAlphaCertified": false,
+      "executionEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    "30d": {
+      "state": "NO_OBSERVED_OUTCOMES",
+      "sampleSize": 0,
+      "independentObservationDays": 0,
+      "historicalBackfillSamples": 0,
+      "forwardTrackedSamples": 0,
+      "positiveCount": 0,
+      "negativeCount": 0,
+      "flatCount": 0,
+      "observedPositiveRate": null,
+      "meanReturnPercent": null,
+      "medianReturnPercent": null,
+      "dataQualityIsNotForecastProbability": true,
+      "probabilityOfProfitCertified": false,
+      "marketBenchmarkNetAlphaCertified": false,
+      "executionEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    },
+    "90d": {
+      "state": "NO_OBSERVED_OUTCOMES",
+      "sampleSize": 0,
+      "independentObservationDays": 0,
+      "historicalBackfillSamples": 0,
+      "forwardTrackedSamples": 0,
+      "positiveCount": 0,
+      "negativeCount": 0,
+      "flatCount": 0,
+      "observedPositiveRate": null,
+      "meanReturnPercent": null,
+      "medianReturnPercent": null,
+      "dataQualityIsNotForecastProbability": true,
+      "probabilityOfProfitCertified": false,
+      "marketBenchmarkNetAlphaCertified": false,
+      "executionEligible": false,
+      "brokerSubmissionAllowed": false,
+      "liveTradingAllowed": false
+    }
+  },
   "researchCalibration": {
     "1d": {
-      "state": "POOR",
-      "sampleSize": 52,
-      "brierScore": 0.5705,
-      "expectedCalibrationError": 0.5765,
-      "averageConfidence": 0.9612,
-      "observedHitRate": 0.3846,
-      "optimismBias": 0.5765,
-      "confidenceMultiplier": 0.8,
-      "bins": [
-        {
-          "lower": 0.9,
-          "upper": 1,
-          "count": 52,
-          "averageConfidence": 0.9612,
-          "observedHitRate": 0.3846,
-          "gap": 0.5765
-        }
-      ],
+      "state": "INSUFFICIENT",
+      "sampleSize": 0,
+      "brierScore": null,
+      "expectedCalibrationError": null,
+      "averageConfidence": null,
+      "observedHitRate": null,
+      "optimismBias": null,
+      "confidenceMultiplier": 0.9,
+      "bins": [],
       "reasons": [
-        "forecast calibration materially deviates from realised outcomes"
+        "no calibration samples available"
       ]
     },
     "7d": {
-      "state": "POOR",
-      "sampleSize": 50,
-      "brierScore": 0.6089,
-      "expectedCalibrationError": 0.6206,
-      "averageConfidence": 0.9606,
-      "observedHitRate": 0.34,
-      "optimismBias": 0.6206,
-      "confidenceMultiplier": 0.8,
-      "bins": [
-        {
-          "lower": 0.9,
-          "upper": 1,
-          "count": 50,
-          "averageConfidence": 0.9606,
-          "observedHitRate": 0.34,
-          "gap": 0.6206
-        }
-      ],
+      "state": "INSUFFICIENT",
+      "sampleSize": 0,
+      "brierScore": null,
+      "expectedCalibrationError": null,
+      "averageConfidence": null,
+      "observedHitRate": null,
+      "optimismBias": null,
+      "confidenceMultiplier": 0.9,
+      "bins": [],
       "reasons": [
-        "forecast calibration materially deviates from realised outcomes"
+        "no calibration samples available"
       ]
     },
     "30d": {
@@ -100,5 +165,12 @@
         "no calibration samples available"
       ]
     }
+  },
+  "confidenceSemantics": {
+    "rawConfidenceIsDataQuality": true,
+    "rawConfidenceIsPositiveReturnProbability": false,
+    "brierAndEceComputedOnlyFromActualProbabilityForecasts": true,
+    "observedPositiveRateIsNotPredictedWinProbability": true,
+    "strategyProfitabilityOrAlphaCertified": false
   }
 }
