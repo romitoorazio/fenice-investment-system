@@ -12,7 +12,7 @@ on:
       - ".github/workflows/v7-shadow-calibration.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: fenice-v7-shadow-calibration
@@ -36,6 +36,23 @@ jobs:
 
       - name: Dry-run historical shadow bootstrap
         run: node scripts/run-shadow-calibration.mjs
+
+      - name: Prevent data-quality confidence being counted as predicted win probability
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('data/shadow-calibration.json','utf8'));
+          if (report.version !== 4
+            || report.methodology?.calibrationInput !== 'ONLY_EXPLICIT_ASOF_POSITIVE_RETURN_PROBABILITY'
+            || report.confidenceSemantics?.rawConfidenceIsDataQuality !== true
+            || report.confidenceSemantics?.rawConfidenceIsPositiveReturnProbability !== false
+            || report.confidenceSemantics?.strategyProfitabilityOrAlphaCertified !== false
+            || !report.directionalOutcomes?.['7d']
+            || !report.researchCalibration?.['7d']) {
+            throw new Error('UNSAFE_V7_PROBABILITY_SEMANTICS');
+          }
+          console.log('V7 genuine calibration inputs separate from data quality: PASS');
+          NODE
 
       - name: Validate dry-run isolation and summarize research samples
         run: |
@@ -74,6 +91,8 @@ jobs:
   collect:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: regression
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
