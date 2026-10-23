@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   buildHistoricalShadowBackfill,
   buildShadowOutcomeSamples,
+  summarizeShadowDirectionalOutcomes,
   selectShadowCalibrationCandidates,
   updateShadowCalibrationLedger,
 } from "../lib/intelligence/shadow-calibration.mjs";
@@ -123,6 +124,54 @@ const day8 = updateShadowCalibrationLedger(
 );
 assert(day8.records.every((record) => record.checkpoints["1d"]));
 assert(day8.records.every((record) => record.checkpoints["7d"]));
-assert.equal(buildShadowOutcomeSamples(day8.records, "7d").length, 2);
+// Committee rawConfidence (98/99) is DATA QUALITY, not a probabilistic
+// forecast of a positive return. It must never enter the Brier/ECE input.
+assert.equal(buildShadowOutcomeSamples(day8.records, "7d").length, 0);
+const direction = summarizeShadowDirectionalOutcomes(day8.records, "7d");
+assert.equal(direction.sampleSize, 2);
+assert.equal(direction.forwardTrackedSamples, 2);
+assert.equal(direction.historicalBackfillSamples, 0);
+assert.equal(direction.independentObservationDays, 1);
+assert.equal(direction.positiveCount, 1);
+assert.equal(direction.negativeCount, 1);
+assert.equal(direction.observedPositiveRate, 0.5);
+assert.equal(direction.marketBenchmarkNetAlphaCertified, false);
+assert.equal(direction.liveTradingAllowed, false);
 
-console.log("Fenice V7 shadow calibration historical + longitudinal guards: PASS");
+// Only an explicit, independently verified, AS-OF positive-return forecast can
+// contribute calibration samples; neither backfills nor lookahead are allowed.
+const explicit = structuredClone(day8.records);
+explicit[0].positiveReturnForecast = {
+  kind: "POSITIVE_RETURN_PROBABILITY",
+  horizon: "7d",
+  probability: 0.65,
+  generatedAt: "2026-10-01T21:00:00.000Z",
+  provenanceVerified: true,
+  modelVersion: "test-model-v1",
+};
+assert.deepEqual(buildShadowOutcomeSamples(explicit, "7d"), [{confidence:0.65,outcome:1}]);
+const lookahead = structuredClone(explicit);
+lookahead[0].positiveReturnForecast.generatedAt="2026-10-10T21:00:00.000Z";
+assert.equal(buildShadowOutcomeSamples(lookahead, "7d").length, 0);
+const spoofedDataConfidence = structuredClone(explicit);
+delete spoofedDataConfidence[0].positiveReturnForecast;
+spoofedDataConfidence[0].rawConfidence=99.999;
+assert.equal(buildShadowOutcomeSamples(spoofedDataConfidence, "7d").length, 0);
+const unverified = structuredClone(explicit);
+unverified[0].positiveReturnForecast.provenanceVerified=false;
+assert.equal(buildShadowOutcomeSamples(unverified, "7d").length, 0);
+const wrongHorizon = structuredClone(explicit);
+wrongHorizon[0].positiveReturnForecast.horizon="1d";
+assert.equal(buildShadowOutcomeSamples(wrongHorizon, "7d").length, 0);
+const historicalRecord = structuredClone(explicit);
+historicalRecord[0].historicalBackfill=true;
+assert.equal(buildShadowOutcomeSamples(historicalRecord, "7d").length, 0);
+const missingOutcome = structuredClone(explicit);
+missingOutcome[0].checkpoints["7d"].returnPercent=null;
+assert.equal(buildShadowOutcomeSamples(missingOutcome, "7d").length, 0);
+assert.equal(summarizeShadowDirectionalOutcomes(missingOutcome, "7d").sampleSize, 1);
+const empty= summarizeShadowDirectionalOutcomes([],"30d");
+assert.equal(empty.observedPositiveRate,null);
+assert.equal(empty.state,"NO_OBSERVED_OUTCOMES");
+
+console.log("Fenice V7 shadow calibration historical + longitudinal/probability guards: PASS");
