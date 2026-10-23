@@ -25,15 +25,24 @@ export function evaluateMarketSession(
   options: { maxAgeSeconds?: number } = {},
   now = Date.now(),
 ): MarketSessionDecision {
-  const maxAgeSeconds = Math.max(1, Number(options.maxAgeSeconds ?? 60));
+  const maxAgeSeconds = options.maxAgeSeconds ?? 60;
   if (!evidence) {
     return { allowed: false, reasons: ["market-session evidence unavailable"], ageSeconds: 999999, state: "UNKNOWN" };
   }
 
   const observed = Date.parse(evidence.observedAt);
-  const ageSeconds = Number.isFinite(observed) ? Math.max(0, (now - observed) / 1000) : Number.POSITIVE_INFINITY;
+  const canonical = typeof evidence.observedAt === "string" && evidence.observedAt.includes(".")
+    ? evidence.observedAt : String(evidence.observedAt || "").replace(/Z$/, ".000Z");
+  const validTime = typeof evidence.observedAt === "string"
+    && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(evidence.observedAt)
+    && Number.isFinite(observed) && observed >= 0 && new Date(observed).toISOString() === canonical
+    && Number.isSafeInteger(now) && now >= 0 && now <= 8.64e15 && observed <= now;
+  const ageSeconds = validTime ? (now - observed) / 1000 : Number.POSITIVE_INFINITY;
   const reasons: string[] = [];
-  if (!evidence.authoritative) reasons.push("market-session source is not authoritative");
+  if (evidence.authoritative !== true) reasons.push("market-session source is not authoritative");
+  if (!validTime) reasons.push("market-session timestamp or clock is invalid or future");
+  if (typeof maxAgeSeconds !== "number" || !Number.isFinite(maxAgeSeconds) || maxAgeSeconds <= 0)
+    reasons.push("market-session freshness limit is invalid");
   if (ageSeconds > maxAgeSeconds) reasons.push("market-session evidence is stale");
   if (evidence.state === "UNKNOWN") reasons.push("market-session state is unknown");
   if (evidence.state === "CLOSED") reasons.push("market is closed");
