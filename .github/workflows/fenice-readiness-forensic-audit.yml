@@ -1,0 +1,28 @@
+name: Fenice Readiness Forensic Audit
+on:
+  pull_request:
+    paths:
+      - "lib/diagnostics/fenice-readiness.mjs"
+      - "scripts/diagnose-fenice-readiness.mjs"
+      - "scripts/test-fenice-readiness.mjs"
+      - ".github/workflows/fenice-readiness-forensic-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  forensic-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout requested commit
+        uses: actions/checkout@v5
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Pure offline diagnostic regression tests
+        run: node scripts/test-fenice-readiness.mjs
+      - name: Inspect recorded PAPER and V7 safety without mutation
+        run: node scripts/diagnose-fenice-readiness.mjs
