@@ -1,0 +1,183 @@
+name: Fenice Independent Global Source Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/global-independent-source-admission.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-entitlement-proof.ts"
+      - "lib/trading/exchange-direct-source-candidate.ts"
+      - "lib/trading/eodhd-eu-realtime-validation.ts"
+      - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
+      - "lib/trading/deutsche-boerse-tradegate-validation.ts"
+      - "lib/trading/euronext-stream-validation.ts"
+      - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-global-independent-entitlement-proof.mjs"
+      - "scripts/test-exchange-direct-source-candidate.mjs"
+      - "scripts/test-eodhd-eu-realtime-validation.mjs"
+      - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
+      - "scripts/test-deutsche-boerse-tradegate-validation.mjs"
+      - "scripts/test-euronext-stream-validation.mjs"
+      - "data/global-independent-source-registry.json"
+      - "data/global-independent-source-entitlements.json"
+      - ".github/workflows/global-independent-source-safety.yml"
+  push:
+    branches:
+      - feat/global-market-data-certification
+    paths:
+      - "lib/trading/global-independent-source-admission.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-entitlement-proof.ts"
+      - "lib/trading/exchange-direct-source-candidate.ts"
+      - "lib/trading/eodhd-eu-realtime-validation.ts"
+      - "lib/trading/deutsche-boerse-cloud-stream-validation.ts"
+      - "lib/trading/deutsche-boerse-tradegate-validation.ts"
+      - "lib/trading/euronext-stream-validation.ts"
+      - "scripts/test-global-independent-source-admission.mjs"
+      - "scripts/test-global-independent-entitlement-proof.mjs"
+      - "scripts/test-exchange-direct-source-candidate.mjs"
+      - "scripts/test-eodhd-eu-realtime-validation.mjs"
+      - "scripts/test-deutsche-boerse-cloud-stream-validation.mjs"
+      - "scripts/test-deutsche-boerse-tradegate-validation.mjs"
+      - "scripts/test-euronext-stream-validation.mjs"
+      - "data/global-independent-source-registry.json"
+      - "data/global-independent-source-entitlements.json"
+      - ".github/workflows/global-independent-source-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-independent-source-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test independent non-US source fail-closed admission
+        run: node --experimental-strip-types scripts/test-global-independent-source-admission.mjs
+
+      - name: Test independent feed dual-control entitlement
+        run: node --experimental-strip-types scripts/test-global-independent-entitlement-proof.mjs
+
+      - name: Test exchange-direct entitlement composition
+        run: node --experimental-strip-types scripts/test-exchange-direct-source-candidate.mjs
+
+      - name: Test EODHD EU realtime cross-venue safety
+        run: node --experimental-strip-types scripts/test-eodhd-eu-realtime-validation.mjs
+
+      - name: Test Deutsche Boerse Cloud Stream exact-XETR validation
+        run: node --experimental-strip-types scripts/test-deutsche-boerse-cloud-stream-validation.mjs
+
+      - name: Test Deutsche Boerse Tradegate exact-XGAT validation
+        run: node --experimental-strip-types scripts/test-deutsche-boerse-tradegate-validation.mjs
+
+      - name: Test Euronext Stream exact-MIC validation
+        run: node --experimental-strip-types scripts/test-euronext-stream-validation.mjs
+
+      - name: Syntax-check gated evidence paths
+        run: |
+          node --experimental-strip-types --check lib/trading/global-independent-source-admission.ts
+          node --experimental-strip-types --check lib/trading/global-independent-evidence.ts
+          node --experimental-strip-types --check lib/trading/global-independent-entitlement-proof.ts
+          node --experimental-strip-types --check lib/trading/exchange-direct-source-candidate.ts
+          node --experimental-strip-types --check lib/trading/eodhd-eu-realtime-validation.ts
+          node --experimental-strip-types --check lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          node --experimental-strip-types --check lib/trading/deutsche-boerse-tradegate-validation.ts
+          node --experimental-strip-types --check lib/trading/euronext-stream-validation.ts
+
+      - name: Assert provider registry defaults to no PAPER admission
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-independent-source-registry.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_INDEPENDENT_SOURCE') throw new Error('INDEPENDENT_SOURCE_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.providers) || d.providers.length < 8) throw new Error('INDEPENDENT_SOURCE_REGISTRY_TOO_SMALL');
+          const families = new Set();
+          for (const p of d.providers) {
+            if (p?.paperAllowed !== false) throw new Error(`UNVERIFIED_PROVIDER_CANNOT_BE_PAPER:${p?.id || 'unknown'}`);
+            if (!p?.sourceFamily) throw new Error(`SOURCE_FAMILY_REQUIRED:${p?.id || 'unknown'}`);
+            if (families.has(`${p.id}:${p.sourceFamily}`)) throw new Error(`DUPLICATE_PROVIDER_FAMILY:${p.id}`);
+            families.add(`${p.id}:${p.sourceFamily}`);
+          }
+          console.log('Independent global provider registry is default-deny; no provider is silently PAPER-eligible.');
+          NODE
+
+      - name: Assert independent entitlement registry is empty default-deny
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-independent-source-entitlements.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_DUAL_CONTROL') throw new Error('INDEPENDENT_ENTITLEMENT_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.entitlements)) throw new Error('INDEPENDENT_ENTITLEMENT_ARRAY_REQUIRED');
+          if (d.entitlements.length !== 0) throw new Error('INDEPENDENT_ENTITLEMENT_REGISTRY_MUST_REMAIN_EMPTY_UNTIL_REAL_EVIDENCE');
+          console.log('Independent feed entitlement registry is empty default-deny; no invented entitlement evidence.');
+          NODE
+
+      - name: Assert independent PAPER requires persisted plus fresh runtime dual control
+        run: |
+          grep -q 'MAX_RUNTIME_CLAIM_AGE_MS' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'persistedEvidenceFound' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'runtimeClaimMatched' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'runtimeClaimFresh' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'dualControlVerified' lib/trading/global-independent-source-admission.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/global-independent-entitlement-proof.ts
+          grep -q 'automatedUseAllowed' lib/trading/global-independent-entitlement-proof.ts
+          echo 'Independent exchange feeds require exact-MIC persisted and fresh runtime legal-use evidence.'
+
+      - name: Assert Twelve Data cannot count as its own second family
+        run: |
+          grep -q 'second source must be independent from Twelve Data' lib/trading/global-independent-source-admission.ts
+          grep -q 'sourceFamily === "twelve-data"' lib/trading/global-independent-source-admission.ts
+          grep -q 'evaluateIndependentGlobalSourceAdmission' lib/trading/global-independent-evidence.ts
+          echo 'Independent-source anti-self-quorum and evidence admission guards present.'
+
+      - name: Assert entitlement covers automated non-display use and is unexpired
+        run: |
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/global-independent-source-admission.ts
+          grep -q 'automatedUseAllowed' lib/trading/global-independent-source-admission.ts
+          grep -q 'validUntil' lib/trading/global-independent-source-admission.ts
+          grep -q 'realtime entitlement expired' lib/trading/global-independent-source-admission.ts
+          echo 'Independent-source licence scope and expiry gates present.'
+
+      - name: Assert EODHD cannot impersonate primary venue
+        run: |
+          grep -q 'eodhd-cboe-europe' lib/trading/eodhd-eu-realtime-validation.ts
+          grep -q 'primary-mic-not-source' lib/trading/eodhd-eu-realtime-validation.ts
+          grep -q 'VALIDATION_ONLY' lib/trading/eodhd-eu-realtime-validation.ts
+          echo 'EODHD EU realtime is locked to cross-venue validation-only semantics.'
+
+      - name: Assert Deutsche Boerse Cloud Stream remains scope-limited and validation-only
+        run: |
+          grep -q 'md-xetraetfetp' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'marketMic !== "XETR"' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'nanosecond epoch' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/deutsche-boerse-cloud-stream-validation.ts
+          echo 'Deutsche Boerse Cloud Stream is exact-XETR ETF/ETP validation-only until legal-use entitlement is proven.'
+
+      - name: Assert Tradegate remains exact-XGAT tradeable-BBO validation-only
+        run: |
+          grep -q 'md-tradegate' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'marketMic !== "XGAT"' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'TRADEABLE' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'nanosecond epoch' lib/trading/deutsche-boerse-tradegate-validation.ts
+          grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/deutsche-boerse-tradegate-validation.ts
+          echo 'Tradegate parser is exact-XGAT tradeable-BBO validation-only until technical and legal-use entitlement is proven.'
+
+      - name: Assert Euronext Stream remains exact-MIC and validation-only
+        run: |
+          grep -q 'view/StandingData/' lib/trading/euronext-stream-validation.ts
+          grep -q 'view/BBO/' lib/trading/euronext-stream-validation.ts
+          grep -q 'rebroadcastIndicator' lib/trading/euronext-stream-validation.ts
+          grep -q 'nanosecond epoch' lib/trading/euronext-stream-validation.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/euronext-stream-validation.ts
+          grep -q 'eligibility: "VALIDATION_ONLY"' lib/trading/euronext-stream-validation.ts
+          echo 'Euronext Stream parser is exact-MIC validation-only until legal-use entitlement is proven.'
