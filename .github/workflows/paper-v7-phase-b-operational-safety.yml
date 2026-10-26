@@ -1,0 +1,48 @@
+name: Fenice V7 Phase B Operational Code Safety (No Orders)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-owner-operating-intent.json"
+      - "db/paper-v7-phase-b-postgres.sql"
+      - "lib/trading/paper-v7-phase-b-rights-review.mjs"
+      - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-owner-operating-intent.json"
+      - "db/paper-v7-phase-b-postgres.sql"
+      - "lib/trading/paper-v7-phase-b-rights-review.mjs"
+      - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  future-operational-code-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate signed operator, independent source rights and database transaction
+        run: node scripts/test-paper-v7-phase-b-postgres-writer.mjs
+      - name: Confirm historic V6 custody and preparation boundaries
+        run: |
+          node scripts/test-paper-v7-phase-b-preparation.mjs
+          node scripts/test-paper-v7-phase-b-authorization.mjs
+          node scripts/test-paper-v7-phase-b-budget.mjs
+          node scripts/test-paper-v7-phase-b-offline-bridge.mjs
+          node scripts/test-paper-v7-phase-b-local-fixture-store.mjs
+          node scripts/check-paper-v7-phase-b-readiness.mjs
+      - name: Reject accidental secrets in tracked repository
+        run: node scripts/scan-repository-secrets.mjs
