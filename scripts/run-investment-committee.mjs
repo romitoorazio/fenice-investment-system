@@ -5,6 +5,7 @@ import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/in
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
 import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot } from '../lib/intelligence/committee-input-integrity.mjs';
 import { optionalDcfNumber } from '../lib/intelligence/committee-valuation-numbers.mjs';
+import { assessEtfEconomicEvidence } from '../lib/intelligence/etf-economic-evidence.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -130,6 +131,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     dcf,
   });
   const entry = entryPlan(asset, dcf, decision, positionType, maxWeightPercent);
+  const etfEconomics = assessEtfEconomicEvidence(asset, { nowMs: now.getTime() });
   const valuationConflict = dcf?.status === 'disponibile' && Number(dcf.upsideBasePercent) < -20;
 
   const bullCase = [
@@ -155,6 +157,8 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
   return {
     rank: 0,
     strategyResearch: researchStrategySnapshot(strategies, asset.symbol, now.getTime()),
+    // Diagnostic ETF economics never affect score/decisions or PAPER V6.
+    etfEconomics,
     symbol: asset.symbol,
     name: asset.name,
     assetClass: asset.assetClass,
