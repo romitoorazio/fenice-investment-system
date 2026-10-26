@@ -28,11 +28,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  # Shared with V6 DATA WRITER. Distinct ledger and separate approval.
-  group: fenice-data-writer
-  cancel-in-progress: false
-
 jobs:
   regression:
     runs-on: ubuntu-latest
@@ -56,6 +51,10 @@ jobs:
     needs: [regression]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      # Serialize only actual data writes with V6; never block PR tests.
+      group: fenice-data-writer
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
         with:
