@@ -2,14 +2,29 @@
   "version": 1,
   "approvalId": "fenice-paper-v7-phase-b-2026-10-27",
   "mode": "PAPER",
-  "approved": false,
+  "approved": true,
   "humanConfirmation": true,
   "consentSource": "Explicit owner instruction in ChatGPT, October 26 2026: authorization to complete and start virtual-only PAPER",
-  "approvalStatus": "AWAITING_FROZEN_BASELINE_FINGERPRINT",
+  "approvalStatus": "PAPER_ONLY_TIME_BOUNDED_CORE_PINNED",
   "approvedAt": "2026-10-27T00:00:00.000Z",
   "expiresAt": "2026-11-27T00:00:00.000Z",
-  "baselineCommit": null,
-  "coreFingerprint": null,
+  "baselineCommit": "89c3188889ea9cf9238e654542d1fe4b69345cf7",
+  "coreFingerprint": {
+    "algorithm": "sha256",
+    "domain": "FENICE_V7_PHASE_B_FORWARD_CORE_V1",
+    "digest": "74e09c42bc39b1dd0f5354783e22f63b8b9e9a34aba4cfc3490765455e838c79",
+    "complete": true,
+    "files": [
+      ".github/workflows/v7-phase-b-forward-paper.yml",
+      "lib/trading/decision-data-gate.mjs",
+      "lib/trading/paper-fx-evidence.mjs",
+      "lib/trading/paper-v7-phase-b-v6-parity.mjs",
+      "lib/trading/paper-v7-phase-b-forward-fingerprint.mjs",
+      "scripts/paper-validation-stager.mjs",
+      "scripts/run-v7-phase-b-forward-cycle.mjs",
+      "scripts/test-v7-phase-b-forward-paper.mjs"
+    ]
+  },
   "idPrefix": "fenice-v7-phase-b-2026-",
   "capitalEuro": 10000,
   "targetPaperFills": 10,
@@ -48,5 +63,15 @@
   "brokerConnectivityAllowed": false,
   "v6HistoricalFillsCredited": 0,
   "allowBackfill": false,
-  "allowKeyRotation": false
+  "allowKeyRotation": false,
+  "approvalEvidence": {
+    "kind": "EXPLICIT_CHAT_OWNER_INSTRUCTION",
+    "receivedOn": "2026-10-26",
+    "liveTradingExcluded": true,
+    "brokerOrdersExcluded": true,
+    "phaseBSeparateFromExpiredV6": true,
+    "issuerKeyRequiredForThisV6ParityMethod": false
+  },
+  "effectiveFrom": "2026-10-27T00:00:00.000Z",
+  "approvalExpires": "2026-11-27T00:00:00.000Z"
 }
