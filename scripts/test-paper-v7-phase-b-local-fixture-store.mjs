@@ -9,6 +9,7 @@ import {readFile} from "node:fs/promises";
 import {
   inspectLocalPhaseBFixture as inspect,
   appendLocalPhaseBFixture as append,
+  engageLocalPhaseBFixtureKillSwitch as stopFixture,
 } from "../lib/trading/paper-v7-phase-b-local-fixture-store.mjs";
 const manifest=JSON.parse(await readFile(
   new URL("../data/paper-v7-phase-b-preparation.json",import.meta.url),"utf8"));
@@ -190,12 +191,32 @@ try{
   await inspect(openDir);
   chmodSync(openDir,0o755);
   await expectBlock("shared directory",()=>inspect(openDir),"PRIVATE_DIRECTORY_PERMISSIONS");
+  // Emergency stop must be durable, monotonic and immune to restarts.
+  const beforeStop=await inspect(directory);
+  assert.equal(beforeStop.fixtureKillSwitchEngaged,false);
+  const stopped=await stopFixture(directory);
+  assert.equal(stopped.state,"FIXTURE_KILL_SWITCH_ENGAGED");
+  assert.equal(stopped.fixtureKillSwitchEngaged,true);
+  assert.equal(typeof stopped.fixtureKillSwitchEngagedAt,"string");
+  assert.equal(stopped.attemptCount,3);
+  assert.equal(stopped.fixtureLedgerTip,beforeStop.fixtureLedgerTip);
+  const stoppedContents=readFileSync(statePath,"utf8");
+  const future=await tryAppend(stopped.fixtureLedgerTip,
+    proposal("phaseb-store-0005","2026-10-30T15:30:00.000Z"));
+  assert.equal(future.state,"FIXTURE_KILL_SWITCH_PERMANENTLY_ENGAGED");
+  assert.equal(future.attemptCount,3);
+  assert.equal(readFileSync(statePath,"utf8"),stoppedContents,
+    "kill switch prevents silent mutation");
+  const repeat=await stopFixture(directory);
+  assert.equal(repeat.state,"FIXTURE_KILL_SWITCH_ALREADY_ENGAGED");
+  assert.equal(readFileSync(statePath,"utf8"),stoppedContents);
+  assert.equal((await inspect(directory)).fixtureKillSwitchEngaged,true);
   assert.equal(manifest.authorization.approved,false);
   assert.equal(manifest.authorization.expiresAt,null);
   assert.equal(manifest.safety.newPaperOrdersAllowed,false);
   assert.equal(manifest.safety.liveTradingAllowed,false);
   assert.equal(state2.includes('"fixtureOnly":true'),true);
-  console.log("V7 Phase B offline LOCAL fixture: atomic CAS/O_EXCL, fsync, crash, tamper, cross-process, live-lock PASS");
+  console.log("V7 Phase B offline LOCAL fixture: atomic CAS/O_EXCL, fsync, crash, tamper, cross-process, permanent kill switch, live-lock PASS");
 }finally{
   rmSync(parent,{recursive:true,force:true});
 }
