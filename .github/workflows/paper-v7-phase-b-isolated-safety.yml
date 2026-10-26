@@ -6,6 +6,8 @@ on:
       - "lib/trading/paper-v7-phase-b-fixture-ledger.mjs"
       - "lib/trading/paper-v7-phase-b-authorization.mjs"
       - "lib/trading/paper-v7-phase-b-offline-bridge.mjs"
+      - "lib/trading/paper-v7-phase-b-local-fixture-store.mjs"
+      - "scripts/test-paper-v7-phase-b-local-fixture-store.mjs"
       - "scripts/test-paper-v7-phase-b-offline-bridge.mjs"
       - "scripts/test-paper-v7-phase-b-fixture-ledger.mjs"
       - "scripts/test-paper-v7-phase-b-authorization.mjs"
@@ -18,6 +20,8 @@ on:
       - "lib/trading/paper-v7-phase-b-fixture-ledger.mjs"
       - "lib/trading/paper-v7-phase-b-authorization.mjs"
       - "lib/trading/paper-v7-phase-b-offline-bridge.mjs"
+      - "lib/trading/paper-v7-phase-b-local-fixture-store.mjs"
+      - "scripts/test-paper-v7-phase-b-local-fixture-store.mjs"
       - "scripts/test-paper-v7-phase-b-offline-bridge.mjs"
       - "scripts/test-paper-v7-phase-b-fixture-ledger.mjs"
       - "scripts/test-paper-v7-phase-b-authorization.mjs"
@@ -42,6 +46,8 @@ jobs:
         run: node scripts/test-paper-v7-phase-b-fixture-ledger.mjs
       - name: Verify offline source/venue/FX evidence through dual-source quota and fixture ledger
         run: node scripts/test-paper-v7-phase-b-offline-bridge.mjs
+      - name: Verify private filesystem atomic commit, interleaving, retry and crash denial
+        run: node scripts/test-paper-v7-phase-b-local-fixture-store.mjs
       - name: Verify signed approval payload cannot bypass limits or expiry
         run: node scripts/test-paper-v7-phase-b-authorization.mjs
       - name: Review read-only Phase B readiness against actual V6 and V7 state
