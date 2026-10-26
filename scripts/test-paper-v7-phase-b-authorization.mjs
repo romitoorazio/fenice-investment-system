@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {generateKeyPairSync,sign} from "node:crypto";
+import {generateKeyPairSync,sign,createHash} from "node:crypto";
 import {phaseBPolicyDigest,verifyFuturePhaseBAuthorization as verify}
   from "../lib/trading/paper-v7-phase-b-authorization.mjs";
 import {readFile} from "node:fs/promises";
@@ -10,6 +10,7 @@ const {privateKey,publicKey}=generateKeyPairSync("ed25519");
 const {publicKey:intruderPublic,privateKey:intruderPrivate}=generateKeyPairSync("ed25519");
 const pem=publicKey.export({type:"spki",format:"pem"});
 const intruderPem=intruderPublic.export({type:"spki",format:"pem"});
+const trustedPin=createHash("sha256").update(publicKey.export({type:"spki",format:"der"})).digest("hex");
 const baselineSha="a".repeat(40),baselineDigest="b".repeat(64);
 const nowMs=Date.parse("2026-10-28T12:00:00.000Z");
 const p={
@@ -30,6 +31,7 @@ const seal=(payload,key=privateKey)=>({
 const input={
   envelope:seal(p),
   trustedOperatorPublicKeyPem:pem,
+  trustedOperatorKeySpkiSha256:trustedPin,
   expectedBaselineSha:baselineSha,
   expectedBaselineDigest:baselineDigest,
   proposedRiskPolicy:policy,nowMs,
@@ -37,6 +39,7 @@ const input={
 const good=verify(input);
 assert.equal(good.state,"SIGNATURE_AND_SCOPE_VALID_REVIEW_ONLY",good.reasons.join(" | "));
 assert.equal(good.reasons.length,0);
+assert.equal(good.externallyPinnedOperatorKeyMatch,true);
 assert.equal(good.canCreatePaperFills,false);
 assert.equal(good.canSendBrokerOrders,false);
 assert.equal(good.currentDeployedBaselineVerified,false);
@@ -56,6 +59,14 @@ expectBlock("forged signature",x=>x.envelope.signatureBase64=
   seal(x.envelope.payload,intruderPrivate).signatureBase64,"OPERATOR_SIGNATURE_NOT_VERIFIED");
 expectBlock("self attested wrong trust",x=>x.trustedOperatorPublicKeyPem=intruderPem,
   "OPERATOR_SIGNATURE_NOT_VERIFIED");
+expectBlock("no independent trusted key pin",x=>x.trustedOperatorKeySpkiSha256=null,
+  "TRUSTED_OPERATOR_KEY_FINGERPRINT_NOT_PINNED");
+expectBlock("substituted signer plus public key",x=>{
+  x.envelope=seal(x.envelope.payload,intruderPrivate);
+  x.trustedOperatorPublicKeyPem=intruderPem;
+}, "TRUSTED_OPERATOR_KEY_FINGERPRINT_NOT_PINNED");
+expectBlock("wrong pin",x=>x.trustedOperatorKeySpkiSha256="c".repeat(64),
+  "TRUSTED_OPERATOR_KEY_FINGERPRINT_NOT_PINNED");
 expectBlock("baseline mismatch",x=>x.expectedBaselineSha="c".repeat(40),
   "PHASE_B_BASELINE_NOT_BOUND");
 expectBlock("changed policy",x=>x.proposedRiskPolicy={...policy,maxOrdersPerDay:2},
