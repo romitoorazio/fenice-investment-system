@@ -1,0 +1,107 @@
+name: Fenice V7 Phase B Forward PAPER
+run-name: V7 Phase B independent forward audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/paper-v7-phase-b-v6-parity.mjs"
+      - "lib/trading/paper-v7-phase-b-forward-fingerprint.mjs"
+      - "scripts/run-v7-phase-b-forward-cycle.mjs"
+      - "scripts/test-v7-phase-b-forward-paper.mjs"
+      - "data/paper-v7-phase-b-approval.json"
+      - ".github/workflows/v7-phase-b-forward-paper.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/trading/paper-v7-phase-b-v6-parity.mjs"
+      - "lib/trading/paper-v7-phase-b-forward-fingerprint.mjs"
+      - "scripts/run-v7-phase-b-forward-cycle.mjs"
+      - "scripts/test-v7-phase-b-forward-paper.mjs"
+      - "data/paper-v7-phase-b-approval.json"
+      - ".github/workflows/v7-phase-b-forward-paper.yml"
+  schedule:
+    # Afternoon after existing refresh; weekends audit but cannot open markets.
+    - cron: "25 17 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify V7 paper baseline, consent, forward risk and audit isolation
+        run: node scripts/test-v7-phase-b-forward-paper.mjs
+      - name: Verify protected V6 campaign and repository secret safety
+        run: |
+          node scripts/test-paper-v7-phase-b-preparation.mjs
+          node scripts/scan-repository-secrets.mjs
+
+  paper-forward:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [regression]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      # Serialize only actual data writes with V6; never block PR tests.
+      group: fenice-data-writer
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Install existing application dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Refresh existing V6-proven source, session and FX pipelines
+        env:
+          FENICE_JOB: intraday
+          FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+          FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+          FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+          FENICE_ALPACA_EXECUTION_PROBES: "6"
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+          APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          set -euo pipefail
+          if [[ "$(date -u +%u)" == 6 || "$(date -u +%u)" == 7 ]]; then
+            echo "Weekend: no market fill; only baseline/audit checkpoint"
+            exit 0
+          fi
+          npm run sources:check
+          node scripts/run-intelligence.mjs
+          npm run marketdata:execution
+          node scripts/refresh-paper-fx-evidence.mjs
+          node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Observe or safely simulate new V7 forward PAPER
+        run: node scripts/run-v7-phase-b-forward-cycle.mjs
+      - name: Persist only independent V7 ledger and daily audit
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/paper-v7-phase-b-forward-ledger.json data/paper-v7-phase-b-forward-days.json
+          if git diff --cached --quiet; then
+            echo "No V7 forward changes"
+            exit 0
+          fi
+          git commit -m "data(V7): record independent Phase B PAPER forward observation"
+          git push origin HEAD:main
