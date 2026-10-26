@@ -1,0 +1,50 @@
+name: Fenice V7 Phase B Isolated Ledger and Authorization Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/paper-v7-phase-b-fixture-ledger.mjs"
+      - "lib/trading/paper-v7-phase-b-authorization.mjs"
+      - "scripts/test-paper-v7-phase-b-fixture-ledger.mjs"
+      - "scripts/test-paper-v7-phase-b-authorization.mjs"
+      - "scripts/check-paper-v7-phase-b-readiness.mjs"
+      - "docs/PAPER_V7_PHASE_B_IMPLEMENTATION_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-isolated-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/trading/paper-v7-phase-b-fixture-ledger.mjs"
+      - "lib/trading/paper-v7-phase-b-authorization.mjs"
+      - "scripts/test-paper-v7-phase-b-fixture-ledger.mjs"
+      - "scripts/test-paper-v7-phase-b-authorization.mjs"
+      - "scripts/check-paper-v7-phase-b-readiness.mjs"
+      - "docs/PAPER_V7_PHASE_B_IMPLEMENTATION_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-isolated-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  phase-b-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify replayable 10k virtual fixture ledger, cap and anti-tamper
+        run: node scripts/test-paper-v7-phase-b-fixture-ledger.mjs
+      - name: Verify signed approval payload cannot bypass limits or expiry
+        run: node scripts/test-paper-v7-phase-b-authorization.mjs
+      - name: Review read-only Phase B readiness against actual V6 and V7 state
+        run: node scripts/check-paper-v7-phase-b-readiness.mjs
+      - name: Verify existing preparation and custody invariants
+        run: |
+          node scripts/test-paper-v7-phase-b-preparation.mjs
+          node scripts/test-paper-v7-phase-b-budget.mjs
+          node scripts/test-world-paper-v7.mjs
+          node scripts/test-world-v7-private-preflight.mjs
+      - name: Scan current tree for leaked secrets
+        run: node scripts/scan-repository-secrets.mjs
