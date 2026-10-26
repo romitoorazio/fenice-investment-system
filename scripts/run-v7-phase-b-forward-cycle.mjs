@@ -56,7 +56,8 @@ if(baseExists){
     shaAncestor=true}catch{/* fail closed */}
 }
 const frozen=approval.coreFingerprint;
-const fingerprintPinned=shaAncestor&&fingerprint.complete===true
+const fingerprintPinned=approval?.approved===true
+  &&approval?.humanConfirmation===true&&shaAncestor&&fingerprint.complete===true
   &&frozen?.complete===true&&frozen?.digest===fingerprint.digest
   &&frozen?.domain===fingerprint.domain
   &&JSON.stringify(frozen.files)===JSON.stringify(fingerprint.files);
@@ -81,15 +82,23 @@ if(fingerprintPinned){
 // eligibility check can qualify for 25 VALID days. Mere running does NOT.
 // This provisional evidence is deliberately NOT marked valid automatically.
 const date=nowIso.slice(0,10);
-const already=days.days.some(d=>d.date===date);
-const updatedDays=already?days:{
-  ...days,days:[...days.days,{date,checkedAt:nowIso,
-    fingerprintPinned,marketEvidenceValid:committed,
-    validatedForwardDay:committed,
-    fillCount:nextLedger.attempts.filter(e=>e.status==="PAPER_FILLED").length,
-    noNewFillReason:committed?null:reason,
-    brokerConnectivityAllowed:false,liveTradingAllowed:false,
-  }],
+const index=days.days.findIndex(d=>d.date===date);
+const nextRecord={date,checkedAt:nowIso,
+  fingerprintPinned,
+  // Valid evidence day means real forward clock, hash/core and journal
+  // reconciliation passed. It is NOT a claim of open-market quote eligibility.
+  marketEvidenceValid:committed,
+  validatedForwardDay:fingerprintPinned&&observed.valid,
+  fillCount:nextLedger.attempts.filter(e=>e.status==="PAPER_FILLED").length,
+  noNewFillReason:committed?null:reason,
+  brokerConnectivityAllowed:false,liveTradingAllowed:false,
+};
+const updatedDays=index>=0
+  ?{...days,days:days.days.map((d,i)=>i!==index?d:
+    {...d,...nextRecord,validatedForwardDay:d.validatedForwardDay||nextRecord.validatedForwardDay,
+      marketEvidenceValid:d.marketEvidenceValid||nextRecord.marketEvidenceValid})}
+  :{
+  ...days,days:[...days.days,nextRecord],
 };
 if(!fingerprintPinned){
   console.log(JSON.stringify({state:"NO_FILL",reason,codeFingerprint:fingerprint.digest,
@@ -98,7 +107,7 @@ if(!fingerprintPinned){
   process.exit(0);
 }
 if(committed)await write(pathLedger,nextLedger);
-if(!already)await write(pathDays,updatedDays);
+if(JSON.stringify(updatedDays)!==JSON.stringify(days))await write(pathDays,updatedDays);
 const verified=replayV7PhaseBLedger(nextLedger);
 if(!verified.valid)throw Error("POST_CYCLE_LEDGER_RECONCILIATION_FAILED");
 console.log(JSON.stringify({
