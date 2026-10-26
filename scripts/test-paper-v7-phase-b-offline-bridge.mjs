@@ -138,5 +138,46 @@ assert.equal(poor.fixtureAttempts,1);
 assert.equal(poor.observedFixtureFills,0);
 assert.equal(poor.genuineOperationalPhaseBFills,0);
 
+// Non-EUR future fixture must pass through verified USD/EUR FX, not use a
+// synthetic stress factor or silently assume price currency equals EUR.
+const us={...instrument,ticker:"SPY",exchangeMic:"ARCX",
+  currency:"USD",region:"north-america",country:"US"};
+const usdQuotes=observations.quotes.map(q=>({
+  ...q,symbol:"SPY",exchangeMic:"ARCX",currency:"USD",
+}));
+const usdRights={
+  sources:rights.sources.map(q=>({...q,exchangeMic:"ARCX",currency:"USD"})),
+  sessions:rights.sessions.map(q=>({...q,exchangeMic:"ARCX"})),
+  fx:[{from:"USD",to:"EUR",sourceFamily:"test-fx",paperUseAllowed:true,
+    validUntil:until}],
+};
+const usdFx={from:"USD",to:"EUR",rate:0.92,sourceFamily:"test-fx",
+  observedAt:"2026-10-27T15:29:50.000Z",realtime:true,
+  provenanceVerified:true};
+const usd={...build,instrument:us,
+  observations:{quotes:usdQuotes,
+    sessions:observations.sessions.map(q=>({...q,exchangeMic:"ARCX"})),
+    fx:[usdFx]},
+  operatorRightsRegistry:usdRights,
+  intent:{...intent,id:"phaseb-usd-fixture-0001",
+    instrumentKey:"ARCX:SPY"},
+};
+const usdGood=preview(usd);
+assert.equal(usdGood.state,"OFFLINE_FIXTURE_PREVIEW_SIMULATED",
+  JSON.stringify(usdGood));
+assert.equal(usdGood.genuineOperationalPhaseBFills,0);
+checkBlocked("no entitled USD/EUR conversion",x=>{
+  Object.assign(x,structuredClone(usd));
+  x.observations.fx=[];
+}, "WORLD_V7_ENTITLEMENT_VENUE_QUORUM_OR_FX_BLOCKED");
+checkBlocked("stale FX conversion",x=>{
+  Object.assign(x,structuredClone(usd));
+  x.observations.fx[0].observedAt="2026-10-27T15:20:00.000Z";
+}, "WORLD_V7_ENTITLEMENT_VENUE_QUORUM_OR_FX_BLOCKED");
+checkBlocked("FX rights registry missing",x=>{
+  Object.assign(x,structuredClone(usd));
+  x.operatorRightsRegistry.fx=[];
+}, "WORLD_V7_ENTITLEMENT_VENUE_QUORUM_OR_FX_BLOCKED");
+
 // Forwards only TEST-ONLY ledger; public interface never returns an order grant.
 console.log("V7 Phase B offline bridge: strict independent quotes, venue, FX, budget, 20 negatives, zero operational fills PASS");
