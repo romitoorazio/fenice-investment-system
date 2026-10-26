@@ -1,0 +1,79 @@
+name: Fenice V7 Phase B Operational Code Safety (No Orders)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-owner-operating-intent.json"
+      - "db/paper-v7-phase-b-postgres.sql"
+      - "lib/trading/paper-v7-phase-b-rights-review.mjs"
+      - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-schema.sql"
+      - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-owner-operating-intent.json"
+      - "db/paper-v7-phase-b-postgres.sql"
+      - "lib/trading/paper-v7-phase-b-rights-review.mjs"
+      - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-schema.sql"
+      - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
+      - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  future-operational-code-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate signed operator, independent source rights and database transaction
+        run: node scripts/test-paper-v7-phase-b-postgres-writer.mjs
+      - name: Confirm historic V6 custody and preparation boundaries
+        run: |
+          node scripts/test-paper-v7-phase-b-preparation.mjs
+          node scripts/test-paper-v7-phase-b-authorization.mjs
+          node scripts/test-paper-v7-phase-b-budget.mjs
+          node scripts/test-paper-v7-phase-b-offline-bridge.mjs
+          node scripts/test-paper-v7-phase-b-local-fixture-store.mjs
+          node scripts/check-paper-v7-phase-b-readiness.mjs
+      - name: Reject accidental secrets in tracked repository
+        run: node scripts/scan-repository-secrets.mjs
+
+  postgres-schema-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: fenice_phase_b_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fenice_phase_b_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client if unavailable
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+      - name: Run migration against ephemeral PostgreSQL 16 only
+        run: psql -h 127.0.0.1 -U postgres -d fenice_phase_b_ci -v ON_ERROR_STOP=1 -f db/paper-v7-phase-b-postgres.sql
+      - name: Prove unique UTC day, append-only and non-rearmable kill switch
+        run: psql -h 127.0.0.1 -U postgres -d fenice_phase_b_ci -v ON_ERROR_STOP=1 -f scripts/test-paper-v7-phase-b-postgres-schema.sql
