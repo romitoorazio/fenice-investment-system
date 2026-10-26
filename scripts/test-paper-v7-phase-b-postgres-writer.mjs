@@ -145,7 +145,11 @@ class FakeTransactionDatabase {
       if(this.attempts.some(a=>a.decision_at.slice(0,10)===params[4]))
         throw Error("DUPLICATE_DAY");
       this.attempts.push({campaign_id:params[0],attempt_id:params[1],
-        seq:params[2],decision_at:params[3],state:params[7]});
+        seq:params[2],decision_at:params[3],utc_trade_date:params[4],
+        instrument_key:params[5],side:params[6],state:params[7],
+        virtual_notional_cents:params[8],simulated_cost_cents:params[9],
+        fee_cents:params[10],post_cash_cents:params[11],
+        policy_sha256:params[14],previous_hash:params[15],event_hash:params[16]});
       return {rows:[],rowCount:1};
     }
     if(sql.startsWith("UPDATE fenice_paper_v7.campaigns")){
@@ -177,6 +181,31 @@ const idempotent=await submit({...base,db});
 assert.equal(idempotent.status,"OPERATIONAL_PAPER_DENIED");
 assert.equal(idempotent.reason,"IDEMPOTENT_ALREADY_RECORDED");
 assert.equal(db.attempts.length,1);
+
+// Even if an idempotent duplicate is presented, existing corrupted state
+// must be detected BEFORE returning a successful replay/no-op.
+const corruptedDb=new FakeTransactionDatabase();
+assert.equal((await submit({...base,db:corruptedDb})).committed,true);
+corruptedDb.attempts[0].event_hash="f".repeat(64);
+const corruptHash=await submit({...base,db:corruptedDb});
+assert.equal(corruptHash.reason,"DATABASE_TRANSACTION_ABORTED");
+assert.equal(corruptHash.genuineProspectivePaperFillsCreated,0);
+assert.equal(corruptedDb.attempts.length,1);
+const corruptCashDb=new FakeTransactionDatabase();
+assert.equal((await submit({...base,db:corruptCashDb})).committed,true);
+corruptCashDb.campaign.virtual_cash_cents="999999";
+assert.equal((await submit({...base,db:corruptCashDb})).reason,
+  "DATABASE_TRANSACTION_ABORTED");
+const corruptPositionDb=new FakeTransactionDatabase();
+assert.equal((await submit({...base,db:corruptPositionDb})).committed,true);
+corruptPositionDb.positions[0].book_cost_cents=1;
+assert.equal((await submit({...base,db:corruptPositionDb})).reason,
+  "DATABASE_TRANSACTION_ABORTED");
+const corruptFillDb=new FakeTransactionDatabase();
+assert.equal((await submit({...base,db:corruptFillDb})).committed,true);
+corruptFillDb.campaign.fill_count=0;
+assert.equal((await submit({...base,db:corruptFillDb})).reason,
+  "DATABASE_TRANSACTION_ABORTED");
 
 const negative=async(label,override,reason)=>{
   const testDb=new FakeTransactionDatabase();
