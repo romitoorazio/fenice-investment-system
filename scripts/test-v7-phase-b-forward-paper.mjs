@@ -26,7 +26,8 @@ const approval={
     allowedCurrencies:["EUR","USD"],usdPair:"USD/EUR"},
 };
 const base={
-  nowIso,approval,expectedFingerprint:fingerprint,observedFingerprint:fingerprint,
+  nowIso,approval,expectedFingerprint:structuredClone(fingerprint),
+  observedFingerprint:structuredClone(fingerprint),
   ledger:freshV7PhaseBLedger(),
   sourceHealth:{generatedAt:offset(30),
     critical:{gate:"GREEN",ready:9,total:9}},
