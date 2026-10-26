@@ -1,0 +1,34 @@
+name: Fenice ETF Economic Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/etf-economic-evidence.mjs"
+      - "scripts/test-etf-economic-evidence.mjs"
+      - "scripts/run-investment-committee.mjs"
+      - "app/committee/page.tsx"
+      - ".github/workflows/etf-economic-evidence.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/intelligence/etf-economic-evidence.mjs"
+      - "scripts/test-etf-economic-evidence.mjs"
+      - "scripts/run-investment-committee.mjs"
+      - "app/committee/page.tsx"
+      - ".github/workflows/etf-economic-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  etf-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate ETF research evidence and frozen V6 isolation
+        run: node scripts/test-etf-economic-evidence.mjs
