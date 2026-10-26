@@ -113,6 +113,9 @@ class FakeTransactionDatabase {
     this.positions=[];this.attempts=[];this.inTx=false;this.trace=[];
     this.failBeforeCommit=false;
   }
+  async connect(){
+    return {query:this.query.bind(this),release:()=>{this.released=true}};
+  }
   async query(sql,params=[]){
     this.trace.push({sql,params});
     if(sql.startsWith("BEGIN")){if(this.inTx)throw Error("IN_TRANSACTION");this.inTx=true;
@@ -169,6 +172,7 @@ assert.equal(accepted.canSubmitBrokerOrders,false);
 assert(db.trace.some(x=>x.sql==="BEGIN ISOLATION LEVEL SERIALIZABLE"));
 assert(db.trace.some(x=>x.sql.includes("FOR UPDATE")));
 assert(db.trace.some(x=>x.sql==="COMMIT"));
+assert.equal(db.released,true,"PG connection must be released after COMMIT");
 const idempotent=await submit({...base,db});
 assert.equal(idempotent.status,"OPERATIONAL_PAPER_DENIED");
 assert.equal(idempotent.reason,"IDEMPOTENT_ALREADY_RECORDED");
@@ -230,6 +234,7 @@ assert.equal(failed.reason,"DATABASE_TRANSACTION_ABORTED");
 assert.equal(fail.attempts.length,0,"transaction rollback must unwind all writes");
 assert.equal(fail.positions.length,0);
 assert.equal(fail.campaign.attempt_count,0);
+assert.equal(fail.released,true,"PG connection must be released after ROLLBACK");
 const invalidReview={
   ...review,approvedForAutomatedPaper:false,
 };
