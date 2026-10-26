@@ -26,7 +26,7 @@ assert.equal(first.liveTradingAllowed,false);
 assert.equal(replay(first.ledger).summary.genuineOperationalPhaseBFills,0);
 assert.equal(run(first.ledger,"phaseb-0002",t).status,"BLOCKED_ONE_PER_UTC_DAY");
 assert.equal(run(first.ledger,"phaseb-0001","2026-10-28T15:30:00.000Z").status,"BLOCKED_DUPLICATE_INTENT");
-assert.equal(run(x,"phaseb-0002","2026-10-27T15:29:00.000Z","ARCX:SPY",400).status,
+assert.equal(run(x,"phaseb-0002","2026-10-27T15:29:00.000Z","ARCX:SPY",290,400).status,
   "BLOCKED_INVALID_FIXTURE_INPUT");
 assert.equal(run(x,"phaseb-0002",t,"ARCX:SPY",290,249).status,"BLOCKED_INVALID_FIXTURE_INPUT");
 assert.equal(run(x,"phaseb-0002",t,"ARCX:SPY",350).status,
