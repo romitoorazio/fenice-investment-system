@@ -64,7 +64,7 @@ assert.equal(replay(fakeCampaign).valid,false,"test fixture cannot masquerade as
 const fakeAuthorization=structuredClone(first.ledger);
 fakeAuthorization.authorizedForOperationalPaper=true;
 assert.equal(replay(fakeAuthorization).valid,false);
-const filledDates=[new Date(Date.UTC(2026,9,27+i,15,30)).toISOString() for(let i=0;i<20;i++)];
+const filledDates=Array.from({length:20},(_,i)=>new Date(Date.UTC(2026,9,27+i,15,30)).toISOString());
 let cap=empty();
 for(let i=0;i<20;i++){
   const m=run(cap,"phaseb-cap-"+String(i).padStart(4,"0"),filledDates[i],"ARCX:SPY",290);
