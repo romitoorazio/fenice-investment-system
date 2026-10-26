@@ -1,0 +1,33 @@
+name: Fenice V7 Phase B Owner Activation Pin
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-approval.json"
+      - "scripts/test-v7-phase-b-owner-activation.mjs"
+      - ".github/workflows/v7-phase-b-owner-activation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-approval.json"
+      - "scripts/test-v7-phase-b-owner-activation.mjs"
+      - ".github/workflows/v7-phase-b-owner-activation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-owner-paper-only-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate SHA256 core, separate V6 boundary, owner consent and fixed PAPER window
+        run: node scripts/test-v7-phase-b-owner-activation.mjs
+      - name: Verify no secrets were accidentally published
+        run: node scripts/scan-repository-secrets.mjs
