@@ -8,6 +8,8 @@ on:
       - "lib/ui/paper-v7-phase-b-candidate-audit.mjs"
       - "scripts/check-paper-v7-phase-b-candidate.mjs"
       - "scripts/test-paper-v7-phase-b-candidate.mjs"
+      - "lib/trading/paper-v7-phase-b-budget.mjs"
+      - "scripts/test-paper-v7-phase-b-budget.mjs"
       - ".github/workflows/paper-v7-phase-b-candidate-audit.yml"
   push:
     branches: [main]
@@ -16,6 +18,8 @@ on:
       - "lib/ui/paper-v7-phase-b-candidate-audit.mjs"
       - "scripts/check-paper-v7-phase-b-candidate.mjs"
       - "scripts/test-paper-v7-phase-b-candidate.mjs"
+      - "lib/trading/paper-v7-phase-b-budget.mjs"
+      - "scripts/test-paper-v7-phase-b-budget.mjs"
       - ".github/workflows/paper-v7-phase-b-candidate-audit.yml"
   workflow_dispatch:
 
@@ -37,6 +41,8 @@ jobs:
         run: node scripts/check-paper-v7-phase-b-candidate.mjs
       - name: Assert caps/virtual budget gaps cannot authorize PAPER
         run: node scripts/test-paper-v7-phase-b-candidate.mjs
+      - name: Verify stricter Phase B virtual budget, UTC and lifetime attempt caps
+        run: node scripts/test-paper-v7-phase-b-budget.mjs
       - name: Re-run isolated V7 simulator safety regressions
         run: node scripts/test-world-paper-v7.mjs
       - name: Re-run private read-only V7 market data boundary
