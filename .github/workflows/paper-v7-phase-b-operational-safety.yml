@@ -56,15 +56,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_PASSWORD: fenice_ci_ephemeral_only
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: fenice_phase_b_ci
         ports:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d fenice_phase_b_ci"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      PGPASSWORD: fenice_ci_ephemeral_only
     steps:
       - uses: actions/checkout@v5
         with:
