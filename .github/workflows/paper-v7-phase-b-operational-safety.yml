@@ -8,6 +8,7 @@ on:
       - "lib/trading/paper-v7-phase-b-rights-review.mjs"
       - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
       - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-schema.sql"
       - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
       - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
   push:
@@ -18,6 +19,7 @@ on:
       - "lib/trading/paper-v7-phase-b-rights-review.mjs"
       - "lib/trading/paper-v7-phase-b-postgres-writer.mjs"
       - "scripts/test-paper-v7-phase-b-postgres-writer.mjs"
+      - "scripts/test-paper-v7-phase-b-postgres-schema.sql"
       - "docs/PAPER_V7_PHASE_B_OPERATIONAL_GATE_2026-10-26.md"
       - ".github/workflows/paper-v7-phase-b-operational-safety.yml"
   workflow_dispatch:
@@ -46,3 +48,34 @@ jobs:
           node scripts/check-paper-v7-phase-b-readiness.mjs
       - name: Reject accidental secrets in tracked repository
         run: node scripts/scan-repository-secrets.mjs
+
+  postgres-schema-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: fenice_ci_ephemeral_only
+          POSTGRES_DB: fenice_phase_b_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fenice_phase_b_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: fenice_ci_ephemeral_only
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client if unavailable
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+      - name: Run migration against ephemeral PostgreSQL 16 only
+        run: psql -h 127.0.0.1 -U postgres -d fenice_phase_b_ci -v ON_ERROR_STOP=1 -f db/paper-v7-phase-b-postgres.sql
+      - name: Prove unique UTC day, append-only and non-rearmable kill switch
+        run: psql -h 127.0.0.1 -U postgres -d fenice_phase_b_ci -v ON_ERROR_STOP=1 -f scripts/test-paper-v7-phase-b-postgres-schema.sql
