@@ -31,6 +31,28 @@ type Decision = {
     executionAuthorized: false;
     profitableStrategyVerified: false;
   } | null;
+  etfEconomics?: {
+    status: "ECONOMIC_VALUATION_NOT_ESTABLISHED";
+    benchmarkIndex: string | null;
+    issuerExpenseRatioPercent: number | null;
+    trackingDifferenceAnnualPercent: number | null;
+    missingEvidence: string[];
+    historicalComparison: {
+      state: "HISTORICAL_INDICATIVE_ONLY";
+      asOf: string;
+      observationCount: number;
+      referenceAnnualizedReturnPercent: number;
+      bestAlternativeStrategy: string;
+      bestAlternativeAnnualizedReturnPercent: number;
+      alternativeMinusBuyHoldAnnualizedPoints: number;
+      modeledTransactionCostPercent: number;
+      independentlyForwardValidated: false;
+    } | null;
+    changesCommitteeScore: false;
+    unlocksResearchBuy: false;
+    paperCertificationEligible: false;
+    liveTradingAllowed: false;
+  } | null;
   valuation: {
     status: string;
     fairValueLow: number | null;
@@ -468,6 +490,27 @@ export default function CommitteePage() {
                   <Row label="Bull" value={money(item.valuation.fairValueHigh, item.currency || "USD")} />
                   <Row label="Upside base" value={Number.isFinite(item.valuation.upsideBasePercent) ? `${item.valuation.upsideBasePercent}%` : "—"} />
                 </Panel>
+                {item.etfEconomics && (
+                  <Panel title="ETF · evidenze economiche">
+                    <Row label="Spese annue emittente" value={item.etfEconomics.issuerExpenseRatioPercent == null ? "N/D" : item.etfEconomics.issuerExpenseRatioPercent + "%"} />
+                    <Row label="Tracking difference" value={item.etfEconomics.trackingDifferenceAnnualPercent == null ? "N/D" : item.etfEconomics.trackingDifferenceAnnualPercent + "%"} />
+                    <Row label="Indice sottostante" value={item.etfEconomics.benchmarkIndex || "N/D"} />
+                    <Row label="Valutazione economica ETF" value="NON DIMOSTRATA" />
+                    {item.etfEconomics.historicalComparison && (
+                      <>
+                        <Row label="Strategia storica alternativa" value={item.etfEconomics.historicalComparison.bestAlternativeStrategy} />
+                        <Row label="Differenza annua vs buy-and-hold" value={item.etfEconomics.historicalComparison.alternativeMinusBuyHoldAnnualizedPoints + " punti (storici)"} />
+                        <Row label="Friction ipotetica per trade" value={item.etfEconomics.historicalComparison.modeledTransactionCostPercent + "%"} />
+                      </>
+                    )}
+                    <p className="text-xs leading-5 text-amber-200">
+                      Il 50/100 nel punteggio valutazione è un valore neutro di ripiego, NON fair value misurato.
+                      Mancano costi verificati dell&apos;emittente, tracking difference e risultati prospettici netti.
+                      Le differenze storiche, quando disponibili, non attestano finestre identiche, spese effettive
+                      Directa o vantaggio futuro. Nessun effetto su COMPRA, PAPER o LIVE.
+                    </p>
+                  </Panel>
+                )}
                 <Panel title="Piano ingresso">
                   <Row label="Ordine" value={item.entryPlan.orderMode} />
                   <Row label="Prezzo max" value={money(item.entryPlan.maxEntryPrice, item.currency || "USD")} />
