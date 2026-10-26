@@ -1,0 +1,51 @@
+name: Fenice V7 Phase B Candidate Baseline Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-candidate-reference.json"
+      - "lib/ui/paper-v7-phase-b-candidate-audit.mjs"
+      - "scripts/check-paper-v7-phase-b-candidate.mjs"
+      - "scripts/test-paper-v7-phase-b-candidate.mjs"
+      - "lib/trading/paper-v7-phase-b-budget.mjs"
+      - "scripts/test-paper-v7-phase-b-budget.mjs"
+      - ".github/workflows/paper-v7-phase-b-candidate-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-candidate-reference.json"
+      - "lib/ui/paper-v7-phase-b-candidate-audit.mjs"
+      - "scripts/check-paper-v7-phase-b-candidate.mjs"
+      - "scripts/test-paper-v7-phase-b-candidate.mjs"
+      - "lib/trading/paper-v7-phase-b-budget.mjs"
+      - "scripts/test-paper-v7-phase-b-budget.mjs"
+      - ".github/workflows/paper-v7-phase-b-candidate-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check frozen V6 fingerprint and pinned V7 reference Git blobs
+        run: node scripts/check-paper-v7-phase-b-candidate.mjs
+      - name: Assert caps/virtual budget gaps cannot authorize PAPER
+        run: node scripts/test-paper-v7-phase-b-candidate.mjs
+      - name: Verify stricter Phase B virtual budget, UTC and lifetime attempt caps
+        run: node scripts/test-paper-v7-phase-b-budget.mjs
+      - name: Re-run isolated V7 simulator safety regressions
+        run: node scripts/test-world-paper-v7.mjs
+      - name: Re-run private read-only V7 market data boundary
+        run: node scripts/test-world-v7-private-preflight.mjs
+      - name: Reject published provider credentials
+        run: node scripts/scan-repository-secrets.mjs
