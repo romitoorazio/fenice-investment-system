@@ -46,10 +46,19 @@ const model=runWorldPaperV7({
   intents:[],paperRunAuthorized:false,
 });
 const fixture=replayFixturePhaseBLedger(newFixturePhaseBLedger());
+const virtualCapitalOwnerConfirmed = manifest.proposedRiskLimits?.virtualStartingCapitalEuro === 10000
+  && manifest.ownerInstruction?.virtualCapitalConfirmation?.amountEuro === 10000
+  && manifest.ownerInstruction?.virtualCapitalConfirmation?.currency === "EUR"
+  && manifest.ownerInstruction?.virtualCapitalConfirmation?.scope === "SIMULATED_PAPER_ONLY"
+  && manifest.ownerInstruction?.virtualCapitalConfirmation?.authorizesExecution === false
+  && manifest.ownerInstruction?.virtualCapitalConfirmation?.authorizesLive === false
+  && fixture.summary?.seedCashEuro === 10000;
 const readiness={
   generatedAt:nowIso,
   state:"PHASE_B_BLOCKED_AWAITING_EXTERNAL_APPROVAL_AND_EXECUTION_EVIDENCE",
   proposedVirtualSeedEuro:10000,
+  ownerConfirmedVirtualCapital:virtualCapitalOwnerConfirmed,
+  ownerConfirmationGrantsExecution:false,
   fixtureLedgerValid:fixture.valid,
   fixtureFills:fixture.summary?.fixtureFills??null,
   genuinePhaseBFills:0,
@@ -76,7 +85,8 @@ const readiness={
   canBookGenuinePhaseBFills:false,brokerConnectivityAllowed:false,
   liveTradingAllowed:false,updatesV6:false,
 };
-if(preparation.state!=="PREPARATION_SAFE_UNAPPROVED"
+if(!virtualCapitalOwnerConfirmed
+  ||preparation.state!=="PREPARATION_SAFE_UNAPPROVED"
   ||custodyMatches!==true||fixture.valid!==true
   ||fixture.summary.fixtureFills!==0
   ||model.summary.filledPaperOrders!==0||model.paperRunAuthorized!==false

@@ -19,7 +19,7 @@ const p={
   issuedAt:"2026-10-27T09:00:00.000Z",
   notBefore:"2026-10-27T15:00:00.000Z",
   expiresAt:"2026-11-27T15:00:00.000Z",
-  maxOrdersPerDay:1,maxAttempts:20,maxNotionalEuro:300,
+  virtualStartingCapitalEuro:10000,maxOrdersPerDay:1,maxAttempts:20,maxNotionalEuro:300,
   maxCapitalPercentPerProbe:3,minCalendarDays:30,
   minEvidenceDays:25,minPaperFills:10,
   brokerSubmissionAllowed:false,liveTradingAllowed:false,
@@ -82,6 +82,9 @@ expectBlock("valid signed too-short 24-day window",
 const falseApprove={...p,approved:false};
 expectBlock("valid signed not-approved intent",
   x=>x.envelope=seal(falseApprove),"APPROVAL_SCOPE_INVALID");
+const alteredCapital={...p,virtualStartingCapitalEuro:15000};
+expectBlock("valid signature cannot increase starting virtual equity",
+  x=>x.envelope=seal(alteredCapital),"SIGNED_LIMITS_OR_POLICY_MISMATCH");
 const shorterLimits={...p,maxOrdersPerDay:3};
 expectBlock("valid signed loosened limits",
   x=>x.envelope=seal(shorterLimits),"SIGNED_LIMITS_OR_POLICY_MISMATCH");
@@ -90,6 +93,9 @@ expectBlock("valid signed LIVE mode",x=>x.envelope=seal(otherPhase),"APPROVAL_SC
 const arbitraryExtra={...p,notes:"trusted because yes"};
 expectBlock("signed extra mutable field",
   x=>x.envelope=seal(arbitraryExtra),"SIGNED_PAYLOAD_NOT_CANONICAL");
+assert.equal(policy.virtualStartingCapitalEuro,10000);
+assert.equal(manifest.ownerInstruction.virtualCapitalConfirmation.amountEuro,10000);
+assert.equal(manifest.ownerInstruction.virtualCapitalConfirmation.authorizesExecution,false);
 assert.equal(manifest.authorization.approved,false,"no real owner signature must be invented");
 assert.equal(manifest.authorization.expiresAt,null,"no real expiry must be invented");
 console.log("V7 Phase B future authorization: Ed25519 signature, limits, clock, baseline, 30d expiry PASS; no execution grant");

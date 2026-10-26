@@ -2,6 +2,9 @@
 
 **Stato: infrastruttura di collaudo pronta; CAMPAGNA OPERATIVA NON AUTORIZZATA.**
 
+**Conferma successiva dell’utente (26 ottobre 2026):** capitale iniziale di **10.000 EUR esclusivamente virtuali**; limiti invariati di massimo **300 EUR per ordine**, **3% del capitale**, **1 tentativo/giorno UTC** e **20 tentativi totali**. La conferma è registrata in `data/paper-v7-phase-b-preparation.json` come istruzione economica alla **preparazione**, non come firma o approvazione operativa. L’importo è incluso nei controlli numerici e nell’hash della policy destinata a un’eventuale futura autorizzazione firmata; una modifica non autorizzata viene rifiutata.
+
+
 Con il consenso dato dall'utente alla preparazione della Phase B sono stati
 aggiunti strumenti isolati che non interagiscono con broker, segreti o V6.
 

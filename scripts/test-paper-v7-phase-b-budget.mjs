@@ -57,6 +57,8 @@ fail("wrong campaign",x=>x.intent.phase="V6",invalid);
 fail("invalid intent ID",x=>x.intent.id="x",invalid);
 fail("wrong side",x=>x.intent.side="LIVE",invalid);
 fail("invalid clock",x=>x.nowMs=NaN,"PHASE_B_CLOCK_INVALID");
+fail("unconfirmed virtual capital change",x=>x.limits.virtualStartingCapitalEuro=15000,
+  "PHASE_B_POLICY_NOT_EXACTLY_APPROVED_LIMITS");
 fail("relaxed daily cap",x=>x.limits.maxOrdersPerDay=2,
   "PHASE_B_POLICY_NOT_EXACTLY_APPROVED_LIMITS");
 fail("relaxed percent cap",x=>x.limits.maxCapitalPercentPerProbe=5,
@@ -86,6 +88,9 @@ fail("max 20 attempts",x=>x.previousPhaseBAttempts.push(
 const code=await readFile(new URL("../lib/trading/paper-v7-phase-b-budget.mjs",import.meta.url),"utf8");
 assert(!/from ["'][^"']*directa|execFileSync|writeFileSync|fetch\(/.test(code),
   "Pure budget gate must not use broker, shell, persistence or HTTP");
+assert.equal(manifest.proposedRiskLimits.virtualStartingCapitalEuro,10000);
+assert.equal(manifest.ownerInstruction.virtualCapitalConfirmation.amountEuro,10000);
+assert.equal(manifest.ownerInstruction.virtualCapitalConfirmation.authorizesExecution,false);
 assert.equal(manifest.authorization.approved,false);
 assert.equal(manifest.safety.newPaperOrdersAllowed,false);
 console.log("Phase B pure numeric budget screening: PASS (no broker/PAPER authority)");
