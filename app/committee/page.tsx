@@ -35,6 +35,11 @@ type Decision = {
     status: "ECONOMIC_VALUATION_NOT_ESTABLISHED";
     benchmarkIndex: string | null;
     issuerExpenseRatioPercent: number | null;
+    issuerExpenseRatioKind?: string | null;
+    issuer?: string | null;
+    issuerSourceUrl?: string | null;
+    issuerSourceCheckedOn?: string | null;
+    issuerEvidenceState?: string;
     trackingDifferenceAnnualPercent: number | null;
     missingEvidence: string[];
     historicalComparison: {
@@ -493,6 +498,16 @@ export default function CommitteePage() {
                 {item.etfEconomics && (
                   <Panel title="ETF · evidenze economiche">
                     <Row label="Spese annue emittente" value={item.etfEconomics.issuerExpenseRatioPercent == null ? "N/D" : item.etfEconomics.issuerExpenseRatioPercent + "%"} />
+                    {item.etfEconomics.issuerSourceUrl && item.etfEconomics.issuerExpenseRatioPercent != null && (
+                      <>
+                        <Row label="Tipo costo" value={item.etfEconomics.issuerExpenseRatioKind?.replaceAll("_", " ") || "N/D"} />
+                        <Row label="Fonte emittente" value={item.etfEconomics.issuer || "N/D"} />
+                        <Row label="Fonte controllata il" value={item.etfEconomics.issuerSourceCheckedOn || "N/D"} />
+                        <a href={item.etfEconomics.issuerSourceUrl} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-cyan-300 underline">
+                          Apri scheda ufficiale ETF
+                        </a>
+                      </>
+                    )}
                     <Row label="Tracking difference" value={item.etfEconomics.trackingDifferenceAnnualPercent == null ? "N/D" : item.etfEconomics.trackingDifferenceAnnualPercent + "%"} />
                     <Row label="Indice sottostante" value={item.etfEconomics.benchmarkIndex || "N/D"} />
                     <Row label="Valutazione economica ETF" value="NON DIMOSTRATA" />
@@ -505,9 +520,11 @@ export default function CommitteePage() {
                     )}
                     <p className="text-xs leading-5 text-amber-200">
                       Il 50/100 nel punteggio valutazione è un valore neutro di ripiego, NON fair value misurato.
-                      Mancano costi verificati dell&apos;emittente, tracking difference e risultati prospettici netti.
-                      Le differenze storiche, quando disponibili, non attestano finestre identiche, spese effettive
-                      Directa o vantaggio futuro. Nessun effetto su COMPRA, PAPER o LIVE.
+                      I costi dell&apos;emittente sono mostrati soltanto dove esiste una fonte primaria
+                      identificata e controllata di recente; non comprendono commissioni, FX o imposte del broker.
+                      Tracking difference, valutazione sottostante e risultati prospettici netti restano N/D.
+                      Le differenze storiche non attestano finestre identiche o vantaggio futuro.
+                      Nessun effetto su COMPRA, PAPER o LIVE.
                     </p>
                   </Panel>
                 )}

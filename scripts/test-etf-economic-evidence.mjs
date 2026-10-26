@@ -73,6 +73,45 @@ for (const mutate of rejects) {
   assert.equal(rejected.unlocksResearchBuy, false);
 }
 
+// Issuer-verified SPY/QQQ/IWM costs require exact ETF name, USD and fresh evidence.
+const issuerCases = [
+  ["SPY", "S&P 500 ETF", 0.0945, "S&P 500 Index", "GROSS_EXPENSE_RATIO", "ssga.com"],
+  ["QQQ", "Nasdaq 100 ETF", 0.18, "Nasdaq-100 Index", "TOTAL_EXPENSE_RATIO", "invesco.com"],
+  ["IWM", "Russell 2000 ETF", 0.19, "Russell 2000 Index", "EXPENSE_RATIO_AS_IN_PROSPECTUS", "ishares.com"],
+];
+for (const [symbol, name, ratio, index, kind, host] of issuerCases) {
+  const row = { ...sample, symbol, name, currency: "USD" };
+  const evidence = assessEtfEconomicEvidence(row, {nowMs});
+  assert.equal(evidence.issuerExpenseRatioPercent, ratio);
+  assert.equal(evidence.issuerExpenseRatioKind, kind);
+  assert.equal(evidence.benchmarkIndex, index);
+  assert.equal(evidence.issuerSourceCheckedOn, "2026-10-26");
+  assert.equal(evidence.issuerEvidenceState, "PRIMARY_ISSUER_PAGE_CHECKED");
+  assert.equal(new URL(evidence.issuerSourceUrl).hostname.endsWith(host), true);
+  assert.equal(evidence.costsVerifiedAgainstIssuer, true);
+  assert(!evidence.missingEvidence.includes("ISSUER_EXPENSE_RATIO"));
+  assert(evidence.missingEvidence.includes("TRACKING_DIFFERENCE"));
+  assert(evidence.missingEvidence.includes("ACTUAL_BROKER_FEES_AND_FX"));
+  assert.equal(evidence.trackingDifferenceAnnualPercent, null);
+  assert.equal(evidence.changesCommitteeScore, false);
+  assert.equal(evidence.unlocksResearchBuy, false);
+  assert.equal(evidence.liveTradingAllowed, false);
+  for (const spoof of [
+    {...row, name: "Other ETF"},
+    {...row, currency: "EUR"},
+    {...row, assetClass: "Stock"},
+  ]) {
+    const bad = assessEtfEconomicEvidence(spoof, {nowMs});
+    assert.equal(bad?.issuerExpenseRatioPercent ?? null, null);
+  }
+  const outdated = assessEtfEconomicEvidence(row, {nowMs: Date.parse("2027-02-26T15:00:00Z")});
+  assert.equal(outdated.issuerExpenseRatioPercent, null, "stale issuer evidence must expire");
+  const future = assessEtfEconomicEvidence(row, {nowMs: Date.parse("2026-10-25T15:00:00Z")});
+  assert.equal(future.issuerExpenseRatioPercent, null, "future checkedOn is not valid evidence");
+}
+const otherEtf = assessEtfEconomicEvidence({...sample,symbol:"XTEST",name:"Other ETF",currency:"USD"}, {nowMs});
+assert.equal(otherEtf.issuerSourceUrl,null);
+
 // Even an impressive historical backtest can never create execution rights.
 const winner = structuredClone(sample);
 winner.technical.strategies[1].annualizedReturnPercent = 45;
@@ -91,6 +130,7 @@ assert.match(page, /ETF · evidenze economiche/);
 assert.equal(campaign.liveTradingAllowed, false);
 for(const name of [
   "lib/intelligence/etf-economic-evidence.mjs",
+  "lib/intelligence/etf-issuer-reference.mjs",
   "scripts/test-etf-economic-evidence.mjs",
   "scripts/run-investment-committee.mjs",
   "app/committee/page.tsx",
