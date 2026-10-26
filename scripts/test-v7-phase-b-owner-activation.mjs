@@ -53,10 +53,20 @@ const issued=Date.parse(approval.approvedAt),exp=Date.parse(approval.expiresAt);
 assert.equal(approval.approvedAt,"2026-10-27T00:00:00.000Z");
 assert.equal(approval.expiresAt,"2026-11-27T00:00:00.000Z");
 assert(exp-issued>=30*86400_000&&exp-issued<=32*86400_000);
-assert.equal(replayV7PhaseBLedger(ledger).valid,true);
-assert.deepEqual(ledger,freshV7PhaseBLedger());
+const snapshot=replayV7PhaseBLedger(ledger);
+assert.equal(snapshot.valid,true);
+assert(snapshot.fills<=10&&snapshot.attempts<=20);
+assert.equal(ledger.liveTradingAllowed,false);
+assert.equal(ledger.brokerConnectivityAllowed,false);
+if(snapshot.attempts===0)assert.deepEqual(ledger,freshV7PhaseBLedger());
 assert.equal(days.mode,"V7_PHASE_B_FORWARD_DAYS");
-assert.deepEqual(days.days,[]);
+assert(Array.isArray(days.days));
+assert(days.days.every((row,i)=>row.liveTradingAllowed===false
+  &&row.brokerConnectivityAllowed===false
+  &&(!i||days.days[i-1].date<row.date)
+  &&row.date>=approval.approvedAt.slice(0,10)
+  &&row.date<=approval.expiresAt.slice(0,10)));
+
 assert.equal(legacy.approvalId,"fenice-paper-validation-v6-2026-09-24");
 assert.equal(legacy.expiresAt,"2026-10-24T21:59:59.000Z");
 assert.equal(legacy.liveTradingAllowed,false);
@@ -64,4 +74,4 @@ console.log(JSON.stringify({state:"V7_PHASE_B_BOUND_OWNER_PAPER_APPROVAL",
   coreSha256:frozen.digest,baselineCommit:approval.baselineCommit,
   effectiveFrom:approval.approvedAt,expiresAt:approval.expiresAt,
   capitalEuro:10000,oldV6FillsCredited:0,
-  newV7PaperFills:0,brokerConnectivityAllowed:false,liveTradingAllowed:false}));
+  verifiedNewV7PaperFills:snapshot.fills,brokerConnectivityAllowed:false,liveTradingAllowed:false}));
