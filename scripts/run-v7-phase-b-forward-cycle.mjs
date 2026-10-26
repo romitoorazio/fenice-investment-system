@@ -55,6 +55,13 @@ if(baseExists){
   try{execFileSync("git",["merge-base","--is-ancestor",sha,actualSha],{cwd:root});
     shaAncestor=true}catch{/* fail closed */}
 }
+const approvalStart=Date.parse(approval?.approvedAt||"");
+const approvalEnd=Date.parse(approval?.expiresAt||"");
+const currentMs=Date.parse(nowIso);
+const withinApprovedWindow=Number.isFinite(approvalStart)
+  &&Number.isFinite(approvalEnd)
+  &&approvalEnd-approvalStart>=30*86400000
+  &&approvalStart<=currentMs&&currentMs<approvalEnd;
 const frozen=approval.coreFingerprint;
 const fingerprintPinned=approval?.approved===true
   &&approval?.humanConfirmation===true&&shaAncestor&&fingerprint.complete===true
@@ -88,7 +95,7 @@ const nextRecord={date,checkedAt:nowIso,
   // Valid evidence day means real forward clock, hash/core and journal
   // reconciliation passed. It is NOT a claim of open-market quote eligibility.
   marketEvidenceValid:committed,
-  validatedForwardDay:fingerprintPinned&&observed.valid,
+  validatedForwardDay:fingerprintPinned&&withinApprovedWindow&&observed.valid,
   fillCount:nextLedger.attempts.filter(e=>e.status==="PAPER_FILLED").length,
   noNewFillReason:committed?null:reason,
   brokerConnectivityAllowed:false,liveTradingAllowed:false,
@@ -100,8 +107,8 @@ const updatedDays=index>=0
   :{
   ...days,days:[...days.days,nextRecord],
 };
-if(!fingerprintPinned){
-  console.log(JSON.stringify({state:"NO_FILL",reason,codeFingerprint:fingerprint.digest,
+if(!fingerprintPinned||!withinApprovedWindow){
+  console.log(JSON.stringify({state:"NO_FILL",reason:!withinApprovedWindow?"OUTSIDE_APPROVED_WINDOW":reason,codeFingerprint:fingerprint.digest,
     pinnedFingerprint:frozen?.digest??null,
     liveTradingAllowed:false,brokerConnectivityAllowed:false}));
   process.exit(0);
