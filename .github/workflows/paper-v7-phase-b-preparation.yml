@@ -1,0 +1,39 @@
+name: Fenice V7 PAPER Phase B Preparation Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-preparation.json"
+      - "lib/ui/paper-v7-phase-b-preparation.mjs"
+      - "scripts/check-paper-v7-phase-b-preparation.mjs"
+      - "scripts/test-paper-v7-phase-b-preparation.mjs"
+      - ".github/workflows/paper-v7-phase-b-preparation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/paper-v7-phase-b-preparation.json"
+      - "lib/ui/paper-v7-phase-b-preparation.mjs"
+      - "scripts/check-paper-v7-phase-b-preparation.mjs"
+      - "scripts/test-paper-v7-phase-b-preparation.mjs"
+      - ".github/workflows/paper-v7-phase-b-preparation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase-b-preparation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Reject forged approval, altered V6 history and relaxed limits
+        run: node scripts/test-paper-v7-phase-b-preparation.mjs
+      - name: Read-only original V6/Phase B preparation preflight
+        run: node scripts/check-paper-v7-phase-b-preparation.mjs
+      - name: Scan current repository for unredacted credentials
+        run: node scripts/scan-repository-secrets.mjs
