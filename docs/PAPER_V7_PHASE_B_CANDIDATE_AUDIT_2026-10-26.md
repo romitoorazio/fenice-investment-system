@@ -40,6 +40,23 @@ impossibili e fonti non indipendenti. La PR #224 applica controlli
 analoghi al core V6 congelato: **non fonderla direttamente** nella
 V6 senza la procedura distinta di migrazione della baseline.
 
+## Prototipo di limite numerico, senza esecuzione
+
+La PR include anche `lib/trading/paper-v7-phase-b-budget.mjs` e il relativo
+test negativo. L'adattatore matematico applica il 3%, il limite 300 EUR,
+il notional di prova minimo 250 EUR, il limite per singolo asset 15%,
+un tentativo al giorno UTC e venti tentativi totali **a una lista di
+intenti di prova non esecutivi**. Un capitale teorico di 10.000 EUR
+è matematicamente coerente con un probe massimo di 300 EUR;
+il seed originale del simulatore WORLD di 1.000 EUR non lo è.
+
+Anche con il controllo numerico superato il risultato indica
+`canCreatePhaseBFill=false` e `canSubmitBrokerOrder=false`.
+Le stringhe dei tentativi sono **fixture, non un giornale autenticato**.
+Il controllo non è ancora collegato al motore esecutivo, al
+registro append-only Phase B o a un consenso valido; quindi
+non rimuove i blocchi di audit identificati sopra.
+
 ## Prossima implementazione richiesta
 
 1. Progettare il **nuovo** adattatore Phase B sul motore V7 separato,
