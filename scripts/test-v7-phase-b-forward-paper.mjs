@@ -128,4 +128,5 @@ const fingerprintActual=await computeV7PhaseBFingerprint(root);
 assert.equal(fingerprintActual.complete,true,JSON.stringify(fingerprintActual.missingFiles));
 assert.equal(fingerprintActual.files.includes("data/paper-validation-campaign.json"),false);
 assert.equal(fingerprintActual.files.includes("data/paper-v7-phase-b-forward-ledger.json"),false);
+console.log("V7 Phase B forward core SHA256="+fingerprintActual.digest+" files="+fingerprintActual.files.length);
 console.log("V7 Phase B forward V6-parity PAPER: PASS (strict consent, FX, sources, risk, audit and no LIVE)");
