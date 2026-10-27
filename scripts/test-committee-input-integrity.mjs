@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot } from "../lib/intelligence/committee-input-integrity.mjs";
+import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot, diagnoseResearchBuyRequirements } from "../lib/intelligence/committee-input-integrity.mjs";
 
 const now = Date.parse("2026-10-14T19:00:00.000Z");
 const observed = new Date(now - 5 * 3600_000).toISOString();
@@ -24,11 +24,56 @@ for(const v of [null,undefined,"","  ",0,"0",-10,Infinity,-Infinity,NaN,{},true,
 for(const [a,b] of [[100,100],["23.50",23.5],[" 13.2 ",13.2],[0.001,0.001]]){
  assert.equal(positiveResearchReferencePrice(a),b);
 }
+
+const qualified = {
+  referencePrice: 100, score: 78, confidence: 72, risk: 58,
+  valuation: 55, terminalDecision: 'ACCUMULA',
+  dcf: { status: 'disponibile', upsideBasePercent: -25 },
+};
+const approvedResearchOnly = diagnoseResearchBuyRequirements(qualified);
+assert.equal(approvedResearchOnly.status, 'RESEARCH_RULES_MET');
+assert.deepEqual(approvedResearchOnly.gaps, []);
+assert.equal(approvedResearchOnly.paperExecutionEligible, false);
+assert.equal(approvedResearchOnly.brokerSubmissionAllowed, false);
+assert.equal(approvedResearchOnly.liveTradingAllowed, false);
+for (const [patch, code] of [
+  [{ referencePrice: null }, 'REFERENCE_PRICE_MISSING'],
+  [{ referencePrice: 0 }, 'REFERENCE_PRICE_MISSING'],
+  [{ referencePrice: '' }, 'REFERENCE_PRICE_MISSING'],
+  [{ score: 77 }, 'COMMITTEE_SCORE_BELOW_78'],
+  [{ confidence: 71 }, 'CONFIDENCE_BELOW_72'],
+  [{ risk: 59 }, 'RISK_ABOVE_58'],
+  [{ valuation: 54 }, 'VALUATION_BELOW_55'],
+  [{ terminalDecision: 'MANTIENI' }, 'TERMINAL_NOT_ACCUMULA'],
+  [{ dcf: { status: 'disponibile', upsideBasePercent: -25.01 } }, 'DCF_DEEP_OVERVALUATION'],
+]) {
+  const outcome = diagnoseResearchBuyRequirements({ ...qualified, ...patch });
+  assert.equal(outcome.status, 'NOT_QUALIFIED');
+  assert(outcome.gaps.some(gap => gap.code === code), code);
+  assert.equal(outcome.liveTradingAllowed, false);
+}
+assert.deepEqual(diagnoseResearchBuyRequirements({
+  ...qualified, referencePrice: null, score: 60, confidence: 60, risk: 70,
+  valuation: 50, terminalDecision: 'ATTENDI',
+}).gaps.map(gap => gap.code), [
+  'REFERENCE_PRICE_MISSING', 'COMMITTEE_SCORE_BELOW_78',
+  'CONFIDENCE_BELOW_72', 'RISK_ABOVE_58',
+  'VALUATION_BELOW_55', 'TERMINAL_NOT_ACCUMULA',
+]);
+assert.equal(diagnoseResearchBuyRequirements({
+  ...qualified, dcf: { status: 'non disponibile', upsideBasePercent: -90 },
+}).status, 'RESEARCH_RULES_MET', 'An unavailable DCF is not a fabricated overvaluation veto');
+
 const runner = await readFile(new URL("./run-investment-committee.mjs",import.meta.url),"utf8");
 assert.match(runner,/scoreResearchFreshness\(asset\.technical\?\.observedAt \?\? asset\.observedAt, now\.getTime\(\)\)/);
 assert.match(runner,/const referencePrice = positiveResearchReferencePrice\(asset\.price\)/);
 assert.match(runner,/referencePrice === null \? 'ATTENDI' : decisionFor/);
 assert.match(runner,/currentPrice: referencePrice/);
+assert.match(runner,/buyGapEvidence = diagnoseResearchBuyRequirements/);
+assert.match(runner,/COMMITTEE_BUY_GATE_DIAGNOSTIC_MISMATCH/);
+assert.match(runner,/researchBuyGapSummary:/);
+assert.match(runner,/paperExecutionEligible: false/);
+
 assert.match(runner,/price !== null && decision === 'COMPRA'/);
 assert.doesNotMatch(runner,/const hours = Math\.max\(0, \(Date\.now\(\) - timestamp\)/);
 const campaign = JSON.parse(await readFile(new URL("../data/paper-validation-campaign.json",import.meta.url),"utf8"));

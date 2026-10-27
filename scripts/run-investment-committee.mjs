@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
-import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot } from '../lib/intelligence/committee-input-integrity.mjs';
+import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot, diagnoseResearchBuyRequirements } from '../lib/intelligence/committee-input-integrity.mjs';
 import { optionalDcfNumber } from '../lib/intelligence/committee-valuation-numbers.mjs';
 import { assessEtfEconomicEvidence } from '../lib/intelligence/etf-economic-evidence.mjs';
 
@@ -130,6 +130,13 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     terminalDecision: asset.decision,
     dcf,
   });
+  const buyGapEvidence = diagnoseResearchBuyRequirements({
+    referencePrice, score: committeeScore, confidence: sourceConfidence,
+    risk, valuation, terminalDecision: asset.decision, dcf,
+  });
+  // A diagnostic must never silently disagree with a research COMPRA.
+  if (decision === 'COMPRA' && buyGapEvidence.gaps.length !== 0)
+    throw new Error('COMMITTEE_BUY_GATE_DIAGNOSTIC_MISMATCH');
   const entry = entryPlan(asset, dcf, decision, positionType, maxWeightPercent);
   const etfEconomics = assessEtfEconomicEvidence(asset, { nowMs: now.getTime() });
   const valuationConflict = dcf?.status === 'disponibile' && Number(dcf.upsideBasePercent) < -20;
@@ -156,6 +163,7 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
 
   return {
     rank: 0,
+    buyGapEvidence,
     strategyResearch: researchStrategySnapshot(strategies, asset.symbol, now.getTime()),
     // Diagnostic ETF economics never affect score/decisions or PAPER V6.
     etfEconomics,
@@ -271,6 +279,10 @@ const candidates = (terminal.assets || [])
 
 const buyCandidates = candidates.filter((item) => item.decision === 'COMPRA');
 const firstTrancheEuro = buyCandidates.reduce((sum, item) => sum + Number(item.entryPlan.firstTrancheEuro || 0), 0);
+const researchBuyGapCounts = {};
+for (const candidate of candidates)
+  for (const gap of candidate.buyGapEvidence.gaps)
+    researchBuyGapCounts[gap.code] = (researchBuyGapCounts[gap.code] || 0) + 1;
 const sourceGate = sourceHealth.gate || sourceHealth.institutionalGate || 'UNKNOWN';
 const calibrationBlocksExecution = calibrationPolicy.evidenceMature && calibrationPolicy.state === 'POOR';
 const executionGate = dataQuality < 65 || sourceGate === 'RED' || calibrationBlocksExecution
@@ -297,6 +309,15 @@ const report = {
   executionGate,
   candidateCount: candidates.length,
   buyCandidateCount: buyCandidates.length,
+  researchBuyGapSummary: {
+    scope: 'RESEARCH_RULES_ONLY',
+    candidateCount: candidates.length,
+    researchRulesMetCount: candidates.filter(item => item.buyGapEvidence.gaps.length === 0).length,
+    reasonCounts: Object.fromEntries(Object.entries(researchBuyGapCounts).sort(([a], [b]) => a.localeCompare(b))),
+    paperExecutionEligible: false,
+    brokerSubmissionAllowed: false,
+    liveTradingAllowed: false,
+  },
   proposedFirstTrancheEuro: executionGate === 'PRONTO_CON_CONFERMA' ? Math.min(Math.round(CAPITAL * 0.15), firstTrancheEuro) : 0,
   committeeRules: [
     'Nessun BUY con confidenza dati insufficiente o source gate RED.',
