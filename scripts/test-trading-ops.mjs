@@ -5,7 +5,7 @@ import { evaluateMarketSession } from "../lib/trading/market-session.ts";
 import { applyOrderLifecycleEvent, createOrderLifecycle } from "../lib/trading/order-lifecycle.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
-import { evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
+import { DEFAULT_RISK_LIMITS, evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
 import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 
 const now = Date.parse("2026-09-18T18:00:00.000Z");
@@ -60,6 +60,31 @@ const staleRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObserve
 assert.equal(staleRisk.allowed, false);
 assert.ok(staleRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
 
+const futureRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: new Date(now + 1).toISOString() }, undefined, now);
+assert.equal(futureRisk.allowed, false);
+assert.ok(futureRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
+const invalidTimestampRisk = evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt: "not-a-timestamp" }, undefined, now);
+assert.equal(invalidTimestampRisk.allowed, false);
+assert.ok(invalidTimestampRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+
+const invalidClockRisk = evaluatePreTradeRisk(baseOrder, safeContext, undefined, Number.NaN);
+assert.equal(invalidClockRisk.allowed, false);
+assert.ok(invalidClockRisk.reasons.some((reason) => reason.startsWith("quote-freshness")));
+for (const quoteObservedAt of ["2026-02-30T18:00:00.000Z", "2026-09-18", "2026-09-18T18:00:00"]) {
+  assert.equal(evaluatePreTradeRisk(baseOrder, { ...safeContext, quoteObservedAt }, undefined, now).allowed, false);
+}
+for (const clock of [-1, Infinity, "1789764000000"]) {
+  assert.equal(evaluatePreTradeRisk(baseOrder, safeContext, undefined, clock).allowed, false);
+}
+
+// Invalid quote freshness policies must fail closed, never coerce strings to seconds.
+for (const maxQuoteAgeSeconds of [Number.NaN, Infinity, 0, -1, "120"]) {
+  const result = evaluatePreTradeRisk(baseOrder, safeContext, { ...DEFAULT_RISK_LIMITS, maxQuoteAgeSeconds }, now);
+  assert.equal(result.allowed, false);
+  assert.ok(result.reasons.some(reason => reason.startsWith("quote-freshness")));
+}
+
 const freshOpenSession = evaluateMarketSession({
   venue: "US_EQUITIES",
   state: "OPEN",
@@ -69,6 +94,18 @@ const freshOpenSession = evaluateMarketSession({
 }, { maxAgeSeconds: 60 }, now);
 assert.equal(freshOpenSession.allowed, true);
 assert.equal(freshOpenSession.state, "OPEN");
+const openEvidence = { venue: "US_EQUITIES", state: "OPEN", source: "authoritative-test-clock",
+  observedAt: new Date(now - 15_000).toISOString(), authoritative: true };
+for (const observedAt of [new Date(now + 1).toISOString(), "2026-02-30T18:00:00.000Z", "2026-09-18", "invalid"]) {
+  assert.equal(evaluateMarketSession({ ...openEvidence, observedAt }, {}, now).allowed, false);
+}
+for (const clock of [Number.NaN, Infinity, -1]) {
+  assert.equal(evaluateMarketSession(openEvidence, {}, clock).allowed, false);
+}
+for (const maxAgeSeconds of [Number.NaN, Infinity, -1, 0, "60"]) {
+  assert.equal(evaluateMarketSession(openEvidence, { maxAgeSeconds }, now).allowed, false);
+}
+assert.equal(evaluateMarketSession({ ...openEvidence, authoritative: "true" }, {}, now).allowed, false);
 
 const closedSession = evaluateMarketSession({
   venue: "US_EQUITIES",
