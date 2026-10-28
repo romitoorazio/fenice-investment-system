@@ -5,7 +5,7 @@ import { evaluateMarketSession } from "../lib/trading/market-session.ts";
 import { applyOrderLifecycleEvent, createOrderLifecycle } from "../lib/trading/order-lifecycle.ts";
 import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { reconcilePaperExecutions } from "../lib/trading/reconciliation.ts";
-import { evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
+import { DEFAULT_RISK_LIMITS, evaluatePreTradeRisk } from "../lib/trading/risk-engine.ts";
 import { calculateTransactionCosts } from "../lib/trading/tca.ts";
 
 const now = Date.parse("2026-09-18T18:00:00.000Z");
@@ -80,12 +80,7 @@ for (const clock of [-1, Infinity, "1789764000000"]) {
 
 // Invalid quote freshness policies must fail closed, never coerce strings to seconds.
 for (const maxQuoteAgeSeconds of [Number.NaN, Infinity, 0, -1, "120"]) {
-  const result = evaluatePreTradeRisk(baseOrder, safeContext, { maxQuoteAgeSeconds, ...{
-    maxOrderNotionalPercent: 5, maxSingleAssetWeightPercent: 15,
-    maxGrossExposurePercent: 80, maxDailyTurnoverPercent: 20,
-    maxOpenOrders: 20, minDataConfidence: 90, minIndependentSources: 2,
-    maxRiskScore: 75,
-  } }, now);
+  const result = evaluatePreTradeRisk(baseOrder, safeContext, { ...DEFAULT_RISK_LIMITS, maxQuoteAgeSeconds }, now);
   assert.equal(result.allowed, false);
   assert.ok(result.reasons.some(reason => reason.startsWith("quote-freshness")));
 }
