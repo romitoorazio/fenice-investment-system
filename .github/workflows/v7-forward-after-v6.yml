@@ -1,0 +1,87 @@
+name: Fenice V7 Timely Forward PAPER Dispatch
+
+on:
+  workflow_run:
+    workflows: ["Fenice Paper Validation"]
+    types: [completed]
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-forward-after-v6.yml"
+      - "scripts/check-v7-forward-after-v6.mjs"
+      - "scripts/test-v7-forward-after-v6.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-v7-forward-dispatch
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify timely, deduplicated and broker-free forward dispatch
+        run: node scripts/test-v7-forward-after-v6.mjs
+      - name: Scan repository for exposed secrets
+        run: node scripts/scan-repository-secrets.mjs
+
+  dispatch:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'workflow_dispatch' ||
+       github.event.workflow_run.event == 'schedule')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout trusted default branch, not upstream run content
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Read last canonical PAPER evidence and V7 runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/fenice-v7-trigger"
+          mkdir -p "$dir"
+          for dataset in paper-validation-campaign paper-v7-phase-b-approval paper-v7-phase-b-forward-days; do
+            gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/$dataset.json?ref=main" > "$dir/$dataset.json"
+          done
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow v7-phase-b-forward-paper.yml --branch main --limit 40 --json status,conclusion,createdAt > "$dir/runs.json"
+      - name: Evaluate current-market, fingerprint and duplicate gates
+        id: gate
+        run: |
+          node scripts/check-v7-forward-after-v6.mjs \
+            --event "$GITHUB_EVENT_PATH" \
+            --campaign "$RUNNER_TEMP/fenice-v7-trigger/paper-validation-campaign.json" \
+            --approval "$RUNNER_TEMP/fenice-v7-trigger/paper-v7-phase-b-approval.json" \
+            --days "$RUNNER_TEMP/fenice-v7-trigger/paper-v7-phase-b-forward-days.json" \
+            --runs "$RUNNER_TEMP/fenice-v7-trigger/runs.json" \
+            --output "$GITHUB_OUTPUT"
+      - name: Dispatch existing pinned V7 PAPER workflow (no broker orders)
+        if: steps.gate.outputs.should_dispatch == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run v7-phase-b-forward-paper.yml --repo "$GITHUB_REPOSITORY" --ref main
+      - name: Report suppressed dispatch
+        if: steps.gate.outputs.should_dispatch != 'true'
+        run: echo "V7 dispatch suppressed by policy; reason=${{ steps.gate.outputs.reason }}"
