@@ -92,6 +92,11 @@ if (!authorizedWindow || !fingerprintPinned) {
   const fx=evaluatePaperFxEvidence({fxEvidence,approval,now:nowMs});
   const sessionAt=Date.parse(marketSession?.evidence?.observedAt||"");
   const coverageAt=Date.parse(executionCoverage?.generatedAt||"");
+  const closeAt=Date.parse(marketSession?.nextClose||"");
+  const eligibleRows=Array.isArray(executionCoverage?.rows)
+    ? executionCoverage.rows.filter(row=>row?.paperEligible===true
+      &&Number(row.independentSourceFamilies)>=2
+      &&["GREEN","CAUTION"].includes(row.state)).length : 0;
   const sourceProof=decision.ready===true&&fx.ready===true
     &&marketSession?.configured===true
     &&marketSession?.evidence?.authoritative===true
@@ -99,10 +104,12 @@ if (!authorizedWindow || !fingerprintPinned) {
     &&marketSession?.decision?.allowed===true
     &&marketSession?.liveTradingAllowed===false
     &&Number.isFinite(sessionAt)&&sessionAt<=nowMs&&nowMs-sessionAt<=120000
+    &&Number.isFinite(closeAt)&&closeAt-nowMs>=5*60000
     &&executionCoverage?.policy?.liveTradingAllowed===false
     &&Number(executionCoverage?.policy?.minIndependentSourceFamilies)>=2
     &&Number(executionCoverage?.paperEligibleSymbols)>=3
-    &&Number.isFinite(coverageAt)&&coverageAt<=nowMs&&nowMs-coverageAt<=30*60000;
+    &&eligibleRows>=3
+    &&Number.isFinite(coverageAt)&&coverageAt<=nowMs&&nowMs-coverageAt<=120000;
   if (fill&&!sourceProof) throw Error("V7_B2_FILL_WITHOUT_VALID_OPEN_MARKET_PROOF");
   const verified=replayV7PhaseBLedger(result.ledger);
   if (!verified.valid) throw Error("V7_B2_POST_FILL_RECONCILIATION_FAILED");
