@@ -78,7 +78,11 @@ export function assessV7ForwardDispatch({ event, campaign, approval, days, runs 
 // It must first recover a *successful, completed* canonical V6 workflow
 // from GitHub Actions and pass that event through the same strict gate.
 export function deriveFallbackV6Event({ runs, repository, nowMs }) {
-  if (!Array.isArray(runs) || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(String(repository || ""))
+  const parts = String(repository || "").split("/");
+  const validRepository = parts.length === 2
+    && parts.every((part) => part !== "." && part !== ".."
+      && /^[A-Za-z0-9_.-]+$/.test(part));
+  if (!Array.isArray(runs) || !validRepository
     || !Number.isSafeInteger(nowMs) || nowMs <= 0) return null;
   const eligible = runs.filter((run) => {
     const finishedAt = Date.parse(run?.updatedAt ?? "");
