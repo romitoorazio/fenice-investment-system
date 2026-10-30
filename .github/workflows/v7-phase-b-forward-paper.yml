@@ -40,7 +40,9 @@ jobs:
         with:
           node-version: "22"
       - name: Verify V7 paper baseline, consent, forward risk and audit isolation
-        run: node scripts/test-v7-phase-b-forward-paper.mjs
+        run: |
+          node scripts/test-v7-phase-b-forward-paper.mjs
+          node scripts/test-v7-batch-parity-next-baseline.mjs
       - name: Verify protected V6 campaign and repository secret safety
         run: |
           node scripts/test-paper-v7-phase-b-preparation.mjs
