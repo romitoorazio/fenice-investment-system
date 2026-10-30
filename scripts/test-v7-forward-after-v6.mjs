@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { assessV7ForwardDispatch as gate } from "./check-v7-forward-after-v6.mjs";
+import { assessV7ForwardDispatch as gate, deriveFallbackV6Event } from "./check-v7-forward-after-v6.mjs";
 
 const nowMs = Date.parse("2026-10-30T17:35:00.000Z");
 const valid = {
@@ -74,10 +74,49 @@ negative("invalid clock", x => x.nowMs = Number.NaN, "INVALID_CLOCK");
 const old = deep();
 old.runs = [{ createdAt:"2026-10-30T16:00:00.000Z",status:"completed",conclusion:"success" }];
 assert.equal(gate(old).dispatch, true, "Old unrelated V7 run must not prevent a timely opportunity");
+// A missed workflow_run callback can only be recovered by a real, timely,
+// successful, main-branch canonical V6 run, never by a JSON snapshot alone.
+const completedV6 = {
+  status: "completed", conclusion: "success", headBranch: "main",
+  event: "workflow_dispatch", updatedAt: "2026-10-30T17:34:45.000Z",
+};
+const fallbackArgs = { runs: [completedV6], repository: "romitoorazio/fenice-investment-system", nowMs };
+const recovered = deriveFallbackV6Event(fallbackArgs);
+assert.equal(recovered.workflow_run.name, "Fenice Paper Validation");
+assert.deepEqual(gate({ ...deep(), event: recovered }),
+  { dispatch: true, reason: "FRESH_V6_EVIDENCE_AND_ACTIVE_V7_PAPER_APPROVAL" });
+const badFallback = (patch) =>
+  deriveFallbackV6Event({ ...fallbackArgs, runs: [{ ...completedV6, ...patch }] });
+assert.equal(badFallback({ conclusion: "failure" }), null, "failed V6 must never launch V7");
+assert.equal(badFallback({ status: "in_progress" }), null, "active V6 must never launch V7");
+assert.equal(badFallback({ event: "push" }), null, "untrusted event must never launch V7");
+assert.equal(badFallback({ headBranch: "feature" }), null, "non-main must never launch V7");
+assert.equal(badFallback({ updatedAt: "2026-10-30T16:30:00.000Z" }), null, "stale V6 ignored");
+assert.equal(badFallback({ updatedAt: "2026-10-30T17:36:00.000Z" }), null, "future time ignored");
+assert.equal(deriveFallbackV6Event({ ...fallbackArgs, repository: "../evil" }), null);
+assert.equal(deriveFallbackV6Event({ ...fallbackArgs, runs: [] }), null);
+const fallbackExpiredEvidence = deep();
+fallbackExpiredEvidence.event = recovered;
+fallbackExpiredEvidence.campaign.dailyEvidence[0].observedAt = "2026-10-30T16:30:00.000Z";
+assert.equal(gate(fallbackExpiredEvidence).dispatch, false,
+  "successful upstream still cannot authorize stale PAPER evidence");
+const selected = deriveFallbackV6Event({
+  ...fallbackArgs, runs: [
+    { ...completedV6, updatedAt: "2026-10-30T17:33:00.000Z" },
+    completedV6,
+  ],
+});
+assert.equal(selected.workflow_run.updated_at, completedV6.updatedAt,
+  "select latest successful canonical run");
+
 const workflow = readFileSync(resolve(".github/workflows/v7-forward-after-v6.yml"), "utf8");
 assert(workflow.includes('workflows: ["Fenice Paper Validation"]'));
 assert(workflow.includes("github.event.workflow_run.head_repository.full_name == github.repository"));
 assert(workflow.includes("gh workflow run v7-phase-b-forward-paper.yml"));
+assert(workflow.includes('cron: "25 18 * * 1-5"'));
+assert(workflow.includes("--workflow paper-validation.yml"));
+assert(workflow.includes("--fallback-v6-runs"));
+assert(workflow.includes("--repository"));
 assert(!workflow.includes("npm run marketdata:execution"), "Dispatcher may not consume additional provider quotes");
 assert(!workflow.includes("liveTradingAllowed: true"));
 console.log("V7 after-PAPER forward dispatch safety: PASS (timing, one-run budget, authorization and no LIVE)");
