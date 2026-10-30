@@ -88,6 +88,11 @@ jobs:
           npm run sources:check
           node scripts/run-intelligence.mjs
           npm run marketdata:execution
+          # Parity with the V6 canonical pipeline: per-symbol Twelve Data
+          # probes are intentionally disabled above. The coherent batch
+          # restores independent provider evidence before the strict quorum
+          # and FX/session gates. A failed batch NEVER confers PAPER status.
+          node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs || echo "Twelve Data batch unavailable; strict PAPER quorum remains required"
           node scripts/refresh-paper-fx-evidence.mjs
           node --experimental-strip-types scripts/check-execution-market-coverage.mjs
           node --experimental-strip-types scripts/check-paper-market-session.mjs
