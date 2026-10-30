@@ -1,0 +1,66 @@
+name: Fenice IEX Shadow Realtime Telemetry
+
+# Independent read-only market-data streaming diagnostic.
+# NEVER authorizes or counts PAPER fills, never connects to broker or LIVE APIs.
+on:
+  workflow_dispatch:
+  schedule:
+    # Both instants fall within the regular US equity session in either DST regime.
+    # Cron can be delayed/omitted; proof records actual provider timestamps, not planned clock.
+    - cron: "43 14 * * 1-5"
+    - cron: "43 18 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/iex-shadow-realtime.yml"
+      - "lib/monitor/iex-shadow-proof.mjs"
+      - "scripts/run-iex-shadow-monitor.mjs"
+      - "scripts/test-iex-shadow-proof.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-iex-shadow-stream
+  cancel-in-progress: false
+
+jobs:
+  safety-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify independent timestamp, price secrecy and zero PAPER/LIVE permissions
+        run: node scripts/test-iex-shadow-proof.mjs
+      - name: Check no secret exposure
+        run: node scripts/scan-repository-secrets.mjs
+
+  shadow-monitor:
+    if: github.event_name != 'pull_request'
+    needs: [safety-regression]
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      # Existing market-data provider credentials only; no Directa/SumUp/broker.
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FENICE_IEX_SHADOW_SYMBOLS: AAPL,MSFT,SPY,QQQ,NVDA,AMZN
+      FENICE_IEX_SHADOW_SECONDS: "180"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Observe timestamped US IEX quotes and trades without storing prices
+        run: node scripts/run-iex-shadow-monitor.mjs
+      - name: Upload limited telemetry proof (no raw quotes or secrets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-iex-shadow-telemetry
+          path: iex-shadow-proof.json
+          if-no-files-found: warn
+          retention-days: 7
