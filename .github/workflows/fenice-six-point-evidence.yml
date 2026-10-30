@@ -1,0 +1,45 @@
+name: Fenice Six-Point Evidence — Read-Only
+
+# Independent audit after market hours; never submits trading orders, spends
+# market-data credits, or modifies frozen PAPER or research artifacts.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 20 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/fenice-six-point-evidence.yml"
+      - "scripts/report-six-point-evidence.mjs"
+      - "scripts/test-six-point-evidence.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-six-point-readonly
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify truthfulness and no LIVE impact of reports
+        run: |
+          node scripts/test-six-point-evidence.mjs
+          node scripts/scan-repository-secrets.mjs
+      - name: Generate point-by-point, non-executable operating report
+        run: node scripts/report-six-point-evidence.mjs
+      - name: Preserve limited evidence for independent review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-six-point-readonly
+          path: fenice-six-point-evidence.json
+          if-no-files-found: warn
+          retention-days: 7

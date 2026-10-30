@@ -29,6 +29,23 @@ assert.equal(final.futureEvents, 1);
 assert.equal(final.malformedEvents, 1);
 assert.equal(final.ignoredEvents, 1);
 assert.equal(final.sampledSymbols, 2);
+assert.equal(final.providerToReceiptP95UpperBoundMs,null,
+  "p95 over all valid observations including stale must not fake a fresh percentile");
+assert.deepEqual(final.quoteDeliveryAgeHistogram,
+  {le100:0,le500:1,le2000:0,le10000:0,le120000:1,gt120000:1});
+const fast = makeIexShadowProof("AAPL", new Date(at).toISOString());
+fast.authenticated = true; fast.subscriptionConfirmed = true;
+for(let i=0;i<20;i++){
+  observeIexShadowProof(fast,{T:"t",S:"AAPL",p:100,
+    t:new Date(at-50).toISOString()},at);
+}
+observeIexShadowProof(fast,{T:"t",S:"AAPL",p:100,
+  t:new Date(at-1000).toISOString()},at);
+const fastEnd=finishIexShadowProof(fast,new Date(at+2000).toISOString());
+assert.equal(fastEnd.providerToReceiptP95UpperBoundMs,100,
+  "histogram upper bound is conservative, never asserted as exact P95");
+assert.equal(fastEnd.quoteDeliveryAgeHistogram.le100,20);
+assert.equal(fastEnd.quoteDeliveryAgeHistogram.le2000,1);
 assert.equal(final.realOrders, 0);
 assert.equal(final.brokerConnectivityAllowed, false);
 assert.equal(final.liveTradingAllowed, false);
