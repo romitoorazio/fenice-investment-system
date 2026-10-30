@@ -1,0 +1,36 @@
+name: Fenice V7 B2 Exact-SHA PAPER Approval Guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-b2-activation-review.yml"
+      - "data/paper-v7-b2-approval.json"
+      - "scripts/test-v7-b2-activation.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-b2-activation-review.yml"
+      - "data/paper-v7-b2-approval.json"
+
+permissions:
+  contents: read
+
+jobs:
+  prove-approval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify exact frozen B2 core, ancestor SHA, historic isolation and PAPER-only consent
+        run: |
+          node scripts/test-v7-b2-activation.mjs
+          node scripts/test-v7-b2-baseline.mjs
+      - name: Scan for exposed keys
+        run: node scripts/scan-repository-secrets.mjs

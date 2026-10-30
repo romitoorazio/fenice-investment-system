@@ -2,14 +2,36 @@
   "version": 1,
   "approvalId": "fenice-paper-v7-b2-2026-11-02",
   "mode": "PAPER",
-  "approved": false,
-  "humanConfirmation": false,
-  "consentSource": "User requested next step for distinct PAPER-only baseline in ChatGPT on 2026-10-30; activation remains disabled until exact frozen commit and fingerprint are reviewed",
-  "approvalStatus": "PREPARED_PENDING_EXACT_SHA",
+  "approved": true,
+  "humanConfirmation": true,
+  "consentSource": "Explicit owner instruction in ChatGPT on 2026-10-30: 'Vai al prossimo passaggio', directly accepting the announced next step to activate a NEW separate PAPER-only baseline. Final code reviewed at commit 8b67319fc0b4becbf9de41e438a1c296c7e1a11b. No LIVE or paid services.",
+  "approvalStatus": "PAPER_ONLY_TIME_BOUNDED_CORE_PINNED",
   "approvedAt": "2026-11-02T14:30:00.000Z",
   "expiresAt": "2026-12-17T14:30:00.000Z",
-  "baselineCommit": null,
-  "coreFingerprint": null,
+  "baselineCommit": "8b67319fc0b4becbf9de41e438a1c296c7e1a11b",
+  "coreFingerprint": {
+    "algorithm": "sha256",
+    "domain": "FENICE_V7_B2_FORWARD_CORE_V1",
+    "digest": "dec6adaae59c94922aadf544c2e5aaef436d504c2c71f1fbe45f9e1b9aea1719",
+    "complete": true,
+    "missingFiles": [],
+    "files": [
+      ".github/workflows/v7-b2-forward-paper.yml",
+      "lib/trading/decision-data-gate.mjs",
+      "lib/trading/paper-fx-evidence.mjs",
+      "lib/trading/paper-v7-b2-fingerprint.mjs",
+      "lib/trading/paper-v7-phase-b-v6-parity.mjs",
+      "scripts/check-execution-market-coverage.mjs",
+      "scripts/check-paper-market-session.mjs",
+      "scripts/check-v7-b2-preflight.mjs",
+      "scripts/paper-validation-stager.mjs",
+      "scripts/refresh-paper-fx-evidence.mjs",
+      "scripts/refresh-twelve-data-batch-evidence.mjs",
+      "scripts/run-execution-market-data.mjs",
+      "scripts/run-v7-b2-forward-cycle.mjs",
+      "scripts/test-v7-b2-baseline.mjs"
+    ]
+  },
   "idPrefix": "fenice-v7-b2-2026-",
   "capitalEuro": 10000,
   "targetPaperFills": 10,
@@ -50,16 +72,24 @@
   "allowBackfill": false,
   "allowKeyRotation": false,
   "approvalEvidence": {
-    "kind": "OWNER_REQUEST_FOR_NEXT_PAPER_ONLY_BASELINE",
+    "kind": "EXPLICIT_CHAT_OWNER_INSTRUCTION",
     "receivedOn": "2026-10-30",
-    "finalFingerprintPinPending": true,
-    "originalPhaseBHistoryPreserved": true,
+    "instructionText": "Vai al prossimo passaggio",
+    "scope": "new isolated PAPER-only V7 B2 validation campaign",
+    "signedForExactMainCommit": "8b67319fc0b4becbf9de41e438a1c296c7e1a11b",
+    "prospectiveOnly": true,
     "liveTradingExcluded": true,
-    "brokerOrdersExcluded": true
+    "brokerOrdersExcluded": true,
+    "paidDataServicesAuthorized": false,
+    "previousV6AndV7PhaseBHistoryPreserved": true,
+    "initialPaperFillsCredited": 0,
+    "coreDigestPinned": "dec6adaae59c94922aadf544c2e5aaef436d504c2c71f1fbe45f9e1b9aea1719"
   },
   "previousCampaignsReadOnly": [
     "data/paper-validation-campaign.json",
     "data/paper-v7-phase-b-forward-days.json",
     "data/paper-v7-phase-b-forward-ledger.json"
-  ]
+  ],
+  "effectiveFrom": "2026-11-02T14:30:00.000Z",
+  "approvalExpires": "2026-12-17T14:30:00.000Z"
 }
