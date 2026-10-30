@@ -29,10 +29,21 @@ assert.equal(approval.minEvidenceDays,25);
 assert.equal(approval.minCalendarDays,30);
 assert.equal(approval.targetPaperFills,10);
 assert(Date.parse(approval.expiresAt)-Date.parse(approval.approvedAt)>=30*86400000);
-assert.equal(ledger.attempts.length,0,"new B2 ledger must start at GENESIS, not historic fills");
-assert.equal(days.days.length,0,"new B2 daily history starts empty");
+// At preparation time the isolated journal starts at GENESIS. After launch,
+// regression MUST continue accepting *genuine* forward days and fills.
+if (approval.approved===false) {
+  assert.equal(ledger.attempts.length,0,"unapproved B2 ledger must start at GENESIS");
+  assert.equal(days.days.length,0,"unapproved B2 history must start empty");
+}
 assert.equal(days.campaignId,approval.approvalId);
 assert.equal(replayV7PhaseBLedger(ledger).valid,true);
+assert(ledger.attempts.every(e=>e.id.startsWith(approval.idPrefix)
+  &&e.occurredAt>=approval.approvedAt&&e.liveTradingAllowed===false
+  &&e.brokerConnectivityAllowed===false),
+  "Only genuine prospective B2 attempts accepted");
+assert(days.days.every(d=>d.date>=approval.approvedAt.slice(0,10)
+  &&d.liveTradingAllowed===false&&d.brokerConnectivityAllowed===false),
+  "No backfill or original Phase B daily history may be imported");
 assert.equal(originalApproval.approved,true,"previous approved campaign must remain intact");
 assert.equal(originalLedger.liveTradingAllowed,false);
 assert(originalDays.days.length>=3,"previous Phase B forward history must be preserved");
@@ -82,4 +93,4 @@ assert(!runner.includes('"paper-v7-phase-b-forward-ledger.json"'));
 assert(!runner.includes('"paper-validation-campaign.json"'));
 assert(runner.includes('"paper-v7-b2-forward-ledger.json"'));
 assert(runner.includes('"paper-v7-b2-forward-days.json"'));
-console.log("V7 B2 independent new campaign: PASS (14 negative gates; 0 old fills; exact SHA256="+fp.digest+")");
+console.log("V7 B2 independent forward campaign: PASS (14 negative gates; 0 imported old fills; exact SHA256="+fp.digest+")");
