@@ -1,0 +1,121 @@
+name: Fenice V7 B2 Independent PAPER Forward
+
+# New prospective campaign: old V6/V7-B archives and approvals stay untouched.
+# Reuses strict pinned risk engine; no Directa, no broker, no LIVE.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-b2-forward-paper.yml"
+      - "lib/trading/paper-v7-b2-fingerprint.mjs"
+      - "scripts/run-v7-b2-forward-cycle.mjs"
+      - "scripts/check-v7-b2-preflight.mjs"
+      - "scripts/test-v7-b2-baseline.mjs"
+      - "data/paper-v7-b2-approval.json"
+      - "data/paper-v7-b2-forward-ledger.json"
+      - "data/paper-v7-b2-forward-days.json"
+  workflow_dispatch:
+  schedule:
+    # Both are during normal US cash equity hours, even across US/EU DST.
+    # A second attempt is skipped once the day has a valid open-market proof.
+    - cron: "45 15 * * 1-5"
+    - cron: "10 18 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Strict independent B2 baseline, fingerprint, no backfill or LIVE
+        run: |
+          node scripts/test-v7-b2-baseline.mjs
+          node scripts/test-v7-phase-b-forward-paper.mjs
+          node scripts/test-paper-v7-phase-b-preparation.mjs
+      - name: Repository secrets guard
+        run: node scripts/scan-repository-secrets.mjs
+
+  paper-forward:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [regression]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: fenice-data-writer
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check prospective approval, exact fingerprint and existing B2 day first
+        id: preflight
+        run: node scripts/check-v7-b2-preflight.mjs --github-output "$GITHUB_OUTPUT"
+      - name: Explain safe no-op if not authorized or already validated today
+        if: steps.preflight.outputs.allowed != 'true'
+        run: echo "B2 strict PAPER forward blocked; reason=${{ steps.preflight.outputs.reason }}. No provider calls or historical mutations."
+      - name: Install existing dependencies only after authorization
+        if: steps.preflight.outputs.allowed == 'true'
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Refresh institutional and market evidence and independent realtime source quorum
+        if: steps.preflight.outputs.allowed == 'true'
+        run: |
+          set -euo pipefail
+          npm run sources:check
+          node scripts/run-intelligence.mjs
+          npm run marketdata:execution
+          node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+          node scripts/refresh-paper-fx-evidence.mjs
+          node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Execute prospectively approved virtual-only B2 PAPER observation
+        if: steps.preflight.outputs.allowed == 'true'
+        run: node scripts/run-v7-b2-forward-cycle.mjs
+      - name: Persist only new B2 forward audit files
+        if: steps.preflight.outputs.allowed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/paper-v7-b2-forward-ledger.json data/paper-v7-b2-forward-days.json
+          if git diff --cached --quiet; then
+            echo "No new B2 PAPER evidence"
+            exit 0
+          fi
+          git commit -m "data(V7 B2): record independent forward PAPER evidence"
+          # Reset only uncommitted generated provider snapshots in this isolated
+          # runner checkout, so a concurrent main data commit can be rebased.
+          # The hash-audited B2 ledger/day evidence has already been committed.
+          git reset --hard HEAD
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then exit 0; fi
+            echo "B2 data commit push race, retry $attempt/3"
+          done
+          echo "B2 evidence persistence failed closed"
+          exit 1
