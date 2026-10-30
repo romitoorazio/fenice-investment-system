@@ -74,6 +74,40 @@ export function assessV7ForwardDispatch({ event, campaign, approval, days, runs 
   return { dispatch: true, reason: "FRESH_V6_EVIDENCE_AND_ACTIVE_V7_PAPER_APPROVAL" };
 }
 
+// The scheduled fallback never trusts a stored PAPER snapshot alone.
+// It must first recover a *successful, completed* canonical V6 workflow
+// from GitHub Actions and pass that event through the same strict gate.
+export function deriveFallbackV6Event({ runs, repository, nowMs }) {
+  const parts = String(repository || "").split("/");
+  const validRepository = parts.length === 2
+    && parts.every((part) => part !== "." && part !== ".."
+      && /^[A-Za-z0-9_.-]+$/.test(part));
+  if (!Array.isArray(runs) || !validRepository
+    || !Number.isSafeInteger(nowMs) || nowMs <= 0) return null;
+  const eligible = runs.filter((run) => {
+    const finishedAt = Date.parse(run?.updatedAt ?? "");
+    return run?.status === "completed"
+      && run?.conclusion === "success"
+      && run?.headBranch === "main"
+      && ["schedule", "workflow_dispatch"].includes(run?.event)
+      && Number.isFinite(finishedAt)
+      && finishedAt <= nowMs
+      && nowMs - finishedAt <= 30 * 60_000;
+  }).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  if (!eligible.length) return null;
+  return {
+    repository: { full_name: repository },
+    workflow_run: {
+      name: "Fenice Paper Validation",
+      conclusion: "success",
+      head_branch: "main",
+      head_repository: { full_name: repository },
+      event: eligible[0].event,
+      updated_at: eligible[0].updatedAt,
+    },
+  };
+}
+
 const currentFile = fileURLToPath(import.meta.url);
 if (process.argv[1] && resolve(process.argv[1]) === currentFile) {
   const flag = (name) => {
@@ -84,11 +118,18 @@ if (process.argv[1] && resolve(process.argv[1]) === currentFile) {
   let decision;
   try {
     const read = async (name) => JSON.parse(await readFile(flag(name), "utf8"));
-    const [event, campaign, approval, days, runs] = await Promise.all([
-      read("--event"), read("--campaign"), read("--approval"),
-      read("--days"), read("--runs"),
+    const nowMs = Date.now();
+    const [campaign, approval, days, runs] = await Promise.all([
+      read("--campaign"), read("--approval"), read("--days"), read("--runs"),
     ]);
-    decision = assessV7ForwardDispatch({ event, campaign, approval, days, runs, nowMs: Date.now() });
+    const event = flag("--fallback-v6-runs")
+      ? deriveFallbackV6Event({
+          runs: await read("--fallback-v6-runs"),
+          repository: flag("--repository"),
+          nowMs,
+        })
+      : await read("--event");
+    decision = assessV7ForwardDispatch({ event, campaign, approval, days, runs, nowMs });
   } catch {
     decision = { dispatch: false, reason: "DISPATCH_INPUT_UNAVAILABLE" };
   }

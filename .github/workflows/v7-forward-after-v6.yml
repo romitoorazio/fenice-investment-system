@@ -5,6 +5,11 @@ on:
     workflows: ["Fenice Paper Validation"]
     types: [completed]
     branches: [main]
+  schedule:
+    # Recovery only: never spends provider credits unless the original
+    # successful V6 run and *current* PAPER evidence pass the pinned gate.
+    # 18:25 UTC remains in the US equity session in both DST regimes.
+    - cron: "25 18 * * 1-5"
   pull_request:
     branches: [main]
     paths:
@@ -36,12 +41,13 @@ jobs:
 
   dispatch:
     if: >-
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      (github.event.workflow_run.event == 'workflow_dispatch' ||
-       github.event.workflow_run.event == 'schedule')
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'workflow_dispatch' ||
+        github.event.workflow_run.event == 'schedule'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -67,16 +73,35 @@ jobs:
             gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/data/$dataset.json?ref=main" > "$dir/$dataset.json"
           done
           gh run list --repo "$GITHUB_REPOSITORY" --workflow v7-phase-b-forward-paper.yml --branch main --limit 40 --json status,conclusion,createdAt > "$dir/runs.json"
+      - name: Retrieve genuine successful V6 run for schedule recovery
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow paper-validation.yml --branch main --limit 40 --json status,conclusion,event,headBranch,updatedAt > "$RUNNER_TEMP/fenice-v7-trigger/v6-runs.json"
       - name: Evaluate current-market, fingerprint and duplicate gates
         id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          node scripts/check-v7-forward-after-v6.mjs \
-            --event "$GITHUB_EVENT_PATH" \
-            --campaign "$RUNNER_TEMP/fenice-v7-trigger/paper-validation-campaign.json" \
-            --approval "$RUNNER_TEMP/fenice-v7-trigger/paper-v7-phase-b-approval.json" \
-            --days "$RUNNER_TEMP/fenice-v7-trigger/paper-v7-phase-b-forward-days.json" \
-            --runs "$RUNNER_TEMP/fenice-v7-trigger/runs.json" \
+          set -euo pipefail
+          dir="$RUNNER_TEMP/fenice-v7-trigger"
+          common=(
+            --campaign "$dir/paper-validation-campaign.json"
+            --approval "$dir/paper-v7-phase-b-approval.json"
+            --days "$dir/paper-v7-phase-b-forward-days.json"
+            --runs "$dir/runs.json"
             --output "$GITHUB_OUTPUT"
+          )
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            node scripts/check-v7-forward-after-v6.mjs "${common[@]}" \
+              --fallback-v6-runs "$dir/v6-runs.json" \
+              --repository "$GITHUB_REPOSITORY"
+          else
+            node scripts/check-v7-forward-after-v6.mjs "${common[@]}" \
+              --event "$GITHUB_EVENT_PATH"
+          fi
       - name: Dispatch existing pinned V7 PAPER workflow (no broker orders)
         if: steps.gate.outputs.should_dispatch == 'true'
         env:
