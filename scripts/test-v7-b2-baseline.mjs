@@ -54,7 +54,9 @@ const approved={...approval,approved:true,humanConfirmation:true,coreFingerprint
 const base={approval:approved,ledger,days,fingerprint:fp,nowMs,shaAncestor:true};
 const valid=assessV7B2Preflight(base);
 assert.deepEqual(valid,{allowed:true,reason:"FORWARD_PAPER_ONLY_OPEN_MARKET_CHECK_REQUIRED"});
-assert.equal(assessV7B2Preflight({...base,approval}).reason,"NOT_PROSPECTIVELY_APPROVED");
+const disabledApproval={...approval,approved:false,humanConfirmation:false};
+assert.equal(assessV7B2Preflight({...base,approval:disabledApproval}).reason,
+  "NOT_PROSPECTIVELY_APPROVED","unapproved fixture must fail both before and after campaign activation");
 const reject=[
   ["no consent",b=>b.approval.humanConfirmation=false],
   ["expired",b=>b.nowMs=Date.parse("2027-01-01T00:00:00.000Z")],
