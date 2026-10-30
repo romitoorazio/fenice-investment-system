@@ -107,6 +107,10 @@ jobs:
             exit 0
           fi
           git commit -m "data(V7 B2): record independent forward PAPER evidence"
+          # Reset only uncommitted generated provider snapshots in this isolated
+          # runner checkout, so a concurrent main data commit can be rebased.
+          # The hash-audited B2 ledger/day evidence has already been committed.
+          git reset --hard HEAD
           for attempt in 1 2 3; do
             git fetch origin main
             git rebase origin/main
