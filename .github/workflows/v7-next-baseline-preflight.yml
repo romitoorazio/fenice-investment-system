@@ -1,0 +1,32 @@
+name: Fenice V7 Next Baseline Consent and Fingerprint Preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v7-phase-b-forward-paper.yml"
+      - ".github/workflows/v7-next-baseline-preflight.yml"
+      - "data/paper-v7-next-baseline-candidate.json"
+      - "scripts/check-v7-next-baseline-candidate.mjs"
+      - "scripts/test-v7-next-baseline-candidate.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test next-baseline candidate, historic data integrity and no unauthorized consent
+        run: |
+          node scripts/check-v7-next-baseline-candidate.mjs
+          node scripts/test-v7-next-baseline-candidate.mjs
+          node scripts/test-v7-batch-parity-next-baseline.mjs
+      - name: Verify secrets are never copied into prospective evidence
+        run: node scripts/scan-repository-secrets.mjs
