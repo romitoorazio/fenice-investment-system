@@ -17,6 +17,8 @@ assert.equal(fp.files.includes(".github/workflows/v7-phase-b-forward-paper.yml")
   "B2 cannot mutate or depend on editing pinned legacy workflow");
 assert.equal(fp.files.includes(".github/workflows/v7-b2-forward-paper.yml"),true);
 assert.equal(fp.files.includes("scripts/refresh-twelve-data-batch-evidence.mjs"),true);
+assert.equal(fp.files.includes("scripts/check-v7-b2-preflight.mjs"),true,
+  "The preflight authorizing provider spending must be fingerprint-pinned");
 assert.equal(approval.approvalId,"fenice-paper-v7-b2-2026-11-02");
 assert.notEqual(approval.approvalId,originalApproval.approvalId);
 assert.equal(approval.v6HistoricalFillsCredited,0);
@@ -54,7 +56,9 @@ const approved={...approval,approved:true,humanConfirmation:true,coreFingerprint
 const base={approval:approved,ledger,days,fingerprint:fp,nowMs,shaAncestor:true};
 const valid=assessV7B2Preflight(base);
 assert.deepEqual(valid,{allowed:true,reason:"FORWARD_PAPER_ONLY_OPEN_MARKET_CHECK_REQUIRED"});
-assert.equal(assessV7B2Preflight({...base,approval}).reason,"NOT_PROSPECTIVELY_APPROVED");
+const disabledApproval={...approval,approved:false,humanConfirmation:false};
+assert.equal(assessV7B2Preflight({...base,approval:disabledApproval}).reason,
+  "NOT_PROSPECTIVELY_APPROVED","unapproved fixture must fail both before and after campaign activation");
 const reject=[
   ["no consent",b=>b.approval.humanConfirmation=false],
   ["expired",b=>b.nowMs=Date.parse("2027-01-01T00:00:00.000Z")],
