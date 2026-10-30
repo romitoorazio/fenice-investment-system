@@ -75,6 +75,7 @@ console.log("FENICE IEX read-only SHADOW: " + JSON.stringify({
   status: report.status, authenticated: report.authenticated,
   subscriptionConfirmed: report.subscriptionConfirmed, sampledSymbols: report.sampledSymbols,
   freshEvents: report.freshEvents, staleEvents: report.staleEvents,
+  p95DeliveryUpperBoundMs: report.providerToReceiptP95UpperBoundMs,
   futureEvents: report.futureEvents, malformedEvents: report.malformedEvents,
   errorCode: report.errorCode ?? null, paperQuorumCredit: 0, liveTradingAllowed: false,
 }));
@@ -86,6 +87,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     "| Simboli con tick freschi | " + report.sampledSymbols + "/" + symbols.length + " |\n" +
     "| Eventi freschi / stantii | " + report.freshEvents + " / " + report.staleEvents + " |\n" +
     "| Orario ultimo tick provider | " + (report.lastProviderAt ?? "N/D") + " |\n" +
+    "| P95 consegna provider → monitor (limite superiore) | " + (report.providerToReceiptP95UpperBoundMs === null ? "non misurabile / >120 s" : report.providerToReceiptP95UpperBoundMs + " ms") + " |\n" +
     "| Credito al quorum PAPER | **0** |\n" +
     "| Broker LIVE e ordini | **disabilitati** |\n\n" +
     "Feed IEX Basic, non SIP. Nessun prezzo grezzo salvato; no autorizzazione all'esecuzione.\n");
