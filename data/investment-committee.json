@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-01T19:45:01.714Z",
+  "generatedAt": "2026-11-02T00:49:43.580Z",
   "engine": "Fenice Investment Committee v1",
   "capitalEuro": 10000,
   "goal": {
@@ -9,8 +9,8 @@
     "requiredCagrPercent": 25.89,
     "warning": "Target ambizioso, non garantito. Non aumenta automaticamente la tolleranza al rischio."
   },
-  "marketRegime": "VALUTARE",
-  "dataQuality": 98,
+  "marketRegime": "ATTENDERE",
+  "dataQuality": 97,
   "sourceGate": "GREEN",
   "calibrationPolicy": {
     "horizon": "30d",
@@ -121,8 +121,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 65,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -139,8 +139,8 @@
         "technical": 36,
         "riskAdjusted": 39,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non confrontabile",
@@ -198,6 +198,143 @@
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
             "actual": 63,
+            "requiredMin": 78
+          },
+          {
+            "code": "RISK_ABOVE_58",
+            "actual": 59,
+            "requiredMax": 58
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "MANTIENI",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": {
+        "kind": "HISTORICAL_OOS_RESEARCH_ONLY",
+        "strategyAsOf": "2026-11-01T14:17:46.313Z",
+        "priceHistoryAsOf": "2026-10-30T00:00:00.000Z",
+        "family": "trend",
+        "selectedVariant": "trend-40-180",
+        "parameters": {
+          "fast": 40,
+          "slow": 180
+        },
+        "historicalRobustnessScore": 85,
+        "historicalMedianOosExcessAnnualizedPercent": 12,
+        "historicalMedianOosDrawdownImprovementPoints": -4.5,
+        "dataIsForward": false,
+        "affectsCommitteeScore": false,
+        "executionAuthorized": false,
+        "profitableStrategyVerified": false
+      },
+      "etfEconomics": null,
+      "symbol": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "assetClass": "Semiconduttori",
+      "sector": "Produzione di semiconduttori",
+      "positionType": "GROWTH",
+      "currentPrice": 406.13,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "ATTENDI",
+      "committeeScore": 63,
+      "confidence": 78,
+      "rawConfidenceBeforeCalibration": 87,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 59,
+      "terminalDecision": "MANTIENI",
+      "maxWeightPercent": 6,
+      "scorecard": {
+        "fundamental": 80,
+        "quality": 79,
+        "valuation": 50,
+        "technical": 52,
+        "riskAdjusted": 41,
+        "catalysts": 48,
+        "dataConfidence": 78,
+        "rawDataConfidence": 87
+      },
+      "valuation": {
+        "status": "dati insufficienti",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": 55
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [
+        "Ricavi cresciuti di circa 22.2% annuo nel periodo analizzato.",
+        "Margine operativo elevato, circa 45.7%.",
+        "Copertura fondamentale sufficientemente completa per un approfondimento strutturato."
+      ],
+      "bearCase": [
+        "Rischi di mercato, concorrenza e revisione delle stime restano presenti.",
+        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
+      ],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 3,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 62,
             "requiredMin": 78
           },
           {
@@ -274,9 +411,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 63,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 62,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -293,8 +430,8 @@
         "technical": 64,
         "riskAdjusted": 66,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -337,143 +474,6 @@
       ]
     },
     {
-      "rank": 3,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 63,
-            "requiredMin": 78
-          },
-          {
-            "code": "RISK_ABOVE_58",
-            "actual": 59,
-            "requiredMax": 58
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "MANTIENI",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": {
-        "kind": "HISTORICAL_OOS_RESEARCH_ONLY",
-        "strategyAsOf": "2026-11-01T14:17:46.313Z",
-        "priceHistoryAsOf": "2026-10-30T00:00:00.000Z",
-        "family": "trend",
-        "selectedVariant": "trend-40-180",
-        "parameters": {
-          "fast": 40,
-          "slow": 180
-        },
-        "historicalRobustnessScore": 85,
-        "historicalMedianOosExcessAnnualizedPercent": 12,
-        "historicalMedianOosDrawdownImprovementPoints": -4.5,
-        "dataIsForward": false,
-        "affectsCommitteeScore": false,
-        "executionAuthorized": false,
-        "profitableStrategyVerified": false
-      },
-      "etfEconomics": null,
-      "symbol": "TSM",
-      "name": "Taiwan Semiconductor Manufacturing Company Limited",
-      "assetClass": "Semiconduttori",
-      "sector": "Produzione di semiconduttori",
-      "positionType": "GROWTH",
-      "currentPrice": 406.13,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "ATTENDI",
-      "committeeScore": 63,
-      "confidence": 79,
-      "rawConfidenceBeforeCalibration": 88,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 59,
-      "terminalDecision": "MANTIENI",
-      "maxWeightPercent": 6,
-      "scorecard": {
-        "fundamental": 80,
-        "quality": 79,
-        "valuation": 50,
-        "technical": 52,
-        "riskAdjusted": 41,
-        "catalysts": 48,
-        "dataConfidence": 79,
-        "rawDataConfidence": 88
-      },
-      "valuation": {
-        "status": "dati insufficienti",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": 55
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 0,
-        "unverifiedMentions": 0,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [
-        "Ricavi cresciuti di circa 22.2% annuo nel periodo analizzato.",
-        "Margine operativo elevato, circa 45.7%.",
-        "Copertura fondamentale sufficientemente completa per un approfondimento strutturato."
-      ],
-      "bearCase": [
-        "Rischi di mercato, concorrenza e revisione delle stime restano presenti.",
-        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
-      ],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
       "rank": 4,
       "buyGapEvidence": {
         "scope": "RESEARCH_RULES_ONLY",
@@ -481,7 +481,7 @@
         "gaps": [
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 62,
+            "actual": 61,
             "requiredMin": 78
           },
           {
@@ -558,9 +558,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 62,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 61,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -577,8 +577,8 @@
         "technical": 59,
         "riskAdjusted": 69,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -622,114 +622,6 @@
     },
     {
       "rank": 5,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 59,
-            "requiredMin": 78
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "ATTENDI",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": null,
-      "etfEconomics": null,
-      "symbol": "TLT",
-      "name": "Treasury 20+ Year ETF",
-      "assetClass": "Obbligazioni",
-      "sector": "Obbligazioni",
-      "positionType": "CORE",
-      "currentPrice": 81.84,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "ATTENDI",
-      "committeeScore": 59,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 29,
-      "terminalDecision": "ATTENDI",
-      "maxWeightPercent": 10,
-      "scorecard": {
-        "fundamental": 57,
-        "quality": 57,
-        "valuation": 50,
-        "technical": 50,
-        "riskAdjusted": 71,
-        "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
-      },
-      "valuation": {
-        "status": "non applicabile",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": null
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 0,
-        "unverifiedMentions": 0,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [],
-      "bearCase": [],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
-      "rank": 6,
       "buyGapEvidence": {
         "scope": "RESEARCH_RULES_ONLY",
         "status": "NOT_QUALIFIED",
@@ -814,8 +706,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 59,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -832,8 +724,8 @@
         "technical": 56,
         "riskAdjusted": 63,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -849,8 +741,116 @@
         "recentEvents": 0,
         "evidence": [],
         "sourceUrls": [],
-        "researchMentions": 1,
-        "unverifiedMentions": 1,
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [],
+      "bearCase": [],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 6,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 58,
+            "requiredMin": 78
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "ATTENDI",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": null,
+      "etfEconomics": null,
+      "symbol": "TLT",
+      "name": "Treasury 20+ Year ETF",
+      "assetClass": "Obbligazioni",
+      "sector": "Obbligazioni",
+      "positionType": "CORE",
+      "currentPrice": 81.84,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "ATTENDI",
+      "committeeScore": 58,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 29,
+      "terminalDecision": "ATTENDI",
+      "maxWeightPercent": 10,
+      "scorecard": {
+        "fundamental": 56,
+        "quality": 56,
+        "valuation": 50,
+        "technical": 50,
+        "riskAdjusted": 71,
+        "catalysts": 48,
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
+      },
+      "valuation": {
+        "status": "non applicabile",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": null
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
         "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
         "executionEligible": false
       },
@@ -922,8 +922,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 58,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -940,8 +940,8 @@
         "technical": 35,
         "riskAdjusted": 43,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "dati insufficienti",
@@ -1043,8 +1043,8 @@
       "currency": "USD",
       "decision": "EVITA",
       "committeeScore": 50,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -1061,8 +1061,8 @@
         "technical": 65,
         "riskAdjusted": 0,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -1153,7 +1153,7 @@
       "assetClass": "Criptovaluta",
       "sector": "Criptovaluta",
       "positionType": "GROWTH",
-      "currentPrice": 77656.24,
+      "currentPrice": 78038.1,
       "priceEvidence": {
         "observedAt": null,
         "source": null,
@@ -1179,8 +1179,8 @@
       "terminalDecision": "EVITA",
       "maxWeightPercent": 4.5,
       "scorecard": {
-        "fundamental": 44,
-        "quality": 44,
+        "fundamental": 43,
+        "quality": 43,
         "valuation": 50,
         "technical": 50,
         "riskAdjusted": 21,
@@ -1238,7 +1238,122 @@
         "gaps": [
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 46,
+            "actual": 45,
+            "requiredMin": 78
+          },
+          {
+            "code": "RISK_ABOVE_58",
+            "actual": 84,
+            "requiredMax": 58
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "EVITA",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": null,
+      "etfEconomics": null,
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "assetClass": "Criptovaluta",
+      "sector": "Criptovaluta",
+      "positionType": "GROWTH",
+      "currentPrice": 2269.83,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "EVITA",
+      "committeeScore": 45,
+      "confidence": 87,
+      "rawConfidenceBeforeCalibration": 97,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 84,
+      "terminalDecision": "EVITA",
+      "maxWeightPercent": 4.5,
+      "scorecard": {
+        "fundamental": 41,
+        "quality": 41,
+        "valuation": 50,
+        "technical": 49,
+        "riskAdjusted": 16,
+        "catalysts": 48,
+        "dataConfidence": 87,
+        "rawDataConfidence": 97
+      },
+      "valuation": {
+        "status": "non applicabile",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": null
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 2,
+        "unverifiedMentions": 2,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [],
+      "bearCase": [
+        "Rischio quantitativo elevato (84/100)."
+      ],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Aumento ulteriore di volatilità/drawdown oltre i guardrail Fenice.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 11,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 45,
             "requiredMin": 78
           },
           {
@@ -1293,9 +1408,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 46,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 45,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -1312,8 +1427,8 @@
         "technical": 26,
         "riskAdjusted": 53,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -1347,121 +1462,6 @@
       "invalidation": [
         "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
         "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
-      "rank": 11,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 45,
-            "requiredMin": 78
-          },
-          {
-            "code": "RISK_ABOVE_58",
-            "actual": 83,
-            "requiredMax": 58
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "EVITA",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": null,
-      "etfEconomics": null,
-      "symbol": "ETH",
-      "name": "Ethereum",
-      "assetClass": "Criptovaluta",
-      "sector": "Criptovaluta",
-      "positionType": "GROWTH",
-      "currentPrice": 2255.84,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "EVITA",
-      "committeeScore": 45,
-      "confidence": 87,
-      "rawConfidenceBeforeCalibration": 97,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 83,
-      "terminalDecision": "EVITA",
-      "maxWeightPercent": 4.5,
-      "scorecard": {
-        "fundamental": 41,
-        "quality": 41,
-        "valuation": 50,
-        "technical": 48,
-        "riskAdjusted": 17,
-        "catalysts": 48,
-        "dataConfidence": 87,
-        "rawDataConfidence": 97
-      },
-      "valuation": {
-        "status": "non applicabile",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": null
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 1,
-        "unverifiedMentions": 1,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [],
-      "bearCase": [
-        "Rischio quantitativo elevato (83/100)."
-      ],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Aumento ulteriore di volatilità/drawdown oltre i guardrail Fenice.",
         "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
       ],
       "reviewTriggers": [
@@ -1527,8 +1527,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 45,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -1545,8 +1545,8 @@
         "technical": 34,
         "riskAdjusted": 39,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -1668,8 +1668,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 65,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -1686,8 +1686,8 @@
         "technical": 36,
         "riskAdjusted": 39,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non confrontabile",
@@ -1745,6 +1745,143 @@
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
             "actual": 63,
+            "requiredMin": 78
+          },
+          {
+            "code": "RISK_ABOVE_58",
+            "actual": 59,
+            "requiredMax": 58
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "MANTIENI",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": {
+        "kind": "HISTORICAL_OOS_RESEARCH_ONLY",
+        "strategyAsOf": "2026-11-01T14:17:46.313Z",
+        "priceHistoryAsOf": "2026-10-30T00:00:00.000Z",
+        "family": "trend",
+        "selectedVariant": "trend-40-180",
+        "parameters": {
+          "fast": 40,
+          "slow": 180
+        },
+        "historicalRobustnessScore": 85,
+        "historicalMedianOosExcessAnnualizedPercent": 12,
+        "historicalMedianOosDrawdownImprovementPoints": -4.5,
+        "dataIsForward": false,
+        "affectsCommitteeScore": false,
+        "executionAuthorized": false,
+        "profitableStrategyVerified": false
+      },
+      "etfEconomics": null,
+      "symbol": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "assetClass": "Semiconduttori",
+      "sector": "Produzione di semiconduttori",
+      "positionType": "GROWTH",
+      "currentPrice": 406.13,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "ATTENDI",
+      "committeeScore": 63,
+      "confidence": 78,
+      "rawConfidenceBeforeCalibration": 87,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 59,
+      "terminalDecision": "MANTIENI",
+      "maxWeightPercent": 6,
+      "scorecard": {
+        "fundamental": 80,
+        "quality": 79,
+        "valuation": 50,
+        "technical": 52,
+        "riskAdjusted": 41,
+        "catalysts": 48,
+        "dataConfidence": 78,
+        "rawDataConfidence": 87
+      },
+      "valuation": {
+        "status": "dati insufficienti",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": 55
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [
+        "Ricavi cresciuti di circa 22.2% annuo nel periodo analizzato.",
+        "Margine operativo elevato, circa 45.7%.",
+        "Copertura fondamentale sufficientemente completa per un approfondimento strutturato."
+      ],
+      "bearCase": [
+        "Rischi di mercato, concorrenza e revisione delle stime restano presenti.",
+        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
+      ],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 3,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 62,
             "requiredMin": 78
           },
           {
@@ -1821,9 +1958,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 63,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 62,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -1840,8 +1977,8 @@
         "technical": 64,
         "riskAdjusted": 66,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -1884,143 +2021,6 @@
       ]
     },
     {
-      "rank": 3,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 63,
-            "requiredMin": 78
-          },
-          {
-            "code": "RISK_ABOVE_58",
-            "actual": 59,
-            "requiredMax": 58
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "MANTIENI",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": {
-        "kind": "HISTORICAL_OOS_RESEARCH_ONLY",
-        "strategyAsOf": "2026-11-01T14:17:46.313Z",
-        "priceHistoryAsOf": "2026-10-30T00:00:00.000Z",
-        "family": "trend",
-        "selectedVariant": "trend-40-180",
-        "parameters": {
-          "fast": 40,
-          "slow": 180
-        },
-        "historicalRobustnessScore": 85,
-        "historicalMedianOosExcessAnnualizedPercent": 12,
-        "historicalMedianOosDrawdownImprovementPoints": -4.5,
-        "dataIsForward": false,
-        "affectsCommitteeScore": false,
-        "executionAuthorized": false,
-        "profitableStrategyVerified": false
-      },
-      "etfEconomics": null,
-      "symbol": "TSM",
-      "name": "Taiwan Semiconductor Manufacturing Company Limited",
-      "assetClass": "Semiconduttori",
-      "sector": "Produzione di semiconduttori",
-      "positionType": "GROWTH",
-      "currentPrice": 406.13,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "ATTENDI",
-      "committeeScore": 63,
-      "confidence": 79,
-      "rawConfidenceBeforeCalibration": 88,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 59,
-      "terminalDecision": "MANTIENI",
-      "maxWeightPercent": 6,
-      "scorecard": {
-        "fundamental": 80,
-        "quality": 79,
-        "valuation": 50,
-        "technical": 52,
-        "riskAdjusted": 41,
-        "catalysts": 48,
-        "dataConfidence": 79,
-        "rawDataConfidence": 88
-      },
-      "valuation": {
-        "status": "dati insufficienti",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": 55
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 0,
-        "unverifiedMentions": 0,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [
-        "Ricavi cresciuti di circa 22.2% annuo nel periodo analizzato.",
-        "Margine operativo elevato, circa 45.7%.",
-        "Copertura fondamentale sufficientemente completa per un approfondimento strutturato."
-      ],
-      "bearCase": [
-        "Rischi di mercato, concorrenza e revisione delle stime restano presenti.",
-        "È necessaria una conversione ADR/valuta verificata prima di calcolare il fair value."
-      ],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
       "rank": 4,
       "buyGapEvidence": {
         "scope": "RESEARCH_RULES_ONLY",
@@ -2028,7 +2028,7 @@
         "gaps": [
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 62,
+            "actual": 61,
             "requiredMin": 78
           },
           {
@@ -2105,9 +2105,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 62,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 61,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -2124,8 +2124,8 @@
         "technical": 59,
         "riskAdjusted": 69,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -2169,114 +2169,6 @@
     },
     {
       "rank": 5,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 59,
-            "requiredMin": 78
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "ATTENDI",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": null,
-      "etfEconomics": null,
-      "symbol": "TLT",
-      "name": "Treasury 20+ Year ETF",
-      "assetClass": "Obbligazioni",
-      "sector": "Obbligazioni",
-      "positionType": "CORE",
-      "currentPrice": 81.84,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "ATTENDI",
-      "committeeScore": 59,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 29,
-      "terminalDecision": "ATTENDI",
-      "maxWeightPercent": 10,
-      "scorecard": {
-        "fundamental": 57,
-        "quality": 57,
-        "valuation": 50,
-        "technical": 50,
-        "riskAdjusted": 71,
-        "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
-      },
-      "valuation": {
-        "status": "non applicabile",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": null
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 0,
-        "unverifiedMentions": 0,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [],
-      "bearCase": [],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
-      "rank": 6,
       "buyGapEvidence": {
         "scope": "RESEARCH_RULES_ONLY",
         "status": "NOT_QUALIFIED",
@@ -2361,8 +2253,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 59,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -2379,8 +2271,8 @@
         "technical": 56,
         "riskAdjusted": 63,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -2396,8 +2288,116 @@
         "recentEvents": 0,
         "evidence": [],
         "sourceUrls": [],
-        "researchMentions": 1,
-        "unverifiedMentions": 1,
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [],
+      "bearCase": [],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 6,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 58,
+            "requiredMin": 78
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "ATTENDI",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": null,
+      "etfEconomics": null,
+      "symbol": "TLT",
+      "name": "Treasury 20+ Year ETF",
+      "assetClass": "Obbligazioni",
+      "sector": "Obbligazioni",
+      "positionType": "CORE",
+      "currentPrice": 81.84,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "ATTENDI",
+      "committeeScore": 58,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 29,
+      "terminalDecision": "ATTENDI",
+      "maxWeightPercent": 10,
+      "scorecard": {
+        "fundamental": 56,
+        "quality": 56,
+        "valuation": 50,
+        "technical": 50,
+        "riskAdjusted": 71,
+        "catalysts": 48,
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
+      },
+      "valuation": {
+        "status": "non applicabile",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": null
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
         "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
         "executionEligible": false
       },
@@ -2469,8 +2469,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 58,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -2487,8 +2487,8 @@
         "technical": 35,
         "riskAdjusted": 43,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "dati insufficienti",
@@ -2590,8 +2590,8 @@
       "currency": "USD",
       "decision": "EVITA",
       "committeeScore": 50,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -2608,8 +2608,8 @@
         "technical": 65,
         "riskAdjusted": 0,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -2700,7 +2700,7 @@
       "assetClass": "Criptovaluta",
       "sector": "Criptovaluta",
       "positionType": "GROWTH",
-      "currentPrice": 77656.24,
+      "currentPrice": 78038.1,
       "priceEvidence": {
         "observedAt": null,
         "source": null,
@@ -2726,8 +2726,8 @@
       "terminalDecision": "EVITA",
       "maxWeightPercent": 4.5,
       "scorecard": {
-        "fundamental": 44,
-        "quality": 44,
+        "fundamental": 43,
+        "quality": 43,
         "valuation": 50,
         "technical": 50,
         "riskAdjusted": 21,
@@ -2785,7 +2785,122 @@
         "gaps": [
           {
             "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 46,
+            "actual": 45,
+            "requiredMin": 78
+          },
+          {
+            "code": "RISK_ABOVE_58",
+            "actual": 84,
+            "requiredMax": 58
+          },
+          {
+            "code": "VALUATION_BELOW_55",
+            "actual": 50,
+            "requiredMin": 55
+          },
+          {
+            "code": "TERMINAL_NOT_ACCUMULA",
+            "actual": "EVITA",
+            "required": "ACCUMULA"
+          }
+        ],
+        "paperExecutionEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "strategyResearch": null,
+      "etfEconomics": null,
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "assetClass": "Criptovaluta",
+      "sector": "Criptovaluta",
+      "positionType": "GROWTH",
+      "currentPrice": 2269.83,
+      "priceEvidence": {
+        "observedAt": null,
+        "source": null,
+        "price": null,
+        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
+        "executionEligible": false,
+        "paperCertificationEligible": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      },
+      "currency": "USD",
+      "decision": "EVITA",
+      "committeeScore": 45,
+      "confidence": 87,
+      "rawConfidenceBeforeCalibration": 97,
+      "calibration": {
+        "horizon": "30d",
+        "state": "INSUFFICIENT",
+        "multiplier": 0.9,
+        "evidenceMature": false
+      },
+      "riskScore": 84,
+      "terminalDecision": "EVITA",
+      "maxWeightPercent": 4.5,
+      "scorecard": {
+        "fundamental": 41,
+        "quality": 41,
+        "valuation": 50,
+        "technical": 49,
+        "riskAdjusted": 16,
+        "catalysts": 48,
+        "dataConfidence": 87,
+        "rawDataConfidence": 97
+      },
+      "valuation": {
+        "status": "non applicabile",
+        "fairValueLow": null,
+        "fairValueBase": null,
+        "fairValueHigh": null,
+        "upsideBasePercent": null,
+        "confidence": null
+      },
+      "catalyst": {
+        "score": 48,
+        "matchedEvents": 0,
+        "recentEvents": 0,
+        "evidence": [],
+        "sourceUrls": [],
+        "researchMentions": 2,
+        "unverifiedMentions": 2,
+        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
+        "executionEligible": false
+      },
+      "entryPlan": {
+        "orderMode": "NESSUN ORDINE",
+        "maxEntryPrice": null,
+        "firstTranchePercent": 0,
+        "firstTrancheEuro": 0,
+        "fairValueBase": null,
+        "fairValueHigh": null
+      },
+      "bullCase": [],
+      "bearCase": [
+        "Rischio quantitativo elevato (84/100)."
+      ],
+      "invalidation": [
+        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
+        "Aumento ulteriore di volatilità/drawdown oltre i guardrail Fenice.",
+        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
+      ],
+      "reviewTriggers": [
+        "Trimestrale, guidance o filing societario rilevante.",
+        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
+        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
+      ]
+    },
+    {
+      "rank": 11,
+      "buyGapEvidence": {
+        "scope": "RESEARCH_RULES_ONLY",
+        "status": "NOT_QUALIFIED",
+        "gaps": [
+          {
+            "code": "COMMITTEE_SCORE_BELOW_78",
+            "actual": 45,
             "requiredMin": 78
           },
           {
@@ -2840,9 +2955,9 @@
       },
       "currency": "USD",
       "decision": "ATTENDI",
-      "committeeScore": 46,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "committeeScore": 45,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -2859,8 +2974,8 @@
         "technical": 26,
         "riskAdjusted": 53,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "non applicabile",
@@ -2894,121 +3009,6 @@
       "invalidation": [
         "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
         "Rottura persistente del profilo rischio/rendimento rispetto alle alternative globali.",
-        "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
-      ],
-      "reviewTriggers": [
-        "Trimestrale, guidance o filing societario rilevante.",
-        "Shock macro/geopolitico che modifica tassi, energia o premio per il rischio.",
-        "Movimento prezzo >8% o variazione Fenice Score >8 punti."
-      ]
-    },
-    {
-      "rank": 11,
-      "buyGapEvidence": {
-        "scope": "RESEARCH_RULES_ONLY",
-        "status": "NOT_QUALIFIED",
-        "gaps": [
-          {
-            "code": "COMMITTEE_SCORE_BELOW_78",
-            "actual": 45,
-            "requiredMin": 78
-          },
-          {
-            "code": "RISK_ABOVE_58",
-            "actual": 83,
-            "requiredMax": 58
-          },
-          {
-            "code": "VALUATION_BELOW_55",
-            "actual": 50,
-            "requiredMin": 55
-          },
-          {
-            "code": "TERMINAL_NOT_ACCUMULA",
-            "actual": "EVITA",
-            "required": "ACCUMULA"
-          }
-        ],
-        "paperExecutionEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "strategyResearch": null,
-      "etfEconomics": null,
-      "symbol": "ETH",
-      "name": "Ethereum",
-      "assetClass": "Criptovaluta",
-      "sector": "Criptovaluta",
-      "positionType": "GROWTH",
-      "currentPrice": 2255.84,
-      "priceEvidence": {
-        "observedAt": null,
-        "source": null,
-        "price": null,
-        "evidenceType": "NO_VERIFIED_REGULAR_TRADE",
-        "executionEligible": false,
-        "paperCertificationEligible": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      },
-      "currency": "USD",
-      "decision": "EVITA",
-      "committeeScore": 45,
-      "confidence": 87,
-      "rawConfidenceBeforeCalibration": 97,
-      "calibration": {
-        "horizon": "30d",
-        "state": "INSUFFICIENT",
-        "multiplier": 0.9,
-        "evidenceMature": false
-      },
-      "riskScore": 83,
-      "terminalDecision": "EVITA",
-      "maxWeightPercent": 4.5,
-      "scorecard": {
-        "fundamental": 41,
-        "quality": 41,
-        "valuation": 50,
-        "technical": 48,
-        "riskAdjusted": 17,
-        "catalysts": 48,
-        "dataConfidence": 87,
-        "rawDataConfidence": 97
-      },
-      "valuation": {
-        "status": "non applicabile",
-        "fairValueLow": null,
-        "fairValueBase": null,
-        "fairValueHigh": null,
-        "upsideBasePercent": null,
-        "confidence": null
-      },
-      "catalyst": {
-        "score": 48,
-        "matchedEvents": 0,
-        "recentEvents": 0,
-        "evidence": [],
-        "sourceUrls": [],
-        "researchMentions": 1,
-        "unverifiedMentions": 1,
-        "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
-        "executionEligible": false
-      },
-      "entryPlan": {
-        "orderMode": "NESSUN ORDINE",
-        "maxEntryPrice": null,
-        "firstTranchePercent": 0,
-        "firstTrancheEuro": 0,
-        "fairValueBase": null,
-        "fairValueHigh": null
-      },
-      "bullCase": [],
-      "bearCase": [
-        "Rischio quantitativo elevato (83/100)."
-      ],
-      "invalidation": [
-        "Deterioramento strutturale dei fondamentali o revisione significativa della crescita attesa.",
-        "Aumento ulteriore di volatilità/drawdown oltre i guardrail Fenice.",
         "Riduzione del vantaggio di valutazione o comparsa di un’alternativa con score nettamente superiore."
       ],
       "reviewTriggers": [
@@ -3074,8 +3074,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 45,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -3092,8 +3092,8 @@
         "technical": 34,
         "riskAdjusted": 39,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -3231,8 +3231,8 @@
         "recentEvents": 0,
         "evidence": [],
         "sourceUrls": [],
-        "researchMentions": 1,
-        "unverifiedMentions": 1,
+        "researchMentions": 0,
+        "unverifiedMentions": 0,
         "policy": "Solo eventi primari recenti, associati direttamente al ticker e verificabili da URL ufficiale possono incrementare lo score. Le notizie restano research-only.",
         "executionEligible": false
       },
@@ -3318,8 +3318,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 43,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -3336,8 +3336,8 @@
         "technical": 52,
         "riskAdjusted": 45,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -3441,8 +3441,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 42,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -3459,8 +3459,8 @@
         "technical": 68,
         "riskAdjusted": 48,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -3685,8 +3685,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 40,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -3703,8 +3703,8 @@
         "technical": 78,
         "riskAdjusted": 56,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -3949,8 +3949,8 @@
       "currency": "USD",
       "decision": "ATTENDI",
       "committeeScore": 34,
-      "confidence": 84,
-      "rawConfidenceBeforeCalibration": 93,
+      "confidence": 83,
+      "rawConfidenceBeforeCalibration": 92,
       "calibration": {
         "horizon": "30d",
         "state": "INSUFFICIENT",
@@ -3967,8 +3967,8 @@
         "technical": 17,
         "riskAdjusted": 33,
         "catalysts": 48,
-        "dataConfidence": 84,
-        "rawDataConfidence": 93
+        "dataConfidence": 83,
+        "rawDataConfidence": 92
       },
       "valuation": {
         "status": "disponibile",
@@ -4022,10 +4022,11 @@
     }
   ],
   "warnings": [
-    "Regime Fenice: NEUTRALE (stress 53/100).",
+    "Regime Fenice: CAUTO (stress 63/100).",
     "Le società private e i mercati non regolamentati non possono essere coperti integralmente da sole fonti gratuite.",
     "Ogni segnale emergente richiede verifica umana: il motore non esegue compravendite.",
-    "14 osservazioni di mercato stale o senza timestamp escluse dalla validazione.",
+    "13 osservazioni di mercato stale o senza timestamp escluse dalla validazione.",
+    "GDELT è temporaneamente limitato; notizie e rischi continuano a essere coperti dalle altre fonti operative.",
     "Copertura DCF ancora limitata al 42%.",
     "Calibrazione previsionale non ancora matura: confidenza ridotta in modo conservativo."
   ]
