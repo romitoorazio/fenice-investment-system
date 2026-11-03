@@ -1,0 +1,75 @@
+name: Fenice Unica Three-Session PAPER Pilot
+
+# Read-only observation of existing V8 PAPER evidence, Nov 4-6 2026 only.
+# Never trades, refreshes prices, modifies core, or creates backdated fills.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/fenice-unica-three-session-pilot.yml"
+      - "scripts/check-fenice-unica-three-session-pilot.mjs"
+      - "scripts/test-fenice-unica-three-session-pilot.mjs"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Fenice Independent PAPER Execution Lab"]
+    types: [completed]
+  schedule:
+    # Finish after the US session; GitHub cron may drift.
+    - cron: "25 21 4-6 11 *"
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Observe only during the November 2026 technical pilot
+        id: window
+        run: |
+          DATE_UTC="$(date -u +%F)"
+          case "$DATE_UTC" in
+            2026-11-03|2026-11-04|2026-11-05|2026-11-06|2026-11-07)
+              echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "allowed=false" >> "$GITHUB_OUTPUT"
+              echo "Outside three-session pilot; no provider requests or writes"
+              ;;
+          esac
+      - name: Checkout reviewed revision or existing main for observation
+        if: steps.window.outputs.allowed == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@v6
+        if: steps.window.outputs.allowed == 'true'
+        with:
+          node-version: "22"
+      - name: Verify guardrails and V6/V7/V8 evidence isolation
+        if: steps.window.outputs.allowed == 'true'
+        run: |
+          node scripts/test-paper-execution-lab.mjs
+          node scripts/test-v8-technical-evidence.mjs
+          node scripts/test-fenice-unica-audit.mjs
+          node scripts/test-fenice-unica-three-session-pilot.mjs
+      - name: Record truthfully reconciled pilot result
+        if: steps.window.outputs.allowed == 'true'
+        env:
+          FENICE_PILOT_REPORT_PATH: fenice-unica-three-session-pilot.json
+        run: node scripts/check-fenice-unica-three-session-pilot.mjs
+      - name: Export report as workflow artifact, no repository commits
+        if: always() && steps.window.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-unica-three-session-pilot-${{ github.run_id }}
+          path: fenice-unica-three-session-pilot.json
+          if-no-files-found: warn
+          retention-days: 30
