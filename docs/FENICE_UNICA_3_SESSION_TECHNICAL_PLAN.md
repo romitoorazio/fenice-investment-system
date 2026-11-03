@@ -5,7 +5,9 @@ Data di ricognizione: 2026-11-03. Stato: **PIANO DI INTEGRAZIONE E PROVE, NON CE
 ## Inventario verificato, con fonti originali
 - V6: 40 osservazioni giornaliere dal 25/09 al 03/11; 22 giornate con OPEN autorevole + dati istituzionali, quote, FX e audit pronti secondo un **filtro preliminare comparativo**. Le altre osservazioni possono essere utili per test di fail-closed, non sono giornate idonee allo stesso filtro.
 - V6: 7 fill virtuali della strategia e 2 ordini correttamente respinti dal rischio, nel registro PAPER OMS.
-- V7 B2: registro campagna separato; nessun fill PAPER all'atto della ricognizione. Le sue soglie congelate non vengono modificate.
+- V7 Fase B: 7 osservazioni di campagna con mercato non confermato secondo il suo campo evidence, e 0 fill; **non** costituiscono 7 giornate V8 valide.
+- V7 B2: registro campagna separato, 2 osservazioni senza evidenza di mercato valida e nessun fill PAPER all'atto della ricognizione. Le sue soglie congelate non vengono modificate.
+- Laboratorio tecnico pre-V8: 1 campione precedente all'attivazione V8; escluso dal budget ufficiale V8, ma conservato per regressione.
 - V8: una simulazione tecnica PAPER su SPY e una giornata con prove ammesse in data 03/11, dopo attivazione della sua baseline.
 - La giornata 03/11 compare anche in V6. Inventario con date distinte = **22**, non 23.
 - **7 fill strategici V6 + 1 campione tecnico V8 NON diventano otto fill certificati di una campagna unificata**: si tratta di categorie e versioni diverse. Possono validare capacità tecniche pregresse, ma non essere accreditati a V8, B2 o a un motore nuovo.
