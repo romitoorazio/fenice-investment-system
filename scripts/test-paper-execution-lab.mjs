@@ -27,6 +27,19 @@ const base = () => ({
     policy: { liveTradingAllowed: false, minIndependentSourceFamilies: 2 },
     rows: symbols.map(row),
   },
+  executionEvidence: {
+    generatedAt: ago(12), policy: { liveTradingAllowed: false },
+    observations: symbols.flatMap(symbol => [
+      { symbol, currency: "USD", sourceFamily: "alpaca",
+        eligibility: "PAPER", provenanceVerified: true,
+        provenanceMethod: "authenticated-alpaca-iex-latest-quote",
+        price: 399.98, observedAt: ago(18) },
+      { symbol, currency: "USD", sourceFamily: "twelve-data",
+        eligibility: "PAPER", provenanceVerified: true,
+        provenanceMethod: "provider-batch-quote-last_quote_at-us-realtime-venue",
+        price: 400.02, observedAt: ago(25) },
+    ]),
+  },
   fx: {
     generatedAt: ago(20), baseCurrency: "EUR", provider: "twelve-data",
     provenanceVerified: true, maxAgeSeconds: 120,
@@ -48,6 +61,7 @@ assert.equal(result.brokerConnectivityAllowed, false);
 assert(result.ledger.events[0].notionalEuro >= 250);
 assert(result.ledger.events[0].notionalEuro <= 300);
 assert(result.ledger.events[0].evidenceSha256.length === 64);
+assert.equal(result.ledger.events[0].evidenceSnapshot.observations.length, 2);
 assert.equal(replayExecutionLabLedger(result.ledger).valid, true);
 const again = runExecutionLab({ ...base(), ledger: result.ledger });
 assert.equal(again.simulatedExecutionsAdded, 0);
@@ -63,6 +77,13 @@ const bad = [
   ["LIVE price data", b => b.coverage.policy.liveTradingAllowed = true, "NO_FRESH_DUAL_PROVIDER_COVERAGE"],
   ["too few eligible", b => b.coverage.paperEligibleSymbols = 2, "NO_FRESH_DUAL_PROVIDER_COVERAGE"],
   ["stale fx", b => b.fx.ratesToEuro.USD.observedAt = ago(121), "NO_FRESH_VERIFIED_USD_EUR"],
+  ["old provider report", b => b.executionEvidence.generatedAt = ago(121), "NO_FRESH_EXECUTION_OBSERVATIONS"],
+  ["future provider timestamp", b => b.executionEvidence.observations.forEach(x =>
+    x.observedAt = new Date(now + 9000).toISOString()), "NO_THREE_VERIFIED_ELIGIBLE_INSTRUMENTS"],
+  ["quotes expire after coverage", b => b.executionEvidence.observations.forEach(x =>
+    x.observedAt = ago(129)), "NO_THREE_VERIFIED_ELIGIBLE_INSTRUMENTS"],
+  ["quotes disagree with coverage", b => b.executionEvidence.observations.forEach(x =>
+    x.price = 420), "NO_THREE_VERIFIED_ELIGIBLE_INSTRUMENTS"],
   ["fake fx provenance", b => b.fx.provenanceVerified = false, "NO_FRESH_VERIFIED_USD_EUR"],
   ["future fx timestamp", b => b.fx.ratesToEuro.USD.observedAt = new Date(now + 5000).toISOString(), "NO_FRESH_VERIFIED_USD_EUR"],
   ["fx live leak", b => b.fx.liveTradingAllowed = true, "NO_FRESH_VERIFIED_USD_EUR"],
@@ -87,6 +108,9 @@ assert.throws(() => runExecutionLab({ ...base(), ledger: tampered }), /ENGINEERI
 const falseLive = structuredClone(result.ledger);
 falseLive.liveTradingAllowed = true;
 assert.equal(replayExecutionLabLedger(falseLive).valid, false);
+const alteredEvidence = structuredClone(result.ledger);
+alteredEvidence.events[0].evidenceSnapshot.observations[0].price += 5;
+assert.equal(replayExecutionLabLedger(alteredEvidence).valid, false);
 const fakeB2 = structuredClone(result.ledger);
 fakeB2.mode = "V7_PHASE_B_FORWARD_PAPER";
 assert.equal(replayExecutionLabLedger(fakeB2).valid, false);
@@ -102,6 +126,10 @@ for (let day = 1; day <= 10; day++) {
   b.session.evidence.observedAt = new Date(shifted - 10_000).toISOString();
   b.session.nextClose = new Date(shifted + 3 * 3600000).toISOString();
   b.coverage.generatedAt = new Date(shifted - 15_000).toISOString();
+  b.executionEvidence.generatedAt = new Date(shifted - 12_000).toISOString();
+  b.executionEvidence.observations.forEach((obs, index) => {
+    obs.observedAt = new Date(shifted - (index % 2 === 0 ? 18_000 : 25_000)).toISOString();
+  });
   b.fx.generatedAt = new Date(shifted - 20_000).toISOString();
   b.fx.ratesToEuro.USD.observedAt = new Date(shifted - 30_000).toISOString();
   b.ledger = ledger;
@@ -111,5 +139,5 @@ for (let day = 1; day <= 10; day++) {
 }
 assert.equal(replayExecutionLabLedger(ledger).simulatedExecutions, 10);
 assert.equal(runExecutionLab({ ...base(), ledger }).reason, "ENGINEERING_SAMPLE_TARGET_REACHED");
-console.log("Engineering execution lab tests: PASS (10 synthetic fixture days, tamper, close, stale, future, quorum, FX, LIVE lock).");
+console.log("Engineering execution lab tests: PASS (10 synthetic fixture days, quote receipts/digest replay, tamper, close, stale, future, quorum, FX, LIVE lock).");
 console.log("Synthetic tests produce NO certification/PAPER credit and do NOT change persisted ledger.");
