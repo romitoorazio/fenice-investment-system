@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   PINNED_V8_FILES, buildV8Proof, replayV8Days, assessV8,
 } from "./run-v8-technical-evidence.mjs";
-import { freshExecutionLabLedger, runExecutionLab } from "./run-paper-execution-lab.mjs";
+import { freshExecutionLabLedger, runExecutionLab, replayExecutionLabLedger } from "./run-paper-execution-lab.mjs";
 
 const start = "2026-11-03T19:35:00.000Z";
 const at = "2026-11-04T17:30:00.000Z";
@@ -77,6 +78,16 @@ const args = (nowIso = at, days = freshDays(), lab = freshExecutionLabLedger()) 
 });
 const readySource = buildV8Proof({ ...data(), nowIso: at });
 assert.equal(readySource.valid, true);
+const freshSeparateV8 = JSON.parse(readFileSync(new URL("../data/paper-v8-technical-samples.json", import.meta.url), "utf8"));
+assert.equal(freshSeparateV8.mode, "ENGINEERING_EXECUTION_LAB_V1");
+assert.equal(replayExecutionLabLedger(freshSeparateV8).valid, true);
+const preApprovalIso = "2026-11-02T17:30:00.000Z";
+const preApprovalTrade = runExecutionLab({
+  ledger: freshExecutionLabLedger(), ...data(preApprovalIso), nowIso: preApprovalIso,
+});
+assert.equal(preApprovalTrade.status, "SIMULATED_EXECUTION");
+const injected = assessV8({ ...args(), lab: preApprovalTrade.ledger });
+assert.equal(injected.reason, "V8_SAMPLE_OUTSIDE_PROSPECTIVE_WINDOW");
 const result = assessV8(args());
 assert.equal(result.status, "COLLECTING");
 assert.equal(result.newValidDay, true);

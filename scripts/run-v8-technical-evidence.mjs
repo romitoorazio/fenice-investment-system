@@ -17,6 +17,7 @@ export const PINNED_V8_FILES = Object.freeze([
   "scripts/run-paper-execution-lab.mjs",
   "scripts/test-paper-execution-lab.mjs",
   "scripts/run-v8-technical-evidence.mjs",
+  "scripts/run-v8-technical-samples.mjs",
   "scripts/test-v8-technical-evidence.mjs",
 ]);
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -205,7 +206,12 @@ export function assessV8({ approval, observedCoreBlobs, days, lab, session,
   if (!replayDays.valid) return blocked("V8_" + replayDays.reason, days);
   const replayLab = replayExecutionLabLedger(lab);
   if (!replayLab.valid) return blocked("ENGINEERING_LAB_TAMPER_" + replayLab.reason, days);
-  // Historical V6/V7 and any lab samples made before this approval are excluded.
+  // V8 has its own dedicated prospective sample ledger. Historical lab events
+  // must never be copied into it, even if someone tries to inflate progress.
+  if (lab.events.some(e => millis(e.occurredAt) < start
+    || millis(e.occurredAt) >= expires))
+    return blocked("V8_SAMPLE_OUTSIDE_PROSPECTIVE_WINDOW", days);
+  // Historical V6/V7 and the old engineering lab receive no certification credit.
   const technicalSamples = lab.events.filter(e => millis(e.occurredAt) >= start
     && millis(e.occurredAt) < expires).length;
   const elapsed = Math.floor((now - start) / 86400000);
@@ -256,7 +262,7 @@ async function main() {
     path, execFileSync("git", ["hash-object", path], { cwd: ROOT, encoding: "utf8" }).trim(),
   ]));
   const [days, lab, session, coverage, executionEvidence, fx] = await Promise.all([
-    "paper-v8-technical-days.json", "paper-execution-lab-ledger.json",
+    "paper-v8-technical-days.json", "paper-v8-technical-samples.json",
     "paper-market-session.json", "execution-market-coverage.json",
     "execution-market-evidence.json", "paper-fx-evidence.json",
   ].map(read));
