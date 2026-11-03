@@ -9,7 +9,7 @@ const ago = seconds => new Date(now - seconds * 1000).toISOString();
 const symbols = ["SPY", "QQQ", "MSFT", "AAPL"];
 const row = symbol => ({
   symbol, paperEligible: true, state: "CAUTION", equityOrEtf: true,
-  medianPrice: 400, maxSpreadPercent: 0.1, independentSourceFamilies: 2,
+  medianPrice: 400, maxSpreadPercent: 0.01, independentSourceFamilies: 2,
   sourceFamilies: ["alpaca", "twelve-data"],
   approvedIndependentPaperFamilies: ["alpaca", "twelve-data"],
   staleEvidence: 0, invalidEvidence: 0,
