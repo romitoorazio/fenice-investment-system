@@ -17,6 +17,7 @@ export const PINNED_V8_FILES = Object.freeze([
   "scripts/run-paper-execution-lab.mjs",
   "scripts/test-paper-execution-lab.mjs",
   "scripts/run-v8-technical-evidence.mjs",
+  "scripts/run-v8-technical-samples.mjs",
   "scripts/test-v8-technical-evidence.mjs",
 ]);
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -256,7 +257,7 @@ async function main() {
     path, execFileSync("git", ["hash-object", path], { cwd: ROOT, encoding: "utf8" }).trim(),
   ]));
   const [days, lab, session, coverage, executionEvidence, fx] = await Promise.all([
-    "paper-v8-technical-days.json", "paper-execution-lab-ledger.json",
+    "paper-v8-technical-days.json", "paper-v8-technical-samples.json",
     "paper-market-session.json", "execution-market-coverage.json",
     "execution-market-evidence.json", "paper-fx-evidence.json",
   ].map(read));
