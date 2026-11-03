@@ -206,7 +206,12 @@ export function assessV8({ approval, observedCoreBlobs, days, lab, session,
   if (!replayDays.valid) return blocked("V8_" + replayDays.reason, days);
   const replayLab = replayExecutionLabLedger(lab);
   if (!replayLab.valid) return blocked("ENGINEERING_LAB_TAMPER_" + replayLab.reason, days);
-  // Historical V6/V7 and any lab samples made before this approval are excluded.
+  // V8 has its own dedicated prospective sample ledger. Historical lab events
+  // must never be copied into it, even if someone tries to inflate progress.
+  if (lab.events.some(e => millis(e.occurredAt) < start
+    || millis(e.occurredAt) >= expires))
+    return blocked("V8_SAMPLE_OUTSIDE_PROSPECTIVE_WINDOW", days);
+  // Historical V6/V7 and the old engineering lab receive no certification credit.
   const technicalSamples = lab.events.filter(e => millis(e.occurredAt) >= start
     && millis(e.occurredAt) < expires).length;
   const elapsed = Math.floor((now - start) / 86400000);
