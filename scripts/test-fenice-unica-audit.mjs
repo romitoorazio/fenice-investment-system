@@ -5,7 +5,11 @@ import {auditFeniceUnica} from "./audit-fenice-unica-readonly.mjs";
 const source={
   v6:"paper-validation-campaign.json",
   oms:"paper-oms-state.json",
+  v7PhaseB:"paper-v7-phase-b-forward-ledger.json",
+  v7PhaseBDays:"paper-v7-phase-b-forward-days.json",
   v7b2:"paper-v7-b2-forward-ledger.json",
+  v7b2Days:"paper-v7-b2-forward-days.json",
+  legacyLab:"paper-execution-lab-ledger.json",
   v8Days:"paper-v8-technical-days.json",
   v8Samples:"paper-v8-technical-samples.json",
   v8Approval:"paper-v8-technical-approval.json",
@@ -23,6 +27,11 @@ assert(report.sourceClasses.technicalV8.simulatedTechnicalSamples>=1);
 assert(report.comparisonOnly.distinctOpenEvidenceDates>=22);
 assert(report.comparisonOnly.overlappingDates.includes("2026-11-03"));
 assert(report.sourceClasses.forwardB2.attempts>=0);
+assert(report.sourceClasses.historicalV7PhaseB.observations>=7);
+assert.equal(report.sourceClasses.historicalV7PhaseB.attempts,0);
+assert(report.sourceClasses.forwardB2.observations>=2);
+assert(report.sourceClasses.previousEngineeringLab.simulatedSamples>=1);
+assert.equal(report.safeguards.crossCampaignCredit,false);
 assert.equal(report.safeguards.readOnly,true);
 assert.equal(report.safeguards.crossCampaignCredit,false);
 assert.equal(report.safeguards.liveTradingAllowed,false);
@@ -45,6 +54,10 @@ broken=mutate(x=>{x.v8Samples.events[0].notionalEuro=50000;});
 assert(broken.issues.some(x=>x.startsWith("V8_SAMPLE_AUDIT_")));
 broken=mutate(x=>{x.v7b2.liveTradingAllowed=true;});
 assert(broken.issues.includes("B2_SAFETY_OR_LEDGER_INVALID"));
+broken=mutate(x=>{x.v7PhaseB.brokerConnectivityAllowed=true;});
+assert(broken.issues.includes("V7_PHASE_B_HISTORY_OR_LIVE_SAFETY_INVALID"));
+broken=mutate(x=>{x.legacyLab.events[0].notionalEuro=10000;});
+assert(broken.issues.some(x=>x.startsWith("PRE_V8_ENGINEERING_LAB_AUDIT_")));
 const v6Flagged=mutate(x=>{
   const row=x.v6.dailyEvidence.find(d=>d.date==="2026-09-25");
   row.marketSession.evidence.state="CLOSED";
