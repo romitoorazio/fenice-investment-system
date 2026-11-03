@@ -57,6 +57,7 @@ export function replayExecutionLabLedger(ledger) {
       || event.simulated !== true || event.certificationCredit !== 0
       || event.liveTradingAllowed !== false || event.brokerConnectivityAllowed !== false
       || !SYMBOLS.includes(event.symbol) || !SHA.test(event.evidenceSha256 || "")
+      || !event.evidenceSnapshot || hash(event.evidenceSnapshot) !== event.evidenceSha256
       || event.id !== "lab-" + day + "-" + event.symbol
       || !(event.quantity > 0 && Number.isFinite(event.quantity))
       || !(event.unitPriceEuro > 0 && Number.isFinite(event.unitPriceEuro))
@@ -65,6 +66,28 @@ export function replayExecutionLabLedger(ledger) {
       || Math.abs(round(event.quantity * event.unitPriceEuro) - event.notionalEuro) > 0.01) {
       return { valid: false, reason: "EVENT_HASH_OR_RISK_INVALID" };
     }
+    const proof = event.evidenceSnapshot;
+    const quotes = proof?.observations;
+    if (proof?.version !== 1 || proof.symbol !== event.symbol
+      || proof.slippageBps !== 5 || !Number.isFinite(proof.fxToEuro)
+      || proof.fxToEuro <= 0 || proof.fxToEuro > 5
+      || !Number.isFinite(proof.rowMedianPrice) || proof.rowMedianPrice <= 0
+      || !Number.isFinite(proof.maxSpreadPercent) || proof.maxSpreadPercent > 1
+      || !fresh(proof.coverageAt, at) || !fresh(proof.sourceReportAt, at)
+      || !fresh(proof.marketSessionAt, at) || !fresh(proof.fxAt, at)
+      || !Array.isArray(quotes) || quotes.length !== 2
+      || !["alpaca", "twelve-data"].every(family =>
+        quotes.some(q => q.sourceFamily === family))
+      || quotes.some(q => q.symbol !== event.symbol || q.currency !== "USD"
+        || q.eligibility !== "PAPER" || q.provenanceVerified !== true
+        || typeof q.provenanceMethod !== "string" || !q.provenanceMethod
+        || !Number.isFinite(q.price) || q.price <= 0
+        || !fresh(q.observedAt, at))
+      || Math.abs((quotes[0].price + quotes[1].price) / 2 - proof.rowMedianPrice) > 0.001
+      || Math.abs((Math.abs(quotes[0].price - quotes[1].price) / proof.rowMedianPrice) * 100
+        - proof.maxSpreadPercent) > 0.005
+      || event.unitPriceEuro !== round(proof.rowMedianPrice * proof.fxToEuro * 1.0005))
+      return { valid: false, reason: "QUOTE_EVIDENCE_REPLAY_INVALID" };
     const cost = round(event.notionalEuro + event.feeEuro);
     const position = positions[event.symbol] || { quantity: 0, bookCostEuro: 0 };
     if (cost > cash || round(position.bookCostEuro + cost) > 1500) {
@@ -88,7 +111,7 @@ export function replayExecutionLabLedger(ledger) {
   return { valid: true, simulatedExecutions: ledger.events.length, cashEuro: cash, positions, tip };
 }
 
-export function runExecutionLab({ ledger, session, coverage, fx, nowIso } = {}) {
+export function runExecutionLab({ ledger, session, coverage, executionEvidence, fx, nowIso } = {}) {
   const previous = replayExecutionLabLedger(ledger);
   if (!previous.valid) throw Error("ENGINEERING_LEDGER_INTEGRITY_" + previous.reason);
   const now = time(nowIso);
@@ -113,6 +136,10 @@ export function runExecutionLab({ ledger, session, coverage, fx, nowIso } = {}) 
     || !Array.isArray(coverage.rows))
     return blocked("NO_FRESH_DUAL_PROVIDER_COVERAGE", ledger);
 
+  if (executionEvidence?.policy?.liveTradingAllowed !== false
+    || !fresh(executionEvidence?.generatedAt, now)
+    || !Array.isArray(executionEvidence.observations))
+    return blocked("NO_FRESH_EXECUTION_OBSERVATIONS", ledger);
   const usd = fx?.ratesToEuro?.USD;
   if (fx?.liveTradingAllowed !== false || fx?.brokerConnectivityAllowed !== false
     || fx?.provider !== "twelve-data" || fx?.provenanceVerified !== true
@@ -136,13 +163,40 @@ export function runExecutionLab({ ledger, session, coverage, fx, nowIso } = {}) 
     && row.maxSpreadPercent <= 1
     && row.staleEvidence === 0 && row.invalidEvidence === 0
   );
-  if (eligible.length < 3) return blocked("NO_THREE_VERIFIED_ELIGIBLE_INSTRUMENTS", ledger);
+  const verifiedQuotes = row => {
+    const observations = executionEvidence.observations
+      .filter(q => q?.symbol === row.symbol && q.currency === "USD"
+        && ["alpaca", "twelve-data"].includes(q.sourceFamily)
+        && q.eligibility === "PAPER" && q.provenanceVerified === true
+        && typeof q.provenanceMethod === "string" && q.provenanceMethod
+        && Number.isFinite(q.price) && q.price > 0
+        && fresh(q.observedAt, now))
+      .sort((a, b) => b.observedAt.localeCompare(a.observedAt));
+    const byFamily = new Map();
+    for (const observation of observations)
+      if (!byFamily.has(observation.sourceFamily)) byFamily.set(observation.sourceFamily, observation);
+    const two = ["alpaca", "twelve-data"].map(family => byFamily.get(family));
+    if (two.some(q => !q)) return null;
+    const median = (two[0].price + two[1].price) / 2;
+    const spread = Math.abs(two[0].price - two[1].price) / median * 100;
+    if (Math.abs(median - row.medianPrice) > 0.001
+      || Math.abs(spread - row.maxSpreadPercent) > 0.005
+      || spread > 1) return null;
+    return two.map(q => ({
+      symbol: q.symbol, currency: q.currency, sourceFamily: q.sourceFamily,
+      eligibility: q.eligibility, provenanceVerified: q.provenanceVerified,
+      provenanceMethod: q.provenanceMethod, price: q.price, observedAt: q.observedAt,
+    }));
+  };
+  const admitted = eligible.map(row => ({ row, receipts: verifiedQuotes(row) }))
+    .filter(item => item.receipts !== null);
+  if (admitted.length < 3) return blocked("NO_THREE_VERIFIED_ELIGIBLE_INSTRUMENTS", ledger);
   // Rotate across the verified source universe; not an investment BUY recommendation.
-  const order = [...eligible].sort((a, b) => SYMBOLS.indexOf(a.symbol) - SYMBOLS.indexOf(b.symbol));
+  const order = [...admitted].sort((a, b) => SYMBOLS.indexOf(a.row.symbol) - SYMBOLS.indexOf(b.row.symbol));
   const offset = ledger.events.length % order.length;
   const candidates = [...order.slice(offset), ...order.slice(0, offset)];
   let selection = null;
-  for (const row of candidates) {
+  for (const { row, receipts } of candidates) {
     const unitPriceEuro = round(row.medianPrice * usd.rate * 1.0005);
     if (!(unitPriceEuro > 0)) continue;
     const quantity = Math.floor(275 / unitPriceEuro * 1e6) / 1e6;
@@ -151,13 +205,13 @@ export function runExecutionLab({ ledger, session, coverage, fx, nowIso } = {}) 
     const existingCost = ledger.positions[row.symbol]?.bookCostEuro || 0;
     if (quantity > 0 && notionalEuro >= 250 && notionalEuro <= 300
       && cost <= ledger.cashEuro && round(existingCost + cost) <= 1500) {
-      selection = { row, unitPriceEuro, quantity, notionalEuro, cost };
+      selection = { row, receipts, unitPriceEuro, quantity, notionalEuro, cost };
       break;
     }
   }
   if (!selection) return blocked("NO_RISK_VALID_ENGINEERING_SAMPLE", ledger);
 
-  const { row, unitPriceEuro, quantity, notionalEuro, cost } = selection;
+  const { row, receipts, unitPriceEuro, quantity, notionalEuro, cost } = selection;
   const positions = { ...ledger.positions };
   const current = positions[row.symbol] || { quantity: 0, bookCostEuro: 0 };
   positions[row.symbol] = {
@@ -165,16 +219,21 @@ export function runExecutionLab({ ledger, session, coverage, fx, nowIso } = {}) 
     bookCostEuro: round(current.bookCostEuro + cost),
   };
   const cashAfterEuro = round(ledger.cashEuro - cost);
+  // Compact normalized provider receipts make the evidence hash independently
+  // reproducible. Do not store raw HTTP responses, headers or API credentials.
+  const evidenceSnapshot = {
+    version: 1, symbol: row.symbol, rowMedianPrice: row.medianPrice,
+    maxSpreadPercent: row.maxSpreadPercent, sourceReportAt: executionEvidence.generatedAt,
+    coverageAt: coverage.generatedAt, marketSessionAt: session.evidence.observedAt,
+    fxAt: usd.observedAt, fxToEuro: usd.rate, slippageBps: 5,
+    observations: receipts,
+  };
   const eventBody = {
     prevHash: ledger.tip, id: "lab-" + day + "-" + row.symbol,
     mode: "ENGINEERING_EXECUTION_LAB_V1", status: "SIMULATED_EXECUTION",
     occurredAt: nowIso, symbol: row.symbol, currency: "USD",
     quantity, unitPriceEuro, notionalEuro, feeEuro: 1,
-    evidenceSha256: hash({
-      coverageAt: coverage.generatedAt, sessionAt: session.evidence.observedAt,
-      fxAt: usd.observedAt, symbol: row.symbol, sourceFamilies: row.sourceFamilies,
-      referencePrice: row.medianPrice, spread: row.maxSpreadPercent, rate: usd.rate,
-    }),
+    evidenceSha256: hash(evidenceSnapshot), evidenceSnapshot,
     cashAfterEuro, positionsAfter: positions,
     simulated: true, certificationCredit: 0,
     liveTradingAllowed: false, brokerConnectivityAllowed: false,
@@ -202,12 +261,13 @@ const atomic = async (filename, object) => {
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [ledger, session, coverage, fx] = await Promise.all([
+  const [ledger, session, coverage, executionEvidence, fx] = await Promise.all([
     "paper-execution-lab-ledger.json", "paper-market-session.json",
-    "execution-market-coverage.json", "paper-fx-evidence.json",
+    "execution-market-coverage.json", "execution-market-evidence.json",
+    "paper-fx-evidence.json",
   ].map(read));
   const nowIso = new Date().toISOString();
-  const result = runExecutionLab({ ledger, session, coverage, fx, nowIso });
+  const result = runExecutionLab({ ledger, session, coverage, executionEvidence, fx, nowIso });
   if (result.simulatedExecutionsAdded === 1)
     await atomic("paper-execution-lab-ledger.json", result.ledger);
   await atomic("paper-execution-lab-report.json", {
