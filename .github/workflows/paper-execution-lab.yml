@@ -11,10 +11,16 @@ on:
       - "scripts/test-paper-execution-lab.mjs"
       - "data/paper-execution-lab-ledger.json"
       - "data/paper-execution-lab-report.json"
+      - "scripts/run-v8-technical-evidence.mjs"
+      - "scripts/test-v8-technical-evidence.mjs"
+      - "data/paper-v8-technical-approval.json"
+      - "data/paper-v8-technical-days.json"
+      - "docs/FENICE_V8_TECHNICAL_PAPER_METHODOLOGY.md"
   push:
     branches: [main]
     paths:
       - ".github/workflows/paper-execution-lab.yml"
+      - "data/paper-v8-technical-approval.json"
   workflow_dispatch:
   workflow_run:
     workflows: ["Fenice PAPER Market-Open Readiness"]
@@ -39,6 +45,8 @@ jobs:
           node-version: "22"
       - name: Prove separate engineering-only simulation and fail-closed controls
         run: node scripts/test-paper-execution-lab.mjs
+      - name: Verify independent prospective V8 methodology and no historical credit
+        run: node scripts/test-v8-technical-evidence.mjs
       - name: Scan repository for accidentally committed secrets
         run: node scripts/scan-repository-secrets.mjs
 
@@ -87,12 +95,25 @@ jobs:
           const day = new Date().toISOString().slice(0, 10);
           const already = ledger.events.some(e => e.occurredAt?.slice(0, 10) === day);
           const complete = ledger.events.length >= 10;
+          const approval = JSON.parse(fs.readFileSync("data/paper-v8-technical-approval.json", "utf8"));
+          const days = JSON.parse(fs.readFileSync("data/paper-v8-technical-days.json", "utf8"));
+          const status = JSON.parse(fs.readFileSync("data/paper-v8-technical-status.json", "utf8"));
+          if (approval.liveTradingAllowed !== false || approval.brokerConnectivityAllowed !== false
+              || days.liveTradingAllowed !== false || days.brokerConnectivityAllowed !== false)
+            throw Error("V8_CAMPAIGN_SAFETY_BLOCK");
+          const dayAlreadyValidated = days.records.some(rec => rec.date === day);
+          const needsV8Evidence = approval.approved === true && !dayAlreadyValidated
+            && status.status !== "READY_FOR_INDEPENDENT_TECHNICAL_REVIEW";
           if (ledger.mode !== "ENGINEERING_EXECUTION_LAB_V1"
               || ledger.liveTradingAllowed !== false
               || ledger.brokerConnectivityAllowed !== false
               || ledger.certificationCredit !== 0) throw Error("ENGINEERING_LEDGER_SAFETY_BLOCK");
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, "allowed=" + (!already && !complete) + "\n");
-          console.log(JSON.stringify({ already, complete, sampleBudgetRemaining: Math.max(0, 10 - ledger.events.length) }));
+          const allowed = (!already && !complete) || needsV8Evidence;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "allowed=" + allowed + "\n");
+          console.log(JSON.stringify({
+            already, complete, needsV8Evidence, allowed,
+            sampleBudgetRemaining: Math.max(0, 10 - ledger.events.length),
+          }));
           NODE
       - name: Install existing dependencies only when sample budget remains
         if: steps.today.outputs.allowed == 'true'
@@ -130,13 +151,16 @@ jobs:
       - name: Record prospective virtual engineering sample or precise blocked reason
         if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
         run: node scripts/run-paper-execution-lab.mjs
-      - name: Commit ONLY independent lab evidence, never B2/V6 data
+      - name: Record V8 verified technical observation only after pinned approval
+        if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
+        run: node scripts/run-v8-technical-evidence.mjs
+      - name: Commit ONLY independent technical evidence, never B2/V6 data
         if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
         run: |
           set -euo pipefail
           git config user.name "fenice-paper-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/paper-execution-lab-ledger.json data/paper-execution-lab-report.json
+          git add data/paper-execution-lab-ledger.json data/paper-execution-lab-report.json data/paper-v8-technical-days.json data/paper-v8-technical-status.json
           if git diff --cached --quiet; then
             echo "No new independent engineering observation"
             exit 0
