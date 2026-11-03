@@ -1,5 +1,21 @@
 import assert from "node:assert/strict";
 import { SESSIONS, evaluateThreeSessionPilot } from "./check-fenice-unica-three-session-pilot.mjs";
+import { PINNED_V8_FILES } from "./run-v8-technical-evidence.mjs";
+
+const pinnedBlobs=Object.fromEntries(PINNED_V8_FILES.map(path=>[path,"b".repeat(40)]));
+const approval={
+  approved:true,humanConfirmation:true,approvalStatus:"ACTIVE_PINNED_PAPER_ONLY",
+  mode:"PAPER_TECHNICAL_V8",prospectiveOnly:true,allowBackfill:false,
+  minCalendarDays:30,minEvidenceDays:25,minTechnicalSamples:10,
+  maxTechnicalSamples:10,minIndependentSourceFamilies:2,
+  creditTowardV6:false,creditTowardB2:false,
+  liveTradingAllowed:false,brokerConnectivityAllowed:false,
+  autoEnableLiveTrading:false,paidServicesAuthorized:false,
+  baselineCommit:"a".repeat(40),
+  effectiveFrom:"2026-11-03T19:49:29.150Z",
+  expiresAt:"2027-01-02T19:49:29.150Z",
+  coreFileBlobs:pinnedBlobs,
+};
 
 const dateRecord=date=>({
   date,certificationScope:"V8_TECHNICAL_ONLY",
@@ -11,6 +27,8 @@ const sample=date=>({
   liveTradingAllowed:false,brokerConnectivityAllowed:false,
 });
 const fixture=(dates=SESSIONS)=>({
+  v8Approval:structuredClone(approval),
+  observedCoreBlobs:{...pinnedBlobs},
   audit:{
     issues:[],
     safeguards:{
@@ -32,6 +50,7 @@ assert.deepEqual(SESSIONS,["2026-11-04","2026-11-05","2026-11-06"]);
 let report=evaluateThreeSessionPilot(fixture());
 assert.equal(report.status,"PILOT_TECNICO_PASS");
 assert.equal(report.passedSessions,3);
+assert.equal(report.pinnedV8ApprovalVerified,true);
 assert.equal(report.legacyEvidenceInventory.V6StrategyPaperFills,7);
 assert.equal(report.certification.threeDayPilotIs30DayV8Certification,false);
 assert.equal(report.certification.countsHistoricalFillsAsV8,false);
@@ -69,6 +88,35 @@ unsafe.audit.safeguards.liveTradingAllowed=true;
 report=evaluateThreeSessionPilot(unsafe);
 assert.equal(report.status,"PILOT_TECNICO_INCOMPLETE");
 assert(report.issues.includes("PILOT_SAFETY_POLICY_INVALID"));
+assert.equal(report.passedSessions,0);
+
+const changedPin=fixture();
+changedPin.observedCoreBlobs[PINNED_V8_FILES[0]]="c".repeat(40);
+report=evaluateThreeSessionPilot(changedPin);
+assert.equal(report.passedSessions,0);
+assert(report.issues.includes("V8_APPROVAL_POLICY_OR_PINNED_CORE_INVALID"));
+assert.equal(report.pinnedV8ApprovalVerified,false);
+
+const changedPolicy=fixture();
+changedPolicy.v8Approval.minEvidenceDays=0;
+report=evaluateThreeSessionPilot(changedPolicy);
+assert.equal(report.passedSessions,0);
+assert(report.issues.includes("V8_APPROVAL_POLICY_OR_PINNED_CORE_INVALID"));
+
+const expired=fixture();
+expired.v8Approval.expiresAt="2026-11-04T19:49:29.150Z";
+report=evaluateThreeSessionPilot(expired);
+assert.equal(report.passedSessions,0);
+assert.equal(report.pinnedV8ApprovalVerified,false);
+
+const backfill=fixture();
+backfill.v8Approval.allowBackfill=true;
+report=evaluateThreeSessionPilot(backfill);
+assert.equal(report.passedSessions,0);
+
+const unapproved=fixture();
+unapproved.v8Approval.approved=false;
+report=evaluateThreeSessionPilot(unapproved);
 assert.equal(report.passedSessions,0);
 
 const corrupt=fixture();
