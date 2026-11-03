@@ -1,0 +1,153 @@
+name: Fenice Independent PAPER Execution Lab
+
+# Engineering samples only: NEVER submit broker orders, NEVER credit V6/V7 B2
+# fills or certification days. Source policy and provider quotas are inherited.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-execution-lab.yml"
+      - "scripts/run-paper-execution-lab.mjs"
+      - "scripts/test-paper-execution-lab.mjs"
+      - "data/paper-execution-lab-ledger.json"
+      - "data/paper-execution-lab-report.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-execution-lab.yml"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Fenice PAPER Market-Open Readiness"]
+    types: [completed]
+  schedule:
+    # Recover when the primary GitHub schedules drift; final source/market
+    # checks reject delays, holidays and closed sessions automatically.
+    - cron: "37 16 * * 1-5"
+    - cron: "37 19 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Prove separate engineering-only simulation and fail-closed controls
+        run: node scripts/test-paper-execution-lab.mjs
+      - name: Scan repository for accidentally committed secrets
+        run: node scripts/scan-repository-secrets.mjs
+
+  observe:
+    needs: [regression]
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: fenice-data-writer
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+    steps:
+      - name: Checkout existing repository and separate prospective ledger
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Refuse duplicate sample before provider requests
+        id: today
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const ledger = JSON.parse(fs.readFileSync("data/paper-execution-lab-ledger.json", "utf8"));
+          const day = new Date().toISOString().slice(0, 10);
+          const already = ledger.events.some(e => e.occurredAt?.slice(0, 10) === day);
+          const complete = ledger.events.length >= 10;
+          if (ledger.mode !== "ENGINEERING_EXECUTION_LAB_V1"
+              || ledger.liveTradingAllowed !== false
+              || ledger.brokerConnectivityAllowed !== false
+              || ledger.certificationCredit !== 0) throw Error("ENGINEERING_LEDGER_SAFETY_BLOCK");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "allowed=" + (!already && !complete) + "\n");
+          console.log(JSON.stringify({ already, complete, sampleBudgetRemaining: Math.max(0, 10 - ledger.events.length) }));
+          NODE
+      - name: Install existing dependencies only when sample budget remains
+        if: steps.today.outputs.allowed == 'true'
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Check authoritative US session before market-data requests
+        if: steps.today.outputs.allowed == 'true'
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Verify session is OPEN, fresh and not near closing
+        if: steps.today.outputs.allowed == 'true'
+        id: session
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const s = JSON.parse(fs.readFileSync("data/paper-market-session.json", "utf8"));
+          const now = Date.now(), at = Date.parse(s.evidence?.observedAt || "");
+          const end = Date.parse(s.nextClose || "");
+          const allowed = s.configured === true && s.liveTradingAllowed === false
+            && s.evidence?.venue === "US_EQUITIES"
+            && s.evidence?.authoritative === true && s.evidence?.state === "OPEN"
+            && s.decision?.allowed === true
+            && Number.isFinite(at) && now >= at && now - at <= 120000
+            && Number.isFinite(end) && end - now >= 300000;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "allowed=" + allowed + "\n");
+          console.log("Engineering PAPER evidence refresh allowed: " + allowed);
+          NODE
+      - name: Collect genuine, independent quote and FX evidence
+        if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
+        run: |
+          set -euo pipefail
+          npm run marketdata:execution
+          node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+          node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+          # Refetch the authoritative clock after collecting provider quotes.
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Record prospective virtual engineering sample or precise blocked reason
+        if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
+        run: node scripts/run-paper-execution-lab.mjs
+      - name: Commit ONLY independent lab evidence, never B2/V6 data
+        if: steps.today.outputs.allowed == 'true' && steps.session.outputs.allowed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/paper-execution-lab-ledger.json data/paper-execution-lab-report.json
+          if git diff --cached --quiet; then
+            echo "No new independent engineering observation"
+            exit 0
+          fi
+          git commit -m "data(lab): prospective technical simulation observation"
+          # Vendor snapshots are ephemeral and never pushed by this workflow.
+          git reset --hard HEAD
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then exit 0; fi
+            echo "Engineering evidence commit race: retry $attempt/3"
+          done
+          echo "Engineering evidence persistence failed closed"
+          exit 1
