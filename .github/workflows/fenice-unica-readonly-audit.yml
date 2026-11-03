@@ -1,0 +1,34 @@
+name: Fenice Unica Evidence Audit (Read Only)
+
+# Only reconcile immutable historical evidence and prospective technical status.
+# This workflow cannot place trades, access secrets, or modify the repository.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/fenice-unica-readonly-audit.yml"
+      - "scripts/audit-fenice-unica-readonly.mjs"
+      - "scripts/test-fenice-unica-audit.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test cross-version provenance, duplicates and isolation
+        run: node scripts/test-fenice-unica-audit.mjs
+      - name: Print read-only evidence inventory, never certify LIVE
+        run: node scripts/audit-fenice-unica-readonly.mjs
+      - name: Scan for repository secrets
+        run: node scripts/scan-repository-secrets.mjs
