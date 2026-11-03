@@ -67,8 +67,17 @@ export function auditFeniceUnica({
   const v8Ledger=replayExecutionLabLedger(v8Samples);
   if(!v8Ledger.valid)issues.push("V8_SAMPLE_AUDIT_"+v8Ledger.reason);
   const activated=Date.parse(v8Approval?.effectiveFrom||"");
+  const expiry=Date.parse(v8Approval?.expiresAt||"");
+  const inV8Window=value=>{
+    const t=Date.parse(value||"");
+    return Number.isFinite(t)&&t>=activated&&t<expiry;
+  };
   if(!Number.isFinite(activated)||v8Samples?.events?.some(e=>
     Date.parse(e.occurredAt)<activated))issues.push("V8_PREAPPROVAL_SAMPLE");
+  if(!Number.isFinite(expiry)||expiry<=activated
+    ||v8Samples?.events?.some(e=>!inV8Window(e.occurredAt))
+    ||v8Days?.records?.some(d=>!inV8Window(d.observedAt)))
+    issues.push("V8_APPROVAL_WINDOW_OR_EVIDENCE_INVALID");
   if(v7b2?.liveTradingAllowed!==false
     ||v7b2?.brokerConnectivityAllowed!==false
     ||!Array.isArray(v7b2?.attempts))
@@ -88,10 +97,11 @@ export function auditFeniceUnica({
 
   const legacyV6Rows=v6Days.filter(d=>eligibleV6Day(d,initial));
   const v6StrictDates=resultDateSet(legacyV6Rows);
-  const v8ValidDates=v8Audit.valid?resultDateSet(v8Days.records):[];
+  const v8ValidDates=v8Audit.valid
+    ?resultDateSet(v8Days.records.filter(d=>inV8Window(d.observedAt))):[];
   const mergedDistinctDates=sortedUnique([...v6StrictDates,...v8ValidDates]);
   const sharedDates=v6StrictDates.filter(date=>v8ValidDates.includes(date));
-  const v8Events=v8Ledger.valid?v8Samples.events:[];
+  const v8Events=v8Ledger.valid?v8Samples.events.filter(e=>inV8Window(e.occurredAt)):[];
   const researchFills=filled.length,technicalSamples=v8Events.length;
   return {
     version:1,mode:"FENICE_UNICA_READONLY_EVIDENCE_INVENTORY",
