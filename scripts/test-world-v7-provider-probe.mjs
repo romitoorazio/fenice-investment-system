@@ -46,6 +46,8 @@ assert.equal(classifyQuote(target,{...quote,mic_code:"XETR"},now).status,"MIC_UN
 assert.equal(classifyQuote(target,{...quote,symbol:"AAPL"},now).status,"SYMBOL_MISMATCH");
 assert.equal(classifyQuote(target,{...quote,currency:"USD"},now).status,"CURRENCY_MISMATCH");
 assert.equal(classifyQuote(target,{...quote,timestamp:quote.timestamp-600},now).status,"STALE_OR_FUTURE_TRADE");
+assert.equal(classifyQuote(target,{...quote,timestamp:quote.timestamp-600,last_quote_at:quote.timestamp},now).status,"FRESH_RESEARCH_QUOTE_RIGHTS_UNVERIFIED");
+assert.equal(classifyQuote(target,{...quote,last_quote_at:quote.timestamp+600},now).status,"STALE_OR_FUTURE_TRADE");
 assert.equal(classifyQuote(target,{...quote,timestamp:quote.timestamp+600},now).status,"STALE_OR_FUTURE_TRADE");
 assert.equal(classifyQuote(target,{...quote,timestamp:undefined},now).status,"TIMESTAMP_MISSING");
 assert.equal(classifyQuote(target,{...quote,timestamp:Number.MAX_SAFE_INTEGER},now).status,"TIMESTAMP_MISSING");

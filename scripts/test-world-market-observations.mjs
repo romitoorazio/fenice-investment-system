@@ -29,6 +29,7 @@ const request = (kind, params) => {
   const mic = params.get("mic_code");
   const [, , symbol, currency] = venues.find(row => row[0] === mic);
   assert.equal(params.get("symbol"), symbol);
+  assert.equal(params.get("interval"), "1min");
   seen.push(mic);
   return { symbol, currency, mic_code: mic === "XTKS" ? "XJPX" : mic, timestamp: now() / 1000, close: 123.4567 };
 };
