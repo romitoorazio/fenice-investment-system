@@ -75,7 +75,7 @@ export async function collectWorldMarketObservations({ catalogue, previous, requ
   let quoteRequests = 0;
   for (const { mic, target, nextIndex } of queue.slice(0, quoteBudget)) {
     if (quoteRequests) await delay(1300);
-    const params = new URLSearchParams({ symbol: target.symbol, mic_code: mic });
+    const params = new URLSearchParams({ symbol: target.symbol, mic_code: mic, interval: "1min" });
     const raw = await request("quote", params);
     const at = new Date(now()).toISOString();
     const quote = classifyQuote(target, raw, at);
@@ -121,8 +121,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         headers: { Authorization: `apikey ${key}`, Accept: "application/json" },
         signal: AbortSignal.timeout(10_000), redirect: "error",
       });
-      if (!response.ok) return { code: response.status, status: "error" };
-      return await response.json();
+      if (response.ok) return await response.json();
+      const error = { code: response.status, status: "error" };
+      if (response.status === 400 || response.status === 404) {
+        const payload = await response.json().catch(() => null);
+        // The classifier converts provider text into a fixed reason. The text
+        // itself is never included in the report or logs.
+        if (typeof payload?.message === "string") error.message = payload.message.slice(0, 400);
+      }
+      return error;
     } catch {
       return { code: 503, status: "error" };
     }

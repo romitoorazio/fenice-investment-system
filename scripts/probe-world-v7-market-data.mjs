@@ -20,7 +20,7 @@ async function request(kind) {
     ? new URLSearchParams({code: target.providerMic || target.exchangeMic})
     : kind === "catalogue"
     ? new URLSearchParams({symbol: target.symbol, mic_code: target.providerMic || target.exchangeMic, show_plan: "true", outputsize: "40"})
-    : new URLSearchParams({symbol: target.symbol, mic_code: target.providerMic || target.exchangeMic});
+    : new URLSearchParams({symbol: target.symbol, mic_code: target.providerMic || target.exchangeMic, interval: "1min"});
   const endpoint = kind === "state" ? "/market_state" : kind === "catalogue" ? "/stocks" : "/quote";
   const timeout = AbortSignal.timeout(7000);
   try {
