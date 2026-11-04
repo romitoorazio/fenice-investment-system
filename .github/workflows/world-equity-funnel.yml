@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "lib/research/world-equity-funnel.mjs"
+      - "lib/research/iso-market-identifiers.mjs"
       - "scripts/collect-world-equity-funnel.mjs"
       - "scripts/test-world-equity-funnel.mjs"
       - "scripts/check-world-equity-funnel-status.mjs"
@@ -14,12 +15,13 @@ on:
     branches: [main]
     paths:
       - "lib/research/world-equity-funnel.mjs"
+      - "lib/research/iso-market-identifiers.mjs"
       - "scripts/collect-world-equity-funnel.mjs"
       - "scripts/test-world-equity-funnel.mjs"
       - ".github/workflows/world-equity-funnel.yml"
   workflow_dispatch:
   schedule:
-    - cron: "17 6 * * 3"
+    - cron: "17 6 * * 1,4"
 permissions:
   contents: read
 jobs:
@@ -57,7 +59,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Bounded free global stocks and exchanges reference scan
+      - name: Match the global stock catalogue to active ISO market codes
         run: node scripts/collect-world-equity-funnel.mjs --limit=2000
       - name: Check output before publication
         run: node scripts/check-world-equity-funnel-status.mjs
@@ -66,7 +68,7 @@ jobs:
         with:
           name: world-equity-research-references
           path: ${{ runner.temp }}/fenice-world-equity-references.json
-          retention-days: 7
+          retention-days: 10
           if-no-files-found: error
       - name: Commit aggregate statistics only
         shell: bash
