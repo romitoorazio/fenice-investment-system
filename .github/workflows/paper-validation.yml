@@ -62,31 +62,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
-      # Always rebuild current evidence before deciding whether a PAPER campaign
-      # may start. This keeps campaign start autonomous but strictly fail-closed.
-      - name: Refresh critical source health for PAPER baseline
-        run: npm run sources:check
-
-      - name: Build fresh intelligence quality for PAPER baseline
-        run: node scripts/run-intelligence.mjs
-
-      - name: Refresh independent execution market evidence
-        run: npm run marketdata:execution
-
-      # This coherent batch is an optimization, not the authority that decides
-      # whether PAPER may start. If it cannot obtain a fresh FX tick, allow the
-      # independent strict FX refresh below to try; the baseline gate still
-      # fails closed unless all required evidence is fresh and policy-valid.
-      - name: Refresh coherent Twelve Data batch evidence (best effort)
-        continue-on-error: true
-        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
-
-      - name: Refresh fresh PAPER USD/EUR evidence
-        run: node scripts/refresh-paper-fx-evidence.mjs
-
-      - name: Refresh per-symbol PAPER execution coverage
-        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
-
+      # Read the authoritative session before any provider refresh. Closed
+      # sessions retain one fail-closed audit row without spending quote/API
+      # budgets or mutating execution evidence that cannot become PAPER-eligible.
       - name: Read authoritative PAPER market session
         id: market_session
         shell: bash
@@ -107,6 +85,37 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `state=${String(report?.evidence?.state || 'UNKNOWN')}\n`);
           console.log(`Persistent PAPER session gate: ${riskAllowed ? 'OPEN' : 'NO_RISK'}; state=${report?.evidence?.state || 'UNKNOWN'}; authoritative=${report?.evidence?.authoritative === true}; age=${Number.isFinite(ageSeconds) ? ageSeconds.toFixed(3) : 'unknown'}s.`);
           NODE
+
+      # Rebuild current evidence only while the authoritative US-equities
+      # session is open. Campaign start remains autonomous and fail-closed.
+      - name: Refresh critical source health for PAPER baseline
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        run: npm run sources:check
+
+      - name: Build fresh intelligence quality for PAPER baseline
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        run: node scripts/run-intelligence.mjs
+
+      - name: Refresh independent execution market evidence
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        run: npm run marketdata:execution
+
+      # This coherent batch is an optimization, not the authority that decides
+      # whether PAPER may start. If it cannot obtain a fresh FX tick, allow the
+      # independent strict FX refresh below to try; the baseline gate still
+      # fails closed unless all required evidence is fresh and policy-valid.
+      - name: Refresh coherent Twelve Data batch evidence (best effort)
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        continue-on-error: true
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+
+      - name: Refresh fresh PAPER USD/EUR evidence
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        run: node scripts/refresh-paper-fx-evidence.mjs
+
+      - name: Refresh per-symbol PAPER execution coverage
+        if: steps.market_session.outputs.risk_allowed == 'true'
+        run: node --experimental-strip-types scripts/check-execution-market-coverage.mjs
 
       - name: Check or safely start PAPER campaign
         id: campaign
@@ -135,7 +144,9 @@ jobs:
           if [ "$current_state" = "started" ]; then
             baseline_ready=true
           else
-            if npm run paper:baseline:require; then
+            if [ "${{ steps.market_session.outputs.risk_allowed }}" != "true" ]; then
+              echo "PAPER baseline start skipped because the authoritative market session is closed."
+            elif npm run paper:baseline:require; then
               baseline_ready=true
               npm run paper:validation:start
               auto_started=true
