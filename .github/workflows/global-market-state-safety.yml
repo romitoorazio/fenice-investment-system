@@ -1,0 +1,61 @@
+name: Fenice Global Market State Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/global-market-state.ts"
+      - "scripts/test-global-market-state-safety.mjs"
+      - "scripts/run-global-market-data-certification.mjs"
+      - ".github/workflows/global-market-state-safety.yml"
+  push:
+    branches:
+      - feat/global-market-data-certification
+    paths:
+      - "lib/trading/global-market-state.ts"
+      - "scripts/test-global-market-state-safety.mjs"
+      - "scripts/run-global-market-data-certification.mjs"
+      - ".github/workflows/global-market-state-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-global-market-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify exact-MIC market-state fail-closed gate
+        run: node --experimental-strip-types scripts/test-global-market-state-safety.mjs
+
+      - name: Syntax-check integrated global runner
+        run: node --check scripts/run-global-market-data-certification.mjs
+
+      - name: Assert broker-grade session gate is wired and remains observation-only
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const source = fs.readFileSync('lib/trading/global-market-state.ts', 'utf8');
+          const runner = fs.readFileSync('scripts/run-global-market-data-certification.mjs', 'utf8');
+          if (!source.includes('paperSessionAllowed')) throw new Error('GLOBAL_MARKET_STATE_PAPER_GATE_MISSING');
+          if (!source.includes('VALIDATION_ONLY')) throw new Error('GLOBAL_MARKET_STATE_DOWNGRADE_MISSING');
+          if (!runner.includes('twelveDataMarketStateUrl')) throw new Error('GLOBAL_MARKET_STATE_RUNNER_URL_GATE_MISSING');
+          if (!runner.includes('verifyTwelveDataGlobalMarketState')) throw new Error('GLOBAL_MARKET_STATE_RUNNER_VERIFIER_MISSING');
+          if (!runner.includes('applyGlobalMarketStateGate')) throw new Error('GLOBAL_MARKET_STATE_RUNNER_DOWNGRADE_MISSING');
+          if (!runner.includes('FAIL_CLOSED_EXACT_MIC_MARKET_STATE')) throw new Error('GLOBAL_MARKET_STATE_POLICY_MISSING');
+          if (source.includes('liveTradingAllowed: true') || source.includes('brokerConnectivityAllowed: true')) {
+            throw new Error('GLOBAL_MARKET_STATE_MUST_NOT_RELEASE_LIVE');
+          }
+          if (runner.includes('liveTradingReleased: true') || runner.includes('brokerConnectivityAllowed: true')) {
+            throw new Error('GLOBAL_RUNNER_MUST_NOT_RELEASE_LIVE');
+          }
+          console.log('Global market-state runner integration verified; PAPER remains fail-closed and LIVE locked.');
+          NODE

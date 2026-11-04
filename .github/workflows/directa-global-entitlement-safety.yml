@@ -1,0 +1,74 @@
+name: Fenice Directa Global Entitlement Safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/directa-global-entitlement-proof.ts"
+      - "lib/trading/directa-global-source-candidate.ts"
+      - "scripts/test-directa-global-entitlement-proof.mjs"
+      - "scripts/test-directa-global-source-candidate.mjs"
+      - "data/directa-global-market-entitlements.json"
+      - ".github/workflows/directa-global-entitlement-safety.yml"
+  push:
+    branches:
+      - feat/global-market-data-certification
+    paths:
+      - "lib/trading/directa-global-entitlement-proof.ts"
+      - "lib/trading/directa-global-source-candidate.ts"
+      - "scripts/test-directa-global-entitlement-proof.mjs"
+      - "scripts/test-directa-global-source-candidate.mjs"
+      - "data/directa-global-market-entitlements.json"
+      - ".github/workflows/directa-global-entitlement-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-directa-global-entitlement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout revision
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test persisted plus runtime Directa entitlement proof
+        run: node --experimental-strip-types scripts/test-directa-global-entitlement-proof.mjs
+
+      - name: Test composed Directa read-only global source admission
+        run: node --experimental-strip-types scripts/test-directa-global-source-candidate.mjs
+
+      - name: Syntax-check Directa entitlement and source candidate paths
+        run: |
+          node --experimental-strip-types --check lib/trading/directa-global-entitlement-proof.ts
+          node --experimental-strip-types --check lib/trading/directa-global-source-candidate.ts
+
+      - name: Assert Directa entitlement registry is empty default-deny
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/directa-global-market-entitlements.json', 'utf8'));
+          if (d?.policy !== 'DEFAULT_DENY_DUAL_CONTROL') throw new Error('DIRECTA_GLOBAL_ENTITLEMENT_DEFAULT_DENY_REQUIRED');
+          if (!Array.isArray(d?.entitlements)) throw new Error('DIRECTA_GLOBAL_ENTITLEMENT_ARRAY_REQUIRED');
+          if (d.entitlements.length !== 0) throw new Error('DIRECTA_GLOBAL_ENTITLEMENT_MUST_REMAIN_EMPTY_UNTIL_REAL_EVIDENCE');
+          console.log('Directa global entitlement registry contains no invented entitlement evidence.');
+          NODE
+
+      - name: Assert runtime env alone cannot unlock Directa global PAPER
+        run: |
+          grep -q 'persistedEvidenceFound' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'runtimeClaimMatched' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'runtimeClaimFresh' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'evidenceSha256' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'validUntil' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'NON_DISPLAY_INTERNAL' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'automatedUseAllowed' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'legalUseScopeVerified' lib/trading/directa-global-entitlement-proof.ts
+          grep -q 'resolveBrokerVenueIdentity' lib/trading/directa-global-source-candidate.ts
+          grep -q 'admitIndependentGlobalEvidence' lib/trading/directa-global-source-candidate.ts
+          echo 'Directa exact-MIC dual-control entitlement, legal-use scope and independent admission pipeline present.'

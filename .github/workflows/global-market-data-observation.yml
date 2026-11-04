@@ -1,0 +1,133 @@
+name: Fenice Global Market Data Observation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 5,9,14,19 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/global-market-data-certification.ts"
+      - "scripts/run-global-market-data-certification.mjs"
+      - "scripts/test-global-market-data-certification.mjs"
+      - "scripts/test-global-certification-integrity.mjs"
+      - "scripts/test-global-observation-collector.mjs"
+      - "lib/trading/global-market-state.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-source-admission.ts"
+      - ".github/workflows/global-market-data-observation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/trading/global-market-data-certification.ts"
+      - "scripts/run-global-market-data-certification.mjs"
+      - "scripts/test-global-market-data-certification.mjs"
+      - "scripts/test-global-certification-integrity.mjs"
+      - "scripts/test-global-observation-collector.mjs"
+      - "lib/trading/global-market-state.ts"
+      - "lib/trading/global-independent-evidence.ts"
+      - "lib/trading/global-independent-source-admission.ts"
+      - ".github/workflows/global-market-data-observation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-global-market-data-observation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed revision
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Test global certification fail-closed invariants
+        run: |
+          node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+          node --experimental-strip-types scripts/test-global-certification-integrity.mjs
+          node scripts/test-global-observation-collector.mjs
+
+  observe:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FENICE_GLOBAL_OBSERVE_ONLY: "1"
+      FENICE_GLOBAL_REQUIRE_OPEN_SESSION: "1"
+      FENICE_GLOBAL_EXECUTION_PROBES: "14"
+      FENICE_TWELVE_DATA_MIN_INTERVAL_MS: "9000"
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Test global certification fail-closed invariants
+        run: |
+          node --experimental-strip-types scripts/test-global-market-data-certification.mjs
+          node --experimental-strip-types scripts/test-global-certification-integrity.mjs
+          node scripts/test-global-observation-collector.mjs
+
+      - name: Observe non-US market data without mutating PAPER V6 core
+        run: node --experimental-strip-types scripts/run-global-market-data-certification.mjs --observe-only
+
+      - name: Assert isolation and live lock
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data/global-market-data-certification.json', 'utf8'));
+          if (d?.mode !== 'OBSERVATION_ONLY') throw new Error('GLOBAL_OBSERVATION_MODE_REQUIRED');
+          if (d?.paperCoreMutation !== false) throw new Error('GLOBAL_OBSERVATION_PAPER_CORE_MUTATION_FORBIDDEN');
+          if (d?.liveTradingReleased !== false || d?.brokerConnectivityAllowed !== false) throw new Error('GLOBAL_OBSERVATION_LIVE_LOCK_FAILURE');
+          if (Number(d?.targetSelection?.catalogTargets || 0) < 14) throw new Error('GLOBAL_OBSERVATION_TARGET_CATALOG_TOO_SMALL');
+          if (Number(d?.targetSelection?.selectedTargets || 0) !== Number(d?.summary?.totalTargets || 0)) throw new Error('GLOBAL_OBSERVATION_TARGET_SELECTION_MISMATCH');
+          if (!Array.isArray(d?.certifications) || d.certifications.length !== Number(d?.summary?.totalTargets || 0)) throw new Error('GLOBAL_OBSERVATION_CERTIFICATION_SET_MISMATCH');
+          console.log(`Global observation: targets=${d.summary.totalTargets}, yahoo=${d.summary.yahooValidated}, twelve=${d.summary.twelveDataAccepted}, certified=${d.summary.certified}, degraded=${d.summary.degraded}, blocked=${d.summary.blocked}; PAPER core untouched.`);
+          NODE
+
+      - name: Publish isolated global observation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain -- data/global-market-data-certification.json)" ]; then
+            echo "No global market observation changes"
+            exit 0
+          fi
+          git config user.name "fenice-global-market-data-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tmp="$(mktemp)"
+          cp data/global-market-data-certification.json "$tmp"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$tmp" data/global-market-data-certification.json
+            git add data/global-market-data-certification.json
+            if git diff --cached --quiet; then
+              echo "Global market observation already current"
+              exit 0
+            fi
+            git commit -m "data: refresh global market observation"
+            if git push origin HEAD:main; then
+              echo "Global market observation published"
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          echo "Unable to publish global market observation after 3 attempts"
+          exit 1
