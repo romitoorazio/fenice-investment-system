@@ -9,10 +9,6 @@ on:
         required: true
         options: [XMIL, XETR, XTKS]
         default: XMIL
-  schedule:
-    - cron: "35 1 * * 1-5"
-    - cron: "35 9 * * 1-5"
-    - cron: "35 11 * * 1-5"
   pull_request:
     branches: [main]
     paths:
@@ -47,9 +43,8 @@ jobs:
       - run: node scripts/test-world-v7-provider-probe.mjs
 
   observation:
-    # One initial access diagnostic on the first main push, then daily region-open checks.
-    # Purely read-only; secrets stay in HTTP headers and never reach JSON publication.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
+    # Targeted diagnostics remain available on demand. Scheduled collection uses the global flow.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
@@ -70,19 +65,11 @@ jobs:
         id: venue
         shell: bash
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           CHOICE: ${{ inputs.venue }}
         run: |
           set -euo pipefail
-          case "$SCHEDULE" in
-            "35 1 * * 1-5") venue=XTKS ;;
-            "35 9 * * 1-5") venue=XMIL ;;
-            "35 11 * * 1-5") venue=XETR ;;
-            "") venue="$CHOICE"; if [ -z "$venue" ]; then venue=XMIL; fi ;;
-            *) exit 1 ;;
-          esac
-          case "$venue" in XTKS|XMIL|XETR) ;; *) exit 1 ;; esac
-          echo "mic=$venue" >> "$GITHUB_OUTPUT"
+          case "$CHOICE" in XTKS|XMIL|XETR) ;; *) exit 1 ;; esac
+          echo "mic=$CHOICE" >> "$GITHUB_OUTPUT"
       - name: Actual bounded provider check (maximum 3 credits, no retries)
         env:
           MIC: ${{ steps.venue.outputs.mic }}

@@ -48,6 +48,7 @@ assert.equal(classifyQuote(target,{...quote,currency:"USD"},now).status,"CURRENC
 assert.equal(classifyQuote(target,{...quote,timestamp:quote.timestamp-600},now).status,"STALE_OR_FUTURE_TRADE");
 assert.equal(classifyQuote(target,{...quote,timestamp:quote.timestamp+600},now).status,"STALE_OR_FUTURE_TRADE");
 assert.equal(classifyQuote(target,{...quote,timestamp:undefined},now).status,"TIMESTAMP_MISSING");
+assert.equal(classifyQuote(target,{...quote,timestamp:Number.MAX_SAFE_INTEGER},now).status,"TIMESTAMP_MISSING");
 assert.equal(classifyQuote(target,{...quote,close:"0"},now).status,"PRICE_UNAVAILABLE");
 assert.equal(classifyQuote(target,{code:403,status:"error"},now).status,"NO_ACCESS");
 assert.equal(classifyQuote(target,{code:400,status:"error"},now).status,"NOT_FOUND_OR_INVALID_IDENTIFIER");
