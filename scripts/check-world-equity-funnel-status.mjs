@@ -7,7 +7,7 @@ assert.equal(d.source,"twelve-data-stock-reference");
 for(const k of ["read","common","accepted","selected","countries","regions"])assert(n(d[k]));
 assert(n(d.limit)&&d.limit>0&&d.limit<=2000);
 assert(d.selected<=d.accepted&&d.accepted<=d.common&&d.common<=d.read&&d.selected<=d.limit);
-assert(d.regions<=5);
+assert(d.regions<=(d.version===2?6:5));
 assert.equal(Object.values(d.byRegion).reduce((n,r)=>n+r.selected,0),d.selected);
 assert.equal(Object.values(d.byRegion).reduce((n,r)=>n+r.total,0),d.accepted);
 assert.equal(d.safety.researchOnly,true);
@@ -17,6 +17,17 @@ assert.equal(d.safety.brokerOrderAllowed,false);
 assert.equal(d.safety.changesPaperV6,false);
 assert.equal("references" in d,false);
 assert.equal("price" in d,false);
+if(d.version===2){
+ assert(Object.keys(d.byVenue).length>0);
+ assert.equal(Object.values(d.byVenue).reduce((sum,v)=>sum+v.total,0),d.accepted);
+ assert.equal(Object.values(d.byVenue).reduce((sum,v)=>sum+v.selected,0),d.selected);
+ for(const [mic,venue] of Object.entries(d.byVenue)){
+  assert.match(mic,/^[A-Z0-9]{4}$/);
+  assert.match(venue.operatingMic,/^[A-Z0-9]{4}$/);
+  assert(n(venue.total)&&n(venue.selected)&&venue.selected<=venue.total);
+  assert.deepEqual(Object.keys(venue).sort(),["country","operatingMic","region","selected","total"]);
+ }
+}
 if(d.status==="REFERENCE_SCREEN_ONLY"){
  assert(d.read>=1000&&d.selected>=100);
  assert(typeof d.generatedAt==="string"&&new Date(d.generatedAt).toISOString()===d.generatedAt);
