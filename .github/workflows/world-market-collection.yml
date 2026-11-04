@@ -11,6 +11,10 @@ on:
   schedule:
     - cron: "23 * * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows: [Fenice World Equity Reference Funnel]
+    branches: [main]
+    types: [completed]
 
 permissions:
   contents: read
@@ -29,7 +33,12 @@ jobs:
       - run: node scripts/test-world-market-observations.mjs
 
   observe:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     needs: contract
     runs-on: ubuntu-latest
     timeout-minutes: 5

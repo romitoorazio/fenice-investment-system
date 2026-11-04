@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { classifyQuote } from "../lib/market/world-v7-provider-probe.mjs";
 
@@ -132,4 +132,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   await writeFile(output, JSON.stringify(result, null, 2) + "\n", { mode: 0o600 });
   const { observedAt, catalogueAvailable, marketStateAvailable, venuesTracked, venuesWithExactState, quoteRequests } = result;
   console.log(JSON.stringify({ observedAt, catalogueAvailable, marketStateAvailable, venuesTracked, venuesWithExactState, quoteRequests }));
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, [
+      "## Raccolta mondiale", "",
+      `- Stati esatti riportati dal provider: ${venuesWithExactState}/${venuesTracked} MIC osservati`,
+      `- Controlli di quotazione eseguiti: ${quoteRequests}/${quoteBudget}`,
+      `- Catalogo di riferimento disponibile: ${catalogueAvailable ? "sì" : "no"}`,
+      "- Crediti di certificazione PAPER: 0",
+      "- Broker e ordini LIVE: disabilitati", "",
+    ].join("\n"));
+  }
 }
