@@ -5,6 +5,9 @@ on:
       - "scripts/diagnose-paper-bottlenecks.mjs"
       - "scripts/test-paper-bottleneck-causes.mjs"
       - "package.json"
+      - "lib/trading/paper-quote-probe-priority.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence.mjs"
+      - "scripts/test-paper-quote-probe-priority.mjs"
       - ".github/workflows/paper-bottleneck-regression.yml"
   pull_request:
     paths:
@@ -30,3 +33,5 @@ jobs:
         run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs
       - name: Run isolated read-only regression
         run: npm run paper:bottlenecks:test
+      - name: Run quote probe prioritization regression
+        run: node scripts/test-paper-quote-probe-priority.mjs
