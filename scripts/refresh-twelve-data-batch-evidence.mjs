@@ -1,4 +1,5 @@
 import path from "node:path";
+import { prioritizeMissingSecondSource } from "../lib/trading/paper-quote-probe-priority.mjs";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import {
@@ -115,19 +116,7 @@ const masterByTicker = new Map(
 const probeUniverse = Array.isArray(evidence?.capabilities?.probeUniverse)
   ? evidence.capabilities.probeUniverse
   : Array.isArray(evidence?.requestedSymbols) ? evidence.requestedSymbols : [];
-const alpacaPaperSymbols = new Set((Array.isArray(evidence.observations) ? evidence.observations : [])
-  .filter((item) => item?.sourceFamily === "alpaca" && item?.eligibility === "PAPER"
-    && Number.isFinite(Date.parse(item?.observedAt))
-    && Date.now() - Date.parse(item.observedAt) >= 0
-    && Date.now() - Date.parse(item.observedAt) <= 120_000)
-  .map((item) => normalizeExecutionSymbol(item.symbol)));
-const twelvePaperSymbols = new Set((Array.isArray(evidence.observations) ? evidence.observations : [])
-  .filter((item) => item?.sourceFamily === "twelve-data" && item?.eligibility === "PAPER"
-    && Number.isFinite(Date.parse(item?.observedAt))
-    && Date.now() - Date.parse(item.observedAt) >= 0
-    && Date.now() - Date.parse(item.observedAt) <= 120_000)
-  .map((item) => normalizeExecutionSymbol(item.symbol)));
-const candidates = probeUniverse
+const eligibleCandidates = probeUniverse
   .map((symbol) => {
     const normalized = normalizeExecutionSymbol(symbol);
     const source = masterByTicker.get(normalized) || {};
@@ -140,14 +129,8 @@ const candidates = probeUniverse
       country: source.country,
     };
   })
-  .filter((instrument) => instrument.symbol && isTwelveDataPaperCandidate(instrument))
-  // Give a second independent quote to fresh Alpaca-only symbols before
-  // re-probing symbols that already have quorum; preserve free API budget.
-  .map((instrument, index) => ({ instrument, index }))
-  .sort((a, b) => Number(alpacaPaperSymbols.has(b.instrument.symbol) && !twelvePaperSymbols.has(b.instrument.symbol))
-    - Number(alpacaPaperSymbols.has(a.instrument.symbol) && !twelvePaperSymbols.has(a.instrument.symbol)) || a.index - b.index)
-  .map(({ instrument }) => instrument)
-  .slice(0, probeLimit);
+  .filter((instrument) => instrument.symbol && isTwelveDataPaperCandidate(instrument));
+const candidates = prioritizeMissingSecondSource(eligibleCandidates, evidence.observations).slice(0, probeLimit);
 
 const withoutTwelve = (Array.isArray(evidence.observations) ? evidence.observations : [])
   .filter((item) => String(item?.sourceFamily || "").toLowerCase() !== "twelve-data");
