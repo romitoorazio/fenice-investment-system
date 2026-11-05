@@ -162,6 +162,7 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
         && fxToEuro <= 5
         && allowedDecisionStates.includes(terminalDecision)
         && !["ATTENDI", "EVITA"].includes(terminalDecision)
+        && !["ATTENDI", "EVITA"].includes(decisionState)
         && committeeScore >= minCommitteeScore
         && validationDataConfidence >= minValidationDataConfidence
         && riskScore <= maxRiskScore
