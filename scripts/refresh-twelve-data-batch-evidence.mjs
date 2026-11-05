@@ -115,6 +115,12 @@ const masterByTicker = new Map(
 const probeUniverse = Array.isArray(evidence?.capabilities?.probeUniverse)
   ? evidence.capabilities.probeUniverse
   : Array.isArray(evidence?.requestedSymbols) ? evidence.requestedSymbols : [];
+const alpacaPaperSymbols = new Set((Array.isArray(evidence.observations) ? evidence.observations : [])
+  .filter((item) => item?.sourceFamily === "alpaca" && item?.eligibility === "PAPER"
+    && Number.isFinite(Date.parse(item?.observedAt))
+    && Date.now() - Date.parse(item.observedAt) >= 0
+    && Date.now() - Date.parse(item.observedAt) <= 120_000)
+  .map((item) => normalizeExecutionSymbol(item.symbol)));
 const candidates = probeUniverse
   .map((symbol) => {
     const normalized = normalizeExecutionSymbol(symbol);
@@ -129,6 +135,11 @@ const candidates = probeUniverse
     };
   })
   .filter((instrument) => instrument.symbol && isTwelveDataPaperCandidate(instrument))
+  // Give a second independent quote to fresh Alpaca-only symbols before
+  // re-probing symbols that already have quorum; preserve free API budget.
+  .map((instrument, index) => ({ instrument, index }))
+  .sort((a, b) => Number(alpacaPaperSymbols.has(b.instrument.symbol)) - Number(alpacaPaperSymbols.has(a.instrument.symbol)) || a.index - b.index)
+  .map(({ instrument }) => instrument)
   .slice(0, probeLimit);
 
 const withoutTwelve = (Array.isArray(evidence.observations) ? evidence.observations : [])
