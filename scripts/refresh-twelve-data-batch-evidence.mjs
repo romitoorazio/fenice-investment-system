@@ -244,8 +244,9 @@ const report = {
     liveTradingAllowed: false,
   },
 };
-await writeJsonStateAtomic(evidencePath, report);
-
+// Do not publish refreshed PAPER quote evidence if the required FX preflight fails.
+// The quote and FX writes remain separate atomic files; downstream freshness
+// and FX gates still validate both snapshots before staging any PAPER order.
 const fx = await fetchFreshUsdEur();
 const fxGeneratedAt = new Date().toISOString();
 await writeJsonStateAtomic(fxEvidencePath, {
@@ -263,5 +264,6 @@ await writeJsonStateAtomic(fxEvidencePath, {
   liveTradingAllowed: false,
   brokerConnectivityAllowed: false,
 });
+await writeJsonStateAtomic(evidencePath, report);
 
 console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fx.rate}, fxAge=${fx.ageSeconds.toFixed(1)}s, fxAttempt=${fx.freshnessAttempt}.`);
