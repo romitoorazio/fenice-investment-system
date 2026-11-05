@@ -7,12 +7,14 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  const nowMs=Date.parse(now),ageMinutes=t=>Number.isFinite(Date.parse(t))?(nowMs-Date.parse(t))/60000:Infinity;
  const decisions=new Map((committee.topDecisions||[]).map(d=>[d.symbol,d]));
  const assets=new Map((terminal.assets||[]).map(d=>[d.symbol,d]));
+ const validScore=value=>value!==null&&value!==undefined&&String(value).trim()!==""&&Number.isFinite(Number(value));
  const rows=(coverage.rows||[]).map(q=>{
   const d=decisions.get(q.symbol),a=assets.get(q.symbol),reasons=[];
   if(!q.paperEligible||Number(q.independentSourceFamilies)<2)reasons.push("NO_INDEPENDENT_QUOTE_QUORUM");
   if(!d)reasons.push("NOT_IN_COMMITTEE");
   else {
-   if(Number(d.committeeScore)<Number(approval.minCommitteeScore??70))reasons.push("SCORE_BELOW_APPROVED_MINIMUM");
+   if(!validScore(d.committeeScore))reasons.push("MISSING_COMMITTEE_SCORE");
+   else if(Number(d.committeeScore)<Number(approval.minCommitteeScore??70))reasons.push("SCORE_BELOW_APPROVED_MINIMUM");
    if(!(approval.permittedDecisionStates||[]).includes(d.decision))reasons.push("DECISION_NOT_PERMITTED");
   }
   if(!a)reasons.push("NOT_IN_TERMINAL");
@@ -21,7 +23,6 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  });
  const reasons={};for(const row of rows)for(const b of row.blockers)reasons[b]=(reasons[b]||0)+1;
  const latest=days.days?.at(-1)||null;
- const validScore=value=>value!==null&&value!==undefined&&String(value).trim()!==""&&Number.isFinite(Number(value));
  const decisionBlockers=(committee.topDecisions||[]).map(d=>({
   symbol:d.symbol,
   decision:d.decision??null,
