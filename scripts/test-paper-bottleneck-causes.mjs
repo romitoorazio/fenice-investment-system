@@ -14,6 +14,10 @@ const fixture={
  days:{days:[]},ledger:{attempts:[]}
 };
 const result=diagnose(fixture,now);
+const withResearchGaps=diagnose({...fixture,committee:{...fixture.committee,topDecisions:fixture.committee.topDecisions.map(d=>d.symbol==="EU1"?{...d,buyGapEvidence:{scope:"RESEARCH_RULES_ONLY",status:"NOT_QUALIFIED",gaps:[{code:"SCORE_RESEARCH_GAP",actual:64,requiredMin:78}]}}:d)}},now);
+assert.equal(withResearchGaps.researchGapCounts.SCORE_RESEARCH_GAP,1);
+assert.equal(withResearchGaps.researchGapsBySymbol[0].scope,"RESEARCH_RULES_ONLY");
+assert.equal(withResearchGaps.decisionBlockers[0].minScore,70);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
 assert.equal(result.counts.quoteEligible,1);
