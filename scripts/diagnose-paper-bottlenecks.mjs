@@ -5,7 +5,7 @@ const root=new URL("../data/",import.meta.url);
 const load=(name)=>JSON.parse(readFileSync(new URL(name,root),"utf8"));
 export function diagnose({committee,coverage,terminal,approval,days,ledger},now=new Date().toISOString()){
  const nowMs=Date.parse(now),ageMinutes=t=>Number.isFinite(Date.parse(t))?(nowMs-Date.parse(t))/60000:Infinity;
- const decisions=new Map((committee.topDecisions||[]).map(d=>[d.symbol,d]));
+ const decisions=new Map((committee.allDecisions||committee.topDecisions||[]).map(d=>[d.symbol,d]));
  const assets=new Map((terminal.assets||[]).map(d=>[d.symbol,d]));
  const validScore=value=>value!==null&&value!==undefined&&String(value).trim()!==""&&Number.isFinite(Number(value));
  const rows=(coverage.rows||[]).map(q=>{
@@ -22,14 +22,14 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
   return {symbol:q.symbol,quoteFamilies:Number(q.independentSourceFamilies||0),quoteEligible:q.paperEligible===true&&Number(q.independentSourceFamilies)>=2,committeeScore:d?.committeeScore??null,committeeDecision:d?.decision??null,blockers:reasons};
  });
  const coverageSymbols=new Set((coverage.rows||[]).map(q=>q.symbol));
- const committeeSymbols=new Set((committee.topDecisions||[]).map(d=>d.symbol));
+ const committeeSymbols=new Set((committee.allDecisions||committee.topDecisions||[]).map(d=>d.symbol));
  const missingFromCommittee=[...coverageSymbols].filter(symbol=>!committeeSymbols.has(symbol));
  const missingFromCoverage=[...committeeSymbols].filter(symbol=>!coverageSymbols.has(symbol));
  const quoteReadyButMissingCommittee=rows.filter(row=>row.quoteEligible&&!committeeSymbols.has(row.symbol)).map(row=>row.symbol);
  const quoteReadyButDecisionBlocked=rows.filter(row=>row.quoteEligible&&committeeSymbols.has(row.symbol)&&row.blockers.some(reason=>["SCORE_BELOW_APPROVED_MINIMUM","DECISION_NOT_PERMITTED","TERMINAL_DECISION_BLOCK"].includes(reason))).map(row=>({symbol:row.symbol,committeeScore:row.committeeScore,committeeDecision:row.committeeDecision,blockers:row.blockers.filter(reason=>reason!=="NO_INDEPENDENT_QUOTE_QUORUM")}));
  const reasons={};for(const row of rows)for(const b of row.blockers)reasons[b]=(reasons[b]||0)+1;
  const latest=days.days?.at(-1)||null;
- const decisionBlockers=(committee.topDecisions||[]).map(d=>({
+ const decisionBlockers=(committee.allDecisions||committee.topDecisions||[]).map(d=>({
   symbol:d.symbol,
   decision:d.decision??null,
   score:validScore(d.committeeScore)?Number(d.committeeScore):null,
@@ -41,7 +41,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
   ]
  })).filter(d=>d.reasons.length>0).sort((a,b)=>(a.scoreGap??Infinity)-(b.scoreGap??Infinity));
  const researchGapCounts={};
- const researchGapsBySymbol=(committee.topDecisions||[]).map(d=>{
+ const researchGapsBySymbol=(committee.allDecisions||committee.topDecisions||[]).map(d=>{
   const gaps=Array.isArray(d.buyGapEvidence?.gaps)?d.buyGapEvidence.gaps:[];
   for(const gap of gaps){const code=String(gap?.code||"UNKNOWN");researchGapCounts[code]=(researchGapCounts[code]||0)+1;}
   return {symbol:d.symbol,scope:d.buyGapEvidence?.scope||null,status:d.buyGapEvidence?.status||null,gaps:gaps.map(g=>({code:g.code,actual:g.actual??null,requiredMin:g.requiredMin??null,requiredMax:g.requiredMax??null,required:g.required??null}))};
