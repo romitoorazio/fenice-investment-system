@@ -24,3 +24,12 @@ const broken=structuredClone(inputs);
 broken.coverage.rows=broken.coverage.rows.map(x=>({...x,paperEligible:false}));
 assert.equal(evaluatePaperCycle(broken).strategyPaper.preliminaryEligibleCount,0);
 console.log("Fenice Unica PAPER cycle diagnostics: PASS");
+
+// Fail closed when the real approval or ledger safety flags are loosened.
+const unsafe=structuredClone(inputs);
+unsafe.approval.liveTradingAllowed=true;
+const unsafeReport=evaluatePaperCycle(unsafe);
+assert.equal(unsafeReport.safeguards.liveTradingAllowed,true);
+assert(unsafeReport.strategyPaper.globalBlockers.includes("LIVE_OR_BROKER_LOCK_INVALID"));
+assert.equal(report.strategyPaper.executableNow,false);
+assert.equal(report.world.certifiedWorldPaperFills,inputs.worldLedger.certifiedPaperFills);
