@@ -39,6 +39,7 @@ assert.equal(stale.freshness.coverageFreshForStager,false);
 assert.equal(stale.counts.freshPreliminaryCandidatesPresent,false);
 const inconsistent=diagnose({...fixture,coverage:{...fixture.coverage,rows:fixture.coverage.rows.map(x=>x.symbol==="FR1"?{...x,paperEligible:true,independentSourceFamilies:1}:x)}},now);
 assert.equal(inconsistent.counts.quoteEligible,1);
+assert.ok(inconsistent.quoteBlockersByCause.INSUFFICIENT_INDEPENDENT_QUOTES.some(x=>x.symbol==="FR1"));
 assert.equal(result.rows.find(x=>x.symbol==="FR1").quoteEligible,false);
 assert.ok(result.rows.find(x=>x.symbol==="FR1").blockers.includes("NO_INDEPENDENT_QUOTE_QUORUM"));
 assert.deepEqual(result.quoteBlockersByCause.INSUFFICIENT_INDEPENDENT_QUOTES.map(x=>x.symbol),["EU1","JP1"]);
