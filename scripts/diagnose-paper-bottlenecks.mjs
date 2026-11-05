@@ -37,7 +37,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
   scoreGap:validScore(d.committeeScore)?Math.max(0,Number(approval.minCommitteeScore??70)-Number(d.committeeScore)):null,
   reasons:[
    ...(!validScore(d.committeeScore)?["MISSING_COMMITTEE_SCORE"]:Number(d.committeeScore)<Number(approval.minCommitteeScore??70)?["SCORE_BELOW_APPROVED_MINIMUM"]:[]),
-   ...(!(approval.permittedDecisionStates||[]).includes(assets.get(d.symbol)?.decision)?["TERMINAL_DECISION_NOT_PERMITTED"]:[])
+   ...(assets.has(d.symbol)&&!(approval.permittedDecisionStates||[]).includes(assets.get(d.symbol)?.decision)?["TERMINAL_DECISION_NOT_PERMITTED"]:[])
   ]
  })).filter(d=>d.reasons.length>0).sort((a,b)=>(a.scoreGap??Infinity)-(b.scoreGap??Infinity));
  const researchGapCounts={};
