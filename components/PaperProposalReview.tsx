@@ -181,6 +181,11 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
                 <div className="rounded-2xl bg-black/25 p-4"><dt className="text-xs text-slate-400">Costi simulati stimati</dt><dd className="mt-2 text-xl font-black">{euroOrUnknown(proposal.estimatedFeeEuro)}</dd></div>
                 <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><dt className="text-xs text-amber-100">Totale massimo stimato</dt><dd className="mt-2 text-xl font-black text-amber-300">{euroOrUnknown(proposal.maxTotalEuro)}</dd></div>
               </dl>
+              <div className="rounded-2xl border border-violet-300/25 bg-violet-300/5 p-4 text-sm leading-6 text-slate-200">
+                <p className="font-black text-violet-200">Budget personale · riferimento 1.000 €</p>
+                <p className="mt-1">FENICE distinguerà proposte prudenti e aggressive. Come limite preliminare di studio, una singola idea non dovrebbe impegnare oltre il 15% del capitale (150 €), e potrebbe richiedere un importo inferiore o nessun ingresso.</p>
+                <p className="mt-2 text-xs text-slate-400">Importo consigliato: non ancora calcolabile per questa proposta. Mancano una classificazione del rischio verificata, commissioni Directa effettive e conferma della negoziabilità. Il totale PAPER qui sotto usa un capitale virtuale separato e non è una raccomandazione di impiego dei tuoi 1.000 €. Nessun ordine reale autorizzato.</p>
+              </div>
               <p className="text-xs leading-5 text-slate-400">Capitale del laboratorio: {euroOrUnknown(proposal.context.capitalEuro)}. I costi sono quelli del simulatore; non sono un preventivo Directa. Le quantità frazionarie PAPER non attestano la negoziabilità presso il broker.</p>
               {proposal.evidence ? <div className="rounded-xl border border-white/10 p-4 text-xs leading-6 text-slate-400">
                 <p className="font-bold text-slate-300">Fonti verificate per questa proposta</p>
