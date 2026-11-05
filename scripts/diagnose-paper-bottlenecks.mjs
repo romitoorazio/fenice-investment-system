@@ -21,6 +21,10 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
   else if(["ATTENDI","EVITA"].includes(a.decision))reasons.push("TERMINAL_DECISION_BLOCK");
   return {symbol:q.symbol,quoteFamilies:Number(q.independentSourceFamilies||0),quoteEligible:q.paperEligible===true&&Number(q.independentSourceFamilies)>=2,committeeScore:d?.committeeScore??null,committeeDecision:d?.decision??null,blockers:reasons};
  });
+ const coverageSymbols=new Set((coverage.rows||[]).map(q=>q.symbol));
+ const committeeSymbols=new Set((committee.topDecisions||[]).map(d=>d.symbol));
+ const missingFromCommittee=[...coverageSymbols].filter(symbol=>!committeeSymbols.has(symbol));
+ const missingFromCoverage=[...committeeSymbols].filter(symbol=>!coverageSymbols.has(symbol));
  const reasons={};for(const row of rows)for(const b of row.blockers)reasons[b]=(reasons[b]||0)+1;
  const latest=days.days?.at(-1)||null;
  const decisionBlockers=(committee.topDecisions||[]).map(d=>({
@@ -49,7 +53,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  return {mode:"PAPER_BOTTLENECK_READ_ONLY",observedAt:now,counts:{symbols:rows.length,quoteEligible:rows.filter(r=>r.quoteEligible).length,preliminaryReady:rows.filter(r=>!r.blockers.length).length,freshPreliminaryCandidatesPresent:rows.filter(r=>!r.blockers.length).length>0&&ageMinutes(coverage.generatedAt)>=0&&ageMinutes(coverage.generatedAt)<=30&&ageMinutes(committee.generatedAt)>=0&&ageMinutes(committee.generatedAt)<=1440,realStrategyPaperAttempts:ledger.attempts?.length||0},
  freshness:{coverageAgeMinutes:ageMinutes(coverage.generatedAt),committeeAgeMinutes:ageMinutes(committee.generatedAt),coverageFreshForStager:ageMinutes(coverage.generatedAt)>=0&&ageMinutes(coverage.generatedAt)<=30,committeeFreshForStager:ageMinutes(committee.generatedAt)>=0&&ageMinutes(committee.generatedAt)<=1440},
  lastDay:{date:latest?.date??null,reason:latest?.noNewFillReason??null,valid:latest?.validatedForwardDay===true},
- blockerCounts:reasons,quoteBlockersByCause:quoteCauses,decisionBlockers,researchGapCounts,researchGapsBySymbol,rows,notes:["Snapshot diagnosis does not create PAPER fills. FreshPreliminaryCandidatesPresent means fresh preliminary screening only, never order authorization.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Research buy-gap thresholds are separate from approved PAPER execution thresholds; do not merge or lower them.","Never lower strategy thresholds based on this report."],
+ universeMismatch:{coverageMissingCommittee:missingFromCommittee,committeeMissingCoverage:missingFromCoverage},blockerCounts:reasons,quoteBlockersByCause:quoteCauses,decisionBlockers,researchGapCounts,researchGapsBySymbol,rows,notes:["Snapshot diagnosis does not create PAPER fills. FreshPreliminaryCandidatesPresent means fresh preliminary screening only, never order authorization.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Committee topDecisions may be a truncated shortlist; missing symbols are diagnostic only, not automatic trading candidates.","Research buy-gap thresholds are separate from approved PAPER execution thresholds; do not merge or lower them.","Never lower strategy thresholds based on this report."],
  safeguards:{researchOnly:true,liveTradingAllowed:false,brokerConnectivityAllowed:false,ordersCreated:0}};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){
