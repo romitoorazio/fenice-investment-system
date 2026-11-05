@@ -1,0 +1,32 @@
+name: PAPER bottleneck regression
+on:
+  push:
+    paths:
+      - "scripts/diagnose-paper-bottlenecks.mjs"
+      - "scripts/test-paper-bottleneck-causes.mjs"
+      - "package.json"
+      - ".github/workflows/paper-bottleneck-regression.yml"
+  pull_request:
+    paths:
+      - "scripts/diagnose-paper-bottlenecks.mjs"
+      - "scripts/test-paper-bottleneck-causes.mjs"
+      - "package.json"
+      - ".github/workflows/paper-bottleneck-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check script syntax
+        run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs
+      - name: Run isolated read-only regression
+        run: npm run paper:bottlenecks:test
