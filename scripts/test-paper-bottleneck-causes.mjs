@@ -21,6 +21,7 @@ assert.equal(result.safeguards.ordersCreated,0);
 assert.equal(result.decisionBlockers[0].symbol,"EU1");
 assert.equal(result.decisionBlockers[0].scoreGap,6);
 assert.deepEqual(result.decisionBlockers[0].reasons,["SCORE_BELOW_APPROVED_MINIMUM","DECISION_NOT_PERMITTED"]);
+assert.ok(result.rows.find(x=>x.symbol==="JP1").blockers.includes("MISSING_COMMITTEE_SCORE"));
 assert.equal(result.decisionBlockers.find(x=>x.symbol==="JP1").score,null);
 assert.equal(result.decisionBlockers.find(x=>x.symbol==="JP1").scoreGap,null);
 assert.deepEqual(result.decisionBlockers.find(x=>x.symbol==="JP1").reasons,["MISSING_COMMITTEE_SCORE"]);
