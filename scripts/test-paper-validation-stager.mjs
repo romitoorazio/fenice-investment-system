@@ -101,6 +101,21 @@ assert.equal(staged.order.validationRationale.maxSingleAssetWeightPercentForProb
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
 
+// Committee and Terminal vocabularies are distinct; a terminal-approved state is
+// necessary, while an explicit committee WAIT/AVOID remains a veto.
+const committeeVeto = buildPaperValidationProbe({
+  ...base,
+  committee: {...base.committee, topDecisions: [{...base.committee.topDecisions[0], decision: "ATTENDI"}]},
+});
+assert.equal(committeeVeto.staged, false);
+assert.equal(committeeVeto.reason, "no-eligible-validation-candidate");
+const terminalVeto = buildPaperValidationProbe({
+  ...base,
+  terminal: {...base.terminal, assets: [{...base.terminal.assets[0], decision: "ATTENDI"}]},
+});
+assert.equal(terminalVeto.staged, false);
+assert.equal(terminalVeto.reason, "no-eligible-validation-candidate");
+
 const missingUsdFx = buildPaperValidationProbe({
   ...base,
   approval: {
