@@ -21,14 +21,15 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  });
  const reasons={};for(const row of rows)for(const b of row.blockers)reasons[b]=(reasons[b]||0)+1;
  const latest=days.days?.at(-1)||null;
+ const validScore=value=>value!==null&&value!==undefined&&String(value).trim()!==""&&Number.isFinite(Number(value));
  const decisionBlockers=(committee.topDecisions||[]).map(d=>({
   symbol:d.symbol,
   decision:d.decision??null,
-  score:Number.isFinite(Number(d.committeeScore))?Number(d.committeeScore):null,
+  score:validScore(d.committeeScore)?Number(d.committeeScore):null,
   minScore:Number(approval.minCommitteeScore??70),
-  scoreGap:Number.isFinite(Number(d.committeeScore))?Math.max(0,Number(approval.minCommitteeScore??70)-Number(d.committeeScore)):null,
+  scoreGap:validScore(d.committeeScore)?Math.max(0,Number(approval.minCommitteeScore??70)-Number(d.committeeScore)):null,
   reasons:[
-   ...(Number(d.committeeScore)<Number(approval.minCommitteeScore??70)?["SCORE_BELOW_APPROVED_MINIMUM"]:[]),
+   ...(!validScore(d.committeeScore)?["MISSING_COMMITTEE_SCORE"]:Number(d.committeeScore)<Number(approval.minCommitteeScore??70)?["SCORE_BELOW_APPROVED_MINIMUM"]:[]),
    ...(!(approval.permittedDecisionStates||[]).includes(d.decision)?["DECISION_NOT_PERMITTED"]:[])
   ]
  })).filter(d=>d.reasons.length>0).sort((a,b)=>(a.scoreGap??Infinity)-(b.scoreGap??Infinity));
