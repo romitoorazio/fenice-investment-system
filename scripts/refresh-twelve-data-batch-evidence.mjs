@@ -1,5 +1,6 @@
 import path from "node:path";
 import { prioritizeMissingSecondSource } from "../lib/trading/paper-quote-probe-priority.mjs";
+import { validateFxTimestamp } from "../lib/trading/paper-fx-timestamp.mjs";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import {
@@ -86,9 +87,11 @@ async function fetchFreshUsdEur() {
     }
 
     const observedAt = new Date(timestamp * 1000).toISOString();
-    const ageSeconds = Math.max(0, (Date.now() - timestamp * 1000) / 1000);
+    const freshness = validateFxTimestamp(timestamp, Date.now(), fxFreshnessSeconds);
+    if (freshness.reason === "FUTURE_TIMESTAMP") throw new Error("PAPER_FX_FUTURE_PROVIDER_TIMESTAMP");
+    const ageSeconds = freshness.ageSeconds;
     lastAge = ageSeconds;
-    if (ageSeconds <= fxFreshnessSeconds) {
+    if (freshness.valid) {
       return { rate, timestamp, observedAt, ageSeconds, freshnessAttempt: attempt + 1 };
     }
 
