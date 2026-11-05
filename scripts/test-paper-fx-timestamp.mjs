@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { validateFxTimestamp } from "../lib/trading/paper-fx-timestamp.mjs";
+const now = Date.parse("2026-11-06T12:00:00.000Z");
+const ts = offsetSeconds => (now + offsetSeconds * 1000) / 1000;
+assert.equal(validateFxTimestamp(ts(-30), now).valid, true);
+assert.equal(validateFxTimestamp(ts(-120), now).valid, true);
+assert.equal(validateFxTimestamp(ts(-121), now).reason, "STALE_TIMESTAMP");
+assert.equal(validateFxTimestamp(ts(5), now).valid, true);
+assert.equal(validateFxTimestamp(ts(6), now).reason, "FUTURE_TIMESTAMP");
+assert.equal(validateFxTimestamp("invalid", now).reason, "INVALID_TIMESTAMP");
+console.log("PAPER FX timestamp validation: PASS");
