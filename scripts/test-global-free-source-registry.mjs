@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {assessFreeSourceRegistry} from "./check-global-free-source-registry.mjs";
+const input=JSON.parse(readFileSync(new URL("../data/global-free-source-registry.json",import.meta.url),"utf8"));
+const report=assessFreeSourceRegistry(input);
+assert.equal(report.valid,true);
+assert.deepEqual(report.markets,["DE","IT","JP"]);
+assert.equal(report.paperEligibleSources,0);
+assert.equal(report.canSubmitBrokerOrders,false);
+const unsafe=structuredClone(input);unsafe.policy.automatedIngestionEnabled=true;
+assert.equal(assessFreeSourceRegistry(unsafe).valid,false);
+const falseClaim=structuredClone(input);falseClaim.sources[0].state="PAPER_ELIGIBLE";
+assert.equal(assessFreeSourceRegistry(falseClaim).valid,false);
+console.log("Global free source registry safety tests PASS");
