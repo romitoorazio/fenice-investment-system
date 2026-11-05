@@ -20,6 +20,12 @@ assert.equal(withResearchGaps.researchGapsBySymbol[0].scope,"RESEARCH_RULES_ONLY
 assert.equal(withResearchGaps.decisionBlockers[0].minScore,70);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
+assert.deepEqual(result.universeMismatch.coverageMissingCommittee,[]);
+assert.deepEqual(result.universeMismatch.committeeMissingCoverage,[]);
+const missingCommittee=diagnose({...fixture,committee:{...fixture.committee,topDecisions:fixture.committee.topDecisions.filter(x=>x.symbol!=="FR1")}},now);
+assert.deepEqual(missingCommittee.universeMismatch.coverageMissingCommittee,["FR1"]);
+assert.ok(missingCommittee.rows.find(x=>x.symbol==="FR1").blockers.includes("NOT_IN_COMMITTEE"));
+assert.equal(missingCommittee.safeguards.ordersCreated,0);
 assert.equal(result.counts.quoteEligible,1);
 assert.deepEqual(result.researchGapCounts,{});
 assert.deepEqual(result.researchGapsBySymbol,[]);
