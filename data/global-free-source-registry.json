@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "mode": "RESEARCH_ONLY",
+  "checkedOn": "2026-11-05",
+  "costAuthorizedEuro": 0,
+  "policy": {
+    "brokerConnectivityAllowed": false,
+    "liveTradingAllowed": false,
+    "automatedIngestionEnabled": false,
+    "certificationCredit": false,
+    "independentRealtimeQuorumSatisfied": false
+  },
+  "sources": [
+    {
+      "id": "DE_XETRA_OFFICIAL_DELAYED",
+      "country": "DE",
+      "venue": "XETR",
+      "provider": "Deutsche Boerse",
+      "format": "GZIP_JSON",
+      "delayMinutes": 15,
+      "publicDocs": "https://www.mds.deutsche-boerse.com/mds-en/real-time-data/Delayed-data",
+      "terms": "https://www.mds.deutsche-boerse.com/resource/blob/4028410/ee46a8181b463a0f413d0faa695c0001/data/Market%20Data%20Policy%20Guidelines%20and%20FAQ_V2_7.pdf",
+      "documentationVerified": true,
+      "endpointReachabilityVerified": false,
+      "licenceForAutomatedPaperVerified": false,
+      "secondIndependentProviderVerified": false,
+      "state": "RESEARCH_CANDIDATE",
+      "reason": "Official delayed GZIP JSON available; non-commercial terms apply, machine usage needs validation; delayed data cannot meet realtime PAPER gate."
+    },
+    {
+      "id": "DE_FRANKFURT_OFFICIAL_DELAYED",
+      "country": "DE",
+      "venue": "XFRA",
+      "provider": "Deutsche Boerse",
+      "format": "GZIP_JSON",
+      "delayMinutes": 15,
+      "publicDocs": "https://www.mds.deutsche-boerse.com/mds-en/real-time-data/Delayed-data",
+      "documentationVerified": true,
+      "endpointReachabilityVerified": false,
+      "licenceForAutomatedPaperVerified": false,
+      "secondIndependentProviderVerified": false,
+      "state": "RESEARCH_CANDIDATE",
+      "reason": "Same provider as Xetra, never count as independent second quote family."
+    },
+    {
+      "id": "IT_EURONEXT_DELAYED",
+      "country": "IT",
+      "venue": "XMIL",
+      "provider": "Euronext",
+      "format": "CSV",
+      "delayMinutes": 15,
+      "publicDocs": "https://www.euronext.com/en/data/pricing-specs-agreements/mifid-ii-compliant-data",
+      "terms": "https://www.euronext.com/en/data/real-time-data/pricing-specs-agreements/market-data-pricing-policies",
+      "documentationVerified": true,
+      "endpointReachabilityVerified": false,
+      "licenceForAutomatedPaperVerified": false,
+      "secondIndependentProviderVerified": false,
+      "state": "RESEARCH_CANDIDATE",
+      "reason": "Free delayed internal use described; algorithmic non-display rights and market/identifier coverage need verification."
+    },
+    {
+      "id": "JP_JQUANTS_FREE",
+      "country": "JP",
+      "venue": "XTKS",
+      "provider": "JPX J-Quants",
+      "format": "API_JSON",
+      "delayMinutes": 120960,
+      "publicDocs": "https://jpx-jquants.com/en/help/plan",
+      "terms": "https://jpx-jquants.com/en/spec/data-spec",
+      "documentationVerified": true,
+      "endpointReachabilityVerified": false,
+      "licenceForAutomatedPaperVerified": false,
+      "secondIndependentProviderVerified": false,
+      "state": "HISTORICAL_RESEARCH_ONLY",
+      "reason": "Free tier has 12-week delayed prices; unsuitable for contemporary PAPER orders; requires free account; no paid tier authorized."
+    }
+  ]
+}
