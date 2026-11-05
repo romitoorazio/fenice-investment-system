@@ -17,6 +17,8 @@ const result=diagnose(fixture,now);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
 assert.equal(result.counts.quoteEligible,1);
+assert.deepEqual(result.researchGapCounts,{});
+assert.deepEqual(result.researchGapsBySymbol,[]);
 assert.equal(result.counts.freshPreliminaryCandidatesPresent,false);
 const stale=diagnose({...fixture,coverage:{...fixture.coverage,generatedAt:"2026-11-04T18:00:00.000Z"}},now);
 assert.equal(stale.freshness.coverageFreshForStager,false);
