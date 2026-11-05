@@ -25,6 +25,9 @@ const terminalAllowed=diagnose({...fixture,terminal:{assets:[{symbol:"US1",decis
 assert.equal(terminalAllowed.rows.find(x=>x.symbol==="US1").blockers.includes("TERMINAL_DECISION_NOT_PERMITTED"),false);
 assert.equal(terminalAllowed.rows.find(x=>x.symbol==="US1").blockers.length,0);
 assert.equal(terminalAllowed.rows.find(x=>x.symbol==="EU1").blockers.includes("TERMINAL_DECISION_NOT_PERMITTED"),false);
+const deepDcf=diagnose({...fixture,committee:{...fixture.committee,allDecisions:[{...fixture.committee.topDecisions[0],valuation:{status:"disponibile",upsideBasePercent:-70.9}}]}},now);
+assert.deepEqual(deepDcf.valuationWarnings,[{symbol:"EU1",upsideBasePercent:-70.9,warning:"DCF_DEEP_OVERVALUATION_REQUIRES_INPUT_REVIEW",researchOnly:true}]);
+assert.deepEqual(result.valuationWarnings,[]);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
 assert.deepEqual(result.universeMismatch.coverageMissingCommittee,[]);
