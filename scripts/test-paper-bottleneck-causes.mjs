@@ -3,7 +3,7 @@ import { diagnose } from "./diagnose-paper-bottlenecks.mjs";
 
 const now="2026-11-05T18:00:00.000Z";
 const fixture={
- committee:{generatedAt:now,topDecisions:[]},
+ committee:{generatedAt:now,topDecisions:[{symbol:"EU1",decision:"ATTENDI",committeeScore:64},{symbol:"US1",decision:"ACCUMULA",committeeScore:73}]},
  coverage:{generatedAt:now,rows:[
   {symbol:"EU1",paperEligible:false,independentSourceFamilies:0,approvedIndependentPaperFamilies:[],reasons:["insufficient independent fresh paper-eligible market-data families: 0/2"]},
   {symbol:"US1",paperEligible:true,independentSourceFamilies:2,approvedIndependentPaperFamilies:["alpaca","twelve-data"],reasons:[]},
@@ -18,6 +18,9 @@ assert.equal(result.counts.symbols,3);
 assert.equal(result.counts.quoteEligible,1);
 assert.deepEqual(result.quoteBlockersByCause.INSUFFICIENT_INDEPENDENT_QUOTES.map(x=>x.symbol),["EU1","JP1"]);
 assert.equal(result.safeguards.ordersCreated,0);
+assert.equal(result.decisionBlockers[0].symbol,"EU1");
+assert.equal(result.decisionBlockers[0].scoreGap,6);
+assert.deepEqual(result.decisionBlockers[0].reasons,["SCORE_BELOW_APPROVED_MINIMUM","DECISION_NOT_PERMITTED"]);
 assert.equal(result.safeguards.liveTradingAllowed,false);
 assert.equal(result.safeguards.brokerConnectivityAllowed,false);
 assert.equal(result.freshness.coverageFreshForStager,true);
