@@ -23,6 +23,7 @@ assert.deepEqual(completeCommittee.universeMismatch.committeeMissingCoverage,["E
 assert.equal(completeCommittee.decisionBlockers.some(x=>x.symbol==="EXTRA"),true);
 const terminalAllowed=diagnose({...fixture,terminal:{assets:[{symbol:"US1",decision:"ACCUMULA"}]}},now);
 assert.equal(terminalAllowed.rows.find(x=>x.symbol==="US1").blockers.includes("TERMINAL_DECISION_NOT_PERMITTED"),false);
+assert.equal(terminalAllowed.rows.find(x=>x.symbol==="US1").blockers.length,0);
 assert.equal(terminalAllowed.rows.find(x=>x.symbol==="EU1").blockers.includes("TERMINAL_DECISION_NOT_PERMITTED"),false);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
@@ -52,7 +53,7 @@ assert.deepEqual(result.quoteBlockersByCause.INSUFFICIENT_INDEPENDENT_QUOTES.map
 assert.equal(result.safeguards.ordersCreated,0);
 assert.equal(result.decisionBlockers[0].symbol,"EU1");
 assert.equal(result.decisionBlockers[0].scoreGap,6);
-assert.deepEqual(result.decisionBlockers[0].reasons,["SCORE_BELOW_APPROVED_MINIMUM","TERMINAL_DECISION_NOT_PERMITTED"]);
+assert.deepEqual(result.decisionBlockers[0].reasons,["SCORE_BELOW_APPROVED_MINIMUM"]);
 assert.ok(result.rows.find(x=>x.symbol==="JP1").blockers.includes("MISSING_COMMITTEE_SCORE"));
 assert.equal(result.decisionBlockers.find(x=>x.symbol==="JP1").score,null);
 assert.equal(result.decisionBlockers.find(x=>x.symbol==="JP1").scoreGap,null);
