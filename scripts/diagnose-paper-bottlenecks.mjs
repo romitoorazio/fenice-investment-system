@@ -21,6 +21,17 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  });
  const reasons={};for(const row of rows)for(const b of row.blockers)reasons[b]=(reasons[b]||0)+1;
  const latest=days.days?.at(-1)||null;
+ const decisionBlockers=(committee.topDecisions||[]).map(d=>({
+  symbol:d.symbol,
+  decision:d.decision??null,
+  score:Number.isFinite(Number(d.committeeScore))?Number(d.committeeScore):null,
+  minScore:Number(approval.minCommitteeScore??70),
+  scoreGap:Number.isFinite(Number(d.committeeScore))?Math.max(0,Number(approval.minCommitteeScore??70)-Number(d.committeeScore)):null,
+  reasons:[
+   ...(Number(d.committeeScore)<Number(approval.minCommitteeScore??70)?["SCORE_BELOW_APPROVED_MINIMUM"]:[]),
+   ...(!(approval.permittedDecisionStates||[]).includes(d.decision)?["DECISION_NOT_PERMITTED"]:[])
+  ]
+ })).filter(d=>d.reasons.length>0).sort((a,b)=>(a.scoreGap??Infinity)-(b.scoreGap??Infinity));
  const quoteCauses={};
  for(const q of coverage.rows||[]){
   if(q.paperEligible===true)continue;
@@ -30,7 +41,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  return {mode:"PAPER_BOTTLENECK_READ_ONLY",observedAt:now,counts:{symbols:rows.length,quoteEligible:rows.filter(r=>r.quoteFamilies>=2).length,preliminaryReady:rows.filter(r=>!r.blockers.length).length,realStrategyPaperAttempts:ledger.attempts?.length||0},
  freshness:{coverageAgeMinutes:ageMinutes(coverage.generatedAt),committeeAgeMinutes:ageMinutes(committee.generatedAt),coverageFreshForStager:ageMinutes(coverage.generatedAt)>=0&&ageMinutes(coverage.generatedAt)<=30,committeeFreshForStager:ageMinutes(committee.generatedAt)>=0&&ageMinutes(committee.generatedAt)<=1440},
  lastDay:{date:latest?.date??null,reason:latest?.noNewFillReason??null,valid:latest?.validatedForwardDay===true},
- blockerCounts:reasons,quoteBlockersByCause:quoteCauses,rows,notes:["Snapshot diagnosis does not create PAPER fills.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Never lower strategy thresholds based on this report."],
+ blockerCounts:reasons,quoteBlockersByCause:quoteCauses,decisionBlockers,rows,notes:["Snapshot diagnosis does not create PAPER fills.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Never lower strategy thresholds based on this report."],
  safeguards:{researchOnly:true,liveTradingAllowed:false,brokerConnectivityAllowed:false,ordersCreated:0}};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){
