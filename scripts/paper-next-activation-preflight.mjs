@@ -32,10 +32,13 @@ export function assessPaperNextActivation({ approval, fingerprint, campaign, led
   if (!Array.isArray(ledger.attempts) || ledger.attempts.length !== 0
     || Object.keys(ledger.positions ?? {}).length !== 0)
     return block("NEW_LEDGER_MUST_START_AT_GENESIS");
-  if (approval.maxOrdersPerDay !== 1 || approval.minCommitteeScore < 70
-    || approval.minValidationDataConfidence < 90 || approval.maxRiskScore > 75
-    || approval.maxNotionalEuroPerOrder > 300 || approval.maxCapitalPercentPerProbe > 3
-    || approval.maxSingleAssetWeightPercentForProbe > 15)
+  if (approval.maxOrdersPerDay !== 1
+    || !Number.isFinite(approval.minCommitteeScore) || approval.minCommitteeScore < 70
+    || !Number.isFinite(approval.minValidationDataConfidence) || approval.minValidationDataConfidence < 90
+    || !Number.isFinite(approval.maxRiskScore) || approval.maxRiskScore > 75 || approval.maxRiskScore < 0
+    || !Number.isFinite(approval.maxNotionalEuroPerOrder) || approval.maxNotionalEuroPerOrder > 300 || approval.maxNotionalEuroPerOrder <= 0
+    || !Number.isFinite(approval.maxCapitalPercentPerProbe) || approval.maxCapitalPercentPerProbe > 3 || approval.maxCapitalPercentPerProbe <= 0
+    || !Number.isFinite(approval.maxSingleAssetWeightPercentForProbe) || approval.maxSingleAssetWeightPercentForProbe > 15 || approval.maxSingleAssetWeightPercentForProbe <= 0)
     return block("RISK_LIMITS_NOT_PRESERVED");
   return { allowed: true, reason: "ISOLATED_PAPER_BASELINE_APPROVED", liveTradingAllowed: false };
 }
