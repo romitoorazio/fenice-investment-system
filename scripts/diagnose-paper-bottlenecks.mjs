@@ -48,7 +48,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  }).filter(d=>d.gaps.length>0);
  const quoteCauses={};
  for(const q of coverage.rows||[]){
-  if(q.paperEligible===true)continue;
+  if(q.paperEligible===true&&Number(q.independentSourceFamilies)>=2)continue;
   const cause=Number(q.independentSourceFamilies||0)<2?"INSUFFICIENT_INDEPENDENT_QUOTES":Number(q.staleEvidence||0)>0?"STALE_QUOTES":Number(q.invalidEvidence||0)>0?"INVALID_QUOTES":Number(q.ineligibleEvidence||0)>0?"INELIGIBLE_QUOTES":"OTHER_QUOTE_GATE";
   (quoteCauses[cause]??=[]).push({symbol:q.symbol,eligibleFamilies:q.approvedIndependentPaperFamilies||[],reasons:q.reasons||[]});
  }
