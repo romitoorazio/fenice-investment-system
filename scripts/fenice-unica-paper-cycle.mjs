@@ -44,6 +44,20 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       quoteEligible:row.paperEligible===true,reasons,preliminaryEligible:reasons.length===0};
   }).sort((a,b)=>Number(b.quoteEligible)-Number(a.quoteEligible)||
     Number(b.committeeScore??-1)-Number(a.committeeScore??-1));
+  // Global gates mirror the pinned stager. A snapshot is never a live quote.
+  const globalBlockers=[];
+  if(approval.approved!==true||approval.humanConfirmation!==true||approval.mode!=="PAPER")
+    globalBlockers.push("PAPER_APPROVAL_INVALID");
+  if(approval.liveTradingAllowed!==false||approval.brokerConnectivityAllowed!==false||
+     b2Ledger.liveTradingAllowed!==false||b2Ledger.brokerConnectivityAllowed!==false||
+     v8Status.liveTradingAllowed!==false||v8Status.brokerConnectivityAllowed!==false||
+     worldLedger.liveTradingAllowed!==false)
+    globalBlockers.push("LIVE_OR_BROKER_LOCK_INVALID");
+  if(!Number.isFinite(Date.parse(coverage.generatedAt)))
+    globalBlockers.push("COVERAGE_TIMESTAMP_INVALID");
+  if(!Number.isFinite(Date.parse(committee.generatedAt))||
+     !Number.isFinite(Date.parse(terminal.generatedAt)))
+    globalBlockers.push("RESEARCH_TIMESTAMP_INVALID");
   const blockers={};
   for(const c of candidates)for(const reason of c.reasons)blockers[reason]=(blockers[reason]||0)+1;
   const venues=Object.entries(worldLedger.venues||{}).map(([mic,v])=>({
@@ -55,15 +69,15 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       v8At:v8Status.generatedAt,worldAt:worldLedger.generatedAt},
     strategyPaper:{b2Attempts:(b2Ledger.attempts||[]).length,
       verifiedB2Days:(b2Days.days||[]).filter(x=>x.validDay===true).length,
-      candidateCount:candidates.length,preliminaryEligibleCount:candidates.filter(x=>x.preliminaryEligible).length,
+      candidateCount:candidates.length,preliminaryEligibleCount:candidates.filter(x=>x.preliminaryEligible).length,\n      executableNow:false,globalBlockers,
       note:"Preliminary gates only: FX, market-open, budget, OMS and pinned baseline must still pass"},
     technicalPaper:{status:v8Status.status,validDays:v8Status.validDays,requiredValidDays:v8Status.requiredValidDays,
       technicalSamples:v8Status.validTechnicalSamples,requiredTechnicalSamples:v8Status.requiredTechnicalSamples,
       countsTowardB2:false},
     world:{venues,eligibleVenues:venues.filter(x=>x.paperEligible).length,
-      certifiedWorldPaperFills:worldLedger.summary?.certifiedPaperFills??0},
+      certifiedWorldPaperFills:worldLedger.certifiedPaperFills??worldLedger.summary?.certifiedPaperFills??0},
     candidates,blockers,
-    safeguards:{readOnly:true,liveTradingAllowed:false,brokerConnectivityAllowed:false,
+    safeguards:{readOnly:true,liveTradingAllowed:approval.liveTradingAllowed===false&&b2Ledger.liveTradingAllowed===false&&v8Status.liveTradingAllowed===false&&worldLedger.liveTradingAllowed===false?false:true,brokerConnectivityAllowed:approval.brokerConnectivityAllowed===false&&b2Ledger.brokerConnectivityAllowed===false&&v8Status.brokerConnectivityAllowed===false?false:true,
       modifiesCampaigns:false,creditsTechnicalSamplesAsStrategyFills:false}
   };
 }
