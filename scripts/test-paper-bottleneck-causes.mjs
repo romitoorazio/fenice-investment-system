@@ -18,6 +18,9 @@ const withResearchGaps=diagnose({...fixture,committee:{...fixture.committee,topD
 assert.equal(withResearchGaps.researchGapCounts.SCORE_RESEARCH_GAP,1);
 assert.equal(withResearchGaps.researchGapsBySymbol[0].scope,"RESEARCH_RULES_ONLY");
 assert.equal(withResearchGaps.decisionBlockers[0].minScore,70);
+const completeCommittee=diagnose({...fixture,committee:{...fixture.committee,allDecisions:[...fixture.committee.topDecisions,{symbol:"EXTRA",decision:"ATTENDI",committeeScore:50}]}},now);
+assert.deepEqual(completeCommittee.universeMismatch.committeeMissingCoverage,["EXTRA"]);
+assert.equal(completeCommittee.decisionBlockers.some(x=>x.symbol==="EXTRA"),true);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
 assert.deepEqual(result.universeMismatch.coverageMissingCommittee,[]);
