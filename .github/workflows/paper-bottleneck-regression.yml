@@ -8,6 +8,8 @@ on:
       - "lib/trading/paper-quote-probe-priority.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
       - "scripts/test-paper-quote-probe-priority.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "scripts/test-paper-fx-timestamp.mjs"
       - ".github/workflows/paper-bottleneck-regression.yml"
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       - "lib/trading/paper-quote-probe-priority.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
       - "scripts/test-paper-quote-probe-priority.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "scripts/test-paper-fx-timestamp.mjs"
       - ".github/workflows/paper-bottleneck-regression.yml"
   workflow_dispatch:
 
@@ -38,3 +42,5 @@ jobs:
         run: npm run paper:bottlenecks:test
       - name: Run quote probe prioritization regression
         run: node scripts/test-paper-quote-probe-priority.mjs
+      - name: Run FX timestamp safety regression
+        run: node scripts/test-paper-fx-timestamp.mjs
