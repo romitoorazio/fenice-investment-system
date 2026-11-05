@@ -116,6 +116,27 @@ const terminalVeto = buildPaperValidationProbe({
 assert.equal(terminalVeto.staged, false);
 assert.equal(terminalVeto.reason, "no-eligible-validation-candidate");
 
+const committeeAvoidVeto = buildPaperValidationProbe({
+  ...base,
+  committee: { ...base.committee, topDecisions: [{ ...base.committee.topDecisions[0], decision: "EVITA" }] },
+});
+assert.equal(committeeAvoidVeto.staged, false, "committee EVITA must veto a high-scoring terminal candidate");
+assert.equal(committeeAvoidVeto.reason, "no-eligible-validation-candidate");
+
+const terminalAvoidVeto = buildPaperValidationProbe({
+  ...base,
+  terminal: { ...base.terminal, assets: [{ ...base.terminal.assets[0], decision: "EVITA" }] },
+});
+assert.equal(terminalAvoidVeto.staged, false, "terminal EVITA must veto a high-scoring committee candidate");
+assert.equal(terminalAvoidVeto.reason, "no-eligible-validation-candidate");
+
+const belowScoreThreshold = buildPaperValidationProbe({
+  ...base,
+  committee: { ...base.committee, topDecisions: [{ ...base.committee.topDecisions[0], committeeScore: 69 }] },
+});
+assert.equal(belowScoreThreshold.staged, false, "the approved minimum committee score must not be relaxed to force PAPER fills");
+assert.equal(belowScoreThreshold.reason, "no-eligible-validation-candidate");
+
 const missingUsdFx = buildPaperValidationProbe({
   ...base,
   approval: {
