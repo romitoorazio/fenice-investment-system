@@ -28,6 +28,11 @@ assert.equal(terminalAllowed.rows.find(x=>x.symbol==="EU1").blockers.includes("T
 const deepDcf=diagnose({...fixture,committee:{...fixture.committee,allDecisions:[{...fixture.committee.topDecisions[0],valuation:{status:"disponibile",upsideBasePercent:-70.9}}]}},now);
 assert.deepEqual(deepDcf.valuationWarnings,[{symbol:"EU1",upsideBasePercent:-70.9,warning:"DCF_DEEP_OVERVALUATION_REQUIRES_INPUT_REVIEW",researchOnly:true}]);
 assert.deepEqual(result.valuationWarnings,[]);
+assert.equal(result.stagerDecisionContract.source,"COMMITTEE_DECISION");
+assert.deepEqual(result.stagerDecisionContract.configuredAllowedStates,["ACCUMULA"]);
+assert.equal(result.stagerDecisionContract.committeeRowsPassingState,3);
+assert.equal(result.stagerDecisionContract.committeeRowsPassingStateAndScore,2);
+assert.equal(result.stagerDecisionContract.researchOnly,true);
 assert.equal(result.mode,"PAPER_BOTTLENECK_READ_ONLY");
 assert.equal(result.counts.symbols,4);
 assert.deepEqual(result.universeMismatch.coverageMissingCommittee,[]);
