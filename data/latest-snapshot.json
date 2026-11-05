@@ -1,17 +1,16 @@
 {
-  "version": 12,
-  "generatedAt": "2026-11-05T03:47:23.702Z",
-  "mode": "live",
-  "headline": "31 strumenti, 44 segnali, 14 indicatori e 12 fonti controllate.",
+  "version": 13,
+  "generatedAt": "2026-11-05T06:47:50.351Z",
+  "mode": "partial",
+  "headline": "31 strumenti, 120 segnali emergenti, 9 indicatori macro e 7 fonti operative.",
   "pulse": {
     "verdict": "VALUTARE",
-    "opportunity": 75,
-    "risk": 48,
-    "confidence": 92,
-    "marketMomentum": 62,
-    "macroHealth": 68,
-    "discoveryHeat": 100,
-    "rawConfidence": 69
+    "opportunity": 71,
+    "risk": 49,
+    "confidence": 81,
+    "marketMomentum": 57,
+    "macroHealth": 70,
+    "discoveryHeat": 90
   },
   "providers": [
     {
@@ -28,30 +27,49 @@
         "IPO"
       ],
       "detail": "2 gruppi di dati acquisiti.",
-      "lastSuccessAt": "2026-11-05T03:47:23.702Z"
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
     },
     {
-      "id": "ecb",
-      "name": "Banca Centrale Europea",
-      "state": "operativo",
+      "id": "broad-news",
+      "name": "Broad News Matrix",
+      "state": "parziale",
       "coverage": [
-        "tassi area euro",
-        "politica monetaria BCE"
+        "geopolitica",
+        "macroeconomia",
+        "AI",
+        "biotech",
+        "agritech",
+        "fonti editoriali diversificate"
       ],
-      "detail": "Tasso ufficiale acquisito dal portale dati BCE.",
-      "lastSuccessAt": "2026-11-05T03:47:48.242Z"
+      "detail": "60 notizie selezionate da 101 domini distinti; 1/5 temi da GDELT, 4 via fallback RSS.",
+      "lastSuccessAt": "2026-11-05T06:50:00.525Z"
     },
     {
-      "id": "cftc-tff",
-      "name": "CFTC Traders in Financial Futures",
+      "id": "clinicaltrials",
+      "name": "ClinicalTrials.gov",
       "state": "operativo",
       "coverage": [
-        "futures finanziari",
-        "open interest",
-        "posizionamento operatori"
+        "studi clinici",
+        "CRISPR",
+        "terapie cellulari",
+        "AI drug discovery"
       ],
-      "detail": "25 righe TFF recenti acquisite dal Public Reporting Environment.",
-      "lastSuccessAt": "2026-11-05T03:47:50.083Z"
+      "detail": "20 studi innovativi letti.",
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
+    },
+    {
+      "id": "clinical-primary",
+      "name": "ClinicalTrials.gov Primary Events",
+      "state": "operativo",
+      "coverage": [
+        "studi clinici",
+        "fase 2",
+        "fase 3",
+        "gene editing",
+        "AI drug discovery"
+      ],
+      "detail": "59 studi clinici recenti acquisiti da fonte ufficiale.",
+      "lastSuccessAt": "2026-11-05T06:51:13.953Z"
     },
     {
       "id": "coingecko",
@@ -63,19 +81,7 @@
         "nuovi token con piano Pro"
       ],
       "detail": "Copertura pubblica attiva; COINGECKO_PRO_API_KEY abilita i 200 token più recenti.",
-      "lastSuccessAt": "2026-11-05T03:47:23.702Z"
-    },
-    {
-      "id": "finra-fixed-income",
-      "name": "FINRA Fixed Income API",
-      "state": "operativo",
-      "coverage": [
-        "Treasury TRACE",
-        "fixed income",
-        "market breadth e volume"
-      ],
-      "detail": "5 record FINRA Public OAuth acquisiti; ultimo 2023-12-14.",
-      "lastSuccessAt": "2026-11-05T03:49:14.188Z"
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
     },
     {
       "id": "fred",
@@ -90,7 +96,7 @@
         "liquidità"
       ],
       "detail": "7/7 indicatori macroeconomici acquisiti.",
-      "lastSuccessAt": "2026-11-05T03:47:23.702Z"
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
     },
     {
       "id": "gdelt",
@@ -103,7 +109,7 @@
         "round di finanziamento",
         "tecnologie future"
       ],
-      "detail": "Recovery GDELT fallito: emerging:HTTP 429 | risk:GDELT payload without articles array"
+      "detail": "Nessun flusso acquisito."
     },
     {
       "id": "sec",
@@ -117,266 +123,63 @@
         "nuovi emittenti USA"
       ],
       "detail": "30 depositi recenti rilevati.",
-      "lastSuccessAt": "2026-11-05T03:47:23.702Z"
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
     },
     {
-      "id": "stooq",
-      "name": "Stooq Market Data",
-      "state": "errore",
-      "coverage": [
-        "azioni globali tramite ETF",
-        "indici",
-        "obbligazioni",
-        "oro",
-        "argento",
-        "petrolio"
-      ],
-      "detail": "0/12 strumenti tradizionali acquisiti come fallback indipendente."
-    },
-    {
-      "id": "bls",
-      "name": "U.S. Bureau of Labor Statistics",
+      "id": "sec-primary",
+      "name": "SEC EDGAR Primary Events",
       "state": "operativo",
       "coverage": [
-        "inflazione USA",
-        "mercato del lavoro USA",
-        "validazione macro indipendente"
+        "8-K",
+        "6-K",
+        "10-Q",
+        "10-K",
+        "S-1",
+        "F-1",
+        "IPO e registrazioni"
       ],
-      "detail": "2/2 serie BLS acquisite via Public Data API.",
-      "lastSuccessAt": "2026-11-05T03:47:50.020Z"
+      "detail": "22 filing recenti acquisiti per 9 società monitorate.",
+      "lastSuccessAt": "2026-11-05T06:51:13.953Z"
     },
     {
-      "id": "us-treasury-fiscal",
-      "name": "U.S. Treasury Fiscal Data",
-      "state": "operativo",
-      "coverage": [
-        "debito federale USA",
-        "debito detenuto dal pubblico",
-        "rischio fiscale"
-      ],
-      "detail": "Debt to the Penny aggiornato al 2026-11-03.",
-      "lastSuccessAt": "2026-11-05T03:47:50.249Z"
-    },
-    {
-      "id": "worldbank",
-      "name": "World Bank",
+      "id": "public-macro",
+      "name": "World Bank + U.S. Treasury",
       "state": "operativo",
       "coverage": [
         "PIL mondiale",
-        "inflazione mondiale"
+        "debito pubblico USA",
+        "tassi medi"
       ],
-      "detail": "2/2 indicatori acquisiti.",
-      "lastSuccessAt": "2026-11-05T03:47:48.072Z"
+      "detail": "Acquisiti: PIL mondiale, tasso medio Treasury.",
+      "lastSuccessAt": "2026-11-05T06:47:50.351Z"
     }
   ],
   "markets": [
-    {
-      "symbol": "ZEC",
-      "name": "Zcash",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1322.33,
-      "currency": "USD",
-      "changePercent": 12.82914,
-      "score": 77.65828,
-      "risk": 87.24371,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "UNI",
-      "name": "Uniswap",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 7.78,
-      "currency": "USD",
-      "changePercent": 10.26897,
-      "score": 72.53793999999999,
-      "risk": 83.403455,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "NEAR",
-      "name": "NEAR Protocol",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 4.06,
-      "currency": "USD",
-      "changePercent": 9.23003,
-      "score": 70.46006,
-      "risk": 81.845045,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
     {
       "symbol": "ETH",
       "name": "Ethereum",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 2430.01,
+      "price": 2424.4,
       "currency": "USD",
-      "changePercent": 8.40693,
-      "score": 68.81386,
-      "risk": 80.610395,
+      "changePercent": 5.78007,
+      "score": 64,
+      "risk": 77,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "LINK",
-      "name": "Chainlink",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 11.6,
-      "currency": "USD",
-      "changePercent": 8.36167,
-      "score": 68.72334000000001,
-      "risk": 80.542505,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "ADA",
-      "name": "Cardano",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.199267,
-      "currency": "USD",
-      "changePercent": 7.81362,
-      "score": 67.62724,
-      "risk": 79.72043,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "SUI",
-      "name": "Sui",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.934743,
-      "currency": "USD",
-      "changePercent": 7.59135,
-      "score": 67.1827,
-      "risk": 79.387025,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "CC",
       "name": "Canton",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.102155,
+      "price": 0.103472,
       "currency": "USD",
-      "changePercent": 7.00634,
-      "score": 66.01268,
-      "risk": 78.50951,
+      "changePercent": 5.02416,
+      "score": 62,
+      "risk": 76,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "SOL",
-      "name": "Solana",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 96.82,
-      "currency": "USD",
-      "changePercent": 6.79353,
-      "score": 65.58706,
-      "risk": 78.19029499999999,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "XLM",
-      "name": "Stellar",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.168802,
-      "currency": "USD",
-      "changePercent": 6.66766,
-      "score": 65.33532,
-      "risk": 78.00149,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "LTC",
-      "name": "Litecoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 56.33,
-      "currency": "USD",
-      "changePercent": 6.63054,
-      "score": 65.26107999999999,
-      "risk": 77.94581,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "WBT",
-      "name": "WhiteBIT Coin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 78.09,
-      "currency": "USD",
-      "changePercent": 6.62515,
-      "score": 65.2503,
-      "risk": 77.937725,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "BTC",
-      "name": "Bitcoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 80677,
-      "currency": "USD",
-      "changePercent": 5.86682,
-      "score": 63.73364,
-      "risk": 76.80023,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "DOGE",
-      "name": "Dogecoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.07733,
-      "currency": "USD",
-      "changePercent": 5.82514,
-      "score": 63.65028,
-      "risk": 76.73770999999999,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "BCH",
-      "name": "Bitcoin Cash",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 282.67,
-      "currency": "USD",
-      "changePercent": 5.44283,
-      "score": 62.88566,
-      "risk": 76.164245,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "AVAX",
-      "name": "Avalanche",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 8.81,
-      "currency": "USD",
-      "changePercent": 5.41435,
-      "score": 62.8287,
-      "risk": 76.121525,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "SPY",
@@ -386,10 +189,140 @@
       "price": 766.81,
       "currency": "USD",
       "changePercent": 1.6518,
-      "score": 61.6072,
-      "risk": 54.9554,
+      "score": 62,
+      "risk": 55,
       "source": "Alpha Vantage",
       "observedAt": "2026-11-04"
+    },
+    {
+      "symbol": "ZEC",
+      "name": "Zcash",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 1325.01,
+      "currency": "USD",
+      "changePercent": 4.74914,
+      "score": 61,
+      "risk": 75,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "LINK",
+      "name": "Chainlink",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 11.53,
+      "currency": "USD",
+      "changePercent": 4.51934,
+      "score": 61,
+      "risk": 75,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "WBT",
+      "name": "WhiteBIT Coin",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 77.88,
+      "currency": "USD",
+      "changePercent": 4.09755,
+      "score": 60,
+      "risk": 74,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "UNI",
+      "name": "Uniswap",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 7.63,
+      "currency": "USD",
+      "changePercent": 3.73805,
+      "score": 59,
+      "risk": 74,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "ADA",
+      "name": "Cardano",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.197138,
+      "currency": "USD",
+      "changePercent": 3.54741,
+      "score": 59,
+      "risk": 73,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "LTC",
+      "name": "Litecoin",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 55.99,
+      "currency": "USD",
+      "changePercent": 3.44903,
+      "score": 59,
+      "risk": 73,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "SOL",
+      "name": "Solana",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 95.96,
+      "currency": "USD",
+      "changePercent": 3.43114,
+      "score": 59,
+      "risk": 73,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 80471,
+      "currency": "USD",
+      "changePercent": 3.37154,
+      "score": 59,
+      "risk": 73,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "SUI",
+      "name": "Sui",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.924788,
+      "currency": "USD",
+      "changePercent": 3.26279,
+      "score": 59,
+      "risk": 73,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "BCH",
+      "name": "Bitcoin Cash",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 282.67,
+      "currency": "USD",
+      "changePercent": 2.98584,
+      "score": 58,
+      "risk": 72,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "XRP",
@@ -398,50 +331,76 @@
       "market": "Crypto globale",
       "price": 1.31,
       "currency": "USD",
-      "changePercent": 4.63999,
-      "score": 61.27998,
-      "risk": 74.959985,
+      "changePercent": 2.63469,
+      "score": 57,
+      "risk": 72,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "XLM",
+      "name": "Stellar",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.167024,
+      "currency": "USD",
+      "changePercent": 2.59915,
+      "score": 57,
+      "risk": 72,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "DOGE",
+      "name": "Dogecoin",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.076529,
+      "currency": "USD",
+      "changePercent": 2.53495,
+      "score": 57,
+      "risk": 72,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "AVAX",
+      "name": "Avalanche",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 8.76,
+      "currency": "USD",
+      "changePercent": 2.39133,
+      "score": 57,
+      "risk": 72,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "NEAR",
+      "name": "NEAR Protocol",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 4.04,
+      "currency": "USD",
+      "changePercent": 2.35028,
+      "score": 57,
+      "risk": 72,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "BNB",
       "name": "BNB",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 716.38,
+      "price": 712.96,
       "currency": "USD",
-      "changePercent": 4.36862,
-      "score": 60.73724,
-      "risk": 74.55293,
+      "changePercent": 1.91017,
+      "score": 56,
+      "risk": 71,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "XMR",
-      "name": "Monero",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 636.91,
-      "currency": "USD",
-      "changePercent": 1.95341,
-      "score": 55.90682,
-      "risk": 70.930115,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "HYPE",
-      "name": "Hyperliquid",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 83.91,
-      "currency": "USD",
-      "changePercent": 1.79425,
-      "score": 55.588499999999996,
-      "risk": 70.691375,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "FIGR_HELOC",
@@ -450,11 +409,11 @@
       "market": "Crypto globale",
       "price": 1.046,
       "currency": "USD",
-      "changePercent": 1.53676,
-      "score": 55.07352,
-      "risk": 70.30514,
+      "changePercent": 1.52739,
+      "score": 55,
+      "risk": 70,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "LEO",
@@ -463,76 +422,105 @@
       "market": "Crypto globale",
       "price": 9.35,
       "currency": "USD",
-      "changePercent": 0.54621,
-      "score": 53.09242,
-      "risk": 68.819315,
+      "changePercent": 0.56103,
+      "score": 53,
+      "risk": 69,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
-      "symbol": "USD1",
-      "name": "USD1",
+      "symbol": "XMR",
+      "name": "Monero",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.998648,
+      "price": 635.63,
       "currency": "USD",
-      "changePercent": 0.06571,
-      "score": 52.13142,
-      "risk": 68.098565,
+      "changePercent": -0.65313,
+      "score": 51,
+      "risk": 69,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
-      "symbol": "USDE",
-      "name": "Ethena USDe",
+      "symbol": "TRX",
+      "name": "TRON",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.9994,
+      "price": 0.318783,
       "currency": "USD",
-      "changePercent": 0.05006,
-      "score": 52.10012,
-      "risk": 68.07509,
+      "changePercent": -0.95645,
+      "score": 50,
+      "risk": 69,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "HYPE",
+      "name": "Hyperliquid",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 83.27,
+      "currency": "USD",
+      "changePercent": -1.37339,
+      "score": 49,
+      "risk": 70,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
+    },
+    {
+      "symbol": "RAIN",
+      "name": "Rain",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.00584803,
+      "currency": "USD",
+      "changePercent": -6.59544,
+      "score": 39,
+      "risk": 78,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z"
     },
     {
       "symbol": "USDT",
       "name": "Tether",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.999299,
+      "price": 0.999389,
       "currency": "USD",
-      "changePercent": 0.04131,
-      "score": 52.08262,
-      "risk": 68.061965,
+      "changePercent": 0.05306,
+      "score": 28,
+      "risk": 42,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
+    },
+    {
+      "symbol": "USDE",
+      "name": "Ethena USDe",
+      "assetClass": "Criptovaluta",
+      "market": "Crypto globale",
+      "price": 0.999422,
+      "currency": "USD",
+      "changePercent": 0.05262,
+      "score": 28,
+      "risk": 42,
+      "source": "CoinGecko",
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
     },
     {
       "symbol": "USDC",
       "name": "USDC",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.999677,
+      "price": 0.999792,
       "currency": "USD",
-      "changePercent": 0.0161,
-      "score": 52.0322,
-      "risk": 68.02415,
+      "changePercent": 0.03266,
+      "score": 28,
+      "risk": 42,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "DAI",
-      "name": "Dai",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1,
-      "currency": "USD",
-      "changePercent": 0.01412,
-      "score": 52.02824,
-      "risk": 68.02118,
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
     },
     {
       "symbol": "USDS",
@@ -541,103 +529,58 @@
       "market": "Crypto globale",
       "price": 1,
       "currency": "USD",
-      "changePercent": 0.00637,
-      "score": 52.01274,
-      "risk": 68.009555,
+      "changePercent": 0.01535,
+      "score": 28,
+      "risk": 42,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
     },
     {
-      "symbol": "TRX",
-      "name": "TRON",
+      "symbol": "USD1",
+      "name": "USD1",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.319202,
+      "price": 0.998394,
       "currency": "USD",
-      "changePercent": -0.64612,
-      "score": 50.70776,
-      "risk": 68.96918,
+      "changePercent": 0.01107,
+      "score": 28,
+      "risk": 42,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
     },
     {
-      "symbol": "RAIN",
-      "name": "Rain",
+      "symbol": "DAI",
+      "name": "Dai",
       "assetClass": "Criptovaluta",
       "market": "Crypto globale",
-      "price": 0.0059803,
+      "price": 1,
       "currency": "USD",
-      "changePercent": -6.72618,
-      "score": 38.54764,
-      "risk": 78.08927,
+      "changePercent": 0.00524,
+      "score": 28,
+      "risk": 42,
       "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
+      "observedAt": "2026-11-05T06:46:52.000Z",
+      "classification": "stablecoin"
     }
   ],
   "macro": [
     {
-      "id": "WALCL",
-      "label": "Attivo totale Federal Reserve",
-      "unit": "milioni USD",
-      "value": 6745635,
-      "date": "2026-10-28",
-      "source": "FRED"
-    },
-    {
-      "id": "BLS_CPI_US",
-      "label": "CPI USA (BLS)",
-      "value": 336.298,
-      "date": "2026-09",
-      "unit": "indice",
-      "source": "U.S. Bureau of Labor Statistics"
-    },
-    {
-      "id": "WORLD_GDP_GROWTH",
-      "label": "Crescita PIL mondiale",
-      "value": 2.92127318539153,
-      "date": "2025",
-      "unit": "%",
-      "source": "World Bank"
-    },
-    {
-      "id": "T10Y2Y",
-      "label": "Curva 10 anni - 2 anni",
-      "unit": "%",
-      "value": 0.32,
-      "date": "2026-11-04",
-      "source": "FRED"
-    },
-    {
-      "id": "US_TOTAL_PUBLIC_DEBT",
-      "label": "Debito pubblico USA totale",
-      "value": 40.547,
+      "id": "VIXCLS",
+      "label": "Indice di volatilità VIX",
+      "unit": "punti",
+      "value": 20.83,
       "date": "2026-11-03",
-      "unit": "trilioni USD",
-      "source": "U.S. Treasury Fiscal Data"
-    },
-    {
-      "id": "US_DEBT_HELD_PUBLIC",
-      "label": "Debito USA detenuto dal pubblico",
-      "value": 32.765,
-      "date": "2026-11-03",
-      "unit": "trilioni USD",
-      "source": "U.S. Treasury Fiscal Data"
-    },
-    {
-      "id": "UNRATE",
-      "label": "Disoccupazione USA",
-      "unit": "%",
-      "value": 4.2,
-      "date": "2026-09-01",
       "source": "FRED"
     },
     {
-      "id": "BLS_UNEMPLOYMENT_US",
-      "label": "Disoccupazione USA (BLS)",
-      "value": 4.2,
-      "date": "2026-09",
+      "id": "DGS10",
+      "label": "Treasury USA 10 anni",
       "unit": "%",
-      "source": "U.S. Bureau of Labor Statistics"
+      "value": 4.95,
+      "date": "2026-11-03",
+      "source": "FRED"
     },
     {
       "id": "DFF",
@@ -648,11 +591,19 @@
       "source": "FRED"
     },
     {
-      "id": "VIXCLS",
-      "label": "Indice di volatilità VIX",
-      "unit": "punti",
-      "value": 20.83,
-      "date": "2026-11-03",
+      "id": "T10Y2Y",
+      "label": "Curva 10 anni - 2 anni",
+      "unit": "%",
+      "value": 0.32,
+      "date": "2026-11-04",
+      "source": "FRED"
+    },
+    {
+      "id": "UNRATE",
+      "label": "Disoccupazione USA",
+      "unit": "%",
+      "value": 4.2,
+      "date": "2026-09-01",
       "source": "FRED"
     },
     {
@@ -664,31 +615,274 @@
       "source": "FRED"
     },
     {
-      "id": "WORLD_INFLATION",
-      "label": "Inflazione mondiale",
-      "value": 3.04141321556539,
+      "id": "WALCL",
+      "label": "Attivo totale Federal Reserve",
+      "unit": "milioni USD",
+      "value": 6745635,
+      "date": "2026-10-28",
+      "source": "FRED"
+    },
+    {
+      "id": "WB-WORLD-GDP",
+      "label": "Crescita PIL mondiale",
+      "value": 2.92127318539153,
       "date": "2025",
-      "unit": "%",
+      "unit": "% annuo",
       "source": "World Bank"
     },
     {
-      "id": "ECB_DEPOSIT_RATE",
-      "label": "Tasso di riferimento BCE",
-      "value": 2.65,
-      "date": "2026-11-05",
+      "id": "UST-AVG-RATE",
+      "label": "Tasso medio debito Treasury USA",
+      "value": 3.87,
+      "date": "2026-09-30",
       "unit": "%",
-      "source": "BCE Data Portal"
-    },
-    {
-      "id": "DGS10",
-      "label": "Treasury USA 10 anni",
-      "unit": "%",
-      "value": 4.95,
-      "date": "2026-11-03",
-      "source": "FRED"
+      "source": "U.S. Treasury Fiscal Data"
     }
   ],
   "discoveries": [
+    {
+      "id": "sec-AMZN-0001104659-26-110227-8-A12B",
+      "name": "AMZN · deposito SEC 8-A12B",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-A12B presentato il 2026-09-24. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 88,
+      "risk": 52,
+      "date": "2026-09-24",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926110227/tm2625860d1_8a12b.htm",
+      "symbol": "AMZN",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-META-0001193125-26-438111-8-A12B",
+      "name": "META · deposito SEC 8-A12B",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-A12B presentato il 2026-10-29. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 88,
+      "risk": 52,
+      "date": "2026-10-29",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000119312526438111/d184794d8a12b.htm",
+      "symbol": "META",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06128629",
+      "name": "MAGNITUDE: A Phase 3 Study of NTLA-2001 in Participants With Transthyretin Amyloidosis With Cardiomyopathy (ATTR-CM)",
+      "category": "BIOTECH",
+      "signal": "PHASE3; stato RECRUITING. Ultimo aggiornamento ufficiale 2023-11-13.",
+      "score": 86,
+      "risk": 74,
+      "date": "2026-11-04",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06128629",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-AAPL-0000320193-26-000024-8-K",
+      "name": "AAPL · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-11-02. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-11-02",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/aapl-20261102.htm",
+      "symbol": "AAPL",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-MSFT-0001193125-26-447173-8-K",
+      "name": "MSFT · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-11-04. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-11-04",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526447173/d178557d8k.htm",
+      "symbol": "MSFT",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-AMZN-0001018724-26-000038-8-K",
+      "name": "AMZN · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-10-29. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-10-29",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000038/amzn-20261029.htm",
+      "symbol": "AMZN",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-GOOGL-0001652044-26-000080-8-K",
+      "name": "GOOGL · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-10-28. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-10-28",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000080/goog-20261028.htm",
+      "symbol": "GOOGL",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-META-0001193125-26-438017-8-K",
+      "name": "META · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-10-29. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-10-29",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000119312526438017/d183592d8k.htm",
+      "symbol": "META",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-CRSP-0001193125-26-443644-8-K",
+      "name": "CRSP · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-11-02. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-11-02",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526443644/crsp-20261102.htm",
+      "symbol": "CRSP",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-RXRX-0001601830-26-000144-8-K",
+      "name": "RXRX · deposito SEC 8-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 8-K presentato il 2026-11-02. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 78,
+      "risk": 64,
+      "date": "2026-11-02",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000144/rxrx-20261031.htm",
+      "symbol": "RXRX",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06325709",
+      "name": "Base Editing for Mutation Repair in Hematopoietic Stem & Progenitor Cells for X-Linked Chronic Granulomatous Disease",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-03-22.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-11-03",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06325709",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07775313",
+      "name": "Base-Edited Hematopoietic Stem/Progenitor Cell Gene Therapy for Treatment of CXCR4-WHIM",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato ENROLLING_BY_INVITATION. Ultimo aggiornamento ufficiale 2026-08-20.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-27",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07775313",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07894887",
+      "name": "EDIT-401 in Adults Who Require Additional Lowering of Low-Density Lipoprotein Cholesterol (LDL-C)",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-10-26.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-26",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07894887",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07804004",
+      "name": "A Safety and Efficacy Study Evaluating CTX112 in Subjects With Refractory Neurologic Autoimmune Disease",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-09-04.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-22",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07804004",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07429240",
+      "name": "PBGENE-DMD Phase 1/2a Safety and Preliminary Efficacy Study in Duchenne Muscular Dystrophy (FUNCTION-DMD)",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-02-24.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07429240",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06379789",
+      "name": "A Study to Investigate the Safety and Effectiveness of a Coagulation Factor IX Gene Insertion Therapy (REGV131-LNP1265) in Pediatric, Adolescent and Adult Participants With Hemophilia B",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-04-23.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06379789",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07887347",
+      "name": "A Study of the Safety and Efficacy of Prime Editing (PM647a) in Participants With Alpha-1 Antitrypsin Deficiency",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-10-21.",
+      "score": 76,
+      "risk": 74,
+      "date": "2026-10-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07887347",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05381038",
+      "name": "Optimizing and Personalising Azacitidine Combination Therapy for Treating Solid Tumours QPOP and CURATE.AI",
+      "category": "BIOTECH",
+      "signal": "PHASE1, PHASE2; stato RECRUITING. Ultimo aggiornamento ufficiale 2022-05-19.",
+      "score": 76,
+      "risk": 74,
+      "date": "2025-09-23",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05381038",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
     {
       "id": "sec-2128984-S-1-20261104-4",
       "name": "Churchill Capital Corp XIV",
@@ -800,14 +994,112 @@
       "url": "https://www.sec.gov/Archives/edgar/data/2023153/0001493152-26-049584.txt"
     },
     {
-      "id": "cg-trending-pudgy-penguins",
-      "name": "Pudgy Penguins",
+      "id": "sec-AAPL-0000320193-26-000026-10-K",
+      "name": "AAPL · deposito SEC 10-K",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-K presentato il 2026-11-03. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-11-03",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/aapl-20260926.htm",
+      "symbol": "AAPL",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-MSFT-0001193125-26-436133-10-Q",
+      "name": "MSFT · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-10-28. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-10-28",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436133/msft-20260930.htm",
+      "symbol": "MSFT",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-AMZN-0001018724-26-000040-10-Q",
+      "name": "AMZN · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-10-30. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-10-30",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000040/amzn-20260930.htm",
+      "symbol": "AMZN",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-GOOGL-0001652044-26-000084-10-Q",
+      "name": "GOOGL · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-10-29. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-10-29",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000084/goog-20260930.htm",
+      "symbol": "GOOGL",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-META-0001628280-26-066773-10-Q",
+      "name": "META · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-10-22. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-10-22",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026066773/meta-20260930.htm",
+      "symbol": "META",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-CRSP-0001193125-26-443665-10-Q",
+      "name": "CRSP · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-11-02. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-11-02",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526443665/crsp-20260930.htm",
+      "symbol": "CRSP",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "sec-RXRX-0001601830-26-000145-10-Q",
+      "name": "RXRX · deposito SEC 10-Q",
+      "category": "SEC",
+      "signal": "Deposito ufficiale 10-Q presentato il 2026-11-02. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 72,
+      "risk": 52,
+      "date": "2026-11-02",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/1601830/000160183026000145/rxrx-20260930.htm",
+      "symbol": "RXRX",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "cg-trending-collector-crypt",
+      "name": "Collector Crypt",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 112.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 141.",
       "score": 72,
       "risk": 88,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/pudgy-penguins"
+      "url": "https://www.coingecko.com/en/coins/collector-crypt"
     },
     {
       "id": "cg-trending-official-trump",
@@ -820,14 +1112,14 @@
       "url": "https://www.coingecko.com/en/coins/official-trump"
     },
     {
-      "id": "cg-trending-bitcoin",
-      "name": "Bitcoin",
+      "id": "cg-trending-lighter",
+      "name": "Lighter",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 1.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 81.",
       "score": 70,
       "risk": 72,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/bitcoin"
+      "url": "https://www.coingecko.com/en/coins/lighter"
     },
     {
       "id": "av-ipo-I-f",
@@ -840,1144 +1132,1079 @@
       "source": "Alpha Vantage IPO Calendar"
     },
     {
-      "id": "cg-trending-near",
-      "name": "NEAR Protocol",
+      "id": "cg-trending-aerodrome-finance",
+      "name": "Aerodrome Finance",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 21.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 151.",
       "score": 69,
-      "risk": 72,
+      "risk": 88,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/near"
+      "url": "https://www.coingecko.com/en/coins/aerodrome-finance"
     },
     {
-      "id": "cg-trending-ethena",
-      "name": "Ethena",
+      "id": "sec-MSFT-0001193125-26-427849-DEF 14A",
+      "name": "MSFT · deposito SEC DEF 14A",
+      "category": "SEC",
+      "signal": "Deposito ufficiale DEF 14A presentato il 2026-10-21. Richiede lettura del documento prima di modificare la tesi di investimento.",
+      "score": 68,
+      "risk": 52,
+      "date": "2026-10-21",
+      "source": "SEC EDGAR · fonte primaria",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526427849/d61756ddef14a.htm",
+      "symbol": "MSFT",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05514249",
+      "name": "Treatment of a Single Patient With CRD-TMH-001",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato COMPLETED. Ultimo aggiornamento ufficiale 2022-08-24.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-10-20",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05514249",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06625203",
+      "name": "A Non-interventional, International, Multicentre Clinical Research Study to Build the Largest Collection of Multimodal Data (Including Clinical Data, Imaging Data and Omics Data) in Oncology",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato ACTIVE_NOT_RECRUITING. Ultimo aggiornamento ufficiale 2024-10-03.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-09-28",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06625203",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07597499",
+      "name": "ANCHOR Validation Trial in High-Risk Multidisciplinary Care",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2026-05-19.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-07-08",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07597499",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06550037",
+      "name": "Optimize and Predict Antidepressant Efficacy for Patient With MDD Using Multi-omics Analysis and AI-predictive Tool",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato ACTIVE_NOT_RECRUITING. Ultimo aggiornamento ufficiale 2024-08-12.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-05-15",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06550037",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06469372",
+      "name": "Cardiac Amyloidosis Discovery Trial",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2024-06-21.",
+      "score": 68,
+      "risk": 74,
+      "date": "2025-12-04",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06469372",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05817188",
+      "name": "Medication Repurposing to Stop Cognitive Decline in Dementia",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato COMPLETED. Ultimo aggiornamento ufficiale 2023-04-18.",
+      "score": 68,
+      "risk": 74,
+      "date": "2025-05-02",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05817188",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT04662944",
+      "name": "A Non-interventional Study to Assess the Influence of Automated Optical Coherence Tomography Image Enrichment With Segmentation Information on Disease Activity Assessment in Patients Treated With Licensed Anti- VEGF Injections",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato COMPLETED. Ultimo aggiornamento ufficiale 2020-12-10.",
+      "score": 68,
+      "risk": 74,
+      "date": "2024-06-18",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04662944",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05621096",
+      "name": "Low Dose Radiation as Bridging Therapy in Relapsed B-Cell Non-Hodgkin Lymphoma",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato ACTIVE_NOT_RECRUITING. Ultimo aggiornamento ufficiale 2022-11-17.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-10-08",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05621096",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05906719",
+      "name": "Machine Vision Based MDS-UPDRS III Machine Rating",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato COMPLETED. Ultimo aggiornamento ufficiale 2023-06-18.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-08-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05906719",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT04354623",
+      "name": "Developing a Falls Prediction Tool Using Both Accelerometer and Video Gait Analysis Data in Older Adults",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato COMPLETED. Ultimo aggiornamento ufficiale 2020-04-21.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-05-01",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04354623",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06994702",
+      "name": "Impact of the MRI Restraint System on the Quality of the Synthetic Scan for Intracranial Radiotherapy Treatment",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2025-05-29.",
+      "score": 68,
+      "risk": 74,
+      "date": "2026-03-10",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06994702",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07029438",
+      "name": "Comparative Efficacy of Floss and Essential Oil/CPC+Zn Mouthwashes in Reducing Dental Plaque and Gingivitis",
+      "category": "BIOTECH",
+      "signal": "PHASE4; stato COMPLETED. Ultimo aggiornamento ufficiale 2025-06-19.",
+      "score": 68,
+      "risk": 74,
+      "date": "2025-10-30",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07029438",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07061418",
+      "name": "3D Evaluation of Free-handed-Countersink Guided and Fully Guided Implant Surgery in Partially Edentulous Patients",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2025-07-11.",
+      "score": 68,
+      "risk": 74,
+      "date": "2025-07-11",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07061418",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05442424",
+      "name": "Keiki (Pediatric) Produce Prescription (KPRx) Program Hawaii",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2022-07-05.",
+      "score": 68,
+      "risk": 74,
+      "date": "2025-03-30",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05442424",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05039307",
+      "name": "Prevention of Type 2 Diabetes and Gestational Diabetes Among Women in Kisantu, Democratic Republic of Congo",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2021-09-09.",
+      "score": 68,
+      "risk": 74,
+      "date": "2024-10-16",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05039307",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05900453",
+      "name": "Novel Strategies for Personalized Clinical Decisions in Knee Arthroplasty",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato COMPLETED. Ultimo aggiornamento ufficiale 2023-06-12.",
+      "score": 68,
+      "risk": 74,
+      "date": "2023-09-28",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05900453",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT01549587",
+      "name": "Oral Hygiene and Maternity Outcomes Multicenter Study (OHMOM)",
+      "category": "BIOTECH",
+      "signal": "NA; stato COMPLETED. Ultimo aggiornamento ufficiale 2012-03-09.",
+      "score": 68,
+      "risk": 74,
+      "date": "2023-04-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT01549587",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "cg-trending-zcash",
+      "name": "Zcash",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 41.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 10.",
       "score": 68,
       "risk": 72,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/ethena"
+      "url": "https://www.coingecko.com/en/coins/zcash"
     },
     {
-      "id": "cg-trending-chainlink",
-      "name": "Chainlink",
+      "id": "ct-NCT03281382",
+      "name": "Phase 1 Trial of Interleukin 12 Gene Therapy for Metastatic Pancreatic Cancer",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Henry Ford Health System.",
+      "score": 68,
+      "risk": 78,
+      "date": "2017-09-13",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03281382"
+    },
+    {
+      "id": "ct-NCT03277729",
+      "name": "A Phase I/II Study to Evaluate the Safety of Cellular Immunotherapy Using Autologous T Cells Engineered to Express a CD20-Specific Chimeric Antigen Receptor for Patients With Relapsed or Refractory B Cell Non-Hodgkin Lymphomas",
+      "category": "BIOTECH",
+      "signal": "Studio clinico ACTIVE_NOT_RECRUITING · sponsor Fred Hutchinson Cancer Center.",
+      "score": 68,
+      "risk": 78,
+      "date": "2017-09-11",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03277729"
+    },
+    {
+      "id": "ct-NCT00336362",
+      "name": "Evaluating the Safety of G-CSF Mobilization in Individuals With Beta Thalassemia Major",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor University of Washington.",
+      "score": 68,
+      "risk": 78,
+      "date": "2006-06-13",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT00336362"
+    },
+    {
+      "id": "ct-NCT05453669",
+      "name": "Clinical Study of the Efficacy of CD19-CAR-DNT Cells in the Treatment of Relapsed/Refractory B-cell NHL",
+      "category": "BIOTECH",
+      "signal": "Studio clinico UNKNOWN · sponsor Second Affiliated Hospital, Zhejiang University, School of Medicine.",
+      "score": 68,
+      "risk": 78,
+      "date": "2022-07-12",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT05453669"
+    },
+    {
+      "id": "ct-NCT06422351",
+      "name": "Clinical Trial to Evaluate the Efficacy of Gene Therapy for Pyruvate Kinase Deficiency",
+      "category": "BIOTECH",
+      "signal": "Studio clinico SUSPENDED · sponsor Rocket Pharmaceuticals Inc..",
+      "score": 68,
+      "risk": 78,
+      "date": "2024-05-21",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT06422351"
+    },
+    {
+      "id": "ct-NCT00078520",
+      "name": "Treatment of B-CLL With Human IL-2 and CD40 Ligand and Plasmid Gene Modified Autologous Tumor Cells",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Baylor College of Medicine.",
+      "score": 68,
+      "risk": 78,
+      "date": "2004-03-02",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT00078520"
+    },
+    {
+      "id": "ct-NCT00085488",
+      "name": "Vaccine Therapy in Treating Patients With Stage III or Stage IV Melanoma",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Dartmouth-Hitchcock Medical Center.",
+      "score": 68,
+      "risk": 78,
+      "date": "2004-06-11",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT00085488"
+    },
+    {
+      "id": "ct-NCT02309788",
+      "name": "Radiotherapy in Hepatocellular Carcinomas After Hepatectomy With Narrow Margin (<1 cm) or Portal Vein Thrombosis",
+      "category": "BIOTECH",
+      "signal": "Studio clinico UNKNOWN · sponsor Guangxi Medical University.",
+      "score": 68,
+      "risk": 78,
+      "date": "2014-12-05",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT02309788"
+    },
+    {
+      "id": "ct-NCT06015269",
+      "name": "Exploratory Study on Baize DC Injection in Preventing Recurrence and Metastasis After Radical Tumor Surgery",
+      "category": "BIOTECH",
+      "signal": "Studio clinico UNKNOWN · sponsor Shanghai Cell Therapy Group Co.,Ltd.",
+      "score": 68,
+      "risk": 78,
+      "date": "2023-08-29",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT06015269"
+    },
+    {
+      "id": "ct-NCT02864654",
+      "name": "Effectiveness and Safety of Adipose-Derived Regenerative Cells for the Treatment of Critical Lower Limb Ischemia",
+      "category": "BIOTECH",
+      "signal": "Studio clinico UNKNOWN · sponsor Central Clinical Hospital w/Outpatient Health Center of Business Administration for the President of Russian Federation.",
+      "score": 68,
+      "risk": 78,
+      "date": "2016-08-12",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT02864654"
+    },
+    {
+      "id": "ct-NCT03406962",
+      "name": "MGTA-456 in Patients With Inherited Metabolic Disorders Undergoing Hematopoietic Stem Cell Transplantation (HSCT)",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Magenta Therapeutics, Inc..",
+      "score": 68,
+      "risk": 78,
+      "date": "2018-01-23",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03406962"
+    },
+    {
+      "id": "ct-NCT00203203",
+      "name": "Autologous Stem Cells for Cardiac Angiogenesis (FOCUS HF)",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Texas Heart Institute.",
+      "score": 68,
+      "risk": 78,
+      "date": "2005-09-20",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT00203203"
+    },
+    {
+      "id": "ct-NCT07288073",
+      "name": "TIL Therapy in cSCC and MCC",
+      "category": "BIOTECH",
+      "signal": "Studio clinico RECRUITING · sponsor Karam Khaddour, MD, MS.",
+      "score": 68,
+      "risk": 78,
+      "date": "2025-12-17",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT07288073"
+    },
+    {
+      "id": "ct-NCT03681951",
+      "name": "First-time-in-human (FTIH) Study of GSK3145095 Alone and in Combination With Other Anticancer Agents in Adults With Advanced Solid Tumors",
+      "category": "BIOTECH",
+      "signal": "Studio clinico TERMINATED · sponsor GlaxoSmithKline.",
+      "score": 68,
+      "risk": 78,
+      "date": "2018-09-24",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03681951"
+    },
+    {
+      "id": "ct-NCT07198373",
+      "name": "Exploratory Study on the Efficacy of Zebutinib as Maintenance Therapy Following CAR-T Cell Therapy in Patients With Non-Hodgkin B-Cell Lymphoma",
+      "category": "BIOTECH",
+      "signal": "Studio clinico NOT_YET_RECRUITING · sponsor Beijing GoBroad Hospital.",
+      "score": 68,
+      "risk": 78,
+      "date": "2025-09-30",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT07198373"
+    },
+    {
+      "id": "ct-NCT07015983",
+      "name": "A Study of CC-97540 (BMS-986353 or Zola-cel), CD19-Targeted NEX-T CAR T Cells, in Participants With Active SLE Despite Immunosuppressants (Breakfree-SLE)",
+      "category": "BIOTECH",
+      "signal": "Studio clinico ACTIVE_NOT_RECRUITING · sponsor Juno Therapeutics, Inc., a Bristol-Myers Squibb Company.",
+      "score": 68,
+      "risk": 78,
+      "date": "2025-06-11",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT07015983"
+    },
+    {
+      "id": "ct-NCT04071366",
+      "name": "A Study of Itacitinib for the Prevention of Cytokine Release Syndrome Induced by Immune Effector Cell Therapy",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor Incyte Corporation.",
+      "score": 68,
+      "risk": 78,
+      "date": "2019-08-28",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT04071366"
+    },
+    {
+      "id": "ct-NCT03338777",
+      "name": "Suicide Plus Immune Gene Therapy for Advanced Melanoma",
+      "category": "BIOTECH",
+      "signal": "Studio clinico TERMINATED · sponsor Hospital Italiano de Buenos Aires.",
+      "score": 68,
+      "risk": 78,
+      "date": "2017-11-09",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03338777"
+    },
+    {
+      "id": "ct-NCT03529877",
+      "name": "Allogeneic ABCB5-positive Stem Cells for Treatment of Epidermolysis Bullosa",
+      "category": "BIOTECH",
+      "signal": "Studio clinico COMPLETED · sponsor RHEACELL GmbH & Co. KG.",
+      "score": 68,
+      "risk": 78,
+      "date": "2018-05-18",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT03529877"
+    },
+    {
+      "id": "ct-NCT06948019",
+      "name": "Safety and Efficacy of AAV9/AP4B1 (BFB-101) For Patients With AP4B1-related Hereditary Spastic Paraplegia Type 47 (SPG47)",
+      "category": "BIOTECH",
+      "signal": "Studio clinico NOT_YET_RECRUITING · sponsor BlackfinBio Ltd.",
+      "score": 68,
+      "risk": 78,
+      "date": "2025-04-28",
+      "source": "ClinicalTrials.gov",
+      "url": "https://clinicaltrials.gov/study/NCT06948019"
+    },
+    {
+      "id": "cg-trending-pearl-2",
+      "name": "Pearl",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 16.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 95.",
       "score": 67,
       "risk": 72,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/chainlink"
+      "url": "https://www.coingecko.com/en/coins/pearl-2"
     },
     {
-      "id": "cg-trending-hyperliquid",
-      "name": "Hyperliquid",
+      "id": "cg-trending-kinetiq",
+      "name": "Kinetiq",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 11.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 210.",
       "score": 66,
-      "risk": 72,
+      "risk": 88,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/hyperliquid"
+      "url": "https://www.coingecko.com/en/coins/kinetiq"
     },
     {
-      "id": "cg-trending-pepe",
-      "name": "Pepe",
+      "id": "cg-trending-bittensor",
+      "name": "Bittensor",
       "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 45.",
+      "signal": "Token in tendenza su CoinGecko; posizione market cap 37.",
       "score": 65,
       "risk": 72,
       "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/pepe"
+      "url": "https://www.coingecko.com/en/coins/bittensor"
     },
     {
-      "id": "cg-trending-uniswap",
-      "name": "Uniswap",
-      "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 22.",
+      "id": "clinical-NCT07916636",
+      "name": "Detection Technology of Peripheral Blood ctDNA Based on CRISPR/Cas and Gold Nanoparticles",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-11-04.",
       "score": 64,
-      "risk": 72,
-      "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/uniswap"
+      "risk": 74,
+      "date": "2026-11-04",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07916636",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1485894-8-A12B-20261104-0",
-      "name": "J.P. Morgan Exchange-Traded Fund Trust",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06041620",
+      "name": "Safety and Efficacy Evaluation of Autologous CRISPR-Cas12b Edited Hematopoietic Stem Cells",
+      "category": "BIOTECH",
+      "signal": "NA; stato TERMINATED. Ultimo aggiornamento ufficiale 2023-09-18.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1485894/0001193125-26-446329.txt"
+      "risk": 74,
+      "date": "2026-11-04",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06041620",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1585689-8-A12B-20261104-1",
-      "name": "Hilton Worldwide Holdings Inc.",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT04671212",
+      "name": "Discarded Bone Marrow for Hematology Research",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato RECRUITING. Ultimo aggiornamento ufficiale 2020-12-17.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1585689/0001585689-26-000065.txt"
+      "risk": 74,
+      "date": "2026-11-03",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04671212",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1618627-8-A12B-20261104-2",
-      "name": "RBB Fund Trust",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07906080",
+      "name": "Study to Evaluate the Feasibility and Safety of Autologous Cytokine-Induced Killer Cells (CIK_D332) in Combination With Tafasitamab and Lenalidomide in Patients With Relapsed or Refractory Diffuse Large B-Cell Lymphoma",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-10-30.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1618627/0000894189-26-030184.txt"
+      "risk": 74,
+      "date": "2026-11-03",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07906080",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1670541-8-A12B-20261104-3",
-      "name": "Adient plc",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT04501081",
+      "name": "Natural History of Autosomal Dominant Hearing Loss",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato RECRUITING. Ultimo aggiornamento ufficiale 2020-08-06.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1670541/0001670541-26-000118.txt"
+      "risk": 74,
+      "date": "2026-10-27",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04501081",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-758938-10-12G-20261104-5",
-      "name": "QUALSTAR CORP",
-      "category": "SEC",
-      "signal": "Deposito 10-12G: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06925542",
+      "name": "A Safety and Efficacy Study Evaluating CTX112 in Adult Subjects With Refractory Autoimmune Disease",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato RECRUITING. Ultimo aggiornamento ufficiale 2025-04-13.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/758938/0001096906-26-001670.txt"
+      "risk": 74,
+      "date": "2026-10-26",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06925542",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-768847-8-A12B-20261104-6",
-      "name": "VanEck Funds",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06479616",
+      "name": "A Long-term Follow-up Study in Participants Who Received CS-101",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-06-28.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/768847/0000768847-26-000191.txt"
+      "risk": 74,
+      "date": "2026-10-26",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06479616",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-809064-8-A12B-20261104-7",
-      "name": "Nomura ETF Trust II",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06451770",
+      "name": "Phase 1b Study of VERVE-201 in Patients With Refractory Hyperlipidemia",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-06-11.",
       "score": 64,
-      "risk": 68,
-      "date": "20261104",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/809064/0002071844-26-001739.txt"
+      "risk": 74,
+      "date": "2026-10-23",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06451770",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1089113-8-A12B-20261103-9",
-      "name": "HSBC HOLDINGS PLC",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07889947",
+      "name": "Combining Gene Editing and iPS to Study and Treat Monogenic Autoinflammatory Diseases",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-10-22.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1089113/0001628280-26-069383.txt"
+      "risk": 74,
+      "date": "2026-10-22",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07889947",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1101215-8-A12B-20261103-10",
-      "name": "BREAD FINANCIAL HOLDINGS, INC.",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06815029",
+      "name": "Intracranial Genetically Modified Immune Cells (TGFβR2KO/IL13Rα2 CAR T-Cells) for the Treatment of Recurrent or Progressive Glioblastoma or Grade 3 or 4 IDH-Mutant Astrocytoma",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato RECRUITING. Ultimo aggiornamento ufficiale 2025-02-07.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1101215/0001193125-26-444983.txt"
+      "risk": 74,
+      "date": "2026-10-22",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06815029",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1360442-8-A12G-20261103-11",
-      "name": "Dogecoin Cash, Inc.",
-      "category": "SEC",
-      "signal": "Deposito 8-A12G: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07708350",
+      "name": "Hematopoietic Stem Cell BCL11A Enhancer Gene Editing for Sickle Cell Disease",
+      "category": "BIOTECH",
+      "signal": "PHASE1; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-07-16.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1360442/0001096906-26-001666.txt"
+      "risk": 74,
+      "date": "2026-10-21",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07708350",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-2073616-8-A12B-20261103-16",
-      "name": "Canary Staked INJ ETF",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07619638",
+      "name": "AIM-IBD: A Microbiome-Targeted Supplement in Mild-to-Moderate Ulcerative Colitis",
+      "category": "BIOTECH",
+      "signal": "NA; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-06-02.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/2073616/0001999371-26-024343.txt"
+      "risk": 74,
+      "date": "2026-09-30",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07619638",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-80424-8-A12B-20261103-18",
-      "name": "PROCTER & GAMBLE Co",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07738393",
+      "name": "In-Person, Online, and Hybrid Healthy-Aging Education for Pre-Frailty and Frailty in Older Adults",
+      "category": "BIOTECH",
+      "signal": "NA; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-07-31.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/80424/0001628280-26-069613.txt"
+      "risk": 74,
+      "date": "2026-07-31",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07738393",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-930236-8-A12B-20261103-19",
-      "name": "REDWOOD TRUST INC",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT07037563",
+      "name": "Developing an AI Pharmacy Chatbot for the Population of Hong Kong",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2025-06-25.",
       "score": 64,
-      "risk": 68,
-      "date": "20261103",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/930236/0001104659-26-122196.txt"
+      "risk": 74,
+      "date": "2025-06-25",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07037563",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1023391-8-A12B-20261102-20",
-      "name": "FMI FUNDS INC",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT05941234",
+      "name": "Stem Cell Analysis, Omics (Including Immunomics) and Artificial Intelligence in Glioblastoma",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2023-07-12.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1023391/0000897069-26-001885.txt"
+      "risk": 74,
+      "date": "2025-03-13",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05941234",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1320461-8-A12B-20261102-21",
-      "name": "Cooper-Standard Holdings Inc.",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06029751",
+      "name": "Dynamic Follow-up of Factors Influencing Implant Success and Models for Predicting Implant Outcomes",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2023-09-08.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1320461/0001320461-26-000130.txt"
+      "risk": 74,
+      "date": "2024-11-19",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06029751",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1478482-8-A12B-20261102-22",
-      "name": "John Hancock Exchange-Traded Fund Trust",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06629207",
+      "name": "Artificial Intelligence in Molecular Imaging: Predicting Parkinson's Risk in REM Sleep Behavior Disorder",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-10-08.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1478482/0001193125-26-443421.txt"
+      "risk": 74,
+      "date": "2024-11-08",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06629207",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1484018-8-A12B-20261102-23",
-      "name": "Spinnaker ETF Series",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06331208",
+      "name": "Mechanisms of Pulmonary Vascular Dysfunction in Heart Failure",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato RECRUITING. Ultimo aggiornamento ufficiale 2024-03-26.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1484018/0001999371-26-024166.txt"
+      "risk": 74,
+      "date": "2024-08-27",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06331208",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1496608-8-A12B-20261102-24",
-      "name": "AB Active ETFs, Inc.",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT06001528",
+      "name": "Serum and Tissue Metabolite-based Prediction of Sentinel Lymph Node Metastasis in Breast Cancer",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2023-08-21.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1496608/0000919574-26-007339.txt"
+      "risk": 74,
+      "date": "2023-09-28",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06001528",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1508033-8-A12B-20261102-25",
-      "name": "Staysail Series Trust",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT05254132",
+      "name": "Artificial Intelligence for Help Non-Small Cell Lung Cancer: Measure Cancer Biology and Treatment Response Via Imaging",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2022-02-24.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1508033/0001999371-26-024168.txt"
+      "risk": 74,
+      "date": "2022-02-24",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05254132",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "sec-1710607-8-A12B-20261102-26",
-      "name": "AMERICAN CENTURY ETF TRUST",
-      "category": "SEC",
-      "signal": "Deposito 8-A12B: possibile nuova quotazione, registrazione o evento societario da approfondire.",
+      "id": "clinical-NCT04877899",
+      "name": "Mazankowski Alberta Heart Institute (MAHI) EchoGo Discovery 1 Protocol",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2021-05-07.",
       "score": 64,
-      "risk": 68,
-      "date": "20261102",
-      "source": "SEC EDGAR",
-      "url": "https://www.sec.gov/Archives/edgar/data/1710607/0001710607-26-000335.txt"
+      "risk": 74,
+      "date": "2021-09-05",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04877899",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "cg-trending-pons",
-      "name": "Pons",
-      "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 203.",
-      "score": 63,
-      "risk": 88,
-      "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/pons"
+      "id": "clinical-NCT04837599",
+      "name": "Artificial Intelligence Performance in Colonoscopy in Daily Practice",
+      "category": "BIOTECH",
+      "signal": "NA; stato UNKNOWN. Ultimo aggiornamento ufficiale 2021-04-08.",
+      "score": 64,
+      "risk": 74,
+      "date": "2021-04-19",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT04837599",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "cg-trending-world-liberty-financial",
-      "name": "World Liberty Financial",
-      "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 61.",
-      "score": 62,
-      "risk": 72,
-      "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/world-liberty-financial"
+      "id": "clinical-NCT02016092",
+      "name": "Biomarker Discovery in Parkinson's Disease",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2013-12-19.",
+      "score": 64,
+      "risk": 74,
+      "date": "2016-03-14",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT02016092",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "cg-trending-dash",
-      "name": "Dash",
-      "category": "CRYPTO",
-      "signal": "Token in tendenza su CoinGecko; posizione market cap 92.",
-      "score": 62,
-      "risk": 72,
-      "source": "CoinGecko Trending",
-      "url": "https://www.coingecko.com/en/coins/dash"
+      "id": "clinical-NCT07850531",
+      "name": "Precision Nutrition for Obesity and Prediabetes Prevention in Under-supported Communities",
+      "category": "BIOTECH",
+      "signal": "NA; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-09-30.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-09-30",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07850531",
+      "sourceTier": 1,
+      "verification": "primary"
     },
     {
-      "id": "cftc-tff-2026-10-27",
-      "name": "CFTC Traders in Financial Futures",
-      "category": "POSITIONING",
-      "signal": "Campione TFF acquisito: 25 contratti recenti, open interest campione 31,527,712. Contesto di posizionamento, non segnale standalone.",
-      "score": 60,
-      "risk": 45,
-      "date": "2026-10-27T00:00:00.000",
-      "source": "CFTC Public Reporting Environment"
+      "id": "clinical-NCT07638241",
+      "name": "Agentic AI Personalized Dietary Management Study",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-06-10.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-09-15",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07638241",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07600567",
+      "name": "Algal Lutein Against Decline of Intellectual Nimbleness",
+      "category": "BIOTECH",
+      "signal": "NA; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2026-05-20.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-05-20",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07600567",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07380243",
+      "name": "Pathways to Prevention Food-is-Medicine Trial",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-02-02.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-05-15",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07380243",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07432425",
+      "name": "Effects of Different Exercise Protocols on Physical and Cognitive Changes in People With Chronic Neck Pain",
+      "category": "BIOTECH",
+      "signal": "NA; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-02-25.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-02-25",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07432425",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT07358910",
+      "name": "Risk Assessment of Community Spread of Multiple Endemic Infectious Diseases in a One Health Perspective",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato RECRUITING. Ultimo aggiornamento ufficiale 2026-01-22.",
+      "score": 64,
+      "risk": 74,
+      "date": "2026-01-22",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT07358910",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT06899672",
+      "name": "Analyzing the Effect of Disinfection Additives on the Linear Dimensional Stability of Dental Alginate Impressions: A Quasi-Experimental Comparative Study",
+      "category": "BIOTECH",
+      "signal": "NA; stato NOT_YET_RECRUITING. Ultimo aggiornamento ufficiale 2025-03-28.",
+      "score": 64,
+      "risk": 74,
+      "date": "2025-03-28",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT06899672",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05569005",
+      "name": "Effect of Switching From Cigarette Smoking to THS on Disease Progression in Mild to Moderate COPD Subjects With Chronic Bronchitis Symptoms.",
+      "category": "BIOTECH",
+      "signal": "NA; stato TERMINATED. Ultimo aggiornamento ufficiale 2022-10-06.",
+      "score": 64,
+      "risk": 74,
+      "date": "2024-09-26",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05569005",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05892562",
+      "name": "A Causal Relationship Study Between Anxiety, Depression, and Rheumatoid Arthritis",
+      "category": "BIOTECH",
+      "signal": "fase non indicata; stato UNKNOWN. Ultimo aggiornamento ufficiale 2023-06-07.",
+      "score": 64,
+      "risk": 74,
+      "date": "2023-06-07",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05892562",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "clinical-NCT05596149",
+      "name": "Assessment of the Cytotoxic and Genotoxic Effect of Toothpastes With Different Forms of Fluoride on the Buccal Mucosa",
+      "category": "BIOTECH",
+      "signal": "NA; stato UNKNOWN. Ultimo aggiornamento ufficiale 2022-10-27.",
+      "score": 64,
+      "risk": 74,
+      "date": "2022-10-27",
+      "source": "ClinicalTrials.gov · fonte primaria",
+      "url": "https://clinicaltrials.gov/study/NCT05596149",
+      "sourceTier": 1,
+      "verification": "primary"
+    },
+    {
+      "id": "broad-geopolitics-20260814T191500Z-1",
+      "name": "Canada announces new sanctions on Iranian officials over Strait of Hormuz",
+      "category": "NEWS",
+      "signal": "Segnale geopolitics rilevato da cbc.ca.",
+      "score": 64,
+      "risk": 76,
+      "date": "20260814T191500Z",
+      "source": "GDELT geopolitics · cbc.ca",
+      "url": "https://www.cbc.ca/news/politics/canada-new-sanctions-iranians-strait-of-hormuz-9.7307555"
+    },
+    {
+      "id": "broad-geopolitics-20260921T151500Z-3",
+      "name": "Trump says Putin wants to end Ukraine war , says Zelensky  overplayed his hand  ",
+      "category": "NEWS",
+      "signal": "Segnale geopolitics rilevato da moneycontrol.com.",
+      "score": 64,
+      "risk": 76,
+      "date": "20260921T151500Z",
+      "source": "GDELT geopolitics · moneycontrol.com",
+      "url": "https://www.moneycontrol.com/world/trump-says-putin-wants-to-end-ukraine-war-says-zelensky-overplayed-his-hand-article-14034776.html"
+    },
+    {
+      "id": "broad-geopolitics-20260923T100000Z-9",
+      "name": "Russian Sanctions Act seeks to alter Moscows cost - benefit calculus , says German envoy Wieck",
+      "category": "NEWS",
+      "signal": "Segnale geopolitics rilevato da news.webindia123.com.",
+      "score": 64,
+      "risk": 76,
+      "date": "20260923T100000Z",
+      "source": "GDELT geopolitics · news.webindia123.com",
+      "url": "https://news.webindia123.com/news/Articles/World/20260923/4502389.html"
+    },
+    {
+      "id": "broad-geopolitics-20261018T184500Z-15",
+      "name": "Russia Ukraine War : US says Europe refused to join push for tariffs on India , China over Russian oil",
+      "category": "NEWS",
+      "signal": "Segnale geopolitics rilevato da timesofindia.indiatimes.com.",
+      "score": 64,
+      "risk": 76,
+      "date": "20261018T184500Z",
+      "source": "GDELT geopolitics · timesofindia.indiatimes.com",
+      "url": "https://timesofindia.indiatimes.com/business/india-business/us-says-europe-refused-to-join-push-for-tariffs-on-india-china-over-russian-oil/articleshow/135033241.cms"
+    },
+    {
+      "id": "broad-geopolitics-20260823T144500Z-16",
+      "name": "Pezeshkian defends US memorandum as path beyond war , economic crisis",
+      "category": "NEWS",
+      "signal": "Segnale geopolitics rilevato da dailypost.ng.",
+      "score": 64,
+      "risk": 76,
+      "date": "20260823T144500Z",
+      "source": "GDELT geopolitics · dailypost.ng",
+      "url": "https://dailypost.ng/2026/08/23/pezeshkian-defends-us-memorandum-as-path-beyond-war-economic-crisis/"
     }
   ],
   "warnings": [
-    "GDELT emergenti non acquisito: HTTP 429",
-    "GDELT geopolitica non acquisito: HTTP 429",
     "Le società private e i mercati non regolamentati non possono essere coperti integralmente da sole fonti gratuite.",
     "Ogni segnale emergente richiede verifica umana: il motore non esegue compravendite.",
-    "1 strumenti richiedono attenzione per dispersione prezzi o presenza di outlier tra fonti indipendenti.",
-    "13 osservazioni di mercato stale o senza timestamp escluse dalla validazione."
+    "Copertura notizie primaria parziale: Fenice non usa il fallback RSS come conferma forte e riduce la fiducia dove GDELT non è disponibile. Fallback RSS attivo per: macro, ai, biotech, agritech."
   ],
   "executionPolicy": {
     "autonomousAnalysis": true,
     "autonomousTrading": false,
     "humanConfirmationRequired": true
   },
-  "foundation": {
-    "version": 4,
-    "job": "intraday",
-    "startedAt": "2026-11-05T03:47:23.684Z",
-    "completedAt": "2026-11-05T03:47:48.246Z",
-    "sourceHealth": {
-      "healthy": 6,
-      "total": 8
-    },
-    "immutableHistory": true,
-    "tradingDisabled": true,
-    "resilientMarketFallbacks": true,
-    "institutionalSourceDiversity": true,
-    "optionalSourceRecovery": {
-      "gdelt": {
-        "attempted": true,
-        "state": "errore",
-        "successes": 0,
-        "records": 0,
-        "errors": [
-          "emerging:HTTP 429",
-          "risk:GDELT payload without articles array"
-        ]
-      },
-      "finra": {
-        "attempted": true,
-        "state": "operativo",
-        "records": 5
-      }
-    }
-  },
-  "marketObservations": [
-    {
-      "symbol": "ZEC",
-      "name": "Zcash",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1322.33,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "UNI",
-      "name": "Uniswap",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 7.78,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "NEAR",
-      "name": "NEAR Protocol",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 4.06,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "ETH",
-      "name": "Ethereum",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 2430.01,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "LINK",
-      "name": "Chainlink",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 11.6,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "ADA",
-      "name": "Cardano",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.199267,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "SUI",
-      "name": "Sui",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.934743,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "CC",
-      "name": "Canton",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.102155,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "SOL",
-      "name": "Solana",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 96.82,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "XLM",
-      "name": "Stellar",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.168802,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "LTC",
-      "name": "Litecoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 56.33,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "WBT",
-      "name": "WhiteBIT Coin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 78.09,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "BTC",
-      "name": "Bitcoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 80677,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "DOGE",
-      "name": "Dogecoin",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.07733,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "BCH",
-      "name": "Bitcoin Cash",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 282.67,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "AVAX",
-      "name": "Avalanche",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 8.81,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "SPY",
-      "name": "S&P 500 ETF",
-      "assetClass": "ETF",
-      "market": "USA",
-      "price": 766.81,
-      "currency": "USD",
-      "source": "Alpha Vantage",
-      "observedAt": "2026-11-04"
-    },
-    {
-      "symbol": "XRP",
-      "name": "XRP",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1.31,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "BNB",
-      "name": "BNB",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 716.38,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "XMR",
-      "name": "Monero",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 636.91,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "HYPE",
-      "name": "Hyperliquid",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 83.91,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "FIGR_HELOC",
-      "name": "Figure Heloc",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1.046,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "LEO",
-      "name": "LEO Token",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 9.35,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "USD1",
-      "name": "USD1",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.998648,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "USDE",
-      "name": "Ethena USDe",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.9994,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "USDT",
-      "name": "Tether",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.999299,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "USDC",
-      "name": "USDC",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.999677,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "DAI",
-      "name": "Dai",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "USDS",
-      "name": "USDS",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 1,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "TRX",
-      "name": "TRON",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.319202,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    },
-    {
-      "symbol": "RAIN",
-      "name": "Rain",
-      "assetClass": "Criptovaluta",
-      "market": "Crypto globale",
-      "price": 0.0059803,
-      "currency": "USD",
-      "source": "CoinGecko",
-      "observedAt": "2026-11-05T03:45:54.000Z"
-    }
-  ],
-  "marketValidationEvidence": {
-    "generatedAt": "2026-11-05T03:49:16.295Z",
-    "observations": 67,
-    "rawObservations": 80,
-    "staleEvidenceExcluded": 13,
-    "sources": [
-      "CoinGecko",
-      "Coinbase Exchange independent validation",
-      "Yahoo Finance independent validation"
+  "newsCoverage": {
+    "checkedAt": "2026-11-05T06:50:00.525Z",
+    "themes": [
+      "geopolitics",
+      "macro",
+      "ai",
+      "biotech",
+      "agritech"
     ],
-    "checks": 20,
-    "attention": 1,
-    "divergent": 0,
-    "cryptoConflictEscalationTargets": 0,
-    "cryptoConflictEscalationRecovered": 0
-  },
-  "intelligence": {
-    "generatedAt": "2026-11-05T03:49:16.295Z",
-    "intelligenceConfidence": 92,
-    "confidenceModel": {
-      "confidence": 92,
-      "components": {
-        "activeSourceQuality": 38,
-        "criticalSources": 25,
-        "crossValidation": 19.9,
-        "sourceDiversity": 6,
-        "assetClassDiversity": 7,
-        "concentrationPenalty": 0,
-        "divergencePenalty": 0,
-        "optionalFailurePenalty": 4
-      },
-      "metrics": {
-        "activeAverageQuality": 95,
-        "criticalGreen": true,
-        "criticalHealthFresh": true,
-        "criticalHealthAgeHours": 0.05,
-        "criticalReady": 9,
-        "criticalTotal": 9,
-        "checked": 20,
-        "confirmed": 19,
-        "attention": 1,
-        "divergent": 0,
-        "weightedValidationCredit": 19.903,
-        "validationCreditPercent": 99.5,
-        "sourceCount": 3,
-        "assetClassCount": 4,
-        "concentrationPercent": 46.27
-      }
-    },
-    "sourceQuality": [
+    "distinctDomains": 101,
+    "selectedArticles": 60,
+    "successfulThemes": 5,
+    "primaryThemes": 1,
+    "fallbackThemes": [
+      "macro",
+      "ai",
+      "biotech",
+      "agritech"
+    ],
+    "failedThemes": [],
+    "providerCircuitOpen": true,
+    "skippedPrimaryRequests": 3,
+    "fallbackPolicy": "Google News RSS è solo discovery/fallback e non vale come conferma forte o fonte primaria.",
+    "diagnostics": [
       {
-        "id": "fred",
-        "name": "FRED",
-        "state": "operativo",
-        "qualityScore": 100,
-        "freshnessScore": 100,
-        "coverageCount": 6
+        "scope": "core",
+        "error": "GDELT emergenti non acquisito: HTTP 429"
       },
       {
-        "id": "sec",
-        "name": "SEC EDGAR",
-        "state": "operativo",
-        "qualityScore": 99,
-        "freshnessScore": 100,
-        "coverageCount": 5
+        "scope": "core",
+        "error": "GDELT geopolitica non acquisito: HTTP 429"
       },
       {
-        "id": "cftc-tff",
-        "name": "CFTC Traders in Financial Futures",
-        "state": "operativo",
-        "qualityScore": 97,
-        "freshnessScore": 100,
-        "coverageCount": 3
+        "scope": "macro",
+        "error": "macro: HTTP 429"
       },
       {
-        "id": "coingecko",
-        "name": "CoinGecko",
-        "state": "operativo",
-        "qualityScore": 97,
-        "freshnessScore": 100,
-        "coverageCount": 3
+        "scope": "ai",
+        "error": "GDELT circuit open after provider rate/access refusal"
       },
       {
-        "id": "finra-fixed-income",
-        "name": "FINRA Fixed Income API",
-        "state": "operativo",
-        "qualityScore": 97,
-        "freshnessScore": 100,
-        "coverageCount": 3
+        "scope": "biotech",
+        "error": "GDELT circuit open after provider rate/access refusal"
       },
       {
-        "id": "bls",
-        "name": "U.S. Bureau of Labor Statistics",
-        "state": "operativo",
-        "qualityScore": 97,
-        "freshnessScore": 100,
-        "coverageCount": 3
-      },
-      {
-        "id": "us-treasury-fiscal",
-        "name": "U.S. Treasury Fiscal Data",
-        "state": "operativo",
-        "qualityScore": 97,
-        "freshnessScore": 100,
-        "coverageCount": 3
-      },
-      {
-        "id": "ecb",
-        "name": "Banca Centrale Europea",
-        "state": "operativo",
-        "qualityScore": 96,
-        "freshnessScore": 100,
-        "coverageCount": 2
-      },
-      {
-        "id": "worldbank",
-        "name": "World Bank",
-        "state": "operativo",
-        "qualityScore": 96,
-        "freshnessScore": 100,
-        "coverageCount": 2
-      },
-      {
-        "id": "alphavantage",
-        "name": "Alpha Vantage",
-        "state": "parziale",
-        "qualityScore": 74,
-        "freshnessScore": 100,
-        "coverageCount": 7
-      },
-      {
-        "id": "stooq",
-        "name": "Stooq Market Data",
-        "state": "errore",
-        "qualityScore": 14,
-        "freshnessScore": 35,
-        "coverageCount": 6
-      },
-      {
-        "id": "gdelt",
-        "name": "GDELT",
-        "state": "errore",
-        "qualityScore": 13,
-        "freshnessScore": 35,
-        "coverageCount": 5
+        "scope": "agritech",
+        "error": "GDELT circuit open after provider rate/access refusal"
       }
     ],
-    "crossSourceValidation": {
-      "checked": 20,
-      "confirmed": 19,
-      "attention": 1,
-      "divergent": 0,
-      "checks": [
-        {
-          "instrument": "ZEC:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.646,
-          "status": "attenzione",
-          "confidenceCredit": 0.903,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "SOL:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.414,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "NEAR:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.41,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "ADA:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 3,
-          "spreadPercent": 0.371,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "DOGE:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 3,
-          "spreadPercent": 0.337,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "LINK:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.302,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "XLM:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.284,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "ETH:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.256,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "BCH:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 3,
-          "spreadPercent": 0.241,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "BNB:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 3,
-          "spreadPercent": 0.236,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "BTC:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.225,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "AVAX:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 3,
-          "spreadPercent": 0.205,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "HYPE:USD",
-          "sources": [
-            "CoinGecko",
-            "Coinbase Exchange independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.203,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "LTC:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.187,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "WBT:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.171,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "XRP:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.061,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "XMR:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.048,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "USDT:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.035,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "TRX:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.024,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        },
-        {
-          "instrument": "USDC:USD",
-          "sources": [
-            "CoinGecko",
-            "Yahoo Finance independent validation"
-          ],
-          "observations": 2,
-          "spreadPercent": 0.022,
-          "status": "confermato",
-          "confidenceCredit": 1,
-          "confirmationBandPercent": 0.5,
-          "divergenceBandPercent": 2
-        }
-      ],
-      "evidenceObservations": 67,
-      "rawEvidenceObservations": 80,
-      "staleEvidenceExcluded": 13,
-      "validationSources": [
-        "CoinGecko",
-        "Coinbase Exchange independent validation",
-        "Yahoo Finance independent validation"
-      ],
-      "cryptoConflictEscalation": {
-        "targets": [],
-        "additionalVenueObservations": 0
-      }
-    },
-    "coverage": {
-      "instruments": 42,
-      "marketObservations": 67,
-      "marketSources": 3,
-      "assetClasses": [
-        "Criptovaluta",
-        "ETF",
-        "Materie prime",
-        "Obbligazioni"
-      ],
-      "sourceConcentrationPercent": 46
-    },
-    "policy": {
-      "institutionalSourcesFirst": true,
-      "crossSourceValidationRequired": true,
-      "singleSourceSignalsCapped": true,
-      "autonomousTrading": false,
-      "validationOnlyObservationsDoNotCreateTradeSignals": true,
-      "confidenceFailsClosedWithoutCriticalSourceGreen": true,
-      "criticalHealthFreshnessRequiredHours": 24,
-      "validationEvidenceFreshnessHours": {
-        "crypto": 4,
-        "traditional": 96
-      },
-      "unknownTimestampEvidenceExcluded": true,
-      "boundedExternalValidationConcurrency": 8,
-      "twoSourceCryptoDivergenceEscalatesToIndependentVenues": true,
-      "multiSourceOutlierRequiresStrictMajorityConsensus": true,
-      "divergenceThresholdPercentUnchanged": 2,
-      "confirmationBandPercentUnchanged": 0.5
-    }
+    "rule": "Massimo due articoli per editore/dominio per ridurre concentrazione e bias. Errori tecnici transitori restano nei diagnostics e non vengono moltiplicati negli avvisi utente."
+  },
+  "primaryEventCoverage": {
+    "checkedAt": "2026-11-05T06:51:13.953Z",
+    "secFilings": 22,
+    "clinicalStudies": 59,
+    "trackedCompanies": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "CRSP",
+      "NTLA",
+      "RXRX"
+    ],
+    "policy": "Le fonti primarie aumentano la confidenza, ma non generano ordini automatici."
+  },
+  "providerHealth": {
+    "total": 10,
+    "operational": 7,
+    "partial": 2,
+    "error": 1,
+    "unconfigured": 0,
+    "weightedCoveragePercent": 81
   }
 }
