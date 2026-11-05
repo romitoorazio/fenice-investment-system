@@ -34,6 +34,12 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
    ...(!(approval.permittedDecisionStates||[]).includes(d.decision)?["DECISION_NOT_PERMITTED"]:[])
   ]
  })).filter(d=>d.reasons.length>0).sort((a,b)=>(a.scoreGap??Infinity)-(b.scoreGap??Infinity));
+ const researchGapCounts={};
+ const researchGapsBySymbol=(committee.topDecisions||[]).map(d=>{
+  const gaps=Array.isArray(d.buyGapEvidence?.gaps)?d.buyGapEvidence.gaps:[];
+  for(const gap of gaps){const code=String(gap?.code||"UNKNOWN");researchGapCounts[code]=(researchGapCounts[code]||0)+1;}
+  return {symbol:d.symbol,scope:d.buyGapEvidence?.scope||null,status:d.buyGapEvidence?.status||null,gaps:gaps.map(g=>({code:g.code,actual:g.actual??null,requiredMin:g.requiredMin??null,requiredMax:g.requiredMax??null,required:g.required??null}))};
+ }).filter(d=>d.gaps.length>0);
  const quoteCauses={};
  for(const q of coverage.rows||[]){
   if(q.paperEligible===true)continue;
@@ -43,7 +49,7 @@ export function diagnose({committee,coverage,terminal,approval,days,ledger},now=
  return {mode:"PAPER_BOTTLENECK_READ_ONLY",observedAt:now,counts:{symbols:rows.length,quoteEligible:rows.filter(r=>r.quoteEligible).length,preliminaryReady:rows.filter(r=>!r.blockers.length).length,freshPreliminaryCandidatesPresent:rows.filter(r=>!r.blockers.length).length>0&&ageMinutes(coverage.generatedAt)>=0&&ageMinutes(coverage.generatedAt)<=30&&ageMinutes(committee.generatedAt)>=0&&ageMinutes(committee.generatedAt)<=1440,realStrategyPaperAttempts:ledger.attempts?.length||0},
  freshness:{coverageAgeMinutes:ageMinutes(coverage.generatedAt),committeeAgeMinutes:ageMinutes(committee.generatedAt),coverageFreshForStager:ageMinutes(coverage.generatedAt)>=0&&ageMinutes(coverage.generatedAt)<=30,committeeFreshForStager:ageMinutes(committee.generatedAt)>=0&&ageMinutes(committee.generatedAt)<=1440},
  lastDay:{date:latest?.date??null,reason:latest?.noNewFillReason??null,valid:latest?.validatedForwardDay===true},
- blockerCounts:reasons,quoteBlockersByCause:quoteCauses,decisionBlockers,rows,notes:["Snapshot diagnosis does not create PAPER fills. FreshPreliminaryCandidatesPresent means fresh preliminary screening only, never order authorization.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Never lower strategy thresholds based on this report."],
+ blockerCounts:reasons,quoteBlockersByCause:quoteCauses,decisionBlockers,researchGapCounts,researchGapsBySymbol,rows,notes:["Snapshot diagnosis does not create PAPER fills. FreshPreliminaryCandidatesPresent means fresh preliminary screening only, never order authorization.","Market-open, FX, calibrated confidence, capital and OMS gates require separate live evaluation.","Research buy-gap thresholds are separate from approved PAPER execution thresholds; do not merge or lower them.","Never lower strategy thresholds based on this report."],
  safeguards:{researchOnly:true,liveTradingAllowed:false,brokerConnectivityAllowed:false,ordersCreated:0}};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){
