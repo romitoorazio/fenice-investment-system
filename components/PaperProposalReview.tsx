@@ -8,6 +8,8 @@ import {
 } from "@/lib/ui/paper-review";
 
 const storageKey = "fenice-paper-proposal-review-v1";
+const capitalStorageKey = "fenice-user-available-capital-eur-v1";
+const capitalEvent = "fenice-capital-changed";
 const changeEvent = "fenice-paper-review-change";
 const loadingHistory = "__LOADING__";
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
@@ -38,6 +40,20 @@ function subscribeHistory(callback: () => void) {
   return () => { window.removeEventListener("storage", callback); window.removeEventListener(changeEvent, callback); };
 }
 
+function readCapital() {
+  try { return window.localStorage.getItem(capitalStorageKey); }
+  catch { return "__STORAGE_UNAVAILABLE__"; }
+}
+function subscribeCapital(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(capitalEvent, callback);
+  return () => { window.removeEventListener("storage", callback); window.removeEventListener(capitalEvent, callback); };
+}
+function parseCapital(raw: string | null): number | null {
+  if (!raw || raw === "__STORAGE_UNAVAILABLE__") return null;
+  const amount = Number(raw);
+  return Number.isFinite(amount) && amount >= 0 && amount <= 100_000_000 ? amount : null;
+}
 function readHistory() {
   try { return window.localStorage.getItem(storageKey); }
   catch { return "__STORAGE_UNAVAILABLE__"; }
@@ -59,6 +75,27 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [now, setNow] = useState(Date.parse(initialData.generatedAt));
   const [busy, setBusy] = useState(false);
+  const [capitalInput, setCapitalInput] = useState("");
+  const [capitalError, setCapitalError] = useState<string | null>(null);
+  const storedCapital = useSyncExternalStore(subscribeCapital, readCapital, () => null);
+  const availableCapital = parseCapital(storedCapital);
+  const studyCeiling = availableCapital === null ? null : Math.round(availableCapital * 0.15 * 100) / 100;
+
+  function saveCapital() {
+    const amount = Number(capitalInput.trim().replace(",", "."));
+    if (!capitalInput.trim() || !Number.isFinite(amount) || amount < 0 || amount > 100_000_000 || !/^\d+(?:[.,]\d{1,2})?$/.test(capitalInput.trim())) {
+      setCapitalError("Inserisci un importo valido in euro, con massimo due decimali.");
+      return;
+    }
+    try {
+      window.localStorage.setItem(capitalStorageKey, String(amount));
+      window.dispatchEvent(new Event(capitalEvent));
+      setCapitalInput("");
+      setCapitalError(null);
+    } catch {
+      setCapitalError("Salvataggio non riuscito su questo dispositivo.");
+    }
+  }
   const [error, setError] = useState<string | null>(null);
   const actionPending = useRef(false);
   const rawHistory = useSyncExternalStore(subscribeHistory, readHistory, () => loadingHistory);
@@ -128,6 +165,20 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
         <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
           <strong>Modalità simulazione.</strong> Il Sì prova la proposta con denaro virtuale. Nessun ordine viene inviato a Directa e nessun euro reale viene speso.
         </div>
+        <section aria-label="Capitale personale modificabile" className="rounded-2xl border border-violet-300/30 bg-violet-300/5 p-5">
+          <h2 className="text-lg font-black text-violet-100">Il tuo capitale disponibile</h2>
+          <p className="mt-2 text-2xl font-black">{availableCapital === null ? "Da impostare" : euro.format(availableCapital)}</p>
+          <p className="mt-2 text-sm text-slate-300">Aggiornalo dopo versamenti, prelievi o altre variazioni. Non è il saldo verificato di Directa e non modifica il conto PAPER.</p>
+          <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(event) => { event.preventDefault(); saveCapital(); }}>
+            <label className="flex flex-col gap-1 text-sm text-slate-200">Capitale disponibile (€)
+              <input inputMode="decimal" type="text" value={capitalInput} onChange={(event) => setCapitalInput(event.target.value)} placeholder={availableCapital === null ? "Es. 1000" : euro.format(availableCapital)} className="rounded-xl border border-white/20 bg-slate-900 px-3 py-3 text-white" />
+            </label>
+            <button type="submit" className="rounded-xl bg-violet-300 px-4 py-3 font-black text-slate-950">Aggiorna capitale</button>
+          </form>
+          {capitalError ? <p role="alert" className="mt-2 text-sm text-rose-200">{capitalError}</p> : null}
+          <p className="mt-3 text-sm text-slate-300">Tetto preliminare per singola idea (15%): <strong className="text-white">{studyCeiling === null ? "Da calcolare" : euro.format(studyCeiling)}</strong>. Non è un importo consigliato: serviranno rischio, commissioni e prezzo verificati.</p>
+          <p className="mt-2 text-xs text-slate-500">Per ora questo valore è salvato soltanto nel browser di questo dispositivo: non si sincronizza con altri dispositivi, con il motore server o con Directa.</p>
+        </section>
         {error ? <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-200">{error}</p> : null}
         {history === null && rawHistory !== loadingHistory ? <p role="alert" className="rounded-xl border border-rose-400/30 p-4 text-sm text-rose-200">Il registro su questo dispositivo non è disponibile. Le conferme sono sospese.</p> : null}
 
@@ -182,9 +233,9 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
                 <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><dt className="text-xs text-amber-100">Totale massimo stimato</dt><dd className="mt-2 text-xl font-black text-amber-300">{euroOrUnknown(proposal.maxTotalEuro)}</dd></div>
               </dl>
               <div className="rounded-2xl border border-violet-300/25 bg-violet-300/5 p-4 text-sm leading-6 text-slate-200">
-                <p className="font-black text-violet-200">Budget personale · riferimento 1.000 €</p>
-                <p className="mt-1">FENICE distinguerà proposte prudenti e aggressive. Come limite preliminare di studio, una singola idea non dovrebbe impegnare oltre il 15% del capitale (150 €), e potrebbe richiedere un importo inferiore o nessun ingresso.</p>
-                <p className="mt-2 text-xs text-slate-400">Importo consigliato: non ancora calcolabile per questa proposta. Mancano una classificazione del rischio verificata, commissioni Directa effettive e conferma della negoziabilità. Il totale PAPER qui sotto usa un capitale virtuale separato e non è una raccomandazione di impiego dei tuoi 1.000 €. Nessun ordine reale autorizzato.</p>
+                <p className="font-black text-violet-200">Budget personale separato dal PAPER</p>
+                <p className="mt-1">Capitale disponibile dichiarato: {availableCapital === null ? "da impostare" : euro.format(availableCapital)}. Tetto preliminare di studio per singola idea (15%): {studyCeiling === null ? "da calcolare" : euro.format(studyCeiling)}.</p>
+                <p className="mt-2 text-xs text-slate-400">Nessun importo d'acquisto consigliato finché rischio, costi Directa e negoziabilità non sono verificati. Il capitale PAPER virtuale non viene modificato e nessun ordine reale è autorizzato.</p>
               </div>
               <p className="text-xs leading-5 text-slate-400">Capitale del laboratorio: {euroOrUnknown(proposal.context.capitalEuro)}. I costi sono quelli del simulatore; non sono un preventivo Directa. Le quantità frazionarie PAPER non attestano la negoziabilità presso il broker.</p>
               {proposal.evidence ? <div className="rounded-xl border border-white/10 p-4 text-xs leading-6 text-slate-400">
