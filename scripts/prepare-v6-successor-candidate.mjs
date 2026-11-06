@@ -22,7 +22,7 @@ const approvalEligible=approval.approved===true && approval.mode==="PAPER" &&
   approval.liveTradingAllowed===false && approval.brokerConnectivityAllowed===false &&
   approval.humanConfirmation===true && Number.isFinite(approvalGrantedAt) &&
   approvalGrantedAt>Date.parse("2026-11-06T00:00:00.000Z") && approvalGrantedAt<=Date.now() &&
-  Number.isFinite(approvalExpiresAt) && approvalExpiresAt>approvalGrantedAt+30*24*60*60*1000 &&
+  Number.isFinite(approvalExpiresAt) && approvalExpiresAt>Date.now()+30*24*60*60*1000 &&
   approval.approvalId!== "fenice-paper-validation-v6-2026-09-24";
 const fingerprint=await computePaperValidationFingerprint(process.cwd());
 if(!fingerprint.complete) throw Error("CANDIDATE_CORE_INCOMPLETE");
