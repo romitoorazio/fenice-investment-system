@@ -9,6 +9,12 @@ export const PAPER_NEXT_CORE_FILES = Object.freeze([
   "scripts/test-paper-next-activation-preflight.mjs",
   "scripts/paper-next-fingerprint.mjs",
   "scripts/test-paper-next-fingerprint.mjs",
+  "scripts/paper-next-market-evidence.mjs",
+  "scripts/test-paper-next-market-evidence.mjs",
+  "scripts/check-paper-next-readiness.mjs",
+  "scripts/diagnose-paper-next-candidates.mjs",
+  "scripts/test-paper-next-candidate-diagnosis.mjs",
+  "scripts/test-paper-next-genesis.mjs",
 ].sort());
 
 export async function computePaperNextFingerprint(root) {
