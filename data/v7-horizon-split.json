@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-05T03:26:40.312Z",
+  "generatedAt": "2026-11-06T03:23:04.961Z",
   "purpose": "V7 diagnostic horizon split: preserve short-term caution while testing medium-term staged accumulation hypotheses.",
   "safety": {
     "diagnosticOnly": true,
@@ -24,7 +24,7 @@
     "deepOvervaluationBlocksStrategicAccumulation": true
   },
   "evidence": {
-    "marketRegime": "VALUTARE",
+    "marketRegime": "PROTEGGERE CAPITALE",
     "sourceGate": "GREEN",
     "dataQuality": 99,
     "bias": {
@@ -43,114 +43,37 @@
       "tooCautiousMediumTerm": true
     },
     "regime": {
-      "regime": "VALUTARE",
+      "regime": "PROTEGGERE CAPITALE",
       "oneSession": {
-        "sampleSize": 22,
-        "utilityRatePercent": 52.27
+        "sampleSize": 7,
+        "utilityRatePercent": 64.29
       },
       "fiveSessions": {
-        "sampleSize": 20,
-        "utilityRatePercent": 42.5
+        "sampleSize": 7,
+        "utilityRatePercent": 57.14
       }
     }
   },
   "candidateCount": 19,
-  "strategicShadowCount": 1,
-  "strategicShadowSymbols": [
-    "IWM"
-  ],
+  "strategicShadowCount": 0,
+  "strategicShadowSymbols": [],
   "rows": [
     {
       "rank": 1,
-      "symbol": "IWM",
-      "name": "Russell 2000 ETF",
-      "positionType": "CORE",
-      "currentDecision": "OSSERVA",
-      "terminalDecision": "ACCUMULA",
-      "committeeScore": 68,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
-      "riskScore": 34,
-      "valuationScore": 50,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "VALUTA",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "ACCUMULA_A_TRANCHE_SHADOW",
-        "structurallyEligible": true,
-        "blockers": [],
-        "researchTranchePlan": {
-          "trancheCount": 3,
-          "horizonDays": 30,
-          "notionalEuro": null,
-          "orderCreationAllowed": false,
-          "purpose": "Research-only staged-entry hypothesis; never an order or PAPER certification event."
-        }
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 2,
-      "symbol": "SPY",
-      "name": "S&P 500 ETF",
-      "positionType": "CORE",
-      "currentDecision": "ATTENDI",
-      "terminalDecision": "MANTIENI",
-      "committeeScore": 67,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
-      "riskScore": 31,
-      "valuationScore": 50,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "ATTENDI",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 3,
       "symbol": "ASML",
       "name": "ASML HOLDING NV",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 65,
+      "committeeScore": 64,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 63,
+      "riskScore": 70,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -173,21 +96,93 @@
       }
     },
     {
+      "rank": 2,
+      "symbol": "SPY",
+      "name": "S&P 500 ETF",
+      "positionType": "CORE",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 61,
+      "calibratedConfidence": 89,
+      "rawConfidence": 99,
+      "riskScore": 35,
+      "valuationScore": 50,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "ATTENDERE",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
+      "rank": 3,
+      "symbol": "TLT",
+      "name": "Treasury 20+ Year ETF",
+      "positionType": "CORE",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 60,
+      "calibratedConfidence": 89,
+      "rawConfidence": 99,
+      "riskScore": 29,
+      "valuationScore": 50,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "ATTENDERE",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
       "rank": 4,
       "symbol": "TSM",
       "name": "Taiwan Semiconductor Manufacturing Company Limited",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 61,
+      "committeeScore": 60,
       "calibratedConfidence": 84,
       "rawConfidence": 93,
-      "riskScore": 59,
+      "riskScore": 68,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -211,20 +206,20 @@
     },
     {
       "rank": 5,
-      "symbol": "TLT",
-      "name": "Treasury 20+ Year ETF",
-      "positionType": "CORE",
+      "symbol": "AMZN",
+      "name": "AMAZON.COM, INC.",
+      "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 60,
+      "committeeScore": 59,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 29,
-      "valuationScore": 50,
+      "riskScore": 60,
+      "valuationScore": 33,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -233,7 +228,8 @@
         "structurallyEligible": false,
         "blockers": [
           "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68"
+          "COMMITTEE_SCORE_BELOW_68",
+          "RISK_ABOVE_58"
         ],
         "researchTranchePlan": null
       },
@@ -247,20 +243,20 @@
     },
     {
       "rank": 6,
-      "symbol": "QQQ",
-      "name": "Nasdaq 100 ETF",
+      "symbol": "IWM",
+      "name": "Russell 2000 ETF",
       "positionType": "CORE",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
-      "committeeScore": 60,
+      "committeeScore": 55,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 38,
+      "riskScore": 37,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -283,20 +279,20 @@
     },
     {
       "rank": 7,
-      "symbol": "AMZN",
-      "name": "AMAZON.COM, INC.",
-      "positionType": "GROWTH",
+      "symbol": "QQQ",
+      "name": "Nasdaq 100 ETF",
+      "positionType": "CORE",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "ATTENDI",
-      "committeeScore": 59,
+      "terminalDecision": "EVITA",
+      "committeeScore": 52,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 60,
-      "valuationScore": 32,
+      "riskScore": 43,
+      "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -305,8 +301,7 @@
         "structurallyEligible": false,
         "blockers": [
           "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68",
-          "RISK_ABOVE_58"
+          "COMMITTEE_SCORE_BELOW_68"
         ],
         "researchTranchePlan": null
       },
@@ -320,20 +315,20 @@
     },
     {
       "rank": 8,
-      "symbol": "BTC",
-      "name": "Bitcoin",
+      "symbol": "GLD",
+      "name": "Oro ETF",
       "positionType": "GROWTH",
-      "currentDecision": "EVITA",
-      "terminalDecision": "ATTENDI",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "EVITA",
       "committeeScore": 50,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 81,
+      "riskScore": 49,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "EVITA",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -341,10 +336,8 @@
         "state": "NESSUNA_AZIONE_STRATEGICA",
         "structurallyEligible": false,
         "blockers": [
-          "CURRENT_DECISION_NOT_WAITING",
           "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68",
-          "RISK_ABOVE_58"
+          "COMMITTEE_SCORE_BELOW_68"
         ],
         "researchTranchePlan": null
       },
@@ -358,12 +351,50 @@
     },
     {
       "rank": 9,
+      "symbol": "META",
+      "name": "Meta Platforms, Inc.",
+      "positionType": "GROWTH",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 46,
+      "calibratedConfidence": 89,
+      "rawConfidence": 99,
+      "riskScore": 62,
+      "valuationScore": 13,
+      "deepOvervaluation": true,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "ATTENDERE",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "RISK_ABOVE_58",
+          "DEEP_OVERVALUATION"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
+      "rank": 10,
       "symbol": "RXRX",
       "name": "RECURSION PHARMACEUTICALS, INC.",
       "positionType": "SPECULATIVA",
       "currentDecision": "EVITA",
       "terminalDecision": "SPECULATIVA",
-      "committeeScore": 50,
+      "committeeScore": 46,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
       "riskScore": 100,
@@ -396,16 +427,92 @@
       }
     },
     {
-      "rank": 10,
-      "symbol": "ETH",
-      "name": "Ethereum",
+      "rank": 11,
+      "symbol": "CRSP",
+      "name": "CRISPR THERAPEUTICS AG",
+      "positionType": "SPECULATIVA",
+      "currentDecision": "EVITA",
+      "terminalDecision": "SPECULATIVA",
+      "committeeScore": 46,
+      "calibratedConfidence": 86,
+      "rawConfidence": 96,
+      "riskScore": 85,
+      "valuationScore": 35,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "EVITA",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "CURRENT_DECISION_NOT_WAITING",
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "RISK_ABOVE_58",
+          "POSITION_CLASS_NOT_CORE_GROWTH"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
+      "rank": 12,
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "positionType": "CORE",
+      "currentDecision": "ATTENDI",
+      "terminalDecision": "ATTENDI",
+      "committeeScore": 45,
+      "calibratedConfidence": 89,
+      "rawConfidence": 99,
+      "riskScore": 50,
+      "valuationScore": 3,
+      "deepOvervaluation": true,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "ATTENDERE",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "DEEP_OVERVALUATION"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
+      "rank": 13,
+      "symbol": "BTC",
+      "name": "Bitcoin",
       "positionType": "GROWTH",
       "currentDecision": "EVITA",
       "terminalDecision": "EVITA",
-      "committeeScore": 48,
+      "committeeScore": 45,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 87,
+      "riskScore": 84,
       "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
@@ -434,133 +541,21 @@
       }
     },
     {
-      "rank": 11,
-      "symbol": "GLD",
-      "name": "Oro ETF",
-      "positionType": "GROWTH",
-      "currentDecision": "ATTENDI",
-      "terminalDecision": "EVITA",
-      "committeeScore": 47,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
-      "riskScore": 49,
-      "valuationScore": 50,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "ATTENDI",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 12,
-      "symbol": "CRSP",
-      "name": "CRISPR THERAPEUTICS AG",
-      "positionType": "SPECULATIVA",
-      "currentDecision": "EVITA",
-      "terminalDecision": "SPECULATIVA",
-      "committeeScore": 47,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 83,
-      "valuationScore": 35,
-      "deepOvervaluation": false,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "EVITA",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "CURRENT_DECISION_NOT_WAITING",
-          "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68",
-          "RISK_ABOVE_58",
-          "POSITION_CLASS_NOT_CORE_GROWTH"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 13,
-      "symbol": "AAPL",
-      "name": "Apple Inc.",
-      "positionType": "CORE",
-      "currentDecision": "ATTENDI",
-      "terminalDecision": "ATTENDI",
-      "committeeScore": 45,
-      "calibratedConfidence": 89,
-      "rawConfidence": 99,
-      "riskScore": 49,
-      "valuationScore": 2,
-      "deepOvervaluation": true,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "ATTENDI",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "TERMINAL_NOT_ACCUMULA",
-          "COMMITTEE_SCORE_BELOW_68",
-          "DEEP_OVERVALUATION"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
       "rank": 14,
-      "symbol": "META",
-      "name": "Meta Platforms, Inc.",
+      "symbol": "MSFT",
+      "name": "MICROSOFT CORP",
       "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
-      "terminalDecision": "ATTENDI",
-      "committeeScore": 45,
+      "terminalDecision": "MANTIENI",
+      "committeeScore": 42,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 61,
-      "valuationScore": 11,
+      "riskScore": 59,
+      "valuationScore": 0,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -587,18 +582,18 @@
       "rank": 15,
       "symbol": "NVDA",
       "name": "NVIDIA CORP",
-      "positionType": "CORE",
+      "positionType": "GROWTH",
       "currentDecision": "ATTENDI",
       "terminalDecision": "ATTENDI",
       "committeeScore": 42,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 55,
-      "valuationScore": 3,
+      "riskScore": 63,
+      "valuationScore": 6,
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
@@ -608,6 +603,7 @@
         "blockers": [
           "TERMINAL_NOT_ACCUMULA",
           "COMMITTEE_SCORE_BELOW_68",
+          "RISK_ABOVE_58",
           "DEEP_OVERVALUATION"
         ],
         "researchTranchePlan": null
@@ -622,52 +618,16 @@
     },
     {
       "rank": 16,
-      "symbol": "MSFT",
-      "name": "MICROSOFT CORP",
-      "positionType": "CORE",
-      "currentDecision": "ATTENDI",
-      "terminalDecision": "ACCUMULA",
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "positionType": "GROWTH",
+      "currentDecision": "EVITA",
+      "terminalDecision": "EVITA",
       "committeeScore": 42,
       "calibratedConfidence": 89,
       "rawConfidence": 99,
-      "riskScore": 58,
-      "valuationScore": 0,
-      "deepOvervaluation": true,
-      "tactical": {
-        "horizon": "1-5 sessions",
-        "state": "VALUTA",
-        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
-      },
-      "strategic": {
-        "horizon": "7-30 days",
-        "state": "NESSUNA_AZIONE_STRATEGICA",
-        "structurallyEligible": false,
-        "blockers": [
-          "COMMITTEE_SCORE_BELOW_68",
-          "DEEP_OVERVALUATION"
-        ],
-        "researchTranchePlan": null
-      },
-      "safety": {
-        "diagnosticOnly": true,
-        "queueWritesAllowed": false,
-        "paperCertificationEvidenceMutationAllowed": false,
-        "brokerSubmissionAllowed": false,
-        "liveTradingAllowed": false
-      }
-    },
-    {
-      "rank": 17,
-      "symbol": "NTLA",
-      "name": "INTELLIA THERAPEUTICS, INC.",
-      "positionType": "SPECULATIVA",
-      "currentDecision": "EVITA",
-      "terminalDecision": "SPECULATIVA",
-      "committeeScore": 42,
-      "calibratedConfidence": 86,
-      "rawConfidence": 96,
-      "riskScore": 98,
-      "valuationScore": 35,
+      "riskScore": 92,
+      "valuationScore": 50,
       "deepOvervaluation": false,
       "tactical": {
         "horizon": "1-5 sessions",
@@ -682,8 +642,7 @@
           "CURRENT_DECISION_NOT_WAITING",
           "TERMINAL_NOT_ACCUMULA",
           "COMMITTEE_SCORE_BELOW_68",
-          "RISK_ABOVE_58",
-          "POSITION_CLASS_NOT_CORE_GROWTH"
+          "RISK_ABOVE_58"
         ],
         "researchTranchePlan": null
       },
@@ -696,7 +655,7 @@
       }
     },
     {
-      "rank": 18,
+      "rank": 17,
       "symbol": "BIOX",
       "name": "Bioceres Crop Solutions Corp.",
       "positionType": "GROWTH",
@@ -734,6 +693,45 @@
       }
     },
     {
+      "rank": 18,
+      "symbol": "NTLA",
+      "name": "INTELLIA THERAPEUTICS, INC.",
+      "positionType": "SPECULATIVA",
+      "currentDecision": "EVITA",
+      "terminalDecision": "SPECULATIVA",
+      "committeeScore": 40,
+      "calibratedConfidence": 86,
+      "rawConfidence": 96,
+      "riskScore": 100,
+      "valuationScore": 35,
+      "deepOvervaluation": false,
+      "tactical": {
+        "horizon": "1-5 sessions",
+        "state": "EVITA",
+        "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
+      },
+      "strategic": {
+        "horizon": "7-30 days",
+        "state": "NESSUNA_AZIONE_STRATEGICA",
+        "structurallyEligible": false,
+        "blockers": [
+          "CURRENT_DECISION_NOT_WAITING",
+          "TERMINAL_NOT_ACCUMULA",
+          "COMMITTEE_SCORE_BELOW_68",
+          "RISK_ABOVE_58",
+          "POSITION_CLASS_NOT_CORE_GROWTH"
+        ],
+        "researchTranchePlan": null
+      },
+      "safety": {
+        "diagnosticOnly": true,
+        "queueWritesAllowed": false,
+        "paperCertificationEvidenceMutationAllowed": false,
+        "brokerSubmissionAllowed": false,
+        "liveTradingAllowed": false
+      }
+    },
+    {
       "rank": 19,
       "symbol": "GOOGL",
       "name": "Alphabet Inc.",
@@ -748,7 +746,7 @@
       "deepOvervaluation": true,
       "tactical": {
         "horizon": "1-5 sessions",
-        "state": "ATTENDI",
+        "state": "ATTENDERE",
         "rationale": "Stato tattico derivato dal regime corrente e dalla decisione del Comitato."
       },
       "strategic": {
