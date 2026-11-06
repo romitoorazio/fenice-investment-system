@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/archive-v6-paper-history.mjs"
       - "data/paper-validation-campaign.json"
+      - "data/paper-history/v6-20260925-campaign.json"
       - ".github/workflows/v6-history-archive-test.yml"
   workflow_dispatch:
 
@@ -25,6 +26,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cmp data/paper-validation-campaign.json data/paper-history/v6-20260925-campaign.json
+          node scripts/archive-v6-paper-history.mjs > /tmp/v6-committed.json
+          node -e 'if(!JSON.parse(require("fs").readFileSync("/tmp/v6-committed.json","utf8")).archiveVerified)process.exit(1)'
+          rm data/paper-history/v6-20260925-campaign.json
           node scripts/archive-v6-paper-history.mjs > /tmp/v6-before.json
           node -e 'if(JSON.parse(require("fs").readFileSync("/tmp/v6-before.json","utf8")).archiveVerified)process.exit(1)'
           node scripts/archive-v6-paper-history.mjs --write > /tmp/v6-created.json
