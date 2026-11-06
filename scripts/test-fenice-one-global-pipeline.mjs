@@ -11,6 +11,7 @@ const input={ledger,identity,calendarObservation,quotes,fxEvidence,fill,nowIso};
 const run=x=>runPaperShadow({...input,...x});
 const ok=run({});assert.equal(ok.added,true);assert.equal(ok.ledger.events.length,1);
 assert.equal(run({ledger:ok.ledger}).reason,"DUPLICATE_PAPER_SIGNAL");
+assert.equal(run({identity:{...identity,sessionDate:"2026-11-05"}}).reason,"FILL_SESSION_DATE_MISMATCH");
 assert.equal(run({fill:{...fill,price:1}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
 assert.equal(run({fill:{...fill,price:1000}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
 assert.equal(run({calendarObservation:{...calendarObservation,phase:"CLOSED"}}).reason,"MARKET_NOT_CONTINUOUS");
