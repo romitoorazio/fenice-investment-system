@@ -9,5 +9,9 @@ else{
   const instruments=JSON.parse(await readFile(path,"utf8"));
   const result=await probeTwelveDataCoverage({instruments,apiKey});
   console.log(JSON.stringify(result,null,2));
- }catch(e){console.error("PROBE_FAILED: diagnostic error (details suppressed to protect provider credentials)");process.exitCode=2;}
+ }catch(e){
+  console.log(JSON.stringify({mode:"READ_ONLY_PROVIDER_COVERAGE",status:"FAILED",reason:"PROBE_DIAGNOSTIC_ERROR",countsTowardRealPaper:false,totals:{attempted:0,validTransportQuotes:0,verifiedMarketEvidence:0},rows:[]},null,2));
+  console.error("PROBE_FAILED: diagnostic error (details suppressed to protect provider credentials)");
+  process.exitCode=2;
+}
 }
