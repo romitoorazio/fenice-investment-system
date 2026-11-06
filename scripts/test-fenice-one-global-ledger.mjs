@@ -16,4 +16,7 @@ assert.equal(replayVirtualLedger({...ledger,liveTradingAllowed:true}).valid,fals
 assert.throws(()=>appendVirtualFill({ledger,identity,fill,evidence:{...evidence,allowed:false}}),/PAPER_EVIDENCE_NOT_ELIGIBLE/);
 assert.throws(()=>appendVirtualFill({ledger,identity,fill:{...fill,fxToEur:0},evidence}),/INVALID_VIRTUAL_FILL/);
 assert.equal(paperIdempotencyKey(identity),paperIdempotencyKey({...identity}));
+assert.throws(()=>appendVirtualFill({ledger,identity:{...identity,mic:"XMIL"},fill,evidence:{allowed:true,venue:"XMIL",instrumentId:"XTKS:7203"}}),/PAPER_INSTRUMENT_VENUE_MISMATCH/);
+assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],idempotencyKey:"forged"}]}).valid,false);
+assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],identity:{...identity,mic:"XMIL"}}]}).valid,false);
 console.log("Fenice ONE GLOBAL virtual ledger contracts: PASS");
