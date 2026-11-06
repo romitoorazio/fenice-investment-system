@@ -11,6 +11,7 @@ test({quotes:[quotes[0],{...quotes[1],bid:12,ask:12.01}]},"PROVIDER_PRICE_DISAGR
 test({quotes:[quotes[0],{...quotes[1],currency:"USD"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({quotes:[quotes[0],{...quotes[1],family:"A"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({quotes:[quotes[0],{...quotes[1],family:" A "}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
+test({quotes:[quotes[0],{...quotes[1],family:"a"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({quotes:[quotes[0],{...quotes[1],family:"   "}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({session:{...session,state:"CLOSED"}},"SESSION_NOT_VERIFIED_OPEN");
 console.log("Fenice ONE GLOBAL instrument consensus contracts: PASS");
