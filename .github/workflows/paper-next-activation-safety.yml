@@ -13,6 +13,7 @@ on:
       - "scripts/test-paper-next-genesis.mjs"
       - "scripts/check-paper-next-readiness.mjs"
       - "scripts/diagnose-paper-next-candidates.mjs"
+      - "scripts/test-paper-next-candidate-diagnosis.mjs"
       - "data/paper-next-forward-ledger.json"
       - "data/paper-next-forward-days.json"
       - "data/paper-next-approval.json"
@@ -46,4 +47,6 @@ jobs:
           node scripts/check-paper-next-readiness.mjs | tee paper-next-readiness.json
           grep -q '"state":"BLOCKED"' paper-next-readiness.json
       - name: Diagnose PAPER candidate blockers (read only)
-        run: node scripts/diagnose-paper-next-candidates.mjs
+        run: |
+          node scripts/diagnose-paper-next-candidates.mjs
+          node scripts/test-paper-next-candidate-diagnosis.mjs
