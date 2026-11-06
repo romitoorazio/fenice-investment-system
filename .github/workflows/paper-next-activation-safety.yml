@@ -14,6 +14,8 @@ on:
       - "scripts/check-paper-next-readiness.mjs"
       - "scripts/diagnose-paper-next-candidates.mjs"
       - "scripts/test-paper-next-candidate-diagnosis.mjs"
+      - "scripts/paper-next-market-evidence.mjs"
+      - "scripts/test-paper-next-market-evidence.mjs"
       - "data/paper-next-forward-ledger.json"
       - "data/paper-next-forward-days.json"
       - "data/paper-next-approval.json"
@@ -50,3 +52,5 @@ jobs:
         run: |
           node scripts/diagnose-paper-next-candidates.mjs
           node scripts/test-paper-next-candidate-diagnosis.mjs
+      - name: Test venue-specific market evidence
+        run: node scripts/test-paper-next-market-evidence.mjs
