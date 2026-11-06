@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/prepare-v6-successor-candidate.mjs"
       - "data/paper-validation-campaign.json"
+      - "data/paper-history/v6-20260925-campaign.json"
       - "data/paper-oms-state.json"
       - ".github/workflows/v6-successor-candidate-preflight.yml"
   workflow_dispatch:
@@ -29,6 +30,14 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-successor-candidate.json
+          cp data/paper-history/v6-20260925-campaign.json /tmp/fenice-v6-archive-backup.json
+          printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-tamper-candidate.json 2>/tmp/fenice-tamper-error; then
+            echo "ERROR: tampered V6 archive was accepted"
+            exit 1
+          fi
+          grep -q HISTORICAL_V6_ARCHIVE_MISMATCH /tmp/fenice-tamper-error
+          mv /tmp/fenice-v6-archive-backup.json data/paper-history/v6-20260925-campaign.json
           node -e '
             const fs=require("node:fs");
             const c=JSON.parse(fs.readFileSync("/tmp/fenice-successor-candidate.json","utf8"));
