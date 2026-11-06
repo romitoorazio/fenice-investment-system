@@ -55,7 +55,7 @@ jobs:
             const path="data/paper-validation-campaign.json";
             const c=JSON.parse(fs.readFileSync(path,"utf8"));
             c.dailyEvidence=[];
-            fs.writeFileSync(path,JSON.stringify(c,null,2)+"\\n");
+            fs.writeFileSync(path,JSON.stringify(c,null,2)+String.fromCharCode(10));
           '
           if node scripts/audit-v6-baseline-transition.mjs >/tmp/fenice-tamper-output.log 2>&1; then
             echo "Tampered V6 history was incorrectly accepted" >&2
