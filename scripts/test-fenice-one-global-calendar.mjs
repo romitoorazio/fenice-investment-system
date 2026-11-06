@@ -11,6 +11,8 @@ assert.equal(evalWith({observedAt:"2026-11-06T09:55:00.000Z"}).reason,"CALENDAR_
 assert.equal(evalWith({observedAt:"2026-11-06T10:01:00.000Z"}).reason,"CALENDAR_STALE");
 assert.equal(evalWith({tradingDay:false}).reason,"MARKET_NOT_CONTINUOUS");
 assert.equal(evalWith({phase:"AUCTION"}).reason,"MARKET_NOT_CONTINUOUS");
+assert.equal(evalWith({opensAt:"2026-11-06T09:59:45.000Z"}).reason,"OUTSIDE_VERIFIED_SESSION");
+assert.equal(evalWith({closesAt:"2026-11-06T09:59:15.000Z"}).reason,"OUTSIDE_VERIFIED_SESSION");
 assert.equal(evalWith({closesAt:"2026-11-06T10:02:00.000Z"}).reason,"OUTSIDE_VERIFIED_SESSION");
 assert.equal(evalWith({opensAt:"2026-11-06T10:01:00.000Z"}).reason,"OUTSIDE_VERIFIED_SESSION");
 assert.equal(check({mic:"BAD!",observation,nowIso}).reason,"UNKNOWN_VENUE");
