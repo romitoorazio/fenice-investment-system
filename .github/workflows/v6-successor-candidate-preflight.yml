@@ -1,0 +1,40 @@
+name: Fenice V6 Successor Candidate Preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/prepare-v6-successor-candidate.mjs"
+      - "data/paper-validation-campaign.json"
+      - "data/paper-oms-state.json"
+      - ".github/workflows/v6-successor-candidate-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check prospective candidate is not activated
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-successor-candidate.json
+          node -e '
+            const fs=require("node:fs");
+            const c=JSON.parse(fs.readFileSync("/tmp/fenice-successor-candidate.json","utf8"));
+            if(c.kind!=="PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED") process.exit(1);
+            if(c.historicalCampaign.records!==42 || c.liveTradingAllowed!==false || c.brokerConnectivityAllowed!==false) process.exit(1);
+            if(c.candidate.startedAt!==null || c.candidate.approved!==false || c.candidate.certified!==false || c.candidate.dailyEvidence.length!==0) process.exit(1);
+            if(c.candidate.baselineFingerprint.complete!==true || c.candidate.baselineFingerprint.files.length!==92) process.exit(1);
+            console.log("PASS: candidate prepared without activation, certification, broker connectivity, or history reset");
+          '
