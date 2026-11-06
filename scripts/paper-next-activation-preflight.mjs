@@ -30,7 +30,11 @@ export function assessPaperNextActivation({ approval, fingerprint, campaign, led
   if (approval.allowBackfill !== false || approval.historicalFillsCredited !== 0)
     return block("HISTORICAL_CREDIT_FORBIDDEN");
   if (!Array.isArray(ledger.attempts) || ledger.attempts.length !== 0
-    || Object.keys(ledger.positions ?? {}).length !== 0)
+    || !ledger.positions || typeof ledger.positions !== "object" || Array.isArray(ledger.positions)
+    || Object.keys(ledger.positions).length !== 0
+    || ledger.tip !== "GENESIS"
+    || !Number.isFinite(ledger.virtualSeedEuro) || ledger.virtualSeedEuro <= 0
+    || ledger.cashEuro !== ledger.virtualSeedEuro)
     return block("NEW_LEDGER_MUST_START_AT_GENESIS");
   if (approval.maxOrdersPerDay !== 1
     || !Number.isFinite(approval.minCommitteeScore) || approval.minCommitteeScore < 70
