@@ -4,7 +4,7 @@ const nowIso="2026-11-06T10:00:00Z",observedAt="2026-11-06T09:59:30Z";
 const quote={mic:"XMIL",instrumentId:"XMIL:TEST",currency:"EUR",bid:100,ask:100.1,observedAt};
 const args={mic:"XMIL",instrumentId:"XMIL:TEST",endpoint:"https://example.org/quote",provider:"test-provider",family:"test-family",nowIso};
 const run=(payload=quote,status=200)=>fetchProviderQuote({...args,fetchImpl:async()=>({ok:status>=200&&status<300,status,json:async()=>payload})});
-assert.equal((await run()).ok,true);
+assert.equal((await run()).ok,true);\nconst secretResponse=await fetchProviderQuote({...args,endpoint:"https://example.org/quote?apikey=PRIVATE_TOKEN#frag",fetchImpl:async()=>({ok:true,status:200,json:async()=>quote})});\nassert.equal(secretResponse.quote.sourceUrl,"https://example.org/quote");\nassert.equal(JSON.stringify(secretResponse).includes("PRIVATE_TOKEN"),false);
 assert.equal((await run()).quote.synthetic,false);
 assert.equal((await run()).quote.verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal((await run({...quote,currency:"USD"})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
