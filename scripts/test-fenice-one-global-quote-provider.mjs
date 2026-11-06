@@ -6,6 +6,7 @@ const args={mic:"XMIL",instrumentId:"XMIL:TEST",endpoint:"https://example.org/qu
 const run=(payload=quote,status=200)=>fetchProviderQuote({...args,fetchImpl:async()=>({ok:status>=200&&status<300,status,json:async()=>payload})});
 assert.equal((await run()).ok,true);
 assert.equal((await run()).quote.synthetic,false);
+assert.equal((await run()).quote.verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal((await run({...quote,currency:"USD"})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
 assert.equal((await run({...quote,bid:102,ask:101})).reason,"PROVIDER_INVALID_SPREAD");
 assert.equal((await run({...quote,observedAt:"2026-11-06T09:00:00Z"})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
@@ -13,4 +14,6 @@ assert.equal((await run({...quote,observedAt:"2026-11-06T10:01:00Z"})).reason,"P
 assert.equal((await run(quote,429)).reason,"PROVIDER_RATE_LIMITED");
 assert.equal((await fetchProviderQuote({...args,fetchImpl:async()=>{throw Error("offline");}})).reason,"PROVIDER_NETWORK_FAILURE");
 assert.equal((await fetchProviderQuote({...args,endpoint:"http://insecure.example/quote",fetchImpl:async()=>({ok:true})})).reason,"INVALID_PROVIDER_CONFIGURATION");
+assert.equal((await fetchProviderQuote({...args,endpoint:"https://user:secret@example.org/quote",fetchImpl:async()=>({ok:true})})).reason,"INVALID_PROVIDER_CONFIGURATION");
+assert.equal((await run([])).reason,"PROVIDER_INVALID_JSON");
 console.log("Fenice ONE GLOBAL read-only quote provider adapter contracts: PASS");
