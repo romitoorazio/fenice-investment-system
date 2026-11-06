@@ -19,4 +19,7 @@ assert.equal((await fetchProviderQuote({...args,fetchImpl:async()=>{throw Error(
 assert.equal((await fetchProviderQuote({...args,endpoint:"http://insecure.example/quote",fetchImpl:async()=>({ok:true})})).reason,"INVALID_PROVIDER_CONFIGURATION");
 assert.equal((await fetchProviderQuote({...args,endpoint:"https://user:secret@example.org/quote",fetchImpl:async()=>({ok:true})})).reason,"INVALID_PROVIDER_CONFIGURATION");
 assert.equal((await run([])).reason,"PROVIDER_INVALID_JSON");
+assert.equal((await run({status:"error",code:429,message:"limit"})).reason,"PROVIDER_RATE_LIMITED");
+assert.equal((await run({error:"invalid API key"})).reason,"PROVIDER_API_ERROR");
+assert.equal((await fetchProviderQuote({...args,fetchImpl:async()=>({ok:true,status:200,headers:{get:()=> "text/html"},json:async()=>quote})})).reason,"PROVIDER_UNEXPECTED_CONTENT_TYPE");
 console.log("Fenice ONE GLOBAL read-only quote provider adapter contracts: PASS");
