@@ -99,6 +99,10 @@ jobs:
             if(!c.transitionReadiness.blockers.includes("SUCCESSOR_BASELINE_TRANSITION_NOT_ACTIVATED")) process.exit(1);
             if(!c.transitionReadiness.blockers.includes("FRESH_TIME_BOUND_PAPER_APPROVAL_REQUIRED")) process.exit(1);
             if(c.operatorConsent?.recorded!==true || c.transitionReadiness.blockers.includes("OPERATOR_PAPER_CONSENT_REQUIRED")) process.exit(1);
+            if(c.geographicCoverage?.globalVenueParityProven!==false || !Array.isArray(c.geographicCoverage.paperEligibleSymbols)) process.exit(1);
+            if(c.geographicCoverage.paperEligibleCount!==c.marketDataPreflight.metrics.paperEligibleSymbols) process.exit(1);
+            if(!Array.isArray(c.geographicCoverage.nonUsProxySymbolsInUniverse)) process.exit(1);
+            if(c.geographicCoverage.nonUsProxySymbolsInUniverse.some(x=>typeof x.paperEligible!=="boolean" || !Array.isArray(x.reasons))) process.exit(1);
             if(c.marketDataPreflight.eligible===false && !c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
             if(c.marketDataPreflight.eligible===true && c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
             console.log("PASS: candidate prepared without activation, certification, broker connectivity, or history reset");
