@@ -14,7 +14,14 @@ try{
  assert.equal(one.added,true);assert.equal(one.persisted,true);
  assert.equal(replayVirtualLedger(await loadDurableVirtualLedger(file)).count,1);
  const duplicate=await appendDurableVirtualFill({file,identity,fill,evidence});
- assert.equal(duplicate.added,false);assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
+ assert.equal(duplicate.added,false);assert.equal(duplicate.persisted,true);
+ assert.equal(duplicate.reason,"DUPLICATE_PAPER_SIGNAL");
+ const beforeConflict=await readFile(file,"utf8");
+ const conflict=await appendDurableVirtualFill({file,identity,fill:{...fill,quantity:99},evidence});
+ assert.equal(conflict.added,false);assert.equal(conflict.persisted,false);
+ assert.equal(conflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+ assert.equal(await readFile(file,"utf8"),beforeConflict,"A conflicting retry must leave the file unchanged");
+ assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
  const lock=await open(file+".lock","wx");
  try{await assert.rejects(appendDurableVirtualFill({file,identity:{...identity,signalId:"s2"},fill,evidence}),/LEDGER_BUSY/);}
  finally{await lock.close();await rm(file+".lock");}
