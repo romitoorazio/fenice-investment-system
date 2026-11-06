@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import {readFile} from "node:fs/promises";
+import {readFile,mkdtemp,writeFile,rm} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {spawnSync} from "node:child_process";
 import {probeTwelveDataCoverage} from "../lib/global/provider-coverage-probe.mjs";
 const nowIso="2026-11-06T10:00:00.000Z";
 const instruments=[{mic:"XMIL",instrumentId:"XMIL:ENEL",symbol:"ENEL"},{mic:"XTKS",instrumentId:"XTKS:7203",symbol:"7203"}];
@@ -23,6 +26,25 @@ assert.equal(result.rows[0].verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal(result.rows[1].reason,"PROVIDER_INVALID_SPREAD");
 assert.equal(JSON.stringify(result).includes("test-key"),false);
 await assert.rejects(probeTwelveDataCoverage({instruments:[],apiKey:"x"}),/INVALID_PROBE_UNIVERSE/);
+
+// Exercise the CLI failure path, not merely its source text. The report must be valid JSON
+// with no credential leakage even when the universe file contains malformed JSON.
+const temp=await mkdtemp(join(tmpdir(),"fenice-probe-failure-"));
+try{
+ const invalidPath=join(temp,"universe.json");
+ await writeFile(invalidPath,"{malformed", {mode:0o600});
+ const child=spawnSync(process.execPath,[new URL("./probe-fenice-global-provider.mjs",import.meta.url).pathname],{
+  encoding:"utf8",timeout:10000,
+  env:{...process.env,FENICE_GLOBAL_PROBE_UNIVERSE:invalidPath,TWELVE_DATA_API_KEY:"secret-for-test-only"}
+ });
+ assert.equal(child.status,2);
+ const failure=JSON.parse(child.stdout);
+ assert.equal(failure.status,"FAILED");
+ assert.equal(failure.reason,"PROBE_DIAGNOSTIC_ERROR");
+ assert.equal(failure.countsTowardRealPaper,false);
+ assert.equal(failure.totals.verifiedMarketEvidence,0);
+ assert.equal((child.stdout+child.stderr).includes("secret-for-test-only"),false);
+}finally{await rm(temp,{recursive:true,force:true});}
 const workflow=await readFile(new URL("../.github/workflows/fenice-one-global-provider-diagnostics.yml",import.meta.url),"utf8");
 const probeCli=await readFile(new URL("./probe-fenice-global-provider.mjs",import.meta.url),"utf8");
 assert.match(probeCli,/reason:"PROBE_DIAGNOSTIC_ERROR"/);
