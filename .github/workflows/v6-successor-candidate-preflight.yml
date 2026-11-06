@@ -54,7 +54,7 @@ jobs:
             "",
             "No real orders, no broker access, no historical evidence transfer."
           ];
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || "/tmp/fenice-readiness-summary.md",lines.join("\\n")+"\\n");
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || "/tmp/fenice-readiness-summary.md",lines.join("\n")+"\n");
           NODE
           cp data/paper-history/v6-20260925-campaign.json /tmp/fenice-v6-archive-backup.json
           printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
