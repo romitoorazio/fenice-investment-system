@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {probeTwelveDataCoverage} from "../lib/global/provider-coverage-probe.mjs";
 const nowIso="2026-11-06T10:00:00.000Z";
 const instruments=[{mic:"XMIL",instrumentId:"XMIL:ENEL",symbol:"ENEL"},{mic:"XTKS",instrumentId:"XTKS:7203",symbol:"7203"}];
@@ -18,4 +19,11 @@ assert.equal(result.rows[0].verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal(result.rows[1].reason,"PROVIDER_INVALID_SPREAD");
 assert.equal(JSON.stringify(result).includes("test-key"),false);
 await assert.rejects(probeTwelveDataCoverage({instruments:[],apiKey:"x"}),/INVALID_PROBE_UNIVERSE/);
+const workflow=await readFile(new URL("../.github/workflows/fenice-one-global-provider-diagnostics.yml",import.meta.url),"utf8");
+assert.match(workflow,/workflow_dispatch:/);
+assert.match(workflow,/contents: read/);
+assert.match(workflow,/TWELVE_DATA_API_KEY:.*secrets\.TWELVE_DATA_API_KEY/);
+assert.match(workflow,/INVALID_PROBE_INSTRUMENT/);
+assert.match(workflow,/timeout-minutes: 5/);
+assert.doesNotMatch(workflow,/schedule:\s*\n/);
 console.log("Fenice ONE GLOBAL provider coverage probe contracts: PASS");
