@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {fetchProviderQuote} from "../lib/global/quote-provider-adapter.mjs";
+const nowIso="2026-11-06T10:00:00Z",observedAt="2026-11-06T09:59:30Z";
+const quote={mic:"XMIL",instrumentId:"XMIL:TEST",currency:"EUR",bid:100,ask:100.1,observedAt};
+const args={mic:"XMIL",instrumentId:"XMIL:TEST",endpoint:"https://example.org/quote",provider:"test-provider",family:"test-family",nowIso};
+const run=(payload=quote,status=200)=>fetchProviderQuote({...args,fetchImpl:async()=>({ok:status>=200&&status<300,status,json:async()=>payload})});
+assert.equal((await run()).ok,true);
+assert.equal((await run()).quote.synthetic,false);
+assert.equal((await run({...quote,currency:"USD"})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
+assert.equal((await run({...quote,bid:102,ask:101})).reason,"PROVIDER_INVALID_SPREAD");
+assert.equal((await run({...quote,observedAt:"2026-11-06T09:00:00Z"})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
+assert.equal((await run({...quote,observedAt:"2026-11-06T10:01:00Z"})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
+assert.equal((await run(quote,429)).reason,"PROVIDER_RATE_LIMITED");
+assert.equal((await fetchProviderQuote({...args,fetchImpl:async()=>{throw Error("offline");}})).reason,"PROVIDER_NETWORK_FAILURE");
+assert.equal((await fetchProviderQuote({...args,endpoint:"http://insecure.example/quote",fetchImpl:async()=>({ok:true})})).reason,"INVALID_PROVIDER_CONFIGURATION");
+console.log("Fenice ONE GLOBAL read-only quote provider adapter contracts: PASS");
