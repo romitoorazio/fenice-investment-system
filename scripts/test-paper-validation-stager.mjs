@@ -101,6 +101,42 @@ assert.equal(staged.order.validationRationale.maxSingleAssetWeightPercentForProb
 assert.equal(staged.order.validationRationale.targetPaperFills, 10);
 assert.equal(staged.queue.orders.length, 1);
 
+// Committee and Terminal vocabularies are distinct; a terminal-approved state is
+// necessary, while an explicit committee WAIT/AVOID remains a veto.
+const committeeVeto = buildPaperValidationProbe({
+  ...base,
+  committee: {...base.committee, topDecisions: [{...base.committee.topDecisions[0], decision: "ATTENDI"}]},
+});
+assert.equal(committeeVeto.staged, false);
+assert.equal(committeeVeto.reason, "no-eligible-validation-candidate");
+const terminalVeto = buildPaperValidationProbe({
+  ...base,
+  terminal: {...base.terminal, assets: [{...base.terminal.assets[0], decision: "ATTENDI"}]},
+});
+assert.equal(terminalVeto.staged, false);
+assert.equal(terminalVeto.reason, "no-eligible-validation-candidate");
+
+const committeeAvoidVeto = buildPaperValidationProbe({
+  ...base,
+  committee: { ...base.committee, topDecisions: [{ ...base.committee.topDecisions[0], decision: "EVITA" }] },
+});
+assert.equal(committeeAvoidVeto.staged, false, "committee EVITA must veto a high-scoring terminal candidate");
+assert.equal(committeeAvoidVeto.reason, "no-eligible-validation-candidate");
+
+const terminalAvoidVeto = buildPaperValidationProbe({
+  ...base,
+  terminal: { ...base.terminal, assets: [{ ...base.terminal.assets[0], decision: "EVITA" }] },
+});
+assert.equal(terminalAvoidVeto.staged, false, "terminal EVITA must veto a high-scoring committee candidate");
+assert.equal(terminalAvoidVeto.reason, "no-eligible-validation-candidate");
+
+const belowScoreThreshold = buildPaperValidationProbe({
+  ...base,
+  committee: { ...base.committee, topDecisions: [{ ...base.committee.topDecisions[0], committeeScore: 69 }] },
+});
+assert.equal(belowScoreThreshold.staged, false, "the approved minimum committee score must not be relaxed to force PAPER fills");
+assert.equal(belowScoreThreshold.reason, "no-eligible-validation-candidate");
+
 const missingUsdFx = buildPaperValidationProbe({
   ...base,
   approval: {

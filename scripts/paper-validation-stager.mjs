@@ -160,8 +160,9 @@ export function buildPaperValidationProbe({ campaign, approval, marketSession, c
       const eligible = row
         && positive(fxToEuro)
         && fxToEuro <= 5
-        && allowedDecisionStates.includes(decisionState)
+        && allowedDecisionStates.includes(terminalDecision)
         && !["ATTENDI", "EVITA"].includes(terminalDecision)
+        && !["ATTENDI", "EVITA"].includes(decisionState)
         && committeeScore >= minCommitteeScore
         && validationDataConfidence >= minValidationDataConfidence
         && riskScore <= maxRiskScore
