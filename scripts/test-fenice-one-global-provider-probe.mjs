@@ -25,6 +25,15 @@ assert.equal(result.countsTowardRealPaper,false);
 assert.equal(result.rows[0].verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal(result.rows[1].reason,"PROVIDER_INVALID_SPREAD");
 assert.equal(JSON.stringify(result).includes("test-key"),false);
+let calls=0;
+const limited=await probeTwelveDataCoverage({instruments:[...instruments,{mic:"XNAS",instrumentId:"XNAS:MSFT",symbol:"MSFT"}],apiKey:"fixture",nowIso,
+ fetchImpl:async()=>{calls++;return {ok:false,status:429,headers:{get:()=>"application/json"}};}});
+assert.equal(calls,1,"Rate limiting must halt subsequent requests");
+assert.equal(limited.rows[0].reason,"PROVIDER_RATE_LIMITED");
+assert.equal(limited.rows[1].reason,"PROVIDER_QUOTA_STOPPED");
+assert.equal(limited.rows[2].reason,"PROVIDER_QUOTA_STOPPED");
+assert.equal(limited.totals.verifiedMarketEvidence,0);
+await assert.rejects(probeTwelveDataCoverage({instruments:Array.from({length:11},(_,i)=>({mic:"XMIL",instrumentId:"XMIL:"+i,symbol:"X"+i})),apiKey:"fixture"}),/INVALID_PROBE_UNIVERSE/);
 await assert.rejects(probeTwelveDataCoverage({instruments:[],apiKey:"x"}),/INVALID_PROBE_UNIVERSE/);
 
 // Exercise the CLI failure path, not merely its source text. The report must be valid JSON
