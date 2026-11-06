@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
+import { evaluatePaperBaselineEligibility } from "../lib/trading/paper-baseline.mjs";
 
 const bytes=readFileSync("data/paper-validation-campaign.json");
 const campaign=JSON.parse(bytes.toString("utf8"));
@@ -24,7 +25,13 @@ const approvalEligible=approval.approved===true && approval.mode==="PAPER" &&
   approvalGrantedAt>Date.parse("2026-11-06T00:00:00.000Z") && approvalGrantedAt<=Date.now() &&
   Number.isFinite(approvalExpiresAt) && approvalExpiresAt>Date.now()+30*24*60*60*1000 &&
   approval.approvalId!== "fenice-paper-validation-v6-2026-09-24";
+const [sources,intelligence,executionMarket,executionCoverage,governance,fxEvidence]=[
+  "data/global-source-health.json","data/intelligence-quality.json",
+  "data/execution-market-evidence.json","data/execution-market-coverage.json",
+  "data/decision-governance.json","data/paper-fx-evidence.json"
+].map(path=>JSON.parse(readFileSync(path,"utf8")));
 const fingerprint=await computePaperValidationFingerprint(process.cwd());
+const eligibility=evaluatePaperBaselineEligibility({sources,intelligence,executionMarket,executionCoverage,governance,fxEvidence,approval,fingerprint});
 if(!fingerprint.complete) throw Error("CANDIDATE_CORE_INCOMPLETE");
 const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
 const dirty=execFileSync("git",["status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim();
@@ -33,6 +40,7 @@ const candidate={
   kind:"PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED",
   historicalCampaign:{sha256:hash,records:42,baselineCommit:campaign.baselineCommit},
   candidate:{baselineCommit:head,baselineFingerprint:fingerprint,startedAt:null,dailyEvidence:[],approved:false,certified:false},
+  marketDataPreflight:{eligible:eligibility.eligible,reasons:eligibility.reasons,gates:eligibility.gates,metrics:eligibility.metrics},
   approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
   activationGates:["archive historical campaign bytes and verify sha256","fresh PAPER-only approval","independent data and FX eligibility","governance and ledger reconciliation","atomic successor activation with freeze-guard compatibility"],
   liveTradingAllowed:false,brokerConnectivityAllowed:false
