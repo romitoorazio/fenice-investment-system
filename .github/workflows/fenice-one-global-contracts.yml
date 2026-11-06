@@ -1,0 +1,41 @@
+name: Fenice ONE GLOBAL Contract Tests
+on:
+  push:
+    branches: [architecture/fenice-one-global-v1]
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  pull_request:
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  workflow_dispatch:
+  # GitHub executes scheduled workflows only from the default branch.
+  # Once merged, this read-only check will run every five minutes (best effort).
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: fenice-one-global-contracts
+  cancel-in-progress: true
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/test-fenice-one-global-registry.mjs
+      - run: node scripts/test-fenice-one-global-instrument.mjs
+      - run: node scripts/test-fenice-one-global-calendar.mjs
+      - run: node scripts/test-fenice-one-global-ledger.mjs
+      - run: node scripts/test-fenice-one-global-pipeline.mjs
+      - run: node scripts/test-fenice-one-global-fx.mjs
+      - run: node scripts/test-fenice-one-global-evidence-bundle.mjs
+      - run: node scripts/test-fenice-one-global-quote-provider.mjs
+      - run: node scripts/test-fenice-one-global-twelve-data-source.mjs
