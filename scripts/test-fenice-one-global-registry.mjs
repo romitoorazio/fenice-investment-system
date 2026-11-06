@@ -17,6 +17,7 @@ check({session:{...session,authoritative:false}},"SESSION_NOT_VERIFIED_OPEN");
 check({session:{...session,observedAt:"2026-11-06T09:55:00.000Z"}},"SESSION_STALE_OR_CLOSING");
 check({quotes:[quotes[0]]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 check({quotes:[quotes[0],{...quotes[1],family:"provider-a"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
+check({quotes:[quotes[0],{...quotes[1],family:"PROVIDER-A"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 check({quotes:[quotes[0],{...quotes[1],observedAt:"2026-11-06T10:00:30.000Z"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 check({quotes:[quotes[0],{...quotes[1],currency:"USD"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 check({quotes:[quotes[0],{...quotes[1],bid:11,ask:10}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
