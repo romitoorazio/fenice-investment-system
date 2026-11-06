@@ -1,0 +1,51 @@
+name: Fenice ONE GLOBAL Provider Diagnostics (read-only)
+on:
+  workflow_dispatch:
+    inputs:
+      universe_json:
+        description: 'JSON array of up to 10 {mic,instrumentId,symbol} entries; no API keys'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FENICE_GLOBAL_PROBE_UNIVERSE: ${{ runner.temp }}/fenice-global-probe-universe.json
+      UNIVERSE_JSON: ${{ inputs.universe_json }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate read-only probe universe
+        shell: bash
+        run: |
+          node --input-type=module -e '
+          import {writeFileSync} from "node:fs";
+          const x=JSON.parse(process.env.UNIVERSE_JSON);
+          if(!Array.isArray(x)||x.length<1||x.length>10)throw Error("INVALID_PROBE_UNIVERSE");
+          for(const v of x){
+            if(!v||!["XTKS","XHKG","XSHG","XNSE","XMIL","XETR","XLON","XNYS","XNAS"].includes(v.mic)||typeof v.instrumentId!=="string"||!new RegExp("^"+v.mic+":[A-Za-z0-9._-]{1,32}$").test(v.instrumentId)||typeof v.symbol!=="string"||!/^[A-Za-z0-9._:-]{1,32}$/.test(v.symbol))throw Error("INVALID_PROBE_INSTRUMENT");
+          }
+          writeFileSync(process.env.FENICE_GLOBAL_PROBE_UNIVERSE,JSON.stringify(x),{mode:0o600});
+          '
+      - name: Probe Twelve Data (HTTP only; not certified market evidence)
+        shell: bash
+        run: |
+          if [ -z "$TWELVE_DATA_API_KEY" ]; then
+            echo "TWELVE_DATA_API_KEY not configured: probe skipped"
+            exit 2
+          fi
+          node scripts/probe-fenice-global-provider.mjs > fenice-global-provider-report.json
+      - name: Upload read-only coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-global-provider-coverage
+          path: fenice-global-provider-report.json
+          if-no-files-found: ignore
+          retention-days: 7
