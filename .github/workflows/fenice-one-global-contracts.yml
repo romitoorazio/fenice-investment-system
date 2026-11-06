@@ -4,12 +4,12 @@ on:
     branches: [architecture/fenice-one-global-v1]
     paths:
       - "lib/global/**"
-      - "scripts/test-fenice-one-global-registry.mjs"
+      - "scripts/test-fenice-one-global-*.mjs"
       - ".github/workflows/fenice-one-global-contracts.yml"
   pull_request:
     paths:
       - "lib/global/**"
-      - "scripts/test-fenice-one-global-registry.mjs"
+      - "scripts/test-fenice-one-global-*.mjs"
       - ".github/workflows/fenice-one-global-contracts.yml"
   workflow_dispatch:
   # GitHub executes scheduled workflows only from the default branch.
@@ -31,3 +31,4 @@ jobs:
         with:
           node-version: "22"
       - run: node scripts/test-fenice-one-global-registry.mjs
+      - run: node scripts/test-fenice-one-global-instrument.mjs
