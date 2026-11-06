@@ -1,0 +1,14 @@
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+const output="data/paper-successor-operational-approval.json";
+assert.equal(existsSync(output),false,"Test requires no preexisting successor approval");
+const original=readFileSync("data/paper-validation-approval.json");
+const archive=readFileSync("data/paper-history/v6-20260925-campaign.json");
+const run=spawnSync(process.execPath,["scripts/issue-successor-paper-approval.mjs"],{encoding:"utf8"});
+assert.notEqual(run.status,0,"Issuer must reject invocation without explicit confirmation");
+assert.match(run.stderr,/EXPLICIT_PAPER_ONLY_CONFIRMATION_REQUIRED/);
+assert.equal(existsSync(output),false,"No approval must be created without confirmation");
+assert.deepEqual(readFileSync("data/paper-validation-approval.json"),original);
+assert.deepEqual(readFileSync("data/paper-history/v6-20260925-campaign.json"),archive);
+console.log("PASS: issuer rejects missing confirmation, creates no approval, preserves V6");
