@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {assessGlobalReadiness} from "./audit-fenice-one-global-readiness.mjs";
+const files={quote:"PROVIDER_RESPONSE_UNVERIFIED",calendar:"authoritative:true",pipeline:"evaluateInstrumentEvidence({quotes})",ledger:"brokerConnectivityAllowed!==false liveTradingAllowed!==false",workflow:"node scripts/test-fenice-one-global-pipeline.mjs"};
+const report=assessGlobalReadiness(files);
+assert.equal(report.certifiedLivePaper,false);
+assert.equal(report.verdict,"NOT_READY_FOR_CERTIFIED_LIVE_SOURCE_PAPER");
+assert.deepEqual(report.blockers,["CALENDAR_AUTHORITY","REAL_QUOTE_ORCHESTRATION","DURABLE_LEDGER","LIVE_PAPER_WORKFLOW"]);
+const complete=assessGlobalReadiness({...files,calendar:"trustedCalendarProviders",pipeline:"fetchProviderQuote",ledger:files.ledger+" persistVirtualLedger",workflow:"run-global-paper"});
+assert.equal(complete.verdict,"STATIC_GATES_PASS_NOT_LIVE_CERTIFIED");
+assert.equal(complete.certifiedLivePaper,false);
+console.log("Fenice ONE GLOBAL read-only readiness audit contracts: PASS");
