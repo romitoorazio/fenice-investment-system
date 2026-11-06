@@ -1,13 +1,26 @@
 name: Fenice ONE GLOBAL Contract Tests
 on:
+  push:
+    branches: [architecture/fenice-one-global-v1]
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-registry.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
   pull_request:
     paths:
       - "lib/global/**"
       - "scripts/test-fenice-one-global-registry.mjs"
       - ".github/workflows/fenice-one-global-contracts.yml"
   workflow_dispatch:
+  # GitHub executes scheduled workflows only from the default branch.
+  # Once merged, this read-only check will run every five minutes (best effort).
+  schedule:
+    - cron: "*/5 * * * *"
 permissions:
   contents: read
+concurrency:
+  group: fenice-one-global-contracts
+  cancel-in-progress: true
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
