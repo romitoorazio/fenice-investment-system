@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: fenice-one-global-contracts
+  group: fenice-one-global-contracts-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   contract-tests:
