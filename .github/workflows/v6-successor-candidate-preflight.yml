@@ -66,12 +66,11 @@ jobs:
           a.authorized=false;
           fs.writeFileSync(p,JSON.stringify(a));
           NODE
-          node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-consent-denied.json
-          node - <<'NODE'
-          const fs=require("node:fs");
-          const c=JSON.parse(fs.readFileSync("/tmp/fenice-consent-denied.json","utf8"));
-          if(c.operatorConsent.recorded!==false || !c.transitionReadiness.blockers.includes("OPERATOR_PAPER_CONSENT_REQUIRED") || c.transitionReadiness.readyForActivation!==false) process.exit(1);
-          NODE
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-consent-denied.json 2>/tmp/fenice-consent-denied-error; then
+            echo "ERROR: modified operator consent was accepted"
+            exit 1
+          fi
+          grep -q CANDIDATE_WORKTREE_DIRTY /tmp/fenice-consent-denied-error
           mv /tmp/fenice-operator-consent-backup.json data/paper-successor-operator-authorization.json
           cp data/paper-history/v6-20260925-campaign.json /tmp/fenice-v6-archive-backup.json
           printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
