@@ -18,7 +18,7 @@ const input = {
   fingerprint: { complete: true, digest },
   campaign: { mode: "PAPER", approvalId: approval.approvalId, baselineCommit: commit,
     fingerprintDigest: digest, liveTradingAllowed: false, brokerConnectivityAllowed: false },
-  ledger: { mode: "PAPER", attempts: [], positions: {},
+  ledger: { mode: "PAPER", attempts: [], positions: {}, tip: "GENESIS", virtualSeedEuro: 10000, cashEuro: 10000,
     liveTradingAllowed: false, brokerConnectivityAllowed: false },
   now: "2026-11-07T00:00:00Z",
 };
@@ -42,6 +42,10 @@ const negative = [
   ["old fills", x => { x.approval.historicalFillsCredited = 7; }],
   ["non-genesis", x => { x.ledger.attempts = [{}]; }],
   ["positions imported", x => { x.ledger.positions = { SPY: 1 }; }],
+  ["missing positions", x => { delete x.ledger.positions; }],
+  ["wrong genesis tip", x => { x.ledger.tip = "tampered"; }],
+  ["missing capital", x => { delete x.ledger.virtualSeedEuro; }],
+  ["cash mismatch", x => { x.ledger.cashEuro = 9999; }],
   ["daily limit", x => { x.approval.maxOrdersPerDay = 2; }],
   ["score relaxation", x => { x.approval.minCommitteeScore = 69; }],
   ["confidence relaxation", x => { x.approval.minValidationDataConfidence = 89; }],
@@ -53,4 +57,4 @@ const negative = [
 for (const [name, mutate] of negative) {
   assert.equal(assess(mutate).allowed, false, name);
 }
-console.log("PAPER-next activation preflight: PASS (20 negative gates)");
+console.log("PAPER-next activation preflight: PASS (24 negative gates)");
