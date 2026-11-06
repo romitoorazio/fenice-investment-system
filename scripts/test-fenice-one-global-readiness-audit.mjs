@@ -9,5 +9,4 @@ const complete=assessGlobalReadiness({...files,pipeline:"verifyIndependentMarket
 assert.equal(complete.verdict,"STATIC_GATES_PASS_NOT_LIVE_CERTIFIED");
 assert.equal(complete.checks.find(x=>x.id==="DURABLE_LEDGER").passed,true);
 assert.equal(complete.certifiedLivePaper,false,"Static presence cannot certify real-source PAPER");
-assert.equal(complete.certifiedLivePaper,false);
 console.log("Fenice ONE GLOBAL read-only readiness audit contracts: PASS");
