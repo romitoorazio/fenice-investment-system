@@ -8,6 +8,8 @@ on:
       - ".github/workflows/paper-next-activation-safety.yml"
       - "scripts/paper-next-activation-preflight.mjs"
       - "scripts/test-paper-next-activation-preflight.mjs"
+      - "scripts/paper-next-fingerprint.mjs"
+      - "scripts/test-paper-next-fingerprint.mjs"
 
 permissions:
   contents: read
@@ -29,3 +31,5 @@ jobs:
           node-version: 22
       - name: Test isolated PAPER-only activation gates
         run: node scripts/test-paper-next-activation-preflight.mjs
+      - name: Test independent PAPER-next SHA256 fingerprint
+        run: node scripts/test-paper-next-fingerprint.mjs
