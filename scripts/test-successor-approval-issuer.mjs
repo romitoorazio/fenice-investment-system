@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 const output="data/paper-successor-operational-approval.json";
@@ -28,10 +28,15 @@ try {
     "data/paper-oms-state.json",
     "data/paper-validation-approval.json"
   ]) cpSync(file,join(temp,file));
+  execFileSync("git",["init","-q"],{cwd:temp});
+  execFileSync("git",["add","--all"],{cwd:temp});
+  execFileSync("git",["-c","user.name=Fenice Test","-c","user.email=fenice-test@example.invalid","commit","-qm","isolated fixture"],{cwd:temp});
   const consentFile=join(temp,"data/paper-successor-operator-authorization.json");
   const consent=JSON.parse(readFileSync(consentFile,"utf8"));
   consent.authorizedOn="2020-01-01";
   writeFileSync(consentFile,JSON.stringify(consent));
+  execFileSync("git",["add","--all"],{cwd:temp});
+  execFileSync("git",["-c","user.name=Fenice Test","-c","user.email=fenice-test@example.invalid","commit","-qm","stale consent fixture"],{cwd:temp});
   const stale=spawnSync(process.execPath,["scripts/issue-successor-paper-approval.mjs","--confirm-paper-only"],{cwd:temp,encoding:"utf8"});
   assert.notEqual(stale.status,0,"Stale consent must not issue an approval");
   assert.match(stale.stderr,/OPERATOR_CONSENT_DATE_NOT_CURRENT/);
