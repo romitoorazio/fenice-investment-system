@@ -8,7 +8,23 @@ assert.equal(replayVirtualLedger(ledger).valid,true);
 const one=appendVirtualFill({ledger,identity,fill,evidence});
 assert.equal(one.added,true);assert.equal(one.ledger.events.length,1);assert.equal(replayVirtualLedger(one.ledger).valid,true);
 const duplicate=appendVirtualFill({ledger:one.ledger,identity,fill,evidence});
-assert.equal(duplicate.added,false);assert.equal(duplicate.ledger.events.length,1);
+assert.equal(duplicate.added,false);assert.equal(duplicate.reason,"DUPLICATE_PAPER_SIGNAL");assert.equal(duplicate.ledger.events.length,1);
+for(const conflictingFill of [
+ {...fill,price:101},
+ {...fill,quantity:3},
+ {...fill,side:"SELL"},
+ {...fill,fees:2},
+ {...fill,fxToEur:.007},
+ {...fill,occurredAt:"2026-11-06T01:30:01.000Z"}
+]){
+ const conflict=appendVirtualFill({ledger:one.ledger,identity,fill:conflictingFill,evidence});
+ assert.equal(conflict.added,false,"Conflicting retry must not append");
+ assert.equal(conflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+ assert.equal(replayVirtualLedger(conflict.ledger).count,1);
+}
+const identityConflict=appendVirtualFill({ledger:one.ledger,identity:{...identity,metadata:"changed"},fill,evidence});
+assert.equal(identityConflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+assert.throws(()=>appendVirtualFill({ledger:one.ledger,identity,fill:{...fill,price:0},evidence}),/INVALID_VIRTUAL_FILL/);
 const two=appendVirtualFill({ledger:one.ledger,identity:{...identity,signalId:"signal-2"},fill,evidence});
 assert.equal(two.added,true);assert.equal(replayVirtualLedger(two.ledger).count,2);
 assert.equal(replayVirtualLedger({...two.ledger,events:[...two.ledger.events.slice(0,1),{...two.ledger.events[1],price:999}]}).valid,false);
