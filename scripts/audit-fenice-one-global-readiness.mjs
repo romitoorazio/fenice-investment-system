@@ -8,6 +8,7 @@ export function assessGlobalReadiness(files){
   const quote=files.quote,calendar=files.calendar,pipeline=files.pipeline,ledger=files.ledger,workflow=files.workflow;
   const checks=[
     {id:"SOURCE_PROVENANCE",passed:quote.includes("PROVIDER_RESPONSE_UNVERIFIED"),detail:"Adapter marks HTTP provider responses unverified"},
+    {id:"INDEPENDENT_QUOTE_ATTESTATION",passed:/verifyIndependentMarketSource|attestProviderIndependently/.test(pipeline),detail:"A provider HTTP response alone cannot become independently verified quote evidence"},
     {id:"CALENDAR_AUTHORITY",passed:/allowlist|trustedCalendarProviders|verifyCalendarSignature/.test(calendar),detail:"Verified calendar-provider authority required, not caller-provided authoritative flag"},
     {id:"REAL_QUOTE_ORCHESTRATION",passed:/fetchTwelveDataGlobalQuote|fetchProviderQuote/.test(pipeline),detail:"PAPER entrypoint must acquire actual quote observations rather than only accept caller-supplied arrays"},
     {id:"DURABLE_LEDGER",passed:/writeFile|appendFile|transaction|persistVirtualLedger/.test(ledger),detail:"Ledger must survive restart with durable idempotency"},
