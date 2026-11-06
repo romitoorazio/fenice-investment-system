@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "scripts/prepare-v6-successor-candidate.mjs"
+      - "scripts/issue-successor-paper-approval.mjs"
+      - "scripts/test-successor-approval-issuer.mjs"
+      - "data/paper-successor-operational-approval.json"
       - "data/paper-validation-campaign.json"
       - "data/paper-history/v6-20260925-campaign.json"
       - "data/paper-oms-state.json"
@@ -33,6 +36,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: Verify issuer rejects missing explicit confirmation
+        run: node scripts/test-successor-approval-issuer.mjs
       - name: Check prospective candidate is not activated
         shell: bash
         run: |
