@@ -17,6 +17,8 @@ if(archiveHash!==hash || !archivedBytes.equals(bytes)) throw Error("HISTORICAL_V
 const oms=JSON.parse(readFileSync("data/paper-oms-state.json","utf8"));
 if(oms.mode!=="PAPER" || oms.liveTradingAllowed!==false || oms.brokerConnectivityAllowed!==false) throw Error("PAPER_ONLY_GATE_BLOCKED");
 const approval=JSON.parse(readFileSync("data/paper-validation-approval.json","utf8"));
+const operatorAuthorization=JSON.parse(readFileSync("data/paper-successor-operator-authorization.json","utf8"));
+const operatorConsent=operatorAuthorization.authorized===true && operatorAuthorization.mode==="PAPER" && operatorAuthorization.liveTradingAllowed===false && operatorAuthorization.brokerConnectivityAllowed===false && operatorAuthorization.automaticActivationAllowed===false && operatorAuthorization.requiresFreshOperationalApproval===true;
 const approvalExpiresAt=Date.parse(approval.expiresAt||"");
 const approvalGrantedAt=Date.parse(approval.approvedAt||"");
 const approvalEligible=approval.approved===true && approval.mode==="PAPER" &&
@@ -37,7 +39,8 @@ const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
 const dirty=execFileSync("git",["status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim();
 if(dirty) throw Error("CANDIDATE_WORKTREE_DIRTY");
 const readinessBlockers=[
-  ...(!approvalEligible?["FRESH_PAPER_APPROVAL_REQUIRED"]:[]),
+  ...(!operatorConsent?["OPERATOR_PAPER_CONSENT_REQUIRED"]:[]),
+  ...(!approvalEligible?["FRESH_TIME_BOUND_PAPER_APPROVAL_REQUIRED"]:[]),
   ...(!eligibility.eligible?["MARKET_DATA_BASELINE_INELIGIBLE",...eligibility.reasons.map(reason=>"DATA: "+reason)]:[]),
   "SUCCESSOR_BASELINE_TRANSITION_NOT_ACTIVATED"
 ];
@@ -46,6 +49,7 @@ const candidate={
   historicalCampaign:{sha256:hash,records:42,baselineCommit:campaign.baselineCommit},
   candidate:{baselineCommit:head,baselineFingerprint:fingerprint,startedAt:null,dailyEvidence:[],approved:false,certified:false},
   marketDataPreflight:{eligible:eligibility.eligible,reasons:eligibility.reasons,gates:eligibility.gates,metrics:eligibility.metrics},
+  operatorConsent:{recorded:operatorConsent,authorizationDate:operatorAuthorization.authorizedOn||null,scope:"PAPER_ONLY_CONDITIONAL"},
   approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
   transitionReadiness:{readyForActivation:false,blockers:readinessBlockers},
   activationGates:["archive historical campaign bytes and verify sha256","fresh PAPER-only approval","independent data and FX eligibility","governance and ledger reconciliation","atomic successor activation with freeze-guard compatibility"],
