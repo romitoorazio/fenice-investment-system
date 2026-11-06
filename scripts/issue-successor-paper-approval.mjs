@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Explicit operator-approved PAPER successor issuance. Never starts a campaign.
-import { readFileSync, writeFileSync, openSync, closeSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, openSync, closeSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const fail = code => { throw Error(code); };
@@ -9,7 +9,10 @@ if (process.argv.length !== 3 || process.argv[2] !== "--confirm-paper-only")
 const authorization = JSON.parse(readFileSync("data/paper-successor-operator-authorization.json","utf8"));
 if (authorization.authorized !== true || authorization.mode !== "PAPER" ||
     authorization.liveTradingAllowed !== false || authorization.brokerConnectivityAllowed !== false ||
-    authorization.automaticActivationAllowed !== false) fail("OPERATOR_CONSENT_INVALID");
+    authorization.automaticActivationAllowed !== false ||
+    authorization.requiresFreshOperationalApproval !== true ||
+    authorization.requiresMarketDataAndFxPreflight !== true ||
+    authorization.requiresBaselineTransition !== true) fail("OPERATOR_CONSENT_INVALID");
 const bytes=readFileSync("data/paper-validation-campaign.json");
 const digest=createHash("sha256").update(bytes).digest("hex");
 if(digest!=="4380ab3ce24d8b59f8f2acba390fb39c0577331970fb791a5a2ae59232a93df1")
@@ -22,6 +25,8 @@ if(state.mode!=="PAPER" || state.liveTradingAllowed!==false || state.brokerConne
 const dirty=execFileSync("git",["status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim();
 if(dirty) fail("WORKTREE_DIRTY");
 const now=new Date();
+if(authorization.authorizedOn !== now.toISOString().slice(0,10))
+  fail("OPERATOR_CONSENT_DATE_NOT_CURRENT");
 const expires=new Date(now.getTime()+45*86400000);
 const old=JSON.parse(readFileSync("data/paper-validation-approval.json","utf8"));
 const approval={
@@ -33,7 +38,7 @@ const approval={
   expiresAt:expires.toISOString(),
   mode:"PAPER",
   purpose:"Prospective 45-day PAPER-only successor validation; not an activation, certification, or permission for real orders.",
-  approvalReference:"Explicit operator confirmation on 2026-11-06; separately recorded PAPER-only consent",
+  approvalReference:"Explicit operator PAPER-only confirmation dated "+authorization.authorizedOn+"; separately recorded consent",
   idPrefix:"fenice-paper-successor-",
   humanConfirmation:true,
   liveTradingAllowed:false,
