@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Candidate-only transition: no mutation, no certification, no broker access.
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
@@ -16,7 +16,9 @@ const archiveHash=createHash("sha256").update(archivedBytes).digest("hex");
 if(archiveHash!==hash || !archivedBytes.equals(bytes)) throw Error("HISTORICAL_V6_ARCHIVE_MISMATCH");
 const oms=JSON.parse(readFileSync("data/paper-oms-state.json","utf8"));
 if(oms.mode!=="PAPER" || oms.liveTradingAllowed!==false || oms.brokerConnectivityAllowed!==false) throw Error("PAPER_ONLY_GATE_BLOCKED");
-const approval=JSON.parse(readFileSync("data/paper-validation-approval.json","utf8"));
+const successorApprovalFile="data/paper-successor-operational-approval.json";
+const successorApprovalPresent=existsSync(successorApprovalFile);
+const approval=JSON.parse(readFileSync(successorApprovalPresent?successorApprovalFile:"data/paper-validation-approval.json","utf8"));
 const operatorAuthorization=JSON.parse(readFileSync("data/paper-successor-operator-authorization.json","utf8"));
 const operatorConsent=operatorAuthorization.authorized===true && operatorAuthorization.mode==="PAPER" && operatorAuthorization.liveTradingAllowed===false && operatorAuthorization.brokerConnectivityAllowed===false && operatorAuthorization.automaticActivationAllowed===false && operatorAuthorization.requiresFreshOperationalApproval===true;
 const approvalExpiresAt=Date.parse(approval.expiresAt||"");
@@ -65,7 +67,7 @@ const candidate={
   geographicCoverage,
   marketDataPreflight:{eligible:eligibility.eligible,reasons:eligibility.reasons,gates:eligibility.gates,metrics:eligibility.metrics},
   operatorConsent:{recorded:operatorConsent,authorizationDate:operatorAuthorization.authorizedOn||null,scope:"PAPER_ONLY_CONDITIONAL"},
-  approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
+  approvalPreflight:{eligible:approvalEligible,source:successorApprovalPresent?"SUCCESSOR_APPROVAL":"EXPIRED_V6_APPROVAL",expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
   transitionReadiness:{readyForActivation:false,blockers:readinessBlockers},
   activationGates:["archive historical campaign bytes and verify sha256","fresh PAPER-only approval","independent data and FX eligibility","governance and ledger reconciliation","atomic successor activation with freeze-guard compatibility"],
   liveTradingAllowed:false,brokerConnectivityAllowed:false
