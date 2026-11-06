@@ -44,3 +44,26 @@ jobs:
           if [ "$status" -eq 2 ]; then
             echo "::warning::Original V6 baseline drift remains unresolved; this job does not certify or approve a successor baseline."
           fi
+      - name: Negative test - reject tampered historical campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp data/paper-validation-campaign.json /tmp/fenice-original-campaign.json
+          trap 'cp /tmp/fenice-original-campaign.json data/paper-validation-campaign.json' EXIT
+          node -e '
+            const fs=require("node:fs");
+            const path="data/paper-validation-campaign.json";
+            const c=JSON.parse(fs.readFileSync(path,"utf8"));
+            c.dailyEvidence=[];
+            fs.writeFileSync(path,JSON.stringify(c,null,2)+"\\n");
+          '
+          if node scripts/audit-v6-baseline-transition.mjs >/tmp/fenice-tamper-output.log 2>&1; then
+            echo "Tampered V6 history was incorrectly accepted" >&2
+            exit 1
+          fi
+          if ! grep -q "V6_HISTORICAL_CAMPAIGN_BYTES_CHANGED" /tmp/fenice-tamper-output.log; then
+            cat /tmp/fenice-tamper-output.log
+            echo "Unexpected failure; historical tamper check not verified" >&2
+            exit 1
+          fi
+          echo "PASS: tampered historical evidence rejected"
