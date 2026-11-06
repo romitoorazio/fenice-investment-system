@@ -4,8 +4,8 @@ const files={quote:"PROVIDER_RESPONSE_UNVERIFIED",calendar:"authoritative:true",
 const report=assessGlobalReadiness(files);
 assert.equal(report.certifiedLivePaper,false);
 assert.equal(report.verdict,"NOT_READY_FOR_CERTIFIED_LIVE_SOURCE_PAPER");
-assert.deepEqual(report.blockers,["CALENDAR_AUTHORITY","REAL_QUOTE_ORCHESTRATION","DURABLE_LEDGER","LIVE_PAPER_WORKFLOW"]);
-const complete=assessGlobalReadiness({...files,calendar:"trustedCalendarProviders",pipeline:"fetchProviderQuote",ledger:files.ledger+" persistVirtualLedger",workflow:"run-global-paper"});
+assert.deepEqual(report.blockers,["INDEPENDENT_QUOTE_ATTESTATION","CALENDAR_AUTHORITY","REAL_QUOTE_ORCHESTRATION","DURABLE_LEDGER","LIVE_PAPER_WORKFLOW"]);
+const complete=assessGlobalReadiness({...files,pipeline:"verifyIndependentMarketSource fetchProviderQuote",calendar:"trustedCalendarProviders",ledger:files.ledger+" persistVirtualLedger",workflow:"run-global-paper"});
 assert.equal(complete.verdict,"STATIC_GATES_PASS_NOT_LIVE_CERTIFIED");
 assert.equal(complete.certifiedLivePaper,false);
 console.log("Fenice ONE GLOBAL read-only readiness audit contracts: PASS");
