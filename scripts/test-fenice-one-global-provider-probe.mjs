@@ -33,6 +33,9 @@ assert.equal(limited.rows[0].reason,"PROVIDER_RATE_LIMITED");
 assert.equal(limited.rows[1].reason,"PROVIDER_QUOTA_STOPPED");
 assert.equal(limited.rows[2].reason,"PROVIDER_QUOTA_STOPPED");
 assert.equal(limited.totals.verifiedMarketEvidence,0);
+let invalidUniverseRequests=0;
+await assert.rejects(probeTwelveDataCoverage({instruments:[instruments[0],{mic:"BAD",instrumentId:"BAD:1",symbol:"X"}],apiKey:"fixture",fetchImpl:async()=>{invalidUniverseRequests++;throw Error("network must not be called");}}),/INVALID_PROBE_INSTRUMENT/);
+assert.equal(invalidUniverseRequests,0);
 await assert.rejects(probeTwelveDataCoverage({instruments:Array.from({length:11},(_,i)=>({mic:"XMIL",instrumentId:"XMIL:"+i,symbol:"X"+i})),apiKey:"fixture"}),/INVALID_PROBE_UNIVERSE/);
 await assert.rejects(probeTwelveDataCoverage({instruments:[],apiKey:"x"}),/INVALID_PROBE_UNIVERSE/);
 
