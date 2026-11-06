@@ -44,6 +44,14 @@ try{
  assert.equal(failure.countsTowardRealPaper,false);
  assert.equal(failure.totals.verifiedMarketEvidence,0);
  assert.equal((child.stdout+child.stderr).includes("fixture-value"),false);
+ const missingKey=spawnSync(process.execPath,[new URL("./probe-fenice-global-provider.mjs",import.meta.url).pathname],{
+  encoding:"utf8",timeout:10000,
+  env:{...process.env,FENICE_GLOBAL_PROBE_UNIVERSE:invalidPath,TWELVE_DATA_API_KEY:""}
+ });
+ assert.equal(missingKey.status,2);
+ assert.match(missingKey.stderr,/PROBE_NOT_CONFIGURED/);
+ assert.equal(missingKey.stdout,"");
+
 }finally{await rm(temp,{recursive:true,force:true});}
 const workflow=await readFile(new URL("../.github/workflows/fenice-one-global-provider-diagnostics.yml",import.meta.url),"utf8");
 const probeCli=await readFile(new URL("./probe-fenice-global-provider.mjs",import.meta.url),"utf8");
