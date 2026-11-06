@@ -37,6 +37,12 @@ jobs:
             exit 1
           fi
           grep -q HISTORICAL_V6_ARCHIVE_MISMATCH /tmp/fenice-tamper-error
+          rm data/paper-history/v6-20260925-campaign.json
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-missing-candidate.json 2>/tmp/fenice-missing-error; then
+            echo "ERROR: missing V6 archive was accepted"
+            exit 1
+          fi
+          grep -q ENOENT /tmp/fenice-missing-error
           mv /tmp/fenice-v6-archive-backup.json data/paper-history/v6-20260925-campaign.json
           node -e '
             const fs=require("node:fs");
