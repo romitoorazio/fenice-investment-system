@@ -41,3 +41,13 @@ jobs:
       - run: node scripts/test-fenice-one-global-evidence-bundle.mjs
       - run: node scripts/test-fenice-one-global-quote-provider.mjs
       - run: node scripts/test-fenice-one-global-twelve-data-source.mjs
+      - run: node scripts/test-fenice-one-global-readiness-audit.mjs
+      - name: Generate read-only A-Z readiness diagnostics
+        if: always()
+        run: node scripts/audit-fenice-one-global-readiness.mjs > fenice-one-global-readiness.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fenice-one-global-readiness
+          path: fenice-one-global-readiness.json
+          retention-days: 14
