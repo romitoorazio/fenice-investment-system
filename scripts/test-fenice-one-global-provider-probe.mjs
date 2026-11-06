@@ -17,14 +17,23 @@ const result=await probeTwelveDataCoverage({instruments,apiKey:"test-key",fetchI
 assert.equal(result.mode,"READ_ONLY_PROVIDER_COVERAGE");
 assert.equal(result.totals.attempted,2);
 assert.equal(result.totals.validTransportQuotes,1);
+assert.equal(result.totals.referenceOnlyQuotes,1);
+assert.equal(result.totals.hardFailures,0);
 assert.equal(result.totals.verifiedMarketEvidence,0);
-assert.deepEqual(result.regions.ASIA,{requested:1,attempted:1,validTransportQuotes:0,unsupportedOrFailed:1,verifiedMarketEvidence:0});
-assert.deepEqual(result.regions.EUROPE,{requested:1,attempted:1,validTransportQuotes:1,unsupportedOrFailed:0,verifiedMarketEvidence:0});
-assert.deepEqual(result.regions.AMERICAS,{requested:0,attempted:0,validTransportQuotes:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
-assert.equal(result.rejectionReasons.PROVIDER_INVALID_SPREAD,1);
+assert.deepEqual(result.regions.ASIA,{requested:1,attempted:1,validTransportQuotes:0,referenceOnlyQuotes:1,hardFailures:0,unsupportedOrFailed:1,verifiedMarketEvidence:0});
+assert.deepEqual(result.regions.EUROPE,{requested:1,attempted:1,validTransportQuotes:1,referenceOnlyQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
+assert.deepEqual(result.regions.AMERICAS,{requested:0,attempted:0,validTransportQuotes:0,referenceOnlyQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
+assert.equal(result.rejectionReasons.PROVIDER_REFERENCE_ONLY_NO_BID_ASK,1);
 assert.equal(result.countsTowardRealPaper,false);
 assert.equal(result.rows[0].verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
-assert.equal(result.rows[1].reason,"PROVIDER_INVALID_SPREAD");
+assert.equal(result.rows[1].reason,"PROVIDER_REFERENCE_ONLY_NO_BID_ASK");
+assert.equal(result.rows[1].referenceOnly,true);
+assert.equal(result.rows[1].referenceObservation.last,3000);
+assert.equal(result.rows[1].referenceObservation.currency,"JPY");
+assert.equal(result.rows[1].referenceObservation.executableBidAsk,false);
+assert.equal(result.rows[1].referenceObservation.countsTowardRealPaper,false);
+assert.equal(result.rows[0].referenceOnly,false);
+assert.equal(result.rows[0].referenceObservation,null);
 assert.equal(JSON.stringify(result).includes("test-key"),false);
 let calls=0;
 const limited=await probeTwelveDataCoverage({instruments:[...instruments,{mic:"XNAS",instrumentId:"XNAS:MSFT",symbol:"MSFT"}],apiKey:"fixture",nowIso,
