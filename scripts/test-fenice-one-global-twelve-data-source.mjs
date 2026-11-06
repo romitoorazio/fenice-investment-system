@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {fetchTwelveDataGlobalQuote} from "../lib/global/twelve-data-quote-source.mjs";
+const nowIso="2026-11-06T10:00:00Z",timestamp=Date.parse("2026-11-06T09:59:30Z")/1000;
+const args={mic:"XMIL",instrumentId:"XMIL:TEST",symbol:"TEST",apiKey:"PRIVATE_TOKEN",nowIso};
+const run=payload=>fetchTwelveDataGlobalQuote({...args,fetchImpl:async(url)=>{assert.ok(url.includes("apikey=PRIVATE_TOKEN"));return {ok:true,status:200,headers:{get:()=> "application/json"},json:async()=>payload};}});
+const valid=await run({symbol:"TEST",bid:"100",ask:"100.2",timestamp});
+assert.equal(valid.ok,true);
+assert.equal(valid.quote.bid,100);
+assert.equal(valid.quote.sourceUrl.includes("PRIVATE_TOKEN"),false);
+assert.equal((await run({symbol:"TEST",close:"100",timestamp})).reason,"PROVIDER_INVALID_SPREAD");
+assert.equal((await run({symbol:"OTHER",bid:"100",ask:"100.2",timestamp})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
+assert.equal((await run({status:"error",code:429,message:"API credits exhausted"})).reason,"PROVIDER_RATE_LIMITED");
+assert.equal((await run({symbol:"TEST",bid:"100",ask:"100.2",timestamp:timestamp-600})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
+console.log("Fenice ONE GLOBAL Twelve Data quote bridge contracts: PASS");
