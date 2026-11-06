@@ -17,9 +17,12 @@ const oms=JSON.parse(readFileSync("data/paper-oms-state.json","utf8"));
 if(oms.mode!=="PAPER" || oms.liveTradingAllowed!==false || oms.brokerConnectivityAllowed!==false) throw Error("PAPER_ONLY_GATE_BLOCKED");
 const approval=JSON.parse(readFileSync("data/paper-validation-approval.json","utf8"));
 const approvalExpiresAt=Date.parse(approval.expiresAt||"");
+const approvalGrantedAt=Date.parse(approval.approvedAt||"");
 const approvalEligible=approval.approved===true && approval.mode==="PAPER" &&
   approval.liveTradingAllowed===false && approval.brokerConnectivityAllowed===false &&
-  Number.isFinite(approvalExpiresAt) && approvalExpiresAt>Date.now() &&
+  approval.humanConfirmation===true && Number.isFinite(approvalGrantedAt) &&
+  approvalGrantedAt>Date.parse("2026-11-06T00:00:00.000Z") && approvalGrantedAt<=Date.now() &&
+  Number.isFinite(approvalExpiresAt) && approvalExpiresAt>approvalGrantedAt+30*24*60*60*1000 &&
   approval.approvalId!== "fenice-paper-validation-v6-2026-09-24";
 const fingerprint=await computePaperValidationFingerprint(process.cwd());
 if(!fingerprint.complete) throw Error("CANDIDATE_CORE_INCOMPLETE");
@@ -30,7 +33,7 @@ const candidate={
   kind:"PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED",
   historicalCampaign:{sha256:hash,records:42,baselineCommit:campaign.baselineCommit},
   candidate:{baselineCommit:head,baselineFingerprint:fingerprint,startedAt:null,dailyEvidence:[],approved:false,certified:false},
-  approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible},
+  approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
   activationGates:["archive historical campaign bytes and verify sha256","fresh PAPER-only approval","independent data and FX eligibility","governance and ledger reconciliation","atomic successor activation with freeze-guard compatibility"],
   liveTradingAllowed:false,brokerConnectivityAllowed:false
 };
