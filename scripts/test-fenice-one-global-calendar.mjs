@@ -4,6 +4,7 @@ const nowIso="2026-11-06T10:00:00.000Z";
 const observation={mic:"XMIL",zone:"Europe/Rome",sourceId:"verified-calendar-feed",authoritative:true,observedAt:"2026-11-06T09:59:30.000Z",tradingDay:true,phase:"CONTINUOUS",opensAt:"2026-11-06T08:00:00.000Z",closesAt:"2026-11-06T16:30:00.000Z"};
 const evalWith=(o,now=nowIso)=>check({mic:"XMIL",observation:{...observation,...o},nowIso:now});
 assert.equal(evalWith({}).allowed,true);
+assert.equal(evalWith({verificationStatus:"PROVIDER_RESPONSE_UNVERIFIED"}).reason,"CALENDAR_PROVIDER_UNVERIFIED");
 assert.equal(evalWith({zone:"America/New_York"}).reason,"CALENDAR_NOT_AUTHORITATIVE");
 assert.equal(evalWith({authoritative:false}).reason,"CALENDAR_NOT_AUTHORITATIVE");
 assert.equal(evalWith({sourceId:""}).reason,"CALENDAR_NOT_AUTHORITATIVE");
