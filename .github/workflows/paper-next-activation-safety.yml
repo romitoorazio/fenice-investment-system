@@ -11,6 +11,7 @@ on:
       - "scripts/paper-next-fingerprint.mjs"
       - "scripts/test-paper-next-fingerprint.mjs"
       - "scripts/test-paper-next-genesis.mjs"
+      - "scripts/check-paper-next-readiness.mjs"
       - "data/paper-next-forward-ledger.json"
       - "data/paper-next-forward-days.json"
       - "data/paper-next-approval.json"
@@ -39,3 +40,7 @@ jobs:
         run: node scripts/test-paper-next-fingerprint.mjs
       - name: Test isolated PAPER-next genesis ledgers
         run: node scripts/test-paper-next-genesis.mjs
+      - name: Verify unapproved campaign stays blocked
+        run: |
+          node scripts/check-paper-next-readiness.mjs | tee paper-next-readiness.json
+          grep -q '"state":"BLOCKED"' paper-next-readiness.json
