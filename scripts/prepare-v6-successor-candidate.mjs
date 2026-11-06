@@ -38,6 +38,20 @@ if(!fingerprint.complete) throw Error("CANDIDATE_CORE_INCOMPLETE");
 const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
 const dirty=execFileSync("git",["status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim();
 if(dirty) throw Error("CANDIDATE_WORKTREE_DIRTY");
+const coverageRows=Array.isArray(executionCoverage.rows)?executionCoverage.rows:[];
+const eligibleCoverage=coverageRows.filter(row=>row.paperEligible===true);
+const eligibleSymbols=eligibleCoverage.map(row=>row.symbol);
+const nonUsEquityEligible=eligibleCoverage.filter(row=>row.symbol==="ASML" || row.symbol==="TSM");
+const geographicCoverage={
+  scope:"Observed execution evidence only; listing venue is not inferred from ticker or issuer domicile",
+  paperEligibleSymbols:eligibleSymbols,
+  paperEligibleCount:eligibleCoverage.length,
+  requestedCount:coverageRows.length,
+  nonUsProxySymbolsInUniverse:coverageRows.filter(row=>["ASML","TSM"].includes(row.symbol)).map(row=>({symbol:row.symbol,paperEligible:row.paperEligible===true,reasons:row.reasons||[]})),
+  nonUsProxyEligibleCount:nonUsEquityEligible.length,
+  globalVenueParityProven:false,
+  warning:"Global exchange parity is not demonstrated by the present evidence; US-listed proxies are not proof of native Tokyo, Milan, Frankfurt or other exchange coverage."
+};
 const readinessBlockers=[
   ...(!operatorConsent?["OPERATOR_PAPER_CONSENT_REQUIRED"]:[]),
   ...(!approvalEligible?["FRESH_TIME_BOUND_PAPER_APPROVAL_REQUIRED"]:[]),
@@ -48,6 +62,7 @@ const candidate={
   kind:"PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED",
   historicalCampaign:{sha256:hash,records:42,baselineCommit:campaign.baselineCommit},
   candidate:{baselineCommit:head,baselineFingerprint:fingerprint,startedAt:null,dailyEvidence:[],approved:false,certified:false},
+  geographicCoverage,
   marketDataPreflight:{eligible:eligibility.eligible,reasons:eligibility.reasons,gates:eligibility.gates,metrics:eligibility.metrics},
   operatorConsent:{recorded:operatorConsent,authorizationDate:operatorAuthorization.authorizedOn||null,scope:"PAPER_ONLY_CONDITIONAL"},
   approvalPreflight:{eligible:approvalEligible,expiresAt:approval.expiresAt||null,requiresFreshSuccessorApproval:!approvalEligible,requiresHumanConfirmation:true,minimumWindowDays:30},
