@@ -10,6 +10,7 @@ const fill={occurredAt:"2026-11-06T09:59:40.000Z",side:"BUY",price:100.1,quantit
 const input={ledger,identity,calendarObservation,quotes,fxEvidence,fill,nowIso};
 const run=x=>runPaperShadow({...input,...x});
 const ok=run({});assert.equal(ok.added,true);assert.equal(ok.ledger.events.length,1);
+assert.equal(run({quotes:[{...quotes[0],verificationStatus:"PROVIDER_RESPONSE_UNVERIFIED"},quotes[1]]}).reason,"PAPER_UNVERIFIED_PROVIDER_QUOTE");
 assert.equal(run({ledger:ok.ledger}).reason,"DUPLICATE_PAPER_SIGNAL");
 assert.equal(run({quotes:quotes.map(q=>({...q,observedAt:"2026-11-06T09:59:50.000Z"}))}).reason,"PAPER_FUTURE_EVIDENCE");
 assert.equal(run({fxEvidence:{...fxEvidence,observedAt:"2026-11-06T09:59:50.000Z"}}).reason,"PAPER_FUTURE_EVIDENCE");
