@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+// Candidate-only transition: no mutation, no certification, no broker access.
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { computePaperValidationFingerprint } from "../lib/trading/validation-fingerprint.mjs";
+
+const bytes=readFileSync("data/paper-validation-campaign.json");
+const campaign=JSON.parse(bytes.toString("utf8"));
+const hash=createHash("sha256").update(bytes).digest("hex");
+if(hash!=="4380ab3ce24d8b59f8f2acba390fb39c0577331970fb791a5a2ae59232a93df1") throw Error("HISTORICAL_V6_CHANGED");
+if(campaign.dailyEvidence?.length!==42 || campaign.liveTradingAllowed!==false) throw Error("HISTORICAL_V6_INVALID");
+const oms=JSON.parse(readFileSync("data/paper-oms-state.json","utf8"));
+if(oms.mode!=="PAPER" || oms.liveTradingAllowed!==false || oms.brokerConnectivityAllowed!==false) throw Error("PAPER_ONLY_GATE_BLOCKED");
+const fingerprint=await computePaperValidationFingerprint(process.cwd());
+if(!fingerprint.complete) throw Error("CANDIDATE_CORE_INCOMPLETE");
+const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
+const dirty=execFileSync("git",["status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim();
+if(dirty) throw Error("CANDIDATE_WORKTREE_DIRTY");
+const candidate={
+  kind:"PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED",
+  historicalCampaign:{sha256:hash,records:42,baselineCommit:campaign.baselineCommit},
+  candidate:{baselineCommit:head,baselineFingerprint:fingerprint,startedAt:null,dailyEvidence:[],approved:false,certified:false},
+  activationGates:["archive historical campaign bytes and verify sha256","fresh PAPER-only approval","independent data and FX eligibility","governance and ledger reconciliation","atomic successor activation with freeze-guard compatibility"],
+  liveTradingAllowed:false,brokerConnectivityAllowed:false
+};
+console.log(JSON.stringify(candidate,null,2));
