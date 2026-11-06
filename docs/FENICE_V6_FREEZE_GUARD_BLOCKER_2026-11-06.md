@@ -25,3 +25,9 @@ These are pre-existing differences on main according to the guard; **do not attr
 - PAPER Core Freeze Guard #1107: FAILURE.
 
 Result: **integration NOT green; no merge, no LIVE, no certification claim**.
+
+## Historical investigation — supplemental evidence
+
+- GitHub commit [b26e47ea5420605067ca5388e83042d337b73e16](https://github.com/romitoorazio/fenice-investment-system/commit/b26e47ea5420605067ca5388e83042d337b73e16) is titled `feat: refresh Twelve Data PAPER evidence as coherent batch` and changes `scripts/refresh-twelve-data-batch-evidence.mjs`. This is a candidate historical explanation of the script drift, **not proof that it alone introduced the exact current blob**.
+- Baseline-to-main comparison is very large (2,677 commits ahead; file listing capped at 300), so it cannot reliably establish the last change to each frozen file. The exact baseline/current blob pairs in the failed guard log remain the authoritative evidence.
+- `package.json` drift origin remains **unresolved**. Do not restore or rebaseline either file based only on a matching commit title.
