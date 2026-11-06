@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Repository secret scan (same gate as Production CI)
+        run: node scripts/scan-repository-secrets.mjs
       - run: node scripts/test-fenice-one-global-registry.mjs
       - run: node scripts/test-fenice-one-global-instrument.mjs
       - run: node scripts/test-fenice-one-global-calendar.mjs
