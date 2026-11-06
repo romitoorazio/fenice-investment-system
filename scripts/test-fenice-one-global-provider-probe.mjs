@@ -7,10 +7,11 @@ import {probeTwelveDataCoverage} from "../lib/global/provider-coverage-probe.mjs
 const nowIso="2026-11-06T10:00:00.000Z";
 const instruments=[{mic:"XMIL",instrumentId:"XMIL:ENEL",symbol:"ENEL"},{mic:"XTKS",instrumentId:"XTKS:7203",symbol:"7203"}];
 const fakeFetch=async url=>{
- const symbol=new URL(url).searchParams.get("symbol");
+ const request=new URL(url),symbol=request.searchParams.get("symbol");
+ assert.equal(request.searchParams.get("mic_code"),symbol==="ENEL"?"XMIL":"XTKS");
  return {ok:true,status:200,headers:{get:()=>"application/json"},json:async()=>symbol==="ENEL"?
- {symbol:"ENEL",currency:"EUR",bid:9.1,ask:9.2,timestamp:Date.parse(nowIso)/1000}:
- {symbol:"7203",currency:"JPY",close:3000,timestamp:Date.parse(nowIso)/1000}};
+ {symbol:"ENEL",mic_code:"XMIL",currency:"EUR",bid:9.1,ask:9.2,timestamp:Date.parse(nowIso)/1000,last_quote_at:Date.parse(nowIso)/1000}:
+ {symbol:"7203",mic_code:"XTKS",currency:"JPY",close:3000,timestamp:Date.parse(nowIso)/1000,last_quote_at:Date.parse(nowIso)/1000}};
 };
 const result=await probeTwelveDataCoverage({instruments,apiKey:"test-key",fetchImpl:fakeFetch,nowIso});
 assert.equal(result.mode,"READ_ONLY_PROVIDER_COVERAGE");
