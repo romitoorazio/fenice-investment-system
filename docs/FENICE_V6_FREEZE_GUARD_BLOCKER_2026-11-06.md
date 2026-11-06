@@ -31,3 +31,13 @@ Result: **integration NOT green; no merge, no LIVE, no certification claim**.
 - GitHub commit [b26e47ea5420605067ca5388e83042d337b73e16](https://github.com/romitoorazio/fenice-investment-system/commit/b26e47ea5420605067ca5388e83042d337b73e16) is titled `feat: refresh Twelve Data PAPER evidence as coherent batch` and changes `scripts/refresh-twelve-data-batch-evidence.mjs`. This is a candidate historical explanation of the script drift, **not proof that it alone introduced the exact current blob**.
 - Baseline-to-main comparison is very large (2,677 commits ahead; file listing capped at 300), so it cannot reliably establish the last change to each frozen file. The exact baseline/current blob pairs in the failed guard log remain the authoritative evidence.
 - `package.json` drift origin remains **unresolved**. Do not restore or rebaseline either file based only on a matching commit title.
+
+## Exact baseline-vs-main content inspection (confirmed)
+
+The V8 technical-status record names baseline commit `54ee545235bee10121cb082b79c3a8a194401d6a`. Fetching the two guarded files at that commit reproduces **exactly** the baseline blob IDs printed by the guard, confirming it is a usable comparison reference for these two files.
+
+**`package.json`:** the only distinct line is an added npm script `"paper:bottlenecks:test": "node scripts/test-paper-bottleneck-causes.mjs"`, plus the comma needed after the preceding script. No other differing lines were found by line-set comparison.
+
+**`scripts/refresh-twelve-data-batch-evidence.mjs`:** main additionally imports `prioritizeMissingSecondSource` from `lib/trading/paper-quote-probe-priority.mjs` and `validateFxTimestamp` from `lib/trading/paper-fx-timestamp.mjs`; replaces inline FX age calculation with a helper and explicit rejection of future timestamps; prioritizes candidates missing a second source before slicing to probeLimit; and adds a comment explaining FX preflight and separate atomic writes. This is a line-set comparison, **not** a behavioral or historical safety certification.
+
+**Interpretation:** the guard is correctly flagging post-baseline drift, even where changes appear to strengthen checks. The correct path is owner-approved V6 re-baselining/retirement or carefully reviewed rollback, **not** bypassing the guard or asserting a clean integration. Do not use a test-only workaround to count additional V6 evidence days.
