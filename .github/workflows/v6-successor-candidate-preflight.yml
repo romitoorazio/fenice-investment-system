@@ -8,6 +8,7 @@ on:
       - "data/paper-validation-campaign.json"
       - "data/paper-history/v6-20260925-campaign.json"
       - "data/paper-oms-state.json"
+      - "data/paper-validation-approval.json"
       - ".github/workflows/v6-successor-candidate-preflight.yml"
   workflow_dispatch:
 
@@ -51,5 +52,6 @@ jobs:
             if(c.historicalCampaign.records!==42 || c.liveTradingAllowed!==false || c.brokerConnectivityAllowed!==false) process.exit(1);
             if(c.candidate.startedAt!==null || c.candidate.approved!==false || c.candidate.certified!==false || c.candidate.dailyEvidence.length!==0) process.exit(1);
             if(c.candidate.baselineFingerprint.complete!==true || c.candidate.baselineFingerprint.files.length!==92) process.exit(1);
+            if(c.approvalPreflight.eligible!==false || c.approvalPreflight.requiresFreshSuccessorApproval!==true) process.exit(1);
             console.log("PASS: candidate prepared without activation, certification, broker connectivity, or history reset");
           '
