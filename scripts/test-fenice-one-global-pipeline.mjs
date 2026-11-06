@@ -11,6 +11,8 @@ const input={ledger,identity,calendarObservation,quotes,fxEvidence,fill,nowIso};
 const run=x=>runPaperShadow({...input,...x});
 const ok=run({});assert.equal(ok.added,true);assert.equal(ok.ledger.events.length,1);
 assert.equal(run({ledger:ok.ledger}).reason,"DUPLICATE_PAPER_SIGNAL");
+assert.equal(run({fill:{...fill,price:1}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
+assert.equal(run({fill:{...fill,price:1000}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
 assert.equal(run({calendarObservation:{...calendarObservation,phase:"CLOSED"}}).reason,"MARKET_NOT_CONTINUOUS");
 assert.equal(run({quotes:quotes.slice(0,1)}).added,false);
 assert.equal(run({fxEvidence:{...fxEvidence,rate:1.1}}).reason,"FX_FILL_MISMATCH");
