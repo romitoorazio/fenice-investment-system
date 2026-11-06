@@ -46,6 +46,14 @@ const apiQuota=await probeTwelveDataCoverage({instruments,apiKey:"fixture",nowIs
 assert.equal(apiQuotaCalls,1,"Provider JSON quota errors must stop further requests");
 assert.equal(apiQuota.rows[0].reason,"PROVIDER_RATE_LIMITED");
 assert.equal(apiQuota.rows[1].reason,"PROVIDER_QUOTA_STOPPED");
+let networkCalls=0;
+const networkDown=await probeTwelveDataCoverage({instruments,apiKey:"fixture",nowIso,
+ fetchImpl:async()=>{networkCalls++;throw Error("simulated outage");}});
+assert.equal(networkCalls,1,"Provider outage must not cascade requests");
+assert.equal(networkDown.rows[0].reason,"PROVIDER_NETWORK_FAILURE");
+assert.equal(networkDown.rows[1].reason,"PROVIDER_NETWORK_STOPPED");
+assert.equal(networkDown.totals.attempted,1);
+assert.equal(networkDown.totals.verifiedMarketEvidence,0);
 let invalidUniverseRequests=0;
 await assert.rejects(probeTwelveDataCoverage({instruments:[instruments[0],{mic:"BAD",instrumentId:"BAD:1",symbol:"X"}],apiKey:"fixture",fetchImpl:async()=>{invalidUniverseRequests++;throw Error("network must not be called");}}),/INVALID_PROBE_INSTRUMENT/);
 assert.equal(invalidUniverseRequests,0);
