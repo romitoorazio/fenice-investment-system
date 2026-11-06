@@ -5,6 +5,8 @@ const source={sourceId:"synthetic-calendar",observedAt};
 const bundle={identity:{mic:"XMIL",instrumentId:"XMIL:TEST",sessionDate:"2026-11-06"},calendarObservation:source,quotes:[{...source,sourceId:"synthetic-quote"}],fxEvidence:{...source,sourceId:"synthetic-fx"},fill:{occurredAt:nowIso},nowIso};
 const run=x=>classifyEvidenceBundle({...bundle,...x});
 assert.equal(run({}).classification,"SYNTHETIC_TEST_ONLY");
+assert.equal(run({quotes:[{...source,sourceId:"live-quote",synthetic:false}]}).reason,"MIXED_SYNTHETIC_REAL_PROVENANCE");
+assert.equal(run({calendarObservation:{...source,synthetic:true},quotes:[{...source,sourceId:"live-quote",synthetic:false}]}).reason,"MIXED_SYNTHETIC_REAL_PROVENANCE");
 assert.equal(run({quotes:[{...source,sourceId:"synthetic-quote",verificationStatus:"PROVIDER_RESPONSE_UNVERIFIED"}]}).reason,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal(run({quotes:[]}).reason,"BUNDLE_INCOMPLETE");
 assert.equal(run({quotes:[{observedAt}]}).reason,"BUNDLE_SOURCE_PROVENANCE_MISSING");
