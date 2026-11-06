@@ -17,7 +17,12 @@ try{
  assert.equal(first.added,true);assert.equal(first.persisted,true);
  assert.equal(first.evidenceClassification,"SYNTHETIC_TEST_ONLY");assert.equal(first.countsTowardRealPaper,false);
  assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
- const dup=await runDurablePaperShadow(input);assert.equal(dup.added,false);
+ const dup=await runDurablePaperShadow(input);
+ assert.equal(dup.added,false);assert.equal(dup.reason,"DUPLICATE_PAPER_SIGNAL");
+ const conflict=await runDurablePaperShadow({...input,fill:{...fill,side:"SELL",price:100.01}});
+ assert.equal(conflict.added,false);assert.equal(conflict.persisted,false);
+ assert.equal(conflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+ assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
  const invalid=await runDurablePaperShadow({...input,identity:{...identity,signalId:"s2"},quotes:quotes.map(q=>({...q,verificationStatus:"PROVIDER_RESPONSE_UNVERIFIED"}))});
  assert.equal(invalid.added,false);assert.equal(invalid.reason,"PAPER_UNVERIFIED_PROVIDER_QUOTE");
  assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
