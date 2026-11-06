@@ -58,6 +58,21 @@ jobs:
           ];
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || "/tmp/fenice-readiness-summary.md",lines.join("\n")+"\n");
           NODE
+          cp data/paper-successor-operator-authorization.json /tmp/fenice-operator-consent-backup.json
+          node - <<'NODE'
+          const fs=require("node:fs");
+          const p="data/paper-successor-operator-authorization.json";
+          const a=JSON.parse(fs.readFileSync(p,"utf8"));
+          a.authorized=false;
+          fs.writeFileSync(p,JSON.stringify(a));
+          NODE
+          node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-consent-denied.json
+          node - <<'NODE'
+          const fs=require("node:fs");
+          const c=JSON.parse(fs.readFileSync("/tmp/fenice-consent-denied.json","utf8"));
+          if(c.operatorConsent.recorded!==false || !c.transitionReadiness.blockers.includes("OPERATOR_PAPER_CONSENT_REQUIRED") || c.transitionReadiness.readyForActivation!==false) process.exit(1);
+          NODE
+          mv /tmp/fenice-operator-consent-backup.json data/paper-successor-operator-authorization.json
           cp data/paper-history/v6-20260925-campaign.json /tmp/fenice-v6-archive-backup.json
           printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
           if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-tamper-candidate.json 2>/tmp/fenice-tamper-error; then
