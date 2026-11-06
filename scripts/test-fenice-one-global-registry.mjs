@@ -9,6 +9,9 @@ const session={mic:"XMIL",authoritative:true,state:"OPEN",observedAt:"2026-11-06
 const quotes=[{mic:"XMIL",currency:"EUR",family:"provider-a",observedAt:"2026-11-06T09:59:40.000Z",bid:10,ask:10.01},{mic:"XMIL",currency:"EUR",family:"provider-b",observedAt:"2026-11-06T09:59:45.000Z",bid:10,ask:10.02}];
 const check=(input,reason)=>assert.equal(evaluateVenueEligibility({mic:"XMIL",session,quotes,nowIso,...input}).reason,reason);
 check({},null);
+for(const requiredIndependentFamilies of [0,1,-1,1.5,NaN,Infinity,"2",null]){
+  check({requiredIndependentFamilies},"INVALID_INDEPENDENT_QUORUM_POLICY");
+}
 check({session:{...session,state:"CLOSED"}},"SESSION_NOT_VERIFIED_OPEN");
 check({session:{...session,authoritative:false}},"SESSION_NOT_VERIFIED_OPEN");
 check({session:{...session,observedAt:"2026-11-06T09:55:00.000Z"}},"SESSION_STALE_OR_CLOSING");
