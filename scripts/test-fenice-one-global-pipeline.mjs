@@ -27,4 +27,14 @@ assert.equal(run({fill:{...fill,fxToEur:1.1}}).reason,"FX_FILL_MISMATCH");
 assert.equal(run({fxEvidence:{...fxEvidence,observedAt:"2026-11-06T09:00:00.000Z"}}).reason,"FX_EVIDENCE_INVALID_OR_STALE");
 assert.equal(run({fill:{...fill,occurredAt:"2026-11-06T10:01:00.000Z"}}).reason,"FILL_OUTSIDE_VERIFIED_WINDOW");
 assert.equal(run({ledger:{...ledger,liveTradingAllowed:true}}).reason,"LEDGER_SAFETY_INVALID");
+// GBP PAPER requires two independent FX families known before the simulated fill.
+const gbpIdentity={...identity,mic:"XLON",instrumentId:"XLON:TEST",signalId:"gbp-1"};
+const gbpCalendar={...calendarObservation,mic:"XLON",zone:"Europe/London"};
+const gbpQuotes=quotes.map(q=>({...q,mic:"XLON",currency:"GBP",instrumentId:"XLON:TEST"}));
+const gbpFx={...fxEvidence,base:"GBP",rate:.8};
+const gbpFill={...fill,fxToEur:.8};
+const gbpObservations=["fx-a","fx-b"].map(family=>({base:"GBP",quote:"EUR",family,rate:.8,observedAt:"2026-11-06T09:59:30.000Z"}));
+const gbpInput={...input,identity:gbpIdentity,calendarObservation:gbpCalendar,quotes:gbpQuotes,fxEvidence:gbpFx,fxObservations:gbpObservations,fill:gbpFill};
+assert.equal(runPaperShadow(gbpInput).added,true);
+assert.equal(runPaperShadow({...gbpInput,fxObservations:gbpObservations.map(q=>({...q,observedAt:"2026-11-06T09:59:50.000Z"}))}).reason,"PAPER_FUTURE_EVIDENCE");
 console.log("Fenice ONE GLOBAL shadow pipeline synthetic contracts: PASS");
