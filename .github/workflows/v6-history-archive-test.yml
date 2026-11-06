@@ -1,0 +1,40 @@
+name: Fenice V6 Historical Archive Test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/archive-v6-paper-history.mjs"
+      - "data/paper-validation-campaign.json"
+      - ".github/workflows/v6-history-archive-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archive-byte-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Write-once archive, idempotency, and tamper rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/archive-v6-paper-history.mjs > /tmp/v6-before.json
+          node -e 'if(JSON.parse(require("fs").readFileSync("/tmp/v6-before.json","utf8")).archiveVerified)process.exit(1)'
+          node scripts/archive-v6-paper-history.mjs --write > /tmp/v6-created.json
+          node scripts/archive-v6-paper-history.mjs --write > /tmp/v6-idempotent.json
+          cmp data/paper-validation-campaign.json data/paper-history/v6-20260925-campaign.json
+          node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync("/tmp/v6-created.json"));if(!c.archiveVerified||c.records!==42||c.liveTradingAllowed!==false)process.exit(1)'
+          printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
+          if node scripts/archive-v6-paper-history.mjs --write > /tmp/v6-tamper-out 2>&1; then
+            echo "ERROR: archive tampering was accepted"
+            exit 1
+          fi
+          grep -q V6_ARCHIVE_MISMATCH /tmp/v6-tamper-out
+          echo "PASS: byte-exact archive, repeat-safe, tampering rejected"
