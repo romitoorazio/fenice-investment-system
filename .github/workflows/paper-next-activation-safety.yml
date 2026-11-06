@@ -10,6 +10,9 @@ on:
       - "scripts/test-paper-next-activation-preflight.mjs"
       - "scripts/paper-next-fingerprint.mjs"
       - "scripts/test-paper-next-fingerprint.mjs"
+      - "scripts/test-paper-next-genesis.mjs"
+      - "data/paper-next-forward-ledger.json"
+      - "data/paper-next-forward-days.json"
 
 permissions:
   contents: read
@@ -33,3 +36,5 @@ jobs:
         run: node scripts/test-paper-next-activation-preflight.mjs
       - name: Test independent PAPER-next SHA256 fingerprint
         run: node scripts/test-paper-next-fingerprint.mjs
+      - name: Test isolated PAPER-next genesis ledgers
+        run: node scripts/test-paper-next-genesis.mjs
