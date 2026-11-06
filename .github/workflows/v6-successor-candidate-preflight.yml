@@ -9,6 +9,7 @@ on:
       - "data/paper-history/v6-20260925-campaign.json"
       - "data/paper-oms-state.json"
       - "data/paper-validation-approval.json"
+      - "data/paper-successor-operator-authorization.json"
       - "data/global-source-health.json"
       - "data/intelligence-quality.json"
       - "data/execution-market-evidence.json"
@@ -47,6 +48,7 @@ jobs:
             "| --- | --- |",
             `| Fresh PAPER approval | ${c.approvalPreflight.eligible?"PASS":"BLOCKED"} |`,
             `| Independent market / FX / governance | ${c.marketDataPreflight.eligible?"PASS":"BLOCKED"} |`,
+            `| Operator PAPER consent | ${c.operatorConsent.recorded?"RECORDED":"BLOCKED"} |`,
             "| Baseline transition | NOT ACTIVATED |",
             "",
             "### Actual blockers",
@@ -81,7 +83,8 @@ jobs:
             if(typeof c.marketDataPreflight.eligible!=="boolean" || !Array.isArray(c.marketDataPreflight.reasons) || !c.marketDataPreflight.gates || !c.marketDataPreflight.metrics) process.exit(1);
             if(c.transitionReadiness?.readyForActivation!==false || !Array.isArray(c.transitionReadiness.blockers)) process.exit(1);
             if(!c.transitionReadiness.blockers.includes("SUCCESSOR_BASELINE_TRANSITION_NOT_ACTIVATED")) process.exit(1);
-            if(!c.transitionReadiness.blockers.includes("FRESH_PAPER_APPROVAL_REQUIRED")) process.exit(1);
+            if(!c.transitionReadiness.blockers.includes("FRESH_TIME_BOUND_PAPER_APPROVAL_REQUIRED")) process.exit(1);
+            if(c.operatorConsent?.recorded!==true || c.transitionReadiness.blockers.includes("OPERATOR_PAPER_CONSENT_REQUIRED")) process.exit(1);
             if(c.marketDataPreflight.eligible===false && !c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
             if(c.marketDataPreflight.eligible===true && c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
             console.log("PASS: candidate prepared without activation, certification, broker connectivity, or history reset");
