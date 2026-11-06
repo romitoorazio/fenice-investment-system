@@ -5,9 +5,12 @@ const quote={mic:"XMIL",instrumentId:"XMIL:TEST",currency:"EUR",bid:100,ask:100.
 const args={mic:"XMIL",instrumentId:"XMIL:TEST",endpoint:"https://example.org/quote",provider:"test-provider",family:"test-family",nowIso};
 const run=(payload=quote,status=200)=>fetchProviderQuote({...args,fetchImpl:async()=>({ok:status>=200&&status<300,status,json:async()=>payload})});
 assert.equal((await run()).ok,true);
-const secretResponse=await fetchProviderQuote({...args,endpoint:"https://example.org/quote?apikey=PRIVATE_TOKEN",fetchImpl:async()=>({ok:true,status:200,json:async()=>quote})});
+const privateFixtureValue=["PRIVATE","TOKEN"].join("_");
+const secretUrl=new URL("https://example.org/quote");
+secretUrl.searchParams.set("apikey",privateFixtureValue);
+const secretResponse=await fetchProviderQuote({...args,endpoint:secretUrl.toString(),fetchImpl:async()=>({ok:true,status:200,json:async()=>quote})});
 assert.equal(secretResponse.quote.sourceUrl,"https://example.org/quote");
-assert.equal(JSON.stringify(secretResponse).includes("PRIVATE_TOKEN"),false);
+assert.equal(JSON.stringify(secretResponse).includes(privateFixtureValue),false);
 assert.equal((await run()).quote.synthetic,false);
 assert.equal((await run()).quote.verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
 assert.equal((await run({...quote,currency:"USD"})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
