@@ -23,7 +23,7 @@ assert.match(String(usd.source), /Twelve Data/, "FX source provenance required")
 const fxSeconds = Date.parse(usd.observedAt) / 1000;
 assert.equal(validateFxTimestamp(fxSeconds, Date.now(), 120).valid, true, "FX must be recent and not future-dated");
 const count = quote.observations.filter(item => item.sourceFamily === "twelve-data").length;
-const paperCount = quote.observations.filter(item => item.sourceFamily === "twelve-data" && item.eligibility === "PAPER" && item.provenanceVerified === true && /provider-batch-quote-(?:last_quote_at|quote_timestamp_1min)-us-realtime-venue/.test(String(item.provenanceMethod || "")) && Number.isFinite(item.price) && item.price > 0 && Number.isFinite(Date.parse(item.observedAt)) && validateFxTimestamp(Date.parse(item.observedAt) / 1000, Date.now(), 120).valid === true).length;
+const paperCount = quote.observations.filter(item => typeof item.symbol === "string" && /^[A-Z0-9][A-Z0-9.^_-]{0,19}$/.test(item.symbol) && item.sourceFamily === "twelve-data" && item.eligibility === "PAPER" && item.provenanceVerified === true && /provider-batch-quote-(?:last_quote_at|quote_timestamp_1min)-us-realtime-venue/.test(String(item.provenanceMethod || "")) && Number.isFinite(item.price) && item.price > 0 && Number.isFinite(Date.parse(item.observedAt)) && validateFxTimestamp(Date.parse(item.observedAt) / 1000, Date.now(), 120).valid === true).length;
 if (mode === "--require-paper-quote") {
   assert.ok(paperCount > 0, "NO_FRESH_PROVIDER_VERIFIED_PAPER_QUOTE: structure alone is not operational proof");
 }
