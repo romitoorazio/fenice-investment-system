@@ -6,6 +6,7 @@ const run=x=>evaluateFxConsensus({base:"JPY",observations,nowIso,...x});
 assert.equal(run({}).allowed,true);
 assert.equal(run({observations:observations.slice(0,1)}).reason,"FX_INDEPENDENT_SOURCES_MISSING");
 assert.equal(run({observations:[observations[0],{...observations[1],family:"source-a"}]}).reason,"FX_DUPLICATE_FAMILY");
+assert.equal(run({observations:[observations[0],{...observations[1],family:" SOURCE-A "}]}).reason,"FX_DUPLICATE_FAMILY");
 assert.equal(run({observations:[observations[0],{...observations[1],rate:.01}]}).reason,"FX_PROVIDER_DISAGREEMENT");
 assert.equal(run({observations:observations.map(q=>({...q,observedAt:"2026-11-06T09:00:00.000Z"}))}).allowed,false);
 assert.equal(evaluateFxConsensus({base:"EUR",nowIso}).rate,1);
