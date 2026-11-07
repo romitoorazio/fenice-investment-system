@@ -11,4 +11,7 @@ assert.equal(run({calendarObservation:{...source,observedAt:"2026-11-06T10:01:00
 const attest=(sourceId)=>({sourceId,observedAt,synthetic:false,sourceUrl:"https://example.org/evidence",provider:"provider-a"});
 assert.equal(run({calendarObservation:attest("calendar"),quotes:[attest("quote")],fxEvidence:attest("fx")}).classification,"REAL_SOURCE_ATTESTED_NOT_VERIFIED");
 assert.equal(run({calendarObservation:{...source,sourceId:"calendar"},quotes:[{...source,sourceId:"quote"}],fxEvidence:{...source,sourceId:"fx"}}).reason,"REAL_SOURCE_ATTESTATION_MISSING");
+for(const fxObservations of [{sourceId:"bad"},"not-an-array",42]){
+  assert.deepEqual(run({fxObservations}),{accepted:false,classification:"UNVERIFIED",reason:"BUNDLE_SOURCE_PROVENANCE_MISSING"});
+}
 console.log("Fenice ONE GLOBAL evidence bundle provenance contracts: PASS");
