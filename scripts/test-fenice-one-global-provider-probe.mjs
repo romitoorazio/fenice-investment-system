@@ -3,7 +3,7 @@ import {readFile,mkdtemp,writeFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {spawnSync} from "node:child_process";
-import {probeTwelveDataCoverage} from "../lib/global/provider-coverage-probe.mjs";
+import {probeTwelveDataCoverage,planRegionalProbeOrder} from "../lib/global/provider-coverage-probe.mjs";
 const nowIso="2026-11-06T10:00:00.000Z";
 const instruments=[{mic:"XMIL",instrumentId:"XMIL:ENEL",symbol:"ENEL"},{mic:"XTKS",instrumentId:"XTKS:7203",symbol:"7203"}];
 const fakeFetch=async url=>{
@@ -18,11 +18,13 @@ assert.equal(result.mode,"READ_ONLY_PROVIDER_COVERAGE");
 assert.equal(result.totals.attempted,2);
 assert.equal(result.totals.validTransportQuotes,1);
 assert.equal(result.totals.referenceOnlyQuotes,1);
+assert.equal(result.totals.recentReferenceQuotes,1);
+assert.equal(result.totals.staleReferenceQuotes,0);
 assert.equal(result.totals.hardFailures,0);
 assert.equal(result.totals.verifiedMarketEvidence,0);
-assert.deepEqual(result.regions.ASIA,{requested:1,attempted:1,validTransportQuotes:0,referenceOnlyQuotes:1,hardFailures:0,unsupportedOrFailed:1,verifiedMarketEvidence:0});
-assert.deepEqual(result.regions.EUROPE,{requested:1,attempted:1,validTransportQuotes:1,referenceOnlyQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
-assert.deepEqual(result.regions.AMERICAS,{requested:0,attempted:0,validTransportQuotes:0,referenceOnlyQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
+assert.deepEqual(result.regions.ASIA,{requested:1,attempted:1,validTransportQuotes:0,referenceOnlyQuotes:1,recentReferenceQuotes:1,staleReferenceQuotes:0,hardFailures:0,unsupportedOrFailed:1,verifiedMarketEvidence:0});
+assert.deepEqual(result.regions.EUROPE,{requested:1,attempted:1,validTransportQuotes:1,referenceOnlyQuotes:0,recentReferenceQuotes:0,staleReferenceQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
+assert.deepEqual(result.regions.AMERICAS,{requested:0,attempted:0,validTransportQuotes:0,referenceOnlyQuotes:0,recentReferenceQuotes:0,staleReferenceQuotes:0,hardFailures:0,unsupportedOrFailed:0,verifiedMarketEvidence:0});
 assert.equal(result.rejectionReasons.PROVIDER_REFERENCE_ONLY_NO_BID_ASK,1);
 assert.equal(result.countsTowardRealPaper,false);
 assert.equal(result.rows[0].verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
@@ -32,6 +34,44 @@ assert.equal(result.rows[1].referenceObservation.last,3000);
 assert.equal(result.rows[1].referenceObservation.currency,"JPY");
 assert.equal(result.rows[1].referenceObservation.executableBidAsk,false);
 assert.equal(result.rows[1].referenceObservation.countsTowardRealPaper,false);
+assert.equal(result.rows[1].referenceObservation.freshness,"RECENT_UNVERIFIED");
+assert.equal(result.rows[0].attemptSequence,1);
+assert.equal(result.rows[1].attemptSequence,2);
+const staleReference=await probeTwelveDataCoverage({instruments:[instruments[1]],apiKey:"fixture",nowIso,
+ fetchImpl:async()=>({ok:true,status:200,headers:{get:()=>"application/json"},
+ json:async()=>({mic_code:"XTKS",symbol:"7203",currency:"JPY",close:"3000",
+ last_quote_at:Date.parse(nowIso)/1000-86400})})});
+assert.equal(staleReference.totals.attempted,1);
+assert.equal(staleReference.totals.referenceOnlyQuotes,1);
+assert.equal(staleReference.totals.recentReferenceQuotes,0);
+assert.equal(staleReference.totals.staleReferenceQuotes,1);
+assert.equal(staleReference.regions.ASIA.staleReferenceQuotes,1);
+assert.equal(staleReference.rows[0].referenceObservation.freshness,"STALE_HISTORICAL");
+assert.equal(staleReference.rows[0].referenceObservation.countsTowardRealPaper,false);
+// Regional round-robin is independent of the input's US-heavy list order.
+const mixed=[
+ {mic:"XNAS",instrumentId:"XNAS:AAPL",symbol:"AAPL"},
+ {mic:"XNAS",instrumentId:"XNAS:MSFT",symbol:"MSFT"},
+ {mic:"XNYS",instrumentId:"XNYS:IBM",symbol:"IBM"},
+ {mic:"XMIL",instrumentId:"XMIL:ENEL",symbol:"ENEL"},
+ {mic:"XETR",instrumentId:"XETR:SAP",symbol:"SAP"},
+ {mic:"XTKS",instrumentId:"XTKS:7203",symbol:"7203"}
+];
+assert.deepEqual(planRegionalProbeOrder(mixed,nowIso),[3,0,5,4,1,2]);
+assert.deepEqual(planRegionalProbeOrder(mixed,"2026-11-07T10:00:00.000Z"),[0,5,3,1,4,2]);
+const dispatched=[];
+const fair=await probeTwelveDataCoverage({instruments:mixed,apiKey:"fixture",nowIso,
+ fetchImpl:async(url)=>{
+  dispatched.push(new URL(url).searchParams.get("mic_code"));
+  return {ok:false,status:503,headers:{get:()=>"application/json"}};
+ }});
+assert.deepEqual(dispatched,["XMIL","XNAS","XTKS","XETR","XNAS","XNYS"]);
+assert.equal(fair.rows[3].attemptSequence,1);
+assert.equal(fair.rows[0].attemptSequence,2);
+assert.equal(fair.rows[5].attemptSequence,3);
+assert.equal(fair.rows[1].attemptSequence,5);
+assert.equal(fair.totals.attempted,6);
+await assert.rejects(probeTwelveDataCoverage({instruments,apiKey:"fixture",nowIso:"bad"}),/INVALID_PROBE_CLOCK/);
 assert.equal(result.rows[0].referenceOnly,false);
 assert.equal(result.rows[0].referenceObservation,null);
 assert.equal(JSON.stringify(result).includes("test-key"),false);
