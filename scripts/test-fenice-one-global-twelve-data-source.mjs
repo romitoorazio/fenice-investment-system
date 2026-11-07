@@ -15,6 +15,15 @@ assert.equal(referenceOnly.reference.mic,"XMIL");
 assert.equal(referenceOnly.reference.executableBidAsk,false);
 assert.equal(referenceOnly.reference.countsTowardRealPaper,false);
 assert.equal(referenceOnly.reference.verificationStatus,"PROVIDER_RESPONSE_UNVERIFIED");
+assert.equal(referenceOnly.reference.observationSemantics,"LAST_MINUTE_CANDLE_NOT_BID_ASK");
+assert.equal(referenceOnly.reference.referenceAgeSeconds,30);
+assert.equal(referenceOnly.reference.freshness,"RECENT_UNVERIFIED");
+const historicalClose=await run({symbol:"TEST",currency:"EUR",close:"100",last_quote_at:timestamp-600});
+assert.equal(historicalClose.ok,false);
+assert.equal(historicalClose.reason,"PROVIDER_REFERENCE_ONLY_NO_BID_ASK");
+assert.equal(historicalClose.reference.referenceAgeSeconds,630);
+assert.equal(historicalClose.reference.freshness,"STALE_HISTORICAL");
+assert.equal(historicalClose.reference.countsTowardRealPaper,false);
 assert.equal((await run({symbol:"TEST",currency:"EUR",close:"100",timestamp,last_quote_at:timestamp+600})).reference,undefined,
  "A future reference quote is not reliable research coverage");
 assert.equal((await run({symbol:"TEST",currency:"EUR",close:"100",timestamp,mic_code:"XNYS"})).reference,undefined,
