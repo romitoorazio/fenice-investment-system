@@ -38,5 +38,5 @@ jobs:
         run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs
       - name: Check evidence outputs exist (never publish API key or LIVE orders)
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; for (const p of ['data/execution-market-evidence.json','data/paper-fx-evidence.json']) { const x=JSON.parse(fs.readFileSync(p,'utf8')); if (x.liveTradingAllowed !== false) throw new Error(p+' LIVE flag'); } console.log('Enhanced PAPER evidence files checked; no certification inferred');"
+          node --input-type=module -e "import fs from 'node:fs'; for (const p of ['data/execution-market-evidence.json','data/paper-fx-evidence.json']) { const x=JSON.parse(fs.readFileSync(p,'utf8')); if ((x.policy?.liveTradingAllowed ?? x.liveTradingAllowed) !== false) throw new Error(p+' LIVE flag'); } console.log('Enhanced PAPER evidence files checked; no certification inferred');"
       # Deliberately no upload, push, commit, broker action, or scheduled trigger.
