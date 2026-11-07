@@ -7,6 +7,8 @@ assert.equal(evalWith({}).allowed,true);
 assert.equal(evalWith({zone:"America/New_York"}).reason,"CALENDAR_NOT_AUTHORITATIVE");
 assert.equal(evalWith({authoritative:false}).reason,"CALENDAR_NOT_AUTHORITATIVE");
 assert.equal(evalWith({sourceId:""}).reason,"CALENDAR_NOT_AUTHORITATIVE");
+assert.equal(evalWith({sourceId:"   \t "}).reason,"CALENDAR_NOT_AUTHORITATIVE");
+assert.equal(evalWith({sourceId:null}).reason,"CALENDAR_NOT_AUTHORITATIVE");
 assert.equal(evalWith({observedAt:"2026-11-06T09:55:00.000Z"}).reason,"CALENDAR_STALE");
 assert.equal(evalWith({observedAt:"2026-11-06T10:01:00.000Z"}).reason,"CALENDAR_STALE");
 assert.equal(evalWith({tradingDay:false}).reason,"MARKET_NOT_CONTINUOUS");
