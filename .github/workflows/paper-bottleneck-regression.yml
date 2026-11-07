@@ -12,6 +12,7 @@ on:
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
       - "scripts/test-enhanced-paper-sandbox-contract.mjs"
+      - "scripts/verify-enhanced-paper-evidence.mjs"
       - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   pull_request:
@@ -26,6 +27,7 @@ on:
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
       - "scripts/test-enhanced-paper-sandbox-contract.mjs"
+      - "scripts/verify-enhanced-paper-evidence.mjs"
       - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   workflow_dispatch:
@@ -43,7 +45,7 @@ jobs:
         with:
           node-version: "22"
       - name: Check script syntax
-        run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs && node --check scripts/refresh-twelve-data-batch-evidence.mjs && node --check scripts/refresh-twelve-data-batch-evidence-enhanced.mjs && node --check lib/trading/paper-quote-probe-priority.mjs && node --check scripts/test-paper-quote-probe-priority.mjs && node --check lib/trading/paper-fx-timestamp.mjs && node --check scripts/test-paper-fx-timestamp.mjs
+        run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs && node --check scripts/refresh-twelve-data-batch-evidence.mjs && node --check scripts/refresh-twelve-data-batch-evidence-enhanced.mjs && node --check lib/trading/paper-quote-probe-priority.mjs && node --check scripts/test-paper-quote-probe-priority.mjs && node --check lib/trading/paper-fx-timestamp.mjs && node --check scripts/test-paper-fx-timestamp.mjs && node --check scripts/verify-enhanced-paper-evidence.mjs
       - name: Run isolated read-only regression
         run: node scripts/test-paper-bottleneck-causes.mjs
       - name: Run quote probe prioritization regression
