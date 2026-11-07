@@ -31,3 +31,8 @@ Instrument identity -> authoritative session -> independent quotes -> verified F
 
 ## Merge policy
 PR #453 remains draft. No automatic merge into main, no broker orders, no secret changes, no fabricated PAPER evidence.
+
+## Verified alternative already implemented: PR #444 (2026-11-07)
+A repository-wide PR search identified draft PR #444, `fix(paper): V6 core freeze restored; 12/12 checks green`, head `3b7e67d6136d91a42a7151e0ca688f37420e46f0`. Its author reports 12/12 GitHub Actions successful, including the freeze guard and Production CI. The change restores the two frozen baseline blobs and preserves the newer Twelve Data logic in a separate `scripts/refresh-twelve-data-batch-evidence-enhanced.mjs` file, **not wired to operational refresh**. This is an existing tested alternative, not a change yet integrated into PR #453.
+
+**Integration decision:** do not blindly cherry-pick PR #444 or declare V6 solved in #453. Restoring the baseline operational script without wiring the enhanced implementation would remove active FX future-timestamp rejection and independent-source prioritization from that operational path. First compare PR #444 with the current branch and decide how to preserve both protections under an explicit approved baseline lifecycle. The current PR #453 still has freeze guard FAILURE, while Production CI and ONE GLOBAL Contract Tests passed on commit `0ccc4c0c26f260d0b18b823c852bcc470db3e81c`. The branch diverges from main (195 ahead, 35 behind as checked on 2026-11-07). Keep this as the first integration blocker, not an excuse to delete safety code.
