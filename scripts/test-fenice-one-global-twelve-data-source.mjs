@@ -10,7 +10,7 @@ assert.equal(valid.quote.sourceUrl.includes("PRIVATE_TOKEN"),false);
 assert.equal((await run({symbol:"TEST",currency:"EUR",close:"100",timestamp})).reason,"PROVIDER_INVALID_SPREAD");
 assert.equal((await run({symbol:"OTHER",currency:"EUR",bid:"100",ask:"100.2",timestamp})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
 assert.equal((await run({status:"error",code:429,message:"API credits exhausted"})).reason,"PROVIDER_RATE_LIMITED");
-assert.equal((await run({symbol:"TEST",bid:"100",ask:"100.2",timestamp:timestamp-600})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
+assert.equal((await run({symbol:"TEST",currency:"EUR",bid:"100",ask:"100.2",timestamp:timestamp-600})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
 assert.equal((await run({symbol:"TEST",bid:"100",ask:"100.2",timestamp})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
 assert.equal((await run({symbol:"TEST",currency:"USD",bid:"100",ask:"100.2",timestamp})).reason,"PROVIDER_INSTRUMENT_MISMATCH");
 assert.equal((await run({symbol:"TEST",currency:"EUR",bid:"100",ask:"100.2",timestamp:999999999999999})).reason,"PROVIDER_STALE_OR_FUTURE_QUOTE");
