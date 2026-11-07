@@ -4,6 +4,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {runDurablePaperShadow} from "../lib/global/durable-paper-shadow.mjs";
 import {loadDurableVirtualLedger} from "../lib/global/durable-virtual-ledger.mjs";
+import {summarizeVirtualPaperLedger} from "../lib/global/virtual-accounting.mjs";
 const dir=await mkdtemp(join(tmpdir(),"fenice-global-shadow-")),file=join(dir,"shadow.json");
 const nowIso="2026-11-06T10:00:00.000Z";
 const identity={campaignId:"synthetic-contract",mic:"XMIL",instrumentId:"XMIL:TEST",sessionDate:"2026-11-06",strategyVersion:"v1",signalId:"s1"};
@@ -26,5 +27,18 @@ try{
  const invalid=await runDurablePaperShadow({...input,identity:{...identity,signalId:"s2"},quotes:quotes.map(q=>({...q,verificationStatus:"PROVIDER_RESPONSE_UNVERIFIED"}))});
  assert.equal(invalid.added,false);assert.equal(invalid.reason,"PAPER_UNVERIFIED_PROVIDER_QUOTE");
  assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
+ // Full synthetic BUY -> SELL -> persisted virtual ledger -> net EUR result.
+ const sell=await runDurablePaperShadow({...input,identity:{...identity,signalId:"s2"},
+   fill:{...fill,side:"SELL",price:100.01,quantity:1,occurredAt:"2026-11-06T09:59:41.000Z"}});
+ assert.equal(sell.added,true);assert.equal(sell.persisted,true);
+ assert.equal(sell.countsTowardRealPaper,false);
+ const accounted=summarizeVirtualPaperLedger({ledger:await loadDurableVirtualLedger(file),
+   initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY"});
+ assert.equal(accounted.ok,true);
+ assert.equal(accounted.buyCount,1);assert.equal(accounted.sellCount,1);
+ assert.equal(accounted.realizedNetPnlEur,-1.59);
+ assert.equal(accounted.bookEquityEur,998.41);
+ assert.equal(accounted.unrealizedPnlEur,null);
+ assert.equal(accounted.investmentPerformanceCertified,false);
 }finally{await rm(dir,{recursive:true,force:true});}
 console.log("Fenice ONE GLOBAL durable synthetic shadow integration: PASS");
