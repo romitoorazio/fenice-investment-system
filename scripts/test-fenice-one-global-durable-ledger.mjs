@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import {mkdtemp,readFile,rm,writeFile,open} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {appendDurableVirtualFill,loadDurableVirtualLedger} from "../lib/global/durable-virtual-ledger.mjs";
-import {replayVirtualLedger} from "../lib/global/virtual-ledger.mjs";
+import {appendDurableVirtualFill,loadDurableVirtualLedger,emptyVirtualLedger} from "../lib/global/durable-virtual-ledger.mjs";
+import {replayVirtualLedger,appendVirtualFill} from "../lib/global/virtual-ledger.mjs";
 import {summarizeVirtualPaperLedger} from "../lib/global/virtual-accounting.mjs";
 const dir=await mkdtemp(join(tmpdir(),"fenice-global-ledger-")),file=join(dir,"paper.json");
 const identity={campaignId:"synthetic-contract",mic:"XTKS",instrumentId:"XTKS:7203",sessionDate:"2026-11-06",strategyVersion:"v1",signalId:"s1"};
@@ -44,6 +44,10 @@ try{
    fill,evidence,initialCapitalEur:2000});
  assert.equal(policyDrift.reason,"VIRTUAL_ACCOUNTING_POLICY_CONFLICT");
  assert.equal(policyDrift.persisted,false);
+ const feeDrift=await store({file,identity:{...identity,signalId:"fee-policy-drift"},
+   fill,evidence,feeCurrency:"EUR"});
+ assert.equal(feeDrift.reason,"VIRTUAL_ACCOUNTING_POLICY_CONFLICT");
+ assert.equal(feeDrift.persisted,false);
  assert.equal(await readFile(file,"utf8"),beforeConflict,
    "Rejected capital drift, overspending and shorts must not change persisted history");
  await assert.rejects(
@@ -54,6 +58,20 @@ try{
  finally{await lock.close();await rm(file+".lock");}
  const second=await store({file,identity:{...identity,signalId:"s2"},fill,evidence});
  assert.equal(second.added,true);assert.equal((await loadDurableVirtualLedger(file)).events.length,2);
+ // The funding policy is included in each event's hash, not editable metadata.
+ const original=await readFile(file,"utf8");
+ const changed=JSON.parse(original);
+ changed.events[0].identity.accountingInitialCapitalEur=2000;
+ await writeFile(file,JSON.stringify(changed));
+ await assert.rejects(loadDurableVirtualLedger(file),/LEDGER_HASH_INVALID/);
+ await writeFile(file,original);
+ const legacyFile=join(dir,"legacy.json");
+ const legacy=appendVirtualFill({ledger:emptyVirtualLedger(),identity,fill,evidence}).ledger;
+ await writeFile(legacyFile,JSON.stringify(legacy));
+ const legacyAttempt=await store({file:legacyFile,identity:{...identity,signalId:"legacy-next"},fill,evidence});
+ assert.equal(legacyAttempt.reason,"VIRTUAL_ACCOUNTING_POLICY_MISSING");
+ assert.equal(legacyAttempt.persisted,false);
+ assert.equal((await loadDurableVirtualLedger(legacyFile)).events.length,1);
  const raw=JSON.parse(await readFile(file,"utf8"));raw.events[0].price=999;
  await writeFile(file,JSON.stringify(raw));
  await assert.rejects(loadDurableVirtualLedger(file),/LEDGER_HASH_INVALID/);
