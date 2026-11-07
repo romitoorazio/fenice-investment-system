@@ -11,6 +11,8 @@ on:
       - "scripts/test-paper-quote-probe-priority.mjs"
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
+      - "scripts/test-enhanced-paper-sandbox-contract.mjs"
+      - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   pull_request:
     paths:
@@ -23,6 +25,8 @@ on:
       - "scripts/test-paper-quote-probe-priority.mjs"
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
+      - "scripts/test-enhanced-paper-sandbox-contract.mjs"
+      - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   workflow_dispatch:
 
@@ -46,3 +50,5 @@ jobs:
         run: node scripts/test-paper-quote-probe-priority.mjs
       - name: Run FX timestamp safety regression
         run: node scripts/test-paper-fx-timestamp.mjs
+      - name: Validate enhanced PAPER sandbox static safety contract
+        run: node scripts/test-enhanced-paper-sandbox-contract.mjs
