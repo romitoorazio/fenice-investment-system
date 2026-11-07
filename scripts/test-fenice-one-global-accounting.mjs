@@ -43,7 +43,7 @@ assert.equal(retry.added,false);
 assert.equal(summarizeVirtualPaperLedger({ledger:retry.ledger,initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY"}).eventCount,3);
 const check=(x,reason)=>assert.equal(summarizeVirtualPaperLedger({ledger,...x}).reason,reason);
 check({initialCapitalEur:1000},"FEE_CURRENCY_POLICY_REQUIRED");
-check({initialCapitalEur:1000,feeCurrency:"EUR"},"FEE_CURRENCY_POLICY_REQUIRED");
+check({initialCapitalEur:1000,feeCurrency:"USD"},"FEE_CURRENCY_POLICY_REQUIRED");
 check({initialCapitalEur:0,feeCurrency:"QUOTE_CURRENCY"},"INVALID_VIRTUAL_CAPITAL");
 check({initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY",expectedCampaignId:"other"},"MIXED_VIRTUAL_CAMPAIGNS");
 check({initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY",ledger:{...ledger,liveTradingAllowed:true}},"LEDGER_SAFETY_INVALID");
@@ -64,6 +64,13 @@ const jpyResult=summarizeVirtualPaperLedger({ledger:jpy,initialCapitalEur:10,fee
 assert.equal(jpyResult.ok,true);assert.equal(jpyResult.realizedNetPnlEur,.05);
 assert.equal(jpyResult.positions[0].quantity,1);
 assert.equal(jpyResult.markToMarketValueEur,null);
+const jpyEurFees=summarizeVirtualPaperLedger({ledger:jpy,initialCapitalEur:10,feeCurrency:"EUR"});
+assert.equal(jpyEurFees.ok,true);
+assert.equal(jpyEurFees.realizedNetPnlEur,-1.44,
+ "EUR-denominated commissions must not be converted using JPY FX");
+assert.equal(jpyEurFees.cashEur,7.46);
+assert.equal(jpyEurFees.totalFeesEur,2);
+assert.equal(jpyEurFees.feeCurrencyPolicy,"EUR");
 const forged={...ledger,events:[...ledger.events.slice(0,1),{...ledger.events[1],price:999},ledger.events[2]]};
 assert.equal(summarizeVirtualPaperLedger({ledger:forged,initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY"}).ok,false);
 console.log("Fenice ONE GLOBAL funded virtual accounting contracts: PASS");
