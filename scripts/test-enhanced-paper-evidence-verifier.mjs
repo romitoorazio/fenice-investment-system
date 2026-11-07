@@ -49,7 +49,9 @@ try {
   verify(false, "missing realtime venue provenance must fail operational mode", "--require-paper-quote");
   quotes.observations[0].provenanceMethod = "provider-batch-quote-last_quote_at-us-realtime-venue";
   verify(true, "fresh verified PAPER quote passes operational mode", "--require-paper-quote");
-  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (13 cases)");
+  quotes.observations[0].provenanceMethod = "provider-batch-quote-quote_timestamp_1min-us-realtime-venue";
+  verify(true, "provider quote timestamp format passes operational mode", "--require-paper-quote");
+  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (14 cases)");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
