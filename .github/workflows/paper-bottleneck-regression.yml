@@ -7,6 +7,7 @@ on:
       - "package.json"
       - "lib/trading/paper-quote-probe-priority.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
       - "scripts/test-paper-quote-probe-priority.mjs"
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
@@ -18,6 +19,7 @@ on:
       - "package.json"
       - "lib/trading/paper-quote-probe-priority.mjs"
       - "scripts/refresh-twelve-data-batch-evidence.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
       - "scripts/test-paper-quote-probe-priority.mjs"
       - "lib/trading/paper-fx-timestamp.mjs"
       - "scripts/test-paper-fx-timestamp.mjs"
@@ -37,9 +39,9 @@ jobs:
         with:
           node-version: "22"
       - name: Check script syntax
-        run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs && node --check scripts/refresh-twelve-data-batch-evidence.mjs && node --check lib/trading/paper-quote-probe-priority.mjs && node --check scripts/test-paper-quote-probe-priority.mjs && node --check lib/trading/paper-fx-timestamp.mjs && node --check scripts/test-paper-fx-timestamp.mjs
+        run: node --check scripts/diagnose-paper-bottlenecks.mjs && node --check scripts/test-paper-bottleneck-causes.mjs && node --check scripts/refresh-twelve-data-batch-evidence.mjs && node --check scripts/refresh-twelve-data-batch-evidence-enhanced.mjs && node --check lib/trading/paper-quote-probe-priority.mjs && node --check scripts/test-paper-quote-probe-priority.mjs && node --check lib/trading/paper-fx-timestamp.mjs && node --check scripts/test-paper-fx-timestamp.mjs
       - name: Run isolated read-only regression
-        run: npm run paper:bottlenecks:test
+        run: node scripts/test-paper-bottleneck-causes.mjs
       - name: Run quote probe prioritization regression
         run: node scripts/test-paper-quote-probe-priority.mjs
       - name: Run FX timestamp safety regression
