@@ -19,4 +19,9 @@ assert.equal(paperIdempotencyKey(identity),paperIdempotencyKey({...identity}));
 assert.throws(()=>appendVirtualFill({ledger,identity:{...identity,mic:"XMIL"},fill,evidence:{allowed:true,venue:"XMIL",instrumentId:"XTKS:7203"}}),/PAPER_INSTRUMENT_VENUE_MISMATCH/);
 assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],idempotencyKey:"forged"}]}).valid,false);
 assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],identity:{...identity,mic:"XMIL"}}]}).valid,false);
+// Malformed historical identities must fail audit without throwing.
+for(const badIdentity of [{...identity,signalId:"  "},{...identity,sessionDate:"not-a-date"},null]){
+  const result=replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],identity:badIdentity}]});
+  assert.deepEqual(result,{valid:false,reason:"LEDGER_EVENT_INVALID"});
+}
 console.log("Fenice ONE GLOBAL virtual ledger contracts: PASS");
