@@ -13,6 +13,7 @@ on:
       - "scripts/test-paper-fx-timestamp.mjs"
       - "scripts/test-enhanced-paper-sandbox-contract.mjs"
       - "scripts/verify-enhanced-paper-evidence.mjs"
+      - "scripts/test-enhanced-paper-evidence-verifier.mjs"
       - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   pull_request:
@@ -28,6 +29,7 @@ on:
       - "scripts/test-paper-fx-timestamp.mjs"
       - "scripts/test-enhanced-paper-sandbox-contract.mjs"
       - "scripts/verify-enhanced-paper-evidence.mjs"
+      - "scripts/test-enhanced-paper-evidence-verifier.mjs"
       - ".github/workflows/fenice-enhanced-paper-manual-sandbox.yml"
       - ".github/workflows/paper-bottleneck-regression.yml"
   workflow_dispatch:
@@ -54,3 +56,5 @@ jobs:
         run: node scripts/test-paper-fx-timestamp.mjs
       - name: Validate enhanced PAPER sandbox static safety contract
         run: node scripts/test-enhanced-paper-sandbox-contract.mjs
+      - name: Run enhanced PAPER evidence verifier synthetic regression
+        run: node scripts/test-enhanced-paper-evidence-verifier.mjs
