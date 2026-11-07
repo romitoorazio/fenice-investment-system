@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { validateFxTimestamp } from "../lib/trading/paper-fx-timestamp.mjs";
+
+const [quotePath, fxPath] = process.argv.slice(2);
+assert.ok(quotePath && fxPath, "provide quote and FX evidence paths");
+const quote = JSON.parse(readFileSync(quotePath, "utf8"));
+const fx = JSON.parse(readFileSync(fxPath, "utf8"));
+assert.equal(quote.policy?.liveTradingAllowed, false, "quotes must forbid LIVE");
+assert.equal(fx.liveTradingAllowed, false, "FX must forbid LIVE");
+assert.equal(fx.brokerConnectivityAllowed, false, "FX must forbid broker connectivity");
+assert.equal(fx.baseCurrency, "EUR");
+assert.equal(fx.provider, "twelve-data");
+assert.equal(fx.provenanceVerified, true);
+assert.ok(Array.isArray(quote.observations), "quote observations must be an array");
+assert.ok(Number.isFinite(Date.parse(quote.generatedAt)), "quote generation timestamp required");
+assert.ok(Number.isFinite(Date.parse(fx.generatedAt)), "FX generation timestamp required");
+assert.equal(fx.ratesToEuro?.EUR?.rate, 1, "EUR identity required");
+const usd = fx.ratesToEuro?.USD;
+assert.ok(Number.isFinite(usd?.rate) && usd.rate > 0, "USD/EUR must be positive");
+assert.match(String(usd.source), /Twelve Data/, "FX source provenance required");
+const fxSeconds = Date.parse(usd.observedAt) / 1000;
+assert.equal(validateFxTimestamp(fxSeconds, Date.now(), 120).valid, true, "FX must be recent and not future-dated");
+const count = quote.observations.filter(item => item.sourceFamily === "twelve-data").length;
+console.log(`Enhanced PAPER evidence structure PASS; Twelve Data observations=${count}; independent fill certification NOT inferred`);
