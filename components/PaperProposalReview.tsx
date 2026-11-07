@@ -235,7 +235,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
               <div className="rounded-2xl border border-violet-300/25 bg-violet-300/5 p-4 text-sm leading-6 text-slate-200">
                 <p className="font-black text-violet-200">Budget personale separato dal PAPER</p>
                 <p className="mt-1">Capitale disponibile dichiarato: {availableCapital === null ? "da impostare" : euro.format(availableCapital)}. Tetto preliminare di studio per singola idea (15%): {studyCeiling === null ? "da calcolare" : euro.format(studyCeiling)}.</p>
-                <p className="mt-2 text-xs text-slate-400">Nessun importo d'acquisto consigliato finché rischio, costi Directa e negoziabilità non sono verificati. Il capitale PAPER virtuale non viene modificato e nessun ordine reale è autorizzato.</p>
+                <p className="mt-2 text-xs text-slate-400">Nessun importo d&apos;acquisto consigliato finché rischio, costi Directa e negoziabilità non sono verificati. Il capitale PAPER virtuale non viene modificato e nessun ordine reale è autorizzato.</p>
               </div>
               <p className="text-xs leading-5 text-slate-400">Capitale del laboratorio: {euroOrUnknown(proposal.context.capitalEuro)}. I costi sono quelli del simulatore; non sono un preventivo Directa. Le quantità frazionarie PAPER non attestano la negoziabilità presso il broker.</p>
               {proposal.evidence ? <div className="rounded-xl border border-white/10 p-4 text-xs leading-6 text-slate-400">
