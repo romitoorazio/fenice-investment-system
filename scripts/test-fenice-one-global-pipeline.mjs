@@ -25,6 +25,12 @@ assert.equal(run({fill:{...fill,price:1}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
 assert.equal(run({fill:{...fill,price:1000}}).reason,"FILL_PRICE_OUTSIDE_QUOTES");
 assert.equal(run({calendarObservation:{...calendarObservation,phase:"CLOSED"}}).reason,"MARKET_NOT_CONTINUOUS");
 assert.equal(run({quotes:quotes.slice(0,1)}).added,false);
+// Even fresh within 120 seconds, quotes recorded before the verified exchange open
+// must not be treated as current-session executable prices.
+const lateOpenCalendar={...calendarObservation,opensAt:"2026-11-06T09:59:35.000Z",observedAt:"2026-11-06T09:59:40.000Z"};
+const lateFill={...fill,occurredAt:"2026-11-06T09:59:50.000Z"};
+assert.equal(run({calendarObservation:lateOpenCalendar,fill:lateFill}).reason,"INDEPENDENT_FRESH_QUOTES_MISSING");
+assert.equal(run({calendarObservation:lateOpenCalendar,fill:lateFill,quotes:[quotes[0],{...quotes[1],observedAt:"2026-11-06T09:59:45.000Z"}]}).reason,"INDEPENDENT_FRESH_QUOTES_MISSING");
 assert.equal(run({fxEvidence:{...fxEvidence,rate:1.1}}).reason,"FX_CONSENSUS_MISMATCH");
 assert.equal(run({fill:{...fill,fxToEur:1.1}}).reason,"FX_FILL_MISMATCH");
 assert.equal(run({fxEvidence:{...fxEvidence,observedAt:"2026-11-06T09:00:00.000Z"}}).reason,"FX_EVIDENCE_INVALID_OR_STALE");

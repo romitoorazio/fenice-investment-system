@@ -33,13 +33,16 @@ jobs:
       - name: Repository secret scan (same gate as Production CI)
         run: node scripts/scan-repository-secrets.mjs
       - run: node scripts/test-fenice-one-global-registry.mjs
+      - run: node scripts/test-fenice-one-global-world-hints.mjs
       - run: node scripts/test-fenice-one-global-instrument.mjs
       - run: node scripts/test-fenice-one-global-calendar.mjs
       - run: node scripts/test-fenice-one-global-ledger.mjs
+      - run: node scripts/test-fenice-one-global-accounting.mjs
       - run: node scripts/test-fenice-one-global-durable-ledger.mjs
       - run: node scripts/test-fenice-one-global-durable-shadow.mjs
       - run: node scripts/test-fenice-one-global-pipeline.mjs
       - run: node scripts/test-fenice-one-global-fx.mjs
+      - run: node scripts/test-fenice-one-global-ecb-fx.mjs
       - run: node scripts/test-fenice-one-global-evidence-bundle.mjs
       - run: node scripts/test-fenice-one-global-quote-provider.mjs
       - run: node scripts/test-fenice-one-global-twelve-data-source.mjs

@@ -2,27 +2,79 @@ import assert from "node:assert/strict";
 import {mkdtemp,readFile,rm,writeFile,open} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {appendDurableVirtualFill,loadDurableVirtualLedger} from "../lib/global/durable-virtual-ledger.mjs";
-import {replayVirtualLedger} from "../lib/global/virtual-ledger.mjs";
+import {appendDurableVirtualFill,loadDurableVirtualLedger,emptyVirtualLedger} from "../lib/global/durable-virtual-ledger.mjs";
+import {replayVirtualLedger,appendVirtualFill} from "../lib/global/virtual-ledger.mjs";
+import {summarizeVirtualPaperLedger} from "../lib/global/virtual-accounting.mjs";
 const dir=await mkdtemp(join(tmpdir(),"fenice-global-ledger-")),file=join(dir,"paper.json");
 const identity={campaignId:"synthetic-contract",mic:"XTKS",instrumentId:"XTKS:7203",sessionDate:"2026-11-06",strategyVersion:"v1",signalId:"s1"};
 const fill={occurredAt:"2026-11-06T01:30:00.000Z",side:"BUY",price:100,quantity:2,fees:1,fxToEur:.006};
 const evidence={allowed:true,venue:"XTKS",instrumentId:"XTKS:7203"};
+const store=args=>appendDurableVirtualFill({initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY",...args});
 try{
  assert.equal((await loadDurableVirtualLedger(file)).events.length,0);
- const one=await appendDurableVirtualFill({file,identity,fill,evidence});
+ const one=await store({file,identity,fill,evidence});
  assert.equal(one.added,true);assert.equal(one.persisted,true);
  assert.equal(replayVirtualLedger(await loadDurableVirtualLedger(file)).count,1);
- const duplicate=await appendDurableVirtualFill({file,identity,fill,evidence});
- assert.equal(duplicate.added,false);assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
+ const fundedReplay=summarizeVirtualPaperLedger({ledger:await loadDurableVirtualLedger(file),initialCapitalEur:1000,feeCurrency:"QUOTE_CURRENCY"});
+ assert.equal(fundedReplay.ok,true);
+ assert.equal(fundedReplay.cashEur,998.79);
+ assert.equal(fundedReplay.positions[0].instrumentId,"XTKS:7203");
+ assert.equal(fundedReplay.positions[0].quantity,2);
+ assert.equal(fundedReplay.countsTowardRealPaper,false);
+ const duplicate=await store({file,identity,fill,evidence});
+ assert.equal(duplicate.added,false);assert.equal(duplicate.persisted,true);
+ assert.equal(duplicate.reason,"DUPLICATE_PAPER_SIGNAL");
+ const beforeConflict=await readFile(file,"utf8");
+ const conflict=await store({file,identity,fill:{...fill,quantity:99},evidence});
+ assert.equal(conflict.added,false);assert.equal(conflict.persisted,false);
+ assert.equal(conflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+ assert.equal(await readFile(file,"utf8"),beforeConflict,"A conflicting retry must leave the file unchanged");
+ assert.equal((await loadDurableVirtualLedger(file)).events.length,1);
+ // Funded accounting must be enforced INSIDE the lock, before any disk write.
+ const unfundedBuy=await store({file,identity:{...identity,signalId:"too-expensive"},
+   fill:{...fill,quantity:1000000},evidence});
+ assert.equal(unfundedBuy.added,false);
+ assert.equal(unfundedBuy.persisted,false);
+ assert.equal(unfundedBuy.reason,"INSUFFICIENT_VIRTUAL_EUR_CAPITAL");
+ const uncoveredSell=await store({file,identity:{...identity,signalId:"short"},
+   fill:{...fill,side:"SELL",quantity:3},evidence});
+ assert.equal(uncoveredSell.reason,"VIRTUAL_SHORT_SELL_FORBIDDEN");
+ assert.equal(uncoveredSell.persisted,false);
+ const policyDrift=await store({file,identity:{...identity,signalId:"drift"},
+   fill,evidence,initialCapitalEur:2000});
+ assert.equal(policyDrift.reason,"VIRTUAL_ACCOUNTING_POLICY_CONFLICT");
+ assert.equal(policyDrift.persisted,false);
+ const feeDrift=await store({file,identity:{...identity,signalId:"fee-policy-drift"},
+   fill,evidence,feeCurrency:"EUR"});
+ assert.equal(feeDrift.reason,"VIRTUAL_ACCOUNTING_POLICY_CONFLICT");
+ assert.equal(feeDrift.persisted,false);
+ assert.equal(await readFile(file,"utf8"),beforeConflict,
+   "Rejected capital drift, overspending and shorts must not change persisted history");
+ await assert.rejects(
+   appendDurableVirtualFill({file,identity,fill,evidence}),/INVALID_VIRTUAL_CAPITAL/);
+ assert.equal(await readFile(file,"utf8"),beforeConflict);
  const lock=await open(file+".lock","wx");
- try{await assert.rejects(appendDurableVirtualFill({file,identity:{...identity,signalId:"s2"},fill,evidence}),/LEDGER_BUSY/);}
+ try{await assert.rejects(store({file,identity:{...identity,signalId:"s2"},fill,evidence}),/LEDGER_BUSY/);}
  finally{await lock.close();await rm(file+".lock");}
- const second=await appendDurableVirtualFill({file,identity:{...identity,signalId:"s2"},fill,evidence});
+ const second=await store({file,identity:{...identity,signalId:"s2"},fill,evidence});
  assert.equal(second.added,true);assert.equal((await loadDurableVirtualLedger(file)).events.length,2);
+ // The funding policy is included in each event's hash, not editable metadata.
+ const original=await readFile(file,"utf8");
+ const changed=JSON.parse(original);
+ changed.events[0].identity.accountingInitialCapitalEur=2000;
+ await writeFile(file,JSON.stringify(changed));
+ await assert.rejects(loadDurableVirtualLedger(file),/LEDGER_HASH_INVALID/);
+ await writeFile(file,original);
+ const legacyFile=join(dir,"legacy.json");
+ const legacy=appendVirtualFill({ledger:emptyVirtualLedger(),identity,fill,evidence}).ledger;
+ await writeFile(legacyFile,JSON.stringify(legacy));
+ const legacyAttempt=await store({file:legacyFile,identity:{...identity,signalId:"legacy-next"},fill,evidence});
+ assert.equal(legacyAttempt.reason,"VIRTUAL_ACCOUNTING_POLICY_MISSING");
+ assert.equal(legacyAttempt.persisted,false);
+ assert.equal((await loadDurableVirtualLedger(legacyFile)).events.length,1);
  const raw=JSON.parse(await readFile(file,"utf8"));raw.events[0].price=999;
  await writeFile(file,JSON.stringify(raw));
  await assert.rejects(loadDurableVirtualLedger(file),/LEDGER_HASH_INVALID/);
- await assert.rejects(appendDurableVirtualFill({file,identity:{...identity,signalId:"s3"},fill,evidence}),/LEDGER_HASH_INVALID/);
+ await assert.rejects(store({file,identity:{...identity,signalId:"s3"},fill,evidence}),/LEDGER_HASH_INVALID/);
 }finally{await rm(dir,{recursive:true,force:true});}
 console.log("Fenice ONE GLOBAL durable virtual ledger contracts: PASS");

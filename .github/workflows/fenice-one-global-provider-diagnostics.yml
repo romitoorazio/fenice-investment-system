@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 5
     env:
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
-      FENICE_GLOBAL_PROBE_UNIVERSE: ${{ runner.temp }}/fenice-global-probe-universe.json
+      FENICE_GLOBAL_PROBE_UNIVERSE: ./fenice-global-probe-universe.json
       UNIVERSE_JSON: ${{ inputs.universe_json }}
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,8 @@ jobs:
         shell: bash
         run: |
           if [ -z "$TWELVE_DATA_API_KEY" ]; then
-            echo "TWELVE_DATA_API_KEY not configured: probe skipped"
+            printf '%s\n' '{"mode":"READ_ONLY_PROVIDER_COVERAGE","status":"NOT_CONFIGURED","reason":"TWELVE_DATA_API_KEY_MISSING","countsTowardRealPaper":false,"totals":{"attempted":0,"validTransportQuotes":0,"verifiedMarketEvidence":0},"rows":[]}' > fenice-global-provider-report.json
+            echo "TWELVE_DATA_API_KEY not configured: sanitized report uploaded; probe failed closed"
             exit 2
           fi
           node scripts/probe-fenice-global-provider.mjs > fenice-global-provider-report.json

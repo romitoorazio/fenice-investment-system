@@ -4,8 +4,9 @@ const files={quote:"PROVIDER_RESPONSE_UNVERIFIED",calendar:"authoritative:true",
 const report=assessGlobalReadiness(files);
 assert.equal(report.certifiedLivePaper,false);
 assert.equal(report.verdict,"NOT_READY_FOR_CERTIFIED_LIVE_SOURCE_PAPER");
-assert.deepEqual(report.blockers,["CALENDAR_AUTHORITY","REAL_QUOTE_ORCHESTRATION","DURABLE_LEDGER","LIVE_PAPER_WORKFLOW"]);
-const complete=assessGlobalReadiness({...files,calendar:"trustedCalendarProviders",pipeline:"fetchProviderQuote",ledger:files.ledger+" persistVirtualLedger",workflow:"run-global-paper"});
+assert.deepEqual(report.blockers,["INDEPENDENT_QUOTE_ATTESTATION","CALENDAR_AUTHORITY","REAL_QUOTE_ORCHESTRATION","DURABLE_LEDGER","LIVE_PAPER_WORKFLOW"]);
+const complete=assessGlobalReadiness({...files,pipeline:"verifyIndependentMarketSource fetchProviderQuote",calendar:"trustedCalendarProviders",durableLedger:"loadDurableVirtualLedger appendDurableVirtualFill replayVirtualLedger open(lock,\"wx\") rename(temp,path) await h.sync() await directory.sync()",workflow:"run-global-paper"});
 assert.equal(complete.verdict,"STATIC_GATES_PASS_NOT_LIVE_CERTIFIED");
-assert.equal(complete.certifiedLivePaper,false);
+assert.equal(complete.checks.find(x=>x.id==="DURABLE_LEDGER").passed,true);
+assert.equal(complete.certifiedLivePaper,false,"Static presence cannot certify real-source PAPER");
 console.log("Fenice ONE GLOBAL read-only readiness audit contracts: PASS");
