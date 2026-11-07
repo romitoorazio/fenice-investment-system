@@ -48,6 +48,25 @@ jobs:
       - run: node scripts/test-fenice-one-global-twelve-data-source.mjs
       - run: node scripts/test-fenice-one-global-provider-probe.mjs
       - run: node scripts/test-fenice-one-global-readiness-audit.mjs
+      - name: V6 Twelve Data operational safety and bottleneck regression
+        run: |
+          node scripts/test-paper-bottleneck-causes.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { validateFxTimestamp } from './lib/trading/paper-fx-timestamp.mjs';
+          import { prioritizeMissingSecondSource } from './lib/trading/paper-quote-probe-priority.mjs';
+          const now = Date.parse('2026-11-07T12:00:00Z');
+          assert.equal(validateFxTimestamp(now / 1000 + 60, now).reason, 'FUTURE_TIMESTAMP');
+          assert.equal(validateFxTimestamp(now / 1000 - 180, now).reason, 'STALE_TIMESTAMP');
+          const candidates = [{ symbol: 'AAA' }, { symbol: 'BBB' }];
+          const observations = [{ symbol: 'BBB', sourceFamily: 'alpaca', eligibility: 'PAPER', observedAt: new Date(now).toISOString() }];
+          assert.equal(prioritizeMissingSecondSource(candidates, observations, now)[0].symbol, 'BBB');
+          const operational = readFileSync('scripts/refresh-twelve-data-batch-evidence.mjs', 'utf8');
+          assert.match(operational, /validateFxTimestamp\s*\(/, 'Operational FX refresh must invoke future-time guard');
+          assert.match(operational, /prioritizeMissingSecondSource\s*\(/, 'Operational refresh must prioritize independent quote quorum');
+          console.log('V6 operational Twelve Data safety and bottleneck regression: PASS');
+          NODE
       - name: Generate read-only A-Z readiness diagnostics
         if: always()
         run: node scripts/audit-fenice-one-global-readiness.mjs > fenice-one-global-readiness.json
