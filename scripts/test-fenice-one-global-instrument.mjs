@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {evaluateInstrumentEvidence} from "../lib/global/instrument-evidence.mjs";
 const nowIso="2026-11-06T10:00:00.000Z";
-const session={mic:"XMIL",authoritative:true,state:"OPEN",observedAt:"2026-11-06T09:59:30.000Z",closesAt:"2026-11-06T16:30:00.000Z"};
+const session={mic:"XMIL",authoritative:true,state:"OPEN",observedAt:"2026-11-06T09:59:30.000Z",opensAt:"2026-11-06T08:00:00.000Z",closesAt:"2026-11-06T16:30:00.000Z"};
 const quotes=[{mic:"XMIL",instrumentId:"IT0003128367",currency:"EUR",family:"A",observedAt:"2026-11-06T09:59:40.000Z",bid:10,ask:10.01},{mic:"XMIL",instrumentId:"IT0003128367",currency:"EUR",family:"B",observedAt:"2026-11-06T09:59:42.000Z",bid:10.02,ask:10.03}];
 const test=(override,expected)=>assert.equal(evaluateInstrumentEvidence({mic:"XMIL",instrumentId:"IT0003128367",session,quotes,nowIso,...override}).reason,expected);
 test({},null);
@@ -14,4 +14,6 @@ test({quotes:[quotes[0],{...quotes[1],family:" A "}]},"INDEPENDENT_FRESH_QUOTES_
 test({quotes:[quotes[0],{...quotes[1],family:"a"}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({quotes:[quotes[0],{...quotes[1],family:"   "}]},"INDEPENDENT_FRESH_QUOTES_MISSING");
 test({session:{...session,state:"CLOSED"}},"SESSION_NOT_VERIFIED_OPEN");
+test({session:{...session,opensAt:undefined}},"SESSION_OPENING_NOT_VERIFIED");
+test({session:{...session,opensAt:"2026-11-06T09:59:41.000Z",observedAt:"2026-11-06T09:59:50.000Z"}},"INDEPENDENT_FRESH_QUOTES_MISSING");
 console.log("Fenice ONE GLOBAL instrument consensus contracts: PASS");
