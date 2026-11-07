@@ -33,7 +33,7 @@ try {
   verify(false, "invalid FX rate must fail");
   fx.ratesToEuro.USD.rate = 0.9;
   verify(false, "empty PAPER observations must fail operational mode", "--require-paper-quote");
-  quotes.observations = [{ sourceFamily: "twelve-data", eligibility: "VALIDATION_ONLY", provenanceVerified: true, provenanceMethod: "provider-batch-quote-last_quote_at-us-realtime-venue", price: 100, observedAt: new Date(now - 10000).toISOString() }];
+  quotes.observations = [{ symbol: "AAPL", sourceFamily: "twelve-data", eligibility: "VALIDATION_ONLY", provenanceVerified: true, provenanceMethod: "provider-batch-quote-last_quote_at-us-realtime-venue", price: 100, observedAt: new Date(now - 10000).toISOString() }];
   verify(false, "validation-only quote must fail operational mode", "--require-paper-quote");
   quotes.observations[0].eligibility = "PAPER";
   quotes.observations[0].observedAt = new Date(now - 240000).toISOString();
@@ -51,7 +51,11 @@ try {
   verify(true, "fresh verified PAPER quote passes operational mode", "--require-paper-quote");
   quotes.observations[0].provenanceMethod = "provider-batch-quote-quote_timestamp_1min-us-realtime-venue";
   verify(true, "provider quote timestamp format passes operational mode", "--require-paper-quote");
-  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (14 cases)");
+  quotes.observations[0].symbol = "";
+  verify(false, "missing instrument identity must fail operational mode", "--require-paper-quote");
+  quotes.observations[0].symbol = "AAPL";
+  verify(true, "identified instrument passes operational mode", "--require-paper-quote");
+  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (16 cases)");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
