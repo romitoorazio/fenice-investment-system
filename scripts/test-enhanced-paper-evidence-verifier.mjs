@@ -42,8 +42,11 @@ try {
   quotes.observations[0].provenanceVerified = false;
   verify(false, "unverified PAPER quote must fail operational mode", "--require-paper-quote");
   quotes.observations[0].provenanceVerified = true;
+  quotes.observations[0].observedAt = new Date(now + 60000).toISOString();
+  verify(false, "future-dated PAPER quote must fail operational mode", "--require-paper-quote");
+  quotes.observations[0].observedAt = new Date(now - 10000).toISOString();
   verify(true, "fresh verified PAPER quote passes operational mode", "--require-paper-quote");
-  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (11 cases)");
+  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (12 cases)");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
