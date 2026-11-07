@@ -1,0 +1,42 @@
+name: Fenice enhanced PAPER evidence manual sandbox
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type PAPER_ONLY to run isolated research evidence refresh"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  enhanced-paper-sandbox:
+    if: ${{ inputs.confirm == 'PAPER_ONLY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FENICE_TWELVE_DATA_BATCH_PROBES: "2"
+      FENICE_TWELVE_DATA_BATCH_429_RETRIES: "0"
+      FENICE_TWELVE_DATA_FX_FRESHNESS_RETRIES: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check required research API key without printing it
+        shell: bash
+        run: |
+          if [ -z "$TWELVE_DATA_API_KEY" ]; then
+            echo "::error::TWELVE_DATA_API_KEY unavailable; no evidence generated"
+            exit 1
+          fi
+      - name: Run enhanced PAPER-only evidence refresh in disposable workspace
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs
+      - name: Check evidence outputs exist (never publish API key or LIVE orders)
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; for (const p of ['data/execution-market-evidence.json','data/paper-fx-evidence.json']) { const x=JSON.parse(fs.readFileSync(p,'utf8')); if (x.liveTradingAllowed !== false) throw new Error(p+' LIVE flag'); } console.log('Enhanced PAPER evidence files checked; no certification inferred');"
+      # Deliberately no upload, push, commit, broker action, or scheduled trigger.
