@@ -10,10 +10,10 @@ const fxPath = join(dir, "fx.json");
 const now = Date.now();
 const quotes = { generatedAt: new Date(now).toISOString(), policy: { liveTradingAllowed: false }, observations: [] };
 const fx = { generatedAt: new Date(now).toISOString(), baseCurrency: "EUR", provider: "twelve-data", provenanceVerified: true, liveTradingAllowed: false, brokerConnectivityAllowed: false, ratesToEuro: { EUR: { rate: 1 }, USD: { rate: 0.9, observedAt: new Date(now - 20000).toISOString(), source: "Twelve Data /exchange_rate USD/EUR" } } };
-function verify(expectedSuccess, label) {
+function verify(expectedSuccess, label, mode = null) {
   writeFileSync(quotePath, JSON.stringify(quotes));
   writeFileSync(fxPath, JSON.stringify(fx));
-  const result = spawnSync(process.execPath, ["scripts/verify-enhanced-paper-evidence.mjs", quotePath, fxPath], { encoding: "utf8" });
+  const result = spawnSync(process.execPath, ["scripts/verify-enhanced-paper-evidence.mjs", quotePath, fxPath, ...(mode ? [mode] : [])], { encoding: "utf8" });
   assert.equal(result.status === 0, expectedSuccess, label + ": " + result.stderr);
 }
 try {
@@ -31,7 +31,19 @@ try {
   fx.brokerConnectivityAllowed = false;
   fx.ratesToEuro.USD.rate = -1;
   verify(false, "invalid FX rate must fail");
-  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (6 cases)");
+  fx.ratesToEuro.USD.rate = 0.9;
+  verify(false, "empty PAPER observations must fail operational mode", "--require-paper-quote");
+  quotes.observations = [{ sourceFamily: "twelve-data", eligibility: "VALIDATION_ONLY", provenanceVerified: true, price: 100, observedAt: new Date(now - 10000).toISOString() }];
+  verify(false, "validation-only quote must fail operational mode", "--require-paper-quote");
+  quotes.observations[0].eligibility = "PAPER";
+  quotes.observations[0].observedAt = new Date(now - 240000).toISOString();
+  verify(false, "stale PAPER quote must fail operational mode", "--require-paper-quote");
+  quotes.observations[0].observedAt = new Date(now - 10000).toISOString();
+  quotes.observations[0].provenanceVerified = false;
+  verify(false, "unverified PAPER quote must fail operational mode", "--require-paper-quote");
+  quotes.observations[0].provenanceVerified = true;
+  verify(true, "fresh verified PAPER quote passes operational mode", "--require-paper-quote");
+  console.log("Enhanced PAPER evidence verifier synthetic regression: PASS (11 cases)");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
