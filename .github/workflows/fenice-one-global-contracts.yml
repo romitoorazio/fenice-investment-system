@@ -66,7 +66,10 @@ jobs:
           assert.match(operational, /validateFxTimestamp\s*\(/, 'Operational FX refresh must invoke future-time guard');
           assert.match(operational, /prioritizeMissingSecondSource\s*\(/, 'Operational refresh must prioritize independent quote quorum');
           const validationWorkflow = readFileSync('.github/workflows/paper-validation.yml', 'utf8');
-          assert.match(validationWorkflow, /run:\s*node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence-enhanced\.mjs/, 'Scheduled PAPER workflow must execute the guarded refresh');
+          assert.match(validationWorkflow, /run:\s*node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence\.mjs/, 'Frozen V6 workflow must retain its historical command');
+          // The enhanced implementation is staged, not operational: the frozen V6 workflow
+          // checks out main and cannot be redirected without a reviewed migration.
+          console.log('Enhanced Twelve Data candidate tested; production activation remains blocked pending reviewed non-frozen integration');
           console.log('V6 operational Twelve Data safety and bottleneck regression: PASS');
           NODE
       - name: Generate read-only A-Z readiness diagnostics
