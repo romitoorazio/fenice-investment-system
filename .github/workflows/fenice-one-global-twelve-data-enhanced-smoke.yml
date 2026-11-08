@@ -1,6 +1,15 @@
 name: Fenice ONE GLOBAL Twelve Data Enhanced Smoke (no persistence)
 on:
   workflow_dispatch:
+  # Run the enhanced entrypoint on integration changes, not just manual dispatch.
+  # This is an isolated, non-persistent provider smoke; NOT the PAPER scheduler.
+  push:
+    branches: [fix/one-global-integration-safety-reconcile-20261107]
+    paths:
+      - ".github/workflows/fenice-one-global-twelve-data-enhanced-smoke.yml"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "lib/trading/paper-quote-probe-priority.mjs"
 permissions:
   contents: read
 concurrency:
