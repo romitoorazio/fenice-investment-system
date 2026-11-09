@@ -79,7 +79,7 @@ jobs:
       # fails closed unless all required evidence is fresh and policy-valid.
       - name: Refresh coherent Twelve Data batch evidence (best effort)
         continue-on-error: true
-        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs
+        run: node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
 
       - name: Refresh fresh PAPER USD/EUR evidence
         run: node scripts/refresh-paper-fx-evidence.mjs
