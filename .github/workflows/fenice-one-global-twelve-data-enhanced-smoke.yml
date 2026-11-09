@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Assert enhanced entrypoint, frozen V6 command, and bottleneck safety
+      - name: Assert operational enhanced entrypoint, frozen V6 files, and bottleneck safety
         shell: bash
         run: |
           set -euo pipefail
@@ -51,8 +51,8 @@ jobs:
           assert.match(enhanced,/validateFxTimestamp\s*\(/);
           assert.match(enhanced,/prioritizeMissingSecondSource\s*\(/);
           const frozen=readFileSync('.github/workflows/paper-validation.yml','utf8');
-          assert.match(frozen,/scripts\/refresh-twelve-data-batch-evidence\.mjs/);
-          console.log('Enhanced smoke preflight: safety assertions PASS; historical V6 command unchanged');
+          assert.match(frozen,/run: node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence-enhanced\.mjs/);
+          console.log('Enhanced smoke preflight: safety assertions PASS; scheduled PAPER references enhanced entrypoint');
           NODE
       - name: Run enhanced provider entrypoint on disposable checkout only
         shell: bash
