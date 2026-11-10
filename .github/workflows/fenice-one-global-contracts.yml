@@ -25,12 +25,12 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: fenice-one-global-contracts-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: fenice-one-global-contracts-${{ github.event_name }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
