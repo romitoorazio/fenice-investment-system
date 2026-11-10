@@ -24,8 +24,9 @@ assert.equal(truth.requirements.distinctTradeMarkets.observed,0);
 assert.equal(truth.requirements.distinctForwardTradeDays.observed,0);
 assert.equal(truth.policy.liveTradingAllowed,false);
 assert.equal(truth.policy.brokerConnectivityAllowed,false);
-assert(truth.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_NOT_PINN"),
-  "The changed pinned Twelve Data intake cannot silently be treated as approved.");
+const deliberatelyMismatched = run({fingerprint:{...fingerprint,digest:"f".repeat(64)}});
+assert(deliberatelyMismatched.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED"),
+  "A changed core digest cannot silently be treated as approved.");
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("alpaca"));
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("twelve-data"));
 assert.equal(truth.diagnostics.v8TechnicalDays,6);
