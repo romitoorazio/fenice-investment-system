@@ -25,14 +25,18 @@ jobs:
       - name: Prepare persistent research journal from dedicated evidence branch
         shell: bash
         run: |
-          mkdir -p artifacts/phase4/persistent
+          mkdir -p artifacts/phase4/persistent artifacts/phase5/persistent
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
             git show FETCH_HEAD:journal.json > artifacts/phase4/persistent/journal.json
+            if git cat-file -e FETCH_HEAD:phase5-virtual-ledger.json 2>/dev/null; then
+              git show FETCH_HEAD:phase5-virtual-ledger.json > artifacts/phase5/persistent/ledger.json
+            fi
           fi
       - name: Fetch public historical observations and publish research-only report
         env:
           FENICE_PHASE4_JOURNAL_PATH: artifacts/phase4/persistent/journal.json
+          FENICE_PHASE5_LEDGER_PATH: artifacts/phase5/persistent/ledger.json
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
       - name: Publish append-only research evidence to dedicated branch
         if: success()
@@ -42,6 +46,8 @@ jobs:
           cp artifacts/phase4/persistent/journal.json /tmp/fenice-evidence/journal.json
           cp artifacts/phase4/forward-evaluation.json /tmp/fenice-evidence/latest-evaluation.json
           cp artifacts/phase4/historical-walkforward.json /tmp/fenice-evidence/latest-historical-backtest.json
+          cp artifacts/phase5/persistent/ledger.json /tmp/fenice-evidence/phase5-virtual-ledger.json
+          cp artifacts/phase5/latest-historical-portfolio.json /tmp/fenice-evidence/latest-phase5-historical-portfolio.json
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -58,13 +64,23 @@ jobs:
           cp /tmp/fenice-evidence/journal.json journal.json
           cp /tmp/fenice-evidence/latest-evaluation.json latest-evaluation.json
           cp /tmp/fenice-evidence/latest-historical-backtest.json latest-historical-backtest.json
+          cp /tmp/fenice-evidence/phase5-virtual-ledger.json phase5-virtual-ledger.json
+          cp /tmp/fenice-evidence/latest-phase5-historical-portfolio.json latest-phase5-historical-portfolio.json
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload phase 5 virtual historical portfolio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-historical-portfolio-not-live
+          path: artifacts/phase5/latest-historical-portfolio.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload phase 4 historical positive and negative outcomes
         if: always()
         uses: actions/upload-artifact@v4
