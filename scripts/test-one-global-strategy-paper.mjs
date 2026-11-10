@@ -144,6 +144,57 @@ const altered=structuredClone(run.outputPaperLedger);
 altered.cashEuro+=100;
 assert.throws(()=>evaluateOneGlobalStrategyPaper({...fixture,previousLedger:altered}),
   /INVALID_WORLD_PAPER_LEDGER/);
+// Complete entry -> approved virtual exit -> net EUR accounting across days.
+// These provider/owner objects are SYNTHETIC fixtures, never real entitlements.
+const exitPolicy={mode:"ONE_GLOBAL_VIRTUAL_EXIT_POLICY",
+  strategyId:"one-global-committee-forward",approvedForVirtualExits:true,
+  brokerConnectivityAllowed:false,liveTradingAllowed:false,allowHistoricalBackfill:false,
+  stopLossPercent:5,takeProfitPercent:8,maxHoldingDays:10};
+const tomorrow="2026-11-11T14:02:00.000Z";
+const later=(price,authority={...ownerApproval,exitPolicy},when=tomorrow)=>{
+  const quoteAt=new Date(Date.parse(when)-10000).toISOString();
+  const sessionAt=new Date(Date.parse(when)-5000).toISOString();
+  return evaluateOneGlobalStrategyPaper({...fixture,nowIso:when,authority,
+    previousLedger:run.outputPaperLedger,
+    sessions:session.map(x=>({...x,observedAt:sessionAt})),
+    quotes:[q("provider-a",price,quoteAt),q("provider-b",price+0.001,quoteAt)]});
+};
+const profitExit=later(12.4);
+assert.equal(profitExit.cycle.newVirtualExits,1,
+  "Authorized risk exits must execute even when next-day Committee evidence is stale");
+assert.equal(profitExit.cycle.newVirtualEntries,0);
+assert.equal(profitExit.outputPaperLedger.positions["XMIL:ENEL"].quantity,0);
+assert.equal(profitExit.strategyVirtualAccounting.closedPositionRoundTrips,1);
+assert.equal(profitExit.strategyVirtualAccounting.virtualBuys,1);
+assert.equal(profitExit.strategyVirtualAccounting.virtualSells,1);
+assert(profitExit.strategyVirtualAccounting.realizedNetEuro>0);
+assert.equal(profitExit.strategyVirtualAccounting.certifiedForwardTrades,0);
+assert.equal(profitExit.realBrokerOrdersAllowed,false);
+const repeatedExit=evaluateOneGlobalStrategyPaper({...fixture,
+  nowIso:tomorrow,authority:{...ownerApproval,exitPolicy},
+  previousLedger:profitExit.outputPaperLedger,
+  sessions:session.map(x=>({...x,observedAt:"2026-11-11T14:01:55.000Z"})),
+  quotes:[q("provider-a",12.4,"2026-11-11T14:01:50.000Z"),
+    q("provider-b",12.401,"2026-11-11T14:01:50.000Z")]});
+assert.equal(repeatedExit.cycle.newVirtualExits,0,
+  "Closed virtual position must not be liquidated twice");
+const stopExit=later(8.5);
+assert.equal(stopExit.cycle.newVirtualExits,1);
+assert(stopExit.strategyVirtualAccounting.realizedNetEuro<0,
+  "Virtual strategy must report losses, not only profitable exits");
+assert.equal(later(10.1).cycle.newVirtualExits,0,
+  "Without stop/take/time trigger the virtual position remains open");
+assert.equal(later(12.4,{...ownerApproval,exitPolicy:null}).cycle.newVirtualExits,0);
+assert.equal(later(12.4,null).cycle.newVirtualExits,0);
+assert.equal(later(12.4,{...ownerApproval,exitPolicy:{
+  ...exitPolicy,brokerConnectivityAllowed:true}}).cycle.newVirtualExits,0);
+const noEntitledExit=evaluateOneGlobalStrategyPaper({...fixture,
+  nowIso:tomorrow,authority:{...ownerApproval,exitPolicy},
+  previousLedger:run.outputPaperLedger,quotes:[],sessions:[]});
+assert.equal(noEntitledExit.cycle.newVirtualExits,0,
+  "No executable venue proof: virtual exit remains blocked, never invented");
+assert(noEntitledExit.virtualExitPlans[0].blockers.includes(
+  "EXACT_VENUE_OR_TWO_QUOTE_FX_PROOF_MISSING"));
 const current=evaluateOneGlobalStrategyPaper({
   committee:read("investment-committee.json"),
   instruments:[...read("instrument-master.json").instruments,

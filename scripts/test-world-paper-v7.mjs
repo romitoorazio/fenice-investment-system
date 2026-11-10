@@ -258,6 +258,22 @@ const fractionalSell = runWorldPaperV7({
 assert.equal(fractionalSell.summary.filledPaperOrders,1);
 assert.equal(fractionalSell.paperLedger.positions["XMIL:ENEL"].quantity,0,
   "A virtual fractional BUY must be closable without stranded dust");
+// A position can appreciate above the 5%-of-equity NEW BUY cap.
+// Liquidating it reduces portfolio risk and must not strand fractional shares.
+const appreciatedSell = runWorldPaperV7({
+  ...highPriceFixture,nowIso:fractionalSellAt,
+  sessions:[session(assetMilan,fractionalSellAt)],
+  quotes:evidence(assetMilan,fractionalSellAt,700),
+  previousLedger:fractionalBuy.paperLedger,
+  intents:[{...intent(assetMilan,fractionalSellAt,"appreciated-full-sell-001"),
+    side:"SELL",fractionalPaperAllowed:true,maxNotionalEuro:75}],
+});
+assert.equal(appreciatedSell.summary.filledPaperOrders,1);
+assert(appreciatedSell.fills[0].notionalEuro>50,
+  "Selling an appreciated holding can exceed the new-entry size cap");
+assert.equal(appreciatedSell.paperLedger.positions["XMIL:ENEL"].quantity,0,
+  "The appreciated fractional position must be fully closed");
+assert.equal(appreciatedSell.liveTradingAllowed,false);
 const forgedFraction = structuredClone(fractionalBuy.paperLedger);
 forgedFraction.events[0].fractionalPaperOnly=false;
 resealOne(forgedFraction);
