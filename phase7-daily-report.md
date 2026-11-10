@@ -1,17 +1,17 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-10T14:30:07.706Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-10T14:35:16.115Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
 
 | Posizione | Borsa | Strumento | Punteggio | Stato |
 |---:|---|---|---:|---|
-| 1 | XTKS | XTKS:7203 | 12.7030 | Da osservare |
+| 1 | XTKS | XTKS:7203 | 15.0122 | Da osservare |
 | 2 | XNSE | XNSE:RELIANCE | 5.4517 | Da osservare |
 | 3 | XNAS | XNAS:MSFT | 4.0240 | Da osservare |
-| 4 | XETR | XETR:SAP | 3.8417 | Da osservare |
-| 5 | XNYS | XNYS:JPM | 1.9974 | Da osservare |
+| 4 | XETR | XETR:SAP | 3.2855 | Da osservare |
+| 5 | XHKG | XHKG:0700 | 2.6093 | Da osservare |
 
 ## Portafoglio forward (simulazione non certificata)
 - Posizioni aperte: **0**; chiuse: **0**
@@ -30,6 +30,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 
 ## Avvisi
 - WAIT_NEXT_POST_SIGNAL_SETTLED_BAR
+- UNSETTLED_DAILY_SIGNAL_AT_CAPTURE_EXCLUDED
 
 ## Registri originali
 - [Registro forward](phase5-forward-ledger.json)
