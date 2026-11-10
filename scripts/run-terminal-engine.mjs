@@ -297,10 +297,14 @@ async function fetchTechnical(definition) {
   const quote = result.indicators?.quote?.[0] || {};
   const adjusted = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
   const rows = [];
+  // Yahoo may quote JSE securities in cents (ZAc); convert all OHLC and
+  // adjusted closes to the instrument's ZAR unit before computing indicators.
+  // Never use historical bars as entitled executable quotes.
+  const researchScale = worldResearch?.priceScaleToListing ?? 1;
   for (let index = 0; index < timestamps.length; index += 1) {
-    const close = Number(adjusted[index] ?? quote.close?.[index]);
-    const high = Number(quote.high?.[index] ?? close);
-    const low = Number(quote.low?.[index] ?? close);
+    const close = Number(adjusted[index] ?? quote.close?.[index]) * researchScale;
+    const high = Number(quote.high?.[index] ?? (close/researchScale)) * researchScale;
+    const low = Number(quote.low?.[index] ?? (close/researchScale)) * researchScale;
     if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(high) || !Number.isFinite(low)) continue;
     rows.push({ timestamp: Number(timestamps[index]), close, high, low });
   }
@@ -352,9 +356,10 @@ async function fetchTechnical(definition) {
   // The daily-bar timestamp is a candle bucket, NOT when "price" last traded.
   // Only a self-reported, in-session Yahoo META last trade can back prospective
   // shadow observations; this side channel does not alter historical indicators.
-  const researchQuote = yahooRegularSessionResearchQuote(result.meta, {
-    yahooSymbol, market, now,
-  });
+  const researchQuote = worldResearch?.researchOnly===true ? null
+    : yahooRegularSessionResearchQuote(result.meta, {
+      yahooSymbol, market, now,
+    });
 
   return {
     symbol,
@@ -364,6 +369,8 @@ async function fetchTechnical(definition) {
     market,
     ...(worldResearch?.researchOnly===true?{
       exchangeMic:worldResearch.exchangeMic,
+      providerQuotedCurrency:worldResearch.providerCurrency,
+      quotedUnitScaleToListing:researchScale,
       researchOnly:true,paperExecutionAllowed:false,
       brokerSubmissionAllowed:false,exactMicExecutionVerified:false,
     }:{}),
