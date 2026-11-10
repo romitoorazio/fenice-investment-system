@@ -8,6 +8,7 @@ import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs
 import {buildPhase4HistoricalWalkForward} from "../lib/global/phase4-historical-walkforward.mjs";
 import {readFile} from "node:fs/promises";
 import {fetchEcb90DayFxReference} from "../lib/global/ecb-daily-fx-reference.mjs";
+import {advancePhase5ForwardResearch} from "../lib/global/phase5-forward-research.mjs";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -63,6 +64,34 @@ if(process.env.FENICE_PHASE5_LEDGER_PATH){
  console.log(JSON.stringify({phase5:"HISTORICAL_ONLY",trades:phase5.trades.length,appended:ledger.appended,duplicates:ledger.duplicates,repricedDuplicateCount:publishedPhase5.reconciliation.repricedDuplicateCount,ordersGenerated:0}));
 }
 await writeFile("artifacts/phase5/latest-historical-portfolio.json",JSON.stringify(publishedPhase5,null,2)+"\n");
+
+// Forward research is strictly a distinct ledger from the historical backtest or real PAPER.
+// All new virtual entries require a later settled observation, never a same-day signal price.
+let priorForward=null;
+if(process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH){
+ try{priorForward=JSON.parse(await readFile(process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH,"utf8"));}
+ catch(e){if(e.code!=="ENOENT")throw e;}
+}
+let frozenSignals=[];
+if(process.env.FENICE_PHASE4_JOURNAL_PATH){
+ const existingJournal=JSON.parse(await readFile(process.env.FENICE_PHASE4_JOURNAL_PATH,"utf8"));
+ frozenSignals=existingJournal.journal;
+}
+const forward=advancePhase5ForwardResearch({existing:priorForward,signalJournal:frozenSignals,
+ histories:fetched.histories,fxReference,nowIso});
+await writeFile("artifacts/phase5/latest-forward-research-portfolio.json",JSON.stringify({
+ ...forward.summary,sourceCoverage:coveragePolicy},null,2)+"\n");
+if(process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH){
+ const path=process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH;
+ await mkdir(path.slice(0,path.lastIndexOf("/"))||".",{recursive:true});
+ await writeFile(path+".tmp",JSON.stringify(forward.ledger,null,2)+"\n");
+ await rename(path+".tmp",path);
+}
+console.log(JSON.stringify({phase5Forward:"UNATTESTED_VIRTUAL_ONLY",
+ opened:forward.summary.openedThisRun,closed:forward.summary.closedThisRun,
+ active:forward.summary.openPositions.length,wins:forward.summary.wins,losses:forward.summary.losses,
+ certifiedPaper:false,ordersGenerated:0}));
+
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify({status:acquisitionStatus,requested:report.requestedSymbols,received:report.receivedHistories,ranked:watchlist.candidates.length,fetchErrors:fetched.errors.length,rejected:watchlist.rejected.length,realPaperCertified:false,ordersGenerated:0}));
