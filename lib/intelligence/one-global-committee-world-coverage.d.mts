@@ -1,0 +1,51 @@
+/** Type declarations for the pure, non-executing ONE GLOBAL research coverage audit. */
+export type OneGlobalCoverageResearchTask={
+  key:string;
+  region:string;
+  currency:string;
+  missingTasks:string[];
+  expectedProfit:null;
+  tradeSignal:false;
+  executionAuthorized:false;
+};
+export type OneGlobalCoverageReport={
+  version:1;
+  mode:"ONE_GLOBAL_COMMITTEE_WORLD_COVERAGE_DIAGNOSTIC";
+  generatedAt:string;
+  committeeAsOf:string|null;
+  sourceTimestamps:Record<string,string|null>;
+  summary:{
+    listedEquities:number;
+    committeeResearchCandidates:number;
+    nonUSVenueEquities:number;
+    nonUSVenueCommitteeCovered:number;
+    nonUSVenueExcludedFromCommittee:number;
+    foreignIssuerUSListings:number;
+    forwardStrategyPaperEligible:0;
+    certifiedClosedStrategyTrades:0;
+    regionalCounts:Record<string,{localVenueEquities:number;inCommittee:number;excludedFromCommittee:number}>;
+    meaning:string;
+  };
+  researchQueue:OneGlobalCoverageResearchTask[];
+  rows:Array<{
+    key:string;symbol:string;venueMic:string;venueRegion:string;
+    issuerCountry:string|null;currency:string;foreignIssuerUsListing:boolean;
+    nonUSVenue:boolean;sourceKind:"GLOBAL_SEED"|"INSTRUMENT_MASTER";
+    exactIdentityRecent:boolean;primaryFinancialsRecent:boolean;
+    dailyResearchRecent:boolean;eodResearchStatus:string|null;
+    committeeResearchPresent:boolean;committeeDecision:string|null;
+    committeeScore:number|null;missingTasks:string[];
+    readiness:"RESEARCH_ONLY_NOT_EXECUTION_ELIGIBLE";
+    paperEligible:false;certifiedStrategyTrades:0;
+    brokerSubmissionAllowed:false;liveTradingAllowed:false;
+  }>;
+  safety:{
+    researchOnly:true;liveTradingAllowed:false;brokerConnectivityAllowed:false;
+    paperAuthorizationGranted:false;v8TechnicalProofCredited:false;
+    historicalBackfill:false;marketPricesPublished:false;
+  };
+};
+export function auditOneGlobalCommitteeWorldCoverage(input:{
+  master:unknown;seeds:unknown;committee:unknown;terminal:unknown;
+  fundamentals:unknown;eod:unknown;world:unknown;nowIso:string;
+}):OneGlobalCoverageReport;
