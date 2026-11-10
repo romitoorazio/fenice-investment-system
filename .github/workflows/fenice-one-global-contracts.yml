@@ -135,6 +135,14 @@ jobs:
           path: artifacts/phase3/world-research-watchlist.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Upload phase 4 immutable research signal snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-phase4-signal-snapshot
+          path: artifacts/phase4/signal-snapshot.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload synthetic-only phase 2 closure evidence
         if: always()
         uses: actions/upload-artifact@v4
