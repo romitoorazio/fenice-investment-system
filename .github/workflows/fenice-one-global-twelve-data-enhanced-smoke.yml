@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 8
     env:
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FENICE_ONE_GLOBAL_PAIRED_SNAPSHOT: "1"
       FENICE_TWELVE_DATA_BATCH_PROBES: "4"
       FENICE_TWELVE_DATA_BATCH_429_RETRIES: "0"
       FENICE_TWELVE_DATA_FX_FRESHNESS_RETRIES: "0"
@@ -64,6 +65,12 @@ jobs:
           fi
           node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs
           echo "Enhanced provider entrypoint executed in disposable workspace; no evidence committed."
+          node --input-type=module <<'NODE'
+          import {readPairedEvidence} from "./lib/global/paired-evidence-store.mjs";
+          const result=await readPairedEvidence({directory:"data/one-global-paired-evidence"});
+          if(!result.accepted)throw Error(`PAIRED_SNAPSHOT_INVALID_${result.reason}`);
+          console.log(`Paired snapshot read-back PASS: ${result.runId}`);
+          NODE
       - name: Verify no broker or persistent repository write
         if: always()
         shell: bash
