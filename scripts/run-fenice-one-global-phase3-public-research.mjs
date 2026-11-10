@@ -1,6 +1,9 @@
 /** Phase 3 public-data research run. No credentials, orders, ledger or broker access. */
 import {writeFile,mkdir} from "node:fs/promises";
 import {appendPhase4Signals} from "../lib/global/phase4-signal-journal.mjs";
+import {persistPhase4SignalJournal} from "../lib/global/phase4-journal-file.mjs";
+import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs";
+import {readFile} from "node:fs/promises";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -22,6 +25,14 @@ const report={schemaVersion:1,generatedAt:nowIso,mode:"PUBLIC_UNATTESTED_WORLD_R
 const journal=appendPhase4Signals({candidates:watchlist.candidates,capturedAt:nowIso});
 await mkdir("artifacts/phase4",{recursive:true});
 await writeFile("artifacts/phase4/signal-snapshot.json",JSON.stringify({schemaVersion:1,generatedAt:nowIso,mode:"PHASE4_RUN_SNAPSHOT_NOT_PERSISTENT",journal:journal.journal,headHash:journal.headHash,ordersGenerated:0},null,2)+"\n");
+if(process.env.FENICE_PHASE4_JOURNAL_PATH){
+ const path=process.env.FENICE_PHASE4_JOURNAL_PATH;
+ const persisted=await persistPhase4SignalJournal({path,candidates:watchlist.candidates,capturedAt:nowIso});
+ const saved=JSON.parse(await readFile(path,"utf8"));
+ const evaluation=buildPhase4ResearchEvaluation({journal:saved.journal,histories:fetched.histories,nowIso});
+ await writeFile("artifacts/phase4/forward-evaluation.json",JSON.stringify({persisted,evaluation},null,2)+"\n");
+ console.log(JSON.stringify({phase4:"PERSISTED_FORWARD_RESEARCH",entries:persisted.total,appended:persisted.appended,duplicates:persisted.duplicates,observed:evaluation.summary.stats.map(x=>({sessions:x.sessions,observed:x.observed,wins:x.wins,losses:x.losses,pending:x.pending})),ordersGenerated:0}));
+}
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify({status:acquisitionStatus,requested:report.requestedSymbols,received:report.receivedHistories,ranked:watchlist.candidates.length,fetchErrors:fetched.errors.length,rejected:watchlist.rejected.length,realPaperCertified:false,ordersGenerated:0}));
