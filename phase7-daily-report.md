@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-10T14:28:07.738Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-10T14:30:07.706Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
@@ -10,8 +10,8 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 | 1 | XTKS | XTKS:7203 | 12.7030 | Da osservare |
 | 2 | XNSE | XNSE:RELIANCE | 5.4517 | Da osservare |
 | 3 | XNAS | XNAS:MSFT | 4.0240 | Da osservare |
-| 4 | XETR | XETR:SAP | 3.7922 | Da osservare |
-| 5 | XHKG | XHKG:0700 | 1.5644 | Da osservare |
+| 4 | XETR | XETR:SAP | 3.8417 | Da osservare |
+| 5 | XNYS | XNYS:JPM | 1.9974 | Da osservare |
 
 ## Portafoglio forward (simulazione non certificata)
 - Posizioni aperte: **0**; chiuse: **0**
