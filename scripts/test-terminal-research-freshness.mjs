@@ -30,4 +30,42 @@ assert(blockedStale.assets.every(item => ["obsoleto", "non disponibile"].include
 assert(blockedStale.assets.every(item => item.targetWeightPercent === 0), "expired technical observations must not fund speculative positions");
 assert.equal(blockedStale.allocationCheck.reservePercent, 100);
 
+// The worldwide terminal gained 11 exact-home-exchange research-only rows.
+// They must NEVER acquire study capital through the separate postprocessor,
+// finalizer or client-side runtime, even if a stale report says MANTIENI.
+const worldRows=fixture.assets.filter(item=>item.globalVenueResearchOnly===true);
+assert(worldRows.length>=10, "Use the actual worldwide research snapshot");
+const contaminated=structuredClone(fixture);
+for(const item of contaminated.assets){
+  item.technical.observedAt=new Date(Date.now()-30_000).toISOString();
+  if(item.globalVenueResearchOnly!==true)continue;
+  item.decision="MANTIENI";
+  item.unifiedScore=95;
+  item.confidence=98;
+  item.riskScore=20;
+  item.targetWeightPercent=7;
+  item.targetAmountEuro=700;
+}
+contaminated.warnings.push("Area speculativa al 5.1%, sopra il limite 5%.");
+const safeGlobal=buildRuntimeTerminal(contaminated);
+const globalAssets=safeGlobal.assets.filter(item=>item.globalVenueResearchOnly===true);
+assert.equal(globalAssets.length,worldRows.length);
+for(const item of globalAssets){
+  assert.equal(item.decision,"ATTENDI");
+  assert.equal(item.targetWeightPercent,0);
+  assert.equal(item.targetAmountEuro,0);
+  assert.match(item.reason,/ricerca|quotazione estera/i);
+}
+assert.equal(safeGlobal.allocationCheck?.totalPercent,100);
+assert.equal(safeGlobal.guardrails?.violations?.length,0);
+assert(safeGlobal.warnings.every(warning=>!/Area speculativa al .*sopra il limite/.test(warning)),
+  "Reconciled guardrails must not retain obsolete speculative-limit warnings");
+// CI also covers the two data-writer stages which runtime does not call.
+for(const file of ["postprocess-terminal-intelligence.mjs","finalize-terminal-allocation.mjs"]){
+  const body=await readFile(new URL(file,import.meta.url),"utf8");
+  assert.match(body,/globalVenueResearchOnly/);
+  assert.match(body,/targetWeightPercent/);
+  assert.match(body,/targetAmountEuro/);
+}
+
 console.log("Fenice terminal EOD/realtime honesty and fail-closed capital allocation tests: PASS");
