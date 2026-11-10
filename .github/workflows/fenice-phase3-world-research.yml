@@ -24,6 +24,14 @@ jobs:
           node-version: "22"
       - name: Fetch public historical observations and publish research-only report
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Upload phase 4 signal snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-frozen-research-snapshot
+          path: artifacts/phase4/signal-snapshot.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload non-certified research report
         if: always()
         uses: actions/upload-artifact@v4
