@@ -11,7 +11,7 @@ const signals=appendPhase4Signals({candidates:[],capturedAt:now});
 const signalJournal={schemaVersion:1,journal:signals.journal,headHash:signals.headHash};
 const forwardEvaluation={persisted:{headHash:signals.headHash},
  evaluation:{schemaVersion:1,mode:"PHASE4_UNATTESTED_RESEARCH_EVALUATION",generatedAt:now,
- validatedHeadHash:signals.headHash,journalEntries:0,
+ validatedHeadHash:signals.headHash,journalEntries:0,forward:{outcomes:[],rejected:[]},
  summary:{stats:[2,5,10,40].map(sessions=>({sessions,observed:0,pending:0}))}}};
 const h=appendPhase5VirtualLedger({recordedAt:now});
 const historicalLedger={schemaVersion:1,...h};
@@ -39,8 +39,22 @@ assert.equal(a.ordersGenerated,0);
 assert(a.blockers.includes("FORWARD_MATURED_OUTCOMES"));
 assert(a.blockers.includes("INDEPENDENT_EXECUTABLE_QUOTES"));
 assert.equal(a.measurements.forwardClosed,0);
+assert.equal(a.measurements.forwardEvaluableSignals,0);
+assert.equal(a.measurements.forwardExcludedSignals,0);
 assert.equal(a.measurements.forwardNetEuro,0);
 assert.equal(a.checks.find(s=>s.id==="RESEARCH_VENUE_COVERAGE").status,"PASS");
+const excludedEval={...forwardEvaluation,evaluation:{...forwardEvaluation.evaluation,
+ journalEntries:1,forward:{outcomes:[],rejected:[{index:0,reason:"BAD_SOURCE"}]}}};
+const oneSignal=appendPhase4Signals({candidates:[{mic:"XMIL",instrumentId:"XMIL:TEST",
+ observedAt:"2026-11-09T08:00:00Z",score:1,dataVerified:false,executable:false}],
+ capturedAt:"2026-11-10T14:00:00Z"});
+const excludedJournal={schemaVersion:1,journal:oneSignal.journal,headHash:oneSignal.headHash};
+excludedEval.evaluation.validatedHeadHash=oneSignal.headHash;
+excludedEval.persisted={headHash:oneSignal.headHash};
+const excludedAudit=buildPhase8EvidenceAudit({...inputs,signalJournal:excludedJournal,
+ forwardEvaluation:excludedEval});
+assert.equal(excludedAudit.measurements.forwardExcludedSignals,1);
+assert.equal(excludedAudit.measurements.forwardEvaluableSignals,0);
 const md=phase8AuditMarkdown(a);
 assert.match(md,/Fase 8: verbale/);
 assert.match(md,/Ordini Directa:\*\* 0/);
