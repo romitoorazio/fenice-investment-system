@@ -42,7 +42,7 @@ assert.doesNotMatch(workflow,/\s+group: fenice-data-writer\n/,
   "Shared data-bot concurrency can starve Terminal of fresh snapshots");
 // Running Terminal independently is safe only because its writer replays the
 // generated data on latest main and retries rejected concurrent pushes.
-assert.match(workflow,/for attempt in 1 2 3; do/);
+assert.match(workflow,/for attempt in 1 2 3 4 5 6; do/);
 assert.match(workflow,/git fetch origin main/);
 assert.match(workflow,/git reset --hard origin\/main/);
 assert.match(workflow,/git push origin HEAD:main/);
