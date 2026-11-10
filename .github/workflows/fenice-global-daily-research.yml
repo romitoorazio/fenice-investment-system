@@ -71,6 +71,22 @@ jobs:
              f.riskState.haltNewVirtualEntries!==r.haltNewVirtualEntries)process.exit(1);
           console.log(JSON.stringify({phase6:r.riskState,realizedDrawdownPct:r.maxRealizedDrawdownPct,ordersGenerated:0}));
           NODE
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          const b=JSON.parse(readFileSync("artifacts/phase7/latest-world-brief.json"));
+          const f=JSON.parse(readFileSync("artifacts/phase5/latest-forward-research-portfolio.json"));
+          const r=JSON.parse(readFileSync("artifacts/phase6/latest-forward-risk-report.json"));
+          const h=JSON.parse(readFileSync("artifacts/phase5/latest-historical-portfolio.json"));
+          const m=readFileSync("artifacts/phase7/latest-world-brief.md","utf8");
+          if(b.mode!=="PHASE7_WORLD_RESEARCH_DAILY_BRIEF"||
+             b.ordersGenerated!==0||b.liveTradingAllowed!==false||b.certifiedPaper!==false||
+             b.forward.ledgerHeadHash!==f.ledgerHeadHash||b.risk.status!==r.riskState||
+             b.historicalSeparate.netPnlEuro!==h.netPnlEuro||
+             b.forward.netRealizedEuro!==f.realizedNetPnlEuro||
+             b.universe.requested!==8||!m.includes("Risultato storico")||
+             !m.includes("Ordini Directa: **0**"))process.exit(1);
+          console.log(JSON.stringify({phase7:"VALIDATED_RESEARCH_ONLY",worldSymbols:b.universe.received,shortlist:b.opportunities.length,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -84,6 +100,8 @@ jobs:
           cp artifacts/phase5/persistent/forward-ledger.json /tmp/fenice-evidence/phase5-forward-ledger.json
           cp artifacts/phase5/latest-forward-research-portfolio.json /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json
           cp artifacts/phase6/latest-forward-risk-report.json /tmp/fenice-evidence/latest-phase6-forward-risk-report.json
+          cp artifacts/phase7/latest-world-brief.json /tmp/fenice-evidence/latest-phase7-world-brief.json
+          cp artifacts/phase7/latest-world-brief.md /tmp/fenice-evidence/phase7-daily-report.md
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -105,13 +123,25 @@ jobs:
           cp /tmp/fenice-evidence/phase5-forward-ledger.json phase5-forward-ledger.json
           cp /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json latest-phase5-forward-research-portfolio.json
           cp /tmp/fenice-evidence/latest-phase6-forward-risk-report.json latest-phase6-forward-risk-report.json
+          cp /tmp/fenice-evidence/latest-phase7-world-brief.json latest-phase7-world-brief.json
+          cp /tmp/fenice-evidence/phase7-daily-report.md phase7-daily-report.md
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload phase 7 daily world research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase7-world-daily-brief-research-only
+          path: |
+            artifacts/phase7/latest-world-brief.json
+            artifacts/phase7/latest-world-brief.md
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload phase 6 forward virtual risk audit
         if: always()
         uses: actions/upload-artifact@v4
