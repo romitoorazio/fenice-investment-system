@@ -15,6 +15,8 @@ on:
       - "scripts/run-one-global-strategy-paper.mjs"
       - "scripts/diagnose-one-global-venues.mjs"
       - "scripts/test-one-global-venue-readiness.mjs"
+      - "scripts/test-one-global-venue-ui.mjs"
+      - "app/paper-mondo/page.tsx"
       - "scripts/test-one-global-strategy-paper.mjs"
       - ".github/workflows/fenice-unica-paper-cycle.yml"
   pull_request:
@@ -50,6 +52,7 @@ jobs:
           node scripts/test-fenice-unica-paper-cycle.mjs
           node scripts/test-one-global-strategy-paper.mjs
           node scripts/test-one-global-venue-readiness.mjs
+          node scripts/test-one-global-venue-ui.mjs
       - name: Produce V8/B2/world audited scoreboard, no provider calls
         run: node scripts/fenice-unica-paper-cycle.mjs > fenice-one-global-paper.json
       - name: Evaluate committee-to-world-PAPER forward intent blockers
