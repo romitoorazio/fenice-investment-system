@@ -13,6 +13,10 @@ on:
       - "lib/intelligence/yahoo-regular-research-quote.mjs"
       - "scripts/test-yahoo-regular-research-quote.mjs"
       - "scripts/postprocess-terminal-intelligence.mjs"
+      - "lib/trading/one-global-forward-research.mjs"
+      - "scripts/run-one-global-forward-research.mjs"
+      - "scripts/test-one-global-forward-research.mjs"
+      - "data/one-global-forward-research-ledger.json"
       - "scripts/finalize-terminal-allocation.mjs"
       - "scripts/run-dcf-engine.mjs"
       - "scripts/run-investment-committee.mjs"
@@ -85,6 +89,9 @@ jobs:
       - name: Guard 30-day certification evidence before updating terminal ledger
         run: node scripts/test-decision-ledger-retention.mjs
 
+      - name: Verify prospective research observations never count as PAPER
+        run: node scripts/test-one-global-forward-research.mjs
+
       - name: Build technical intelligence, DCF and Investment Committee
         run: npm run terminal
 
@@ -94,6 +101,9 @@ jobs:
           node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('data/terminal-alerts.json'));const s=JSON.parse(fs.readFileSync('data/terminal-state.json'));if(!Array.isArray(a.alerts)||!s.assets)process.exit(1);console.log('Alerts stored:',a.alerts.length,'state assets:',Object.keys(s.assets).length)"
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/investment-committee.json'));if(!Array.isArray(c.topDecisions)||!Array.isArray(c.allDecisions)||!Number.isFinite(c.dataQuality)||!c.executionGate||!c.goal)process.exit(1);for(const d of c.allDecisions){if(!Number.isFinite(d.committeeScore)||!Number.isFinite(d.confidence)||!Number.isFinite(d.riskScore)||!d.scorecard||!d.entryPlan||!Array.isArray(d.bearCase)||!Array.isArray(d.invalidation))process.exit(1)};if(c.executionGate==='BLOCCATO'&&c.proposedFirstTrancheEuro>0)process.exit(1);console.log('Committee:',c.candidateCount,'BUY',c.buyCandidateCount,'gate',c.executionGate,'quality',c.dataQuality,'tranche',c.proposedFirstTrancheEuro)"
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('data/calibration-analysis.json'));if(!c.horizons?.['7d']||!c.horizons?.['30d']||!c.horizons?.['90d'])process.exit(1);if(c.policy?.confidenceCanOnlyBeReducedByCalibration!==true||c.policy?.liveTradingAllowed!==false)process.exit(1);for(const h of Object.values(c.horizons)){if(!['INSUFFICIENT','CALIBRATED','WATCH','POOR'].includes(h.state))process.exit(1);if(!Number.isFinite(h.sampleSize)||!Number.isFinite(h.confidenceMultiplier)||h.confidenceMultiplier>1)process.exit(1)};console.log('Calibration 7d:',c.horizons['7d'].state,c.horizons['7d'].sampleSize,'30d:',c.horizons['30d'].state,c.horizons['30d'].sampleSize)"
+
+      - name: Persist only NEW worldwide research observations after Terminal validation
+        run: node scripts/run-one-global-forward-research.mjs
 
       - name: Commit terminal intelligence without touching PAPER state
         shell: bash
