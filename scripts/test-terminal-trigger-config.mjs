@@ -28,6 +28,8 @@ assert.doesNotMatch(
   "Foundation output files must not also dispatch World Terminal through push",
 );
 assert.match(pushPaths, /scripts\/run-terminal-engine\.mjs/, "terminal code changes must still trigger validation");
+assert.doesNotMatch(pushPaths,/data\/one-global-forward-research-ledger\.json/,
+  "Appending a research observation must not recursively re-dispatch the Terminal");
 assert.match(
   workflow,
   /Verify Foundation-to-Terminal trigger is not duplicated\n\s+run: node scripts\/test-terminal-trigger-config\.mjs/,
