@@ -11,6 +11,7 @@ import {fetchEcb90DayFxReference} from "../lib/global/ecb-daily-fx-reference.mjs
 import {advancePhase5ForwardResearch} from "../lib/global/phase5-forward-research.mjs";
 import {buildPhase7WorldBrief,formatPhase7WorldMarkdown} from "../lib/global/phase7-world-brief.mjs";
 import {buildPhase8EvidenceAudit,phase8AuditMarkdown} from "../lib/global/phase8-evidence-audit.mjs";
+import {buildPhase9Report,formatPhase9Report} from "../lib/global/phase9-operational-report.mjs";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -122,6 +123,16 @@ if(process.env.FENICE_PHASE4_JOURNAL_PATH&&process.env.FENICE_PHASE5_LEDGER_PATH
  console.log(JSON.stringify({phase8:"TECHNICAL_AUDIT_EXECUTED",engineering:audit.engineeringAudit,
   certification:audit.certification,blockers:audit.blockers,
   closedForward:audit.measurements.forwardClosed,ordersGenerated:0}));
+ const phase9=buildPhase9Report({forwardLedger:savedForward,
+  forwardPortfolio:{...forward.summary,sourceCoverage:coveragePolicy},
+  phase8:audit,histories:fetched.histories,fxReference,nowIso});
+ await mkdir("artifacts/phase9",{recursive:true});
+ await writeFile("artifacts/phase9/latest-operational-status.json",JSON.stringify(phase9,null,2)+"\n");
+ await writeFile("artifacts/phase9/latest-operational-status.md",formatPhase9Report(phase9),"utf8");
+ console.log(JSON.stringify({phase9:"FORWARD_RESEARCH_OPERATIONAL",technical:phase9.technicalValidation,
+  closed:phase9.realized.closed,open:phase9.open.count,
+  portfolioEstimate:phase9.portfolio.indicativeEquityEuro,
+  certification:phase9.certification,ordersGenerated:0}));
 }
 
 await mkdir("artifacts/phase3",{recursive:true});
