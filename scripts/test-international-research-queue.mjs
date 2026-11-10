@@ -21,7 +21,19 @@ assert.equal(report.rows.find(r=>r.symbol==="PETR4").listingType,"LOCAL_LISTING"
 assert.equal(report.summary.withIssuerDocuments,2);
 assert.equal(report.summary.withCommitteeResearch,2);
 assert.equal(report.summary.executionGradeInternationalQuotes,0);
-assert.equal(report.catalogueRecent,false);
+// The catalogue is now refreshed automatically: old fixed "stale" assertions
+// would fail precisely when source collection is working. Test temporal safety.
+const referenceAt=Date.parse(reference.generatedAt);
+const expectedCatalogueRecent=reference.safety?.researchOnly===true
+  &&reference.safety?.paperExecutionAllowed===false
+  &&reference.safety?.liveTradingAllowed===false
+  &&reference.safety?.brokerConnectivityAllowed===false
+  &&reference.safety?.isolatedFromPaperV6InstrumentMaster===true
+  &&reference.safety?.changesPaperV6Fingerprint===false
+  &&Number.isFinite(referenceAt)&&referenceAt<=now&&now-referenceAt<=72*3600000;
+assert.equal(report.catalogueRecent,expectedCatalogueRecent);
+assert.equal(build(master,fundamentals,terminal,committee,
+  {...reference,generatedAt:new Date(now+60000).toISOString()},now).catalogueRecent,false);
 assert.equal(report.rows.find(r=>r.symbol==="ASML").tradingRegion,"north-america");
 assert.equal(report.rows.find(r=>r.symbol==="ASML").issuerRegion,"europe");
 assert.equal(report.rows.find(r=>r.symbol==="TSM").listingType,"FOREIGN_LISTING_OR_ADR");
