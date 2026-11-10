@@ -42,7 +42,7 @@ jobs:
         run: node scripts/scan-repository-secrets.mjs
 
   paper-forward:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: ${{ false }} # Retired, B2 ledger and approval remain immutable
     needs: [regression]
     runs-on: ubuntu-latest
     timeout-minutes: 30
