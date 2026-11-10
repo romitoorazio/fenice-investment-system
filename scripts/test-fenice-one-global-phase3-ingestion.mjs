@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {normalizePhase3ResearchObservations} from "../lib/global/phase3-research-ingestion.mjs";
+import {buildPhase3ResearchPortfolio} from "../lib/global/phase3-research-portfolio.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const sample={mic:"XMIL",instrumentId:"XMIL:TEST",observedAt:nowIso,lastPrice:20,fxToEur:1,momentum5dPct:4,momentum20dPct:3,volatility20dPct:2,spreadPct:.1,stopDistancePct:10,synthetic:true};
+const inputs=[sample,{...sample,mic:"XTKS",instrumentId:"XTKS:7203",synthetic:false,provenanceVerified:true,sourceId:"provider-1",sourceUrl:"https://example.org/quotes"},{...sample,synthetic:false},{...sample,observedAt:"2026-11-01T10:00:00Z"},{...sample,lastPrice:NaN},{...sample,provenanceVerified:true}];
+const normalized=normalizePhase3ResearchObservations({observations:inputs,nowIso});
+assert.equal(normalized.accepted.length,2);
+assert.equal(normalized.rejected.length,4);
+assert.deepEqual(normalized.rejected.map(x=>x.reason),["SOURCE_PROVENANCE_UNVERIFIED","STALE_OR_FUTURE_OBSERVATION","INVALID_NUMERIC_RESEARCH_METRICS","SYNTHETIC_PROVENANCE_CONFLICT"]);
+assert.equal(normalized.accepted[1].classification,"SOURCE_DECLARED_RESEARCH_ONLY");
+assert.equal(normalized.paperFillAuthorized,false);
+const portfolio=buildPhase3ResearchPortfolio({candidates:normalized.accepted,capitalEur:1000,nowIso});
+assert.equal(portfolio.selected.length,2);
+assert.equal(portfolio.liveTradingAllowed,false);
+console.log("FENICE phase 3 research ingestion to global portfolio: PASS");
