@@ -53,5 +53,7 @@ jobs:
           if-no-files-found: error
       - name: Confirm no historical ledgers or source files modified
         run: |
-          test -z "$(git status --porcelain)"
-          echo "ONE GLOBAL report is read-only; no broker and no historical mutations."
+          # Generated untracked scoreboard is an artifact, not a repository edit.
+          git diff --exit-code
+          git diff --cached --exit-code
+          echo "ONE GLOBAL tracked sources and ledgers remained unchanged."
