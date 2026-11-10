@@ -1,0 +1,44 @@
+name: Fenice Frozen Baseline Reconciliation
+
+# Forensics only. Explicitly cannot re-sign old campaigns, reset days, enable LIVE.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/frozen-baseline-reconciliation.yml"
+      - "scripts/audit-paper-baselines.mjs"
+      - "data/paper-validation-campaign.json"
+      - "data/paper-v7-b2-approval.json"
+      - "data/paper-v8-technical-approval.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/frozen-baseline-reconciliation.yml"
+      - "scripts/audit-paper-baselines.mjs"
+  workflow_dispatch:
+  schedule:
+    - cron: "45 21 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-immutable-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Inspect V6 and B2 baseline drift while preserving pinned V8
+        run: node scripts/audit-paper-baselines.mjs --output "$RUNNER_TEMP/paper-baseline-reconciliation.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paper-baseline-reconciliation
+          path: ${{ runner.temp }}/paper-baseline-reconciliation.json
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,133 @@
+name: Fenice V8 Forward Technical Exit and EUR PnL
+
+# Separate post-V8 experiment: 1 forward-only virtual exit/day.
+# Historical V8 samples and frozen signed approvals are read-only.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/v8-shadow-exits.yml"
+      - "scripts/run-v8-shadow-exits.mjs"
+      - "scripts/test-v8-shadow-exits.mjs"
+      - "scripts/report-v8-virtual-pnl.mjs"
+      - "scripts/test-v8-virtual-pnl.mjs"
+      - "data/paper-v8-shadow-exits.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/v8-shadow-exits.yml"
+      - "scripts/run-v8-shadow-exits.mjs"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Fenice Independent PAPER Execution Lab"]
+    types: [completed]
+  schedule:
+    - cron: "5 17 * * 1-5"
+    - cron: "5 19 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Audit forward exits and falsification safeguards
+        run: |
+          node scripts/test-v8-shadow-exits.mjs
+          node scripts/test-v8-virtual-pnl.mjs
+          node scripts/test-v8-technical-evidence.mjs
+      - name: No committed credentials
+        run: node scripts/scan-repository-secrets.mjs
+
+  observe-virtual-only:
+    needs: [regression]
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: fenice-data-writer
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      FENICE_JOB: intraday
+      FENICE_TWELVE_DATA_EXECUTION_PROBES: "-1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_ALPHA_VANTAGE_EXECUTION_PROBES: "-1"
+      FENICE_ALPACA_EXECUTION_PROBES: "6"
+      APCA_API_KEY_ID: ${{ secrets.APCA_API_KEY_ID }}
+      APCA_API_SECRET_KEY: ${{ secrets.APCA_API_SECRET_KEY }}
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Skip already-completed days and first-activation provider calls
+        id: source
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const j=JSON.parse(fs.readFileSync("data/paper-v8-shadow-exits.json","utf8"));
+          if(j.liveTradingAllowed!==false||j.brokerConnectivityAllowed!==false||
+             j.certificationCredit!==0||j.strategyPerformanceCertified!==false)
+            throw Error("SHADOW_BROKER_OR_CERTIFICATION_BLOCK");
+          const today=new Date().toISOString().slice(0,10);
+          const first=j.activatedAt===null;
+          const done=j.events.length>=10||
+            j.events.some(e=>e.closedAt?.slice(0,10)===today);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            "fetchQuotes="+(!first&&!done)+"\n");
+          NODE
+      - name: Install existing data adapters only for a prospective exit
+        if: steps.source.outputs.fetchQuotes == 'true'
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Fetch fresh two-source PAPER-only market, FX and session evidence
+        if: steps.source.outputs.fetchQuotes == 'true'
+        run: |
+          set -euo pipefail
+          npm run marketdata:execution
+          node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence.mjs
+          node scripts/refresh-paper-fx-evidence.mjs
+          node --experimental-strip-types scripts/check-execution-market-coverage.mjs
+          node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Forward-only sample exit and separate realized EUR PnL
+        run: |
+          node scripts/run-v8-shadow-exits.mjs
+          node scripts/report-v8-virtual-pnl.mjs
+      - name: Commit only independent technical accounting ledgers
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/paper-v8-shadow-exits.json data/paper-v8-pnl-report.json
+          if git diff --cached --quiet; then
+            echo "No new forward-only virtual exit or accounting report"
+            exit 0
+          fi
+          git commit -m "data(V8): prospectively measured virtual EUR gains and losses"
+          git reset --hard HEAD
+          for retry in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then exit 0; fi
+            echo "V8 accounting writer race, retry $retry/3"
+          done
+          echo "V8 accounting write failed closed"
+          exit 1

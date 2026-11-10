@@ -16,6 +16,21 @@ const base = {approval,b2Ledger,b2Days,v8Status,v8Days,coverage,
   fingerprint,baselineAncestor:true,nowIso};
 const run = changes => auditPhase9({...base,...changes});
 const truth = run();
+const technicalInputs = {
+  v8Approval: read("paper-v8-technical-approval.json"),
+  v8Samples: read("paper-v8-technical-samples.json"),
+  shadowExitLedger: read("paper-v8-shadow-exits.json"),
+};
+const shadowTruth = run(technicalInputs);
+assert.equal(shadowTruth.diagnostics.v8TechnicalRoundtripsObserved, 0);
+assert.equal(shadowTruth.diagnostics.v8TechnicalRealizedNetEuro, 0);
+assert.equal(shadowTruth.diagnostics.v8TechnicalExitsCreditedAsStrategyTrades, 0);
+assert.equal(shadowTruth.requirements.closedForwardTrades.observed, 0);
+const forgedExit = structuredClone(technicalInputs.shadowExitLedger);
+forgedExit.events.push({ id: "forged", realizedPnLEuro: 1000000 });
+assert(run({ ...technicalInputs, shadowExitLedger: forgedExit }).reasonCodes
+  .includes("V8_TECHNICAL_EXIT_JOURNAL_INVALID"));
+
 assert.equal(truth.state,"NOT_CERTIFIED");
 assert.equal(truth.phase,9);
 assert.equal(truth.requirements.closedForwardTrades.observed,0);

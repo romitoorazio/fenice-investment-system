@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { computeV7B2Fingerprint } from "../lib/trading/paper-v7-b2-fingerprint.mjs";
 import { replayV7PhaseBLedger } from "../lib/trading/paper-v7-phase-b-v6-parity.mjs";
+import { replayShadowExits } from "./run-v8-shadow-exits.mjs";
 
 const FILE = fileURLToPath(import.meta.url);
 const ROOT = resolve(FILE, "../..");
@@ -24,7 +25,7 @@ const sourceFamily = value => typeof value === "string" ? value.trim().toLowerCa
 
 export function auditPhase9({
   approval, b2Ledger, b2Days, fingerprint, baselineAncestor,
-  v8Status, v8Days, coverage, nowIso,
+  v8Status, v8Days, v8Approval, v8Samples, shadowExitLedger, coverage, nowIso,
 }) {
   const reasons = [];
   const add = code => { if (!reasons.includes(code)) reasons.push(code); };
@@ -78,6 +79,13 @@ export function auditPhase9({
       && day?.marketEvidenceValid === true && isSafe(day)).length : 0;
   const b2BuyFills = b2Replay.valid ? b2Replay.fills : 0;
 
+  // Genuine prospective V8 engineering exits may generate measured virtual EUR
+  // profit or loss. They do NOT become certified strategy trades for phase 9.
+  const shadow = shadowExitLedger === undefined ? null : replayShadowExits({
+    ledger: shadowExitLedger, samples: v8Samples, days: v8Days, approval: v8Approval,
+  });
+  if (shadow && !shadow.valid) add("V8_TECHNICAL_EXIT_JOURNAL_INVALID");
+
   // The currently persisted B2 journal records buy/fill attempts, not
   // independently reconciled ENTRY -> EXIT round trips. It would be dishonest
   // to infer a closed trade from a fill or any backtest/engineering ledger.
@@ -118,6 +126,9 @@ export function auditPhase9({
       coverageFresh,
       b2BuyFillsCreditedAsClosedTrades: 0,
       v8TechnicalSamplesCreditedAsForwardTrades: 0,
+      v8TechnicalRoundtripsObserved: shadow?.valid ? shadow.closedTechnicalRoundtrips : 0,
+      v8TechnicalRealizedNetEuro: shadow?.valid ? shadow.realizedEuro : null,
+      v8TechnicalExitsCreditedAsStrategyTrades: 0,
     },
     policy: {
       liveTradingAllowed: false,
@@ -147,6 +158,9 @@ async function main() {
     baselineAncestor,
     v8Status: read("paper-v8-technical-status.json"),
     v8Days: read("paper-v8-technical-days.json"),
+    v8Approval: read("paper-v8-technical-approval.json"),
+    v8Samples: read("paper-v8-technical-samples.json"),
+    shadowExitLedger: read("paper-v8-shadow-exits.json"),
     coverage: read("execution-market-coverage.json"),
     nowIso: new Date().toISOString(),
   });
@@ -162,12 +176,15 @@ async function main() {
       + "- Mercati: " + report.requirements.distinctTradeMarkets.observed + "/3\n"
       + "- Giornate: " + report.requirements.distinctForwardTradeDays.observed + "/3\n"
       + "- Fonti di esecuzione certificate: " + report.requirements.certifiedExecutableSourceFamilies.observed + "/2\n"
+      + "- Uscite virtuali tecniche V8: " + report.diagnostics.v8TechnicalRoundtripsObserved
+      + "; profitto/perdita simulato €: " + report.diagnostics.v8TechnicalRealizedNetEuro + "\n"
       + "- Fingerprint B2 corrispondente: " + (report.diagnostics.b2FingerprintPinned ? "SÌ" : "NO") + "\n"
       + "- Motivi: `" + report.reasonCodes.join("`, `") + "`\n"
       + "\n> Le evidenze V8 e i fill BUY B2 non dimostrano trade forward chiusi. Directa resta bloccata.\n");
   }
   if (report.reasonCodes.includes("B2_LEDGER_INVALID")
     || report.reasonCodes.includes("LIVE_OR_BROKER_SAFETY_FAILURE")
-    || report.reasonCodes.includes("B2_DAY_EVIDENCE_INVALID")) process.exitCode = 2;
+    || report.reasonCodes.includes("B2_DAY_EVIDENCE_INVALID")
+    || report.reasonCodes.includes("V8_TECHNICAL_EXIT_JOURNAL_INVALID")) process.exitCode = 2;
 }
 if (process.argv[1] && resolve(process.argv[1]) === FILE) await main();
