@@ -1,5 +1,13 @@
 name: FENICE Phase 3 World Research (unattested, read-only)
 on:
+  push:
+    branches:
+      - fix/one-global-integration-safety-reconcile-20261107
+    paths:
+      - ".github/workflows/fenice-phase3-world-research.yml"
+      - "scripts/run-fenice-one-global-phase3-public-research.mjs"
+      - "lib/global/phase3-yahoo-history-fetch.mjs"
+      - "lib/global/phase3-unattested-watchlist.mjs"
   workflow_dispatch:
   schedule:
     - cron: "15 7 * * 1-5"
