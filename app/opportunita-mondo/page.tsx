@@ -7,6 +7,10 @@ import universe from "@/data/global-market-universe.json";
 import {evaluateGlobalOpportunityAudit} from "@/lib/ui/global-opportunity-audit";
 import fundamentals from "@/data/fundamental-research.json";
 import {buildInternationalResearchQueue} from "@/lib/ui/international-research-queue";
+import globalSeeds from "@/data/world-paper-v7-research-seeds.json";
+import worldEod from "@/data/world-v7-eod-research.json";
+import worldLedger from "@/data/world-v7-validation-ledger.json";
+import {auditOneGlobalCommitteeWorldCoverage} from "@/lib/intelligence/one-global-committee-world-coverage.mjs";
 
 export const dynamic="force-dynamic";
 export const revalidate=0;
@@ -15,6 +19,20 @@ export default function GlobalOpportunitiesPage(){
   const report=evaluateGlobalOpportunityAudit(committee,master,terminal,reference,universe,serverRequestTime());
   const q=report.dataQuality;
   const international=buildInternationalResearchQueue(master,fundamentals,terminal,committee,reference,serverRequestTime());
+  const committeeWorld=auditOneGlobalCommitteeWorldCoverage({
+    master,seeds:globalSeeds,committee,terminal,fundamentals,
+    eod:worldEod,world:worldLedger,nowIso:new Date(serverRequestTime()).toISOString(),
+  });
+  const researchGapLabels:Record<string,string>={
+    VERIFY_EXACT_TICKER_MIC_ISIN_CURRENCY:"Verificare identità del titolo e Borsa",
+    FIND_PRIMARY_ISSUER_FINANCIALS:"Reperire bilanci e documenti ufficiali",
+    VERIFY_DAILY_PRICE_SERIES_AND_SYMBOL:"Verificare prezzi giornalieri e simbolo",
+    BUILD_EXACT_LISTING_COMMITTEE_RESEARCH:"Inserire la Borsa nel comitato di ricerca",
+    VERIFY_INDEPENDENT_REALTIME_QUOTE_RIGHTS:"Verificare due fonti autorizzate",
+    VERIFY_EXACT_VENUE_OPEN_SESSION:"Verificare la sessione della Borsa",
+    VERIFY_EXECUTABLE_FX_TO_EUR:"Verificare cambio valuta in euro",
+    SEPARATE_FORWARD_STRATEGY_PAPER_APPROVAL:"Autorizzazione PAPER separata ancora mancante",
+  };
   return <main className="min-h-screen bg-slate-950 px-4 py-8 pb-28 text-slate-100 sm:px-8">
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="space-y-3">
@@ -38,6 +56,47 @@ export default function GlobalOpportunitiesPage(){
           <p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-2xl font-black">{value}</p>
         </div>)}
       </section>
+      <section className="space-y-4 rounded-2xl border border-sky-300/25 bg-slate-900 p-5" aria-label="Copertura mondiale del comitato FENICE">
+        <h2 className="text-xl font-black">Copertura reale del comitato: borse mondiali</h2>
+        <p className="text-sm leading-6 text-slate-300">
+          Una società straniera negoziata sul Nasdaq resta un titolo con sede di negoziazione USA:
+          non sostituisce l&apos;analisi di Milano, Francoforte o Tokyo. Qui FENICE confronta le
+          azioni censite con quelle effettivamente esaminate dal comitato.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Azioni quotate su borse non USA",committeeWorld.summary.nonUSVenueEquities],
+            ["Con analisi nel comitato",committeeWorld.summary.nonUSVenueCommitteeCovered],
+            ["Ancora fuori dal comitato",committeeWorld.summary.nonUSVenueExcludedFromCommittee],
+          ].map(([label,value])=><div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="text-xs text-slate-400">{label}</p>
+            <p className="mt-1 text-2xl font-black">{value}</p>
+          </div>)}
+        </div>
+        <p className="text-xs text-amber-200">
+          {committeeWorld.summary.foreignIssuerUSListings} società estere con negoziazione USA
+          sono escluse dal conteggio delle borse non statunitensi. Nessuna di queste analisi
+          abilita compravendite PAPER o LIVE.
+        </p>
+        <h3 className="text-sm font-bold text-sky-200">Coda di ricerca bilanciata per mercato</h3>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {committeeWorld.researchQueue.slice(0,12).map(item=><article key={item.key}
+            className="rounded-xl border border-white/10 bg-black/25 p-3 text-sm">
+            <p className="font-bold">{item.key} <span className="font-normal text-slate-400">({item.currency})</span></p>
+            <p className="text-xs text-slate-400">{item.region}</p>
+            <p className="mt-2 text-xs text-amber-200">Ricerca necessaria, non segnale COMPRA</p>
+            <p className="mt-1 text-xs text-slate-300">
+              {item.missingTasks.slice(0,3).map(task=>researchGapLabels[task]??task).join(" · ")}
+            </p>
+          </article>)}
+        </div>
+        <p className="text-xs text-slate-400">
+          Snapshot del comitato: {committeeWorld.committeeAsOf??"non disponibile"}.
+          La coda alterna le regioni; non ordina i titoli per rendimento previsto.
+          Anche un comitato completo richiederà dati di Borsa, gestione rischio e autorizzazione PAPER separati.
+        </p>
+      </section>
+
       <section className="rounded-2xl border border-amber-300/25 bg-slate-900 p-5">
         <h2 className="text-lg font-black">Qualità dei dati mondiali</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">
