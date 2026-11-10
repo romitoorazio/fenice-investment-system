@@ -41,8 +41,12 @@ on:
 permissions:
   contents: write
 
+# The shared fenice-data-writer group can silently replace a pending
+# Terminal refresh when unrelated data bots run in quick succession, even
+# with cancel-in-progress: false. Isolate the Terminal queue; its existing
+# 3-attempt fetch/reset/reapply/push loop protects concurrent main updates.
 concurrency:
-  group: fenice-data-writer
+  group: fenice-world-terminal-writer
   cancel-in-progress: false
 
 jobs:
