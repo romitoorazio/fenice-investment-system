@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { yahooRegularSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
+import { worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta } from '../lib/intelligence/world-terminal-universe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'terminal-intelligence.json');
@@ -12,7 +13,7 @@ const now = new Date();
 const CAPITAL_EURO = 10_000;
 const TRANSACTION_COST = 0.001;
 
-const universe = [
+const fixedUniverse = [
   ['SPY', 'SPY', 'S&P 500 ETF', 'ETF', 'USA'],
   ['QQQ', 'QQQ', 'Nasdaq 100 ETF', 'ETF', 'USA'],
   ['IWM', 'IWM', 'Russell 2000 ETF', 'ETF', 'USA'],
@@ -33,6 +34,10 @@ const universe = [
   ['BTC', 'BTC-USD', 'Bitcoin', 'Criptovaluta', 'Crypto globale'],
   ['ETH', 'ETH-USD', 'Ethereum', 'Criptovaluta', 'Crypto globale'],
 ];
+const worldMaster=await readJson(path.join(root,'data','instrument-master.json'),null);
+const worldSeeds=await readJson(path.join(root,'data','world-paper-v7-research-seeds.json'),null);
+const worldResearchUniverse=worldResearchTerminalDefinitions(worldMaster,worldSeeds);
+const universe=[...fixedUniverse,...worldResearchUniverse];
 
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Number(value) || 0));
 const round = (value, digits = 2) => {
@@ -273,6 +278,7 @@ function buildBacktests(closes) {
 
 async function fetchTechnical(definition) {
   const [symbol, yahooSymbol, name, assetClass, market] = definition;
+  const worldResearch=definition[5]??null;
   const encoded = encodeURIComponent(yahooSymbol);
   let data;
   let sourceHost = 'query1.finance.yahoo.com';
@@ -284,6 +290,9 @@ async function fetchTechnical(definition) {
   }
   const result = data?.chart?.result?.[0];
   if (!result) throw new Error(data?.chart?.error?.description || 'Storico vuoto');
+  if(worldResearch?.researchOnly===true &&
+     !verifiesWorldYahooResearchMeta(result.meta,definition))
+    throw new Error('WORLD_RESEARCH_SYMBOL_OR_CURRENCY_MISMATCH');
   const timestamps = result.timestamp || [];
   const quote = result.indicators?.quote?.[0] || {};
   const adjusted = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
@@ -353,7 +362,13 @@ async function fetchTechnical(definition) {
     name,
     assetClass,
     market,
-    currency: result.meta?.currency || 'USD',
+    ...(worldResearch?.researchOnly===true?{
+      exchangeMic:worldResearch.exchangeMic,
+      researchOnly:true,paperExecutionAllowed:false,
+      brokerSubmissionAllowed:false,exactMicExecutionVerified:false,
+    }:{}),
+    currency: worldResearch?.researchOnly===true
+      ?worldResearch.currency:(result.meta?.currency || 'USD'),
     observedAt,
     source: `Yahoo Finance chart (${sourceHost})`,
     timestampSemantics: 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE',
@@ -392,6 +407,13 @@ function isPreCommercial(company) {
 }
 
 function valuationFor(company, technical) {
+  if(!company&&technical.researchOnly===true)return {
+    status:'dati insufficienti',method:'Nessun bilancio primario verificato per questa quotazione',
+    score:40,confidence:Math.min(technical.scores.dataCompleteness,50),
+    rationale:['La serie storica della quotazione è soltanto ricerca.',
+      'Servono identità MIC e documenti finanziari primari prima della valutazione.'],
+    warnings:['Nessun BUY automatico da quotazioni mondiali prive di fondamentali primari.'],
+  };
   if (!company) return {
     status: 'non applicabile', method: 'Nessuna analisi fondamentale collegata', score: 50, confidence: technical.scores.dataCompleteness,
     rationale: ['ETF, materie prime e criptovalute richiedono metodi di valutazione diversi dai multipli societari.'], warnings: [],
@@ -492,6 +514,10 @@ function unifiedAsset(technical, company, snapshotQuality) {
           : 'Rapporto rischio/rendimento insufficiente secondo i dati disponibili.';
   return {
     symbol: technical.symbol,
+    ...(technical.researchOnly===true?{
+      exchangeMic:technical.exchangeMic,globalVenueResearchOnly:true,
+      paperExecutionAllowed:false,brokerSubmissionAllowed:false,
+    }:{}),
     name: company?.name || technical.name,
     assetClass: technical.assetClass,
     businessStage: preCommercial ? 'pre-commerciale' : company?.businessStage,
@@ -611,6 +637,11 @@ const report = {
     ...(assets.length ? { lastSuccessAt: now.toISOString() } : {}),
   },
   universeSize: universe.length,
+  worldResearch: {
+    requested:worldResearchUniverse.length,
+    technicalAssets:assets.filter(x=>x.globalVenueResearchOnly===true).length,
+    verifiedExecutableQuotes:0,paperEligible:0,brokerOrdersAllowed:false,
+  },
   assetCount: assets.length,
   coveragePercent,
   averageUnifiedScore,
