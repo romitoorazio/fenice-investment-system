@@ -65,6 +65,8 @@ assert.equal(plan.qualifiedResearchIntents,1);
 assert.equal(plan.intents[0].approvedForWorldPaper,false,
   "Adapter MUST NOT approve a committee signal by itself");
 assert.equal(plan.intents[0].maxNotionalEuro,40);
+assert.equal(plan.intents[0].fractionalPaperAllowed,true);
+assert.equal(plan.intents[0].brokerExecutionEligible,false);
 const dry=evaluateOneGlobalStrategyPaper({...fixture,authority:null});
 assert.equal(dry.cycle.newlySimulatedOrders,0,"No explicit strategy authorization: zero fills");
 assert.equal(dry.cycle.cashEuro,1000);
@@ -82,6 +84,22 @@ assert(run.outputPaperLedger.cashEuro<1000);
 assert(run.outputPaperLedger.cashEuro>=950);
 assert.equal(run.realBrokerOrdersAllowed,false);
 assert.equal(run.creditTechnicalV8AsStrategy,false);
+// A EUR 500 virtual share cannot be purchased whole within the EUR 50 cap.
+// The committee bridge must allow a fractional PAPER-only lot without
+// weakening risk limits or claiming it is directly broker-executable.
+const highPrice=evaluateOneGlobalStrategyPaper({
+  ...fixture,
+  committee:makeCommittee({...buyDecision,entryPlan:{
+    ...buyDecision.entryPlan,maxEntryPrice:550,
+  }}),
+  quotes:[q("provider-a",500),q("provider-b",500.01)],
+});
+assert.equal(highPrice.cycle.newlySimulatedOrders,1);
+assert(highPrice.cycle.simulatedFills[0].quantity > 0
+  && highPrice.cycle.simulatedFills[0].quantity < 1);
+assert.equal(highPrice.cycle.simulatedFills[0].fractionalPaperOnly,true);
+assert.equal(highPrice.cycle.simulatedFills[0].executionTransferableToBroker,false);
+assert(highPrice.cycle.simulatedFills[0].notionalEuro<=50);
 const duplicate=evaluateOneGlobalStrategyPaper({...fixture,previousLedger:run.outputPaperLedger});
 assert.equal(duplicate.cycle.newlySimulatedOrders,0);
 assert(duplicate.cycle.rejectedIntents[0].reasons.includes("DUPLICATE_OR_INVALID_INTENT_ID"));

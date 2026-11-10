@@ -216,4 +216,52 @@ const noData=runWorldPaperV7({nowIso:tTokyo,instruments:assets,entitlements:{},p
 assert.equal(noData.summary.independentlyVerifiedListings,0);
 assert.equal(noData.summary.filledPaperOrders,0);
 assert(noData.regions.find(x=>x.region==="asia-pacific"));
-console.log("WORLD PAPER V7 isolation, venue, multi-region ledger and fail-closed cases: PASS (18 checks)");
+
+
+// A EUR 1,000 PAPER pilot capped at 5% per position could never buy a
+// EUR 500/share instrument when all quantities were forced to whole shares.
+// Fractional simulation is explicit and remains NON-transferable to Directa.
+const highPriceFixture = {
+  nowIso: tItaly, instruments: [assetMilan], sessions: [session(assetMilan,tItaly)],
+  quotes: evidence(assetMilan,tItaly,500), fx: [], entitlements: registry,
+  paperRunAuthorized: true,
+  intents: [intent(assetMilan,tItaly,"fractional-highprice-001")],
+};
+const wholeOnly = runWorldPaperV7(highPriceFixture);
+assert.equal(wholeOnly.summary.filledPaperOrders,0,
+  "Legacy integer-only intents cannot exceed their EUR 50 risk budget");
+const fractionalBuy = runWorldPaperV7({
+  ...highPriceFixture,
+  intents: [{...highPriceFixture.intents[0], fractionalPaperAllowed:true}],
+});
+assert.equal(fractionalBuy.summary.filledPaperOrders,1,
+  "Explicit PAPER-only fractions permit a high-price virtual instrument");
+assert(fractionalBuy.fills[0].quantity > 0 && fractionalBuy.fills[0].quantity < 1);
+assert.equal(fractionalBuy.fills[0].fractionalPaperOnly,true);
+assert.equal(fractionalBuy.fills[0].brokerConnectivityAllowed,false);
+assert.equal(fractionalBuy.fills[0].executionTransferableToBroker,false);
+assert(fractionalBuy.paperLedger.positions["XMIL:ENEL"].quantity * 500 <= 50.01,
+  "Fractional shares do not lift 5% position exposure limit");
+const fractionReplay = runWorldPaperV7({
+  ...highPriceFixture, previousLedger:fractionalBuy.paperLedger, intents:[],
+});
+assert.equal(fractionReplay.paperLedger.lastHash,fractionalBuy.paperLedger.lastHash);
+const fractionalSellAt = new Date(Date.parse(tItaly)+30_000).toISOString();
+const fractionalSell = runWorldPaperV7({
+  ...highPriceFixture,nowIso:fractionalSellAt,
+  sessions:[session(assetMilan,fractionalSellAt)],
+  quotes:evidence(assetMilan,fractionalSellAt,500),
+  previousLedger:fractionalBuy.paperLedger,
+  intents:[{...intent(assetMilan,fractionalSellAt,"fractional-highprice-sell-001"),
+    side:"SELL",fractionalPaperAllowed:true}],
+});
+assert.equal(fractionalSell.summary.filledPaperOrders,1);
+assert.equal(fractionalSell.paperLedger.positions["XMIL:ENEL"].quantity,0,
+  "A virtual fractional BUY must be closable without stranded dust");
+const forgedFraction = structuredClone(fractionalBuy.paperLedger);
+forgedFraction.events[0].fractionalPaperOnly=false;
+resealOne(forgedFraction);
+assert.throws(()=>runWorldPaperV7({
+  ...highPriceFixture,previousLedger:forgedFraction,intents:[],
+}),/INVALID_WORLD_PAPER_LEDGER/,"A resealed fractional event without PAPER-only restrictions must fail");
+console.log("WORLD PAPER V7 isolation, venue, multi-region ledger and fail-closed cases: PASS (fractional-only regression included)");
