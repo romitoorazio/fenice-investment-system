@@ -10,6 +10,9 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runWorldPaperV7 } from "../lib/trading/world-paper-v7.mjs";
+import {
+  proposeOneGlobalVirtualExits,summarizeOneGlobalVirtualAccounting,
+} from "../lib/trading/one-global-strategy-exits.mjs";
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const iso=v=>typeof v==="string"&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(v)
   &&Number.isFinite(Date.parse(v))&&new Date(Date.parse(v)).toISOString()===v?Date.parse(v):null;
@@ -141,6 +144,11 @@ export function evaluateOneGlobalStrategyPaper({
   const authorized=assessOneGlobalStrategyAuthority(authority,nowIso);
   const base=runWorldPaperV7({nowIso,instruments,sessions,quotes,fx,entitlements,
     paperRunAuthorized:false,intents:[],previousLedger});
+  const exits=proposeOneGlobalVirtualExits({
+    ledger:base.paperLedger,listings:base.listings,nowIso,
+    authorityValid:authorized,policy:authority?.exitPolicy??null,
+  });
+  const exitKeys=new Set(exits.intents.map(x=>x.exchangeMic+":"+x.symbol));
   // Even a qualified committee signal is not equivalent to an executable
   // market order. The venue engine separately checks contracts, open
   // sessions, 2 independent realtime providers, currency and limits.
@@ -154,6 +162,7 @@ export function evaluateOneGlobalStrategyPaper({
     if(!market?.ready)blockers.push(...(market?.reasons||["NO_VERIFIED_MARKET_PROOF"]));
     if(market?.ready && market.verifiedPrice>intent.maximumLimitPrice)
       blockers.push("LIVE_VERIFIED_PRICE_ABOVE_STRATEGY_ENTRY_LIMIT");
+    if(exitKeys.has(key))blockers.push("NO_REENTRY_DURING_STRATEGY_EXIT");
     if(blockers.length===0 && plan.reasons.length===0){
       const {maximumLimitPrice,...core}=intent;
       approvedIntents.push({...core,approvedForWorldPaper:true});
@@ -163,9 +172,13 @@ export function evaluateOneGlobalStrategyPaper({
       fractionalPaperOnly:true,transferableToBroker:false,
       executable:false,blockers:uniq(blockers)});
   }
-  const enabled=authorized&&plan.reasons.length===0&&approvedIntents.length>0;
+  // Portfolio exits are independent of new-entry eligibility. A temporary
+  // committee ATTENDI must not obstruct a separately authorized risk exit.
+  const enabled=authorized&&(exits.intents.length>0
+    ||(plan.reasons.length===0&&approvedIntents.length>0));
   const cycle=enabled ? runWorldPaperV7({nowIso,instruments,sessions,quotes,fx,entitlements,
-    paperRunAuthorized:true,intents:approvedIntents,previousLedger}) : base;
+    paperRunAuthorized:true,intents:[...exits.intents,...approvedIntents],previousLedger}) : base;
+  const virtualAccounting=summarizeOneGlobalVirtualAccounting(cycle.paperLedger);
   const researchCandidates=plan.candidates.map(x=>({
     ...x,
     reasons:uniq([...x.reasons,
@@ -179,6 +192,9 @@ export function evaluateOneGlobalStrategyPaper({
     committeeAsOf:plan.committeeAsOf,
     buySignals:plan.buySignals,qualifiedResearchIntents:plan.qualifiedResearchIntents,
     proposedPaperIntents:proposals,
+    virtualExitPlans:exits.proposals,
+    virtualExitPolicyValid:exits.policyValid,
+    strategyVirtualAccounting:virtualAccounting,
     qualifiedMarketListings:base.summary.independentlyVerifiedListings,
     venuesChecked:base.summary.pilotListings,
     candidateDiagnostics:researchCandidates,
@@ -186,7 +202,7 @@ export function evaluateOneGlobalStrategyPaper({
     leadingResearchWatchlist:plan.leadingResearchWatchlist,
     blockers:uniq([...plan.reasons,
       ...(authorized?[]:["NO_SEPARATE_STRATEGY_PAPER_APPROVAL"]),
-      ...(plan.buySignals?[]:["NO_COMPRA_DECISIONS"]),
+      ...(plan.buySignals||exits.intents.length?[]:["NO_COMPRA_DECISIONS"]),
       ...(base.summary.independentlyVerifiedListings?[]:["NO_ENTITLED_REALTIME_MARKET_IN_CURRENT_INPUT"]),
     ]),
     cycle:{
@@ -197,6 +213,8 @@ export function evaluateOneGlobalStrategyPaper({
       events:cycle.paperLedger.events.length,
       ledgerTip:cycle.paperLedger.lastHash,
       newlySimulatedOrders:cycle.summary.filledPaperOrders,
+      newVirtualEntries:cycle.fills.filter(x=>x.side==="BUY").length,
+      newVirtualExits:cycle.fills.filter(x=>x.side==="SELL").length,
     },
     // Full ledger is intentionally NOT printed by the diagnostic. A future
     // separately approved writer must atomically persist cycle.paperLedger.
