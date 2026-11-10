@@ -9,5 +9,7 @@ writeFileSync(out,JSON.stringify(report,null,2)+"\n",{mode:0o600});
 console.log(JSON.stringify({mode:report.mode,source:report.source,found:report.found,
   missing:report.missing,
   rows:report.rows.map(x=>({key:x.key,state:x.state,
-    period:x.latestReport?.periodEnd||null})),
+    period:x.latestReport?.periodEnd||null,
+    rejected:x.rejected||{},availableReports:x.availableReports||0})),
+  errors:report.errors,
   financialFactsReconciled:false,phase9Credit:0,broker:false,live:false}));
