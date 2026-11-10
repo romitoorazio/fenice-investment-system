@@ -12,4 +12,6 @@ assert.equal(result.summary.stats[0].observed,1);assert.equal(result.summary.sta
 assert.equal(result.summary.stats[1].pending,1);assert.equal(result.summary.stats[1].observed,0);
 assert.equal(result.ordersGenerated,0);assert.equal(result.liveTradingAllowed,false);
 assert.throws(()=>buildPhase4ResearchEvaluation({journal:[{...frozen.journal[0],hash:"bad"}],histories,nowIso}),/INTEGRITY_FAILURE/);
-console.log("FENICE phase 4 end-to-end frozen research evaluation: PASS");
+const retrospective=appendPhase4Signals({candidates:[signal],capturedAt:nowIso});
+assert.throws(()=>buildPhase4ResearchEvaluation({journal:retrospective.journal,histories,nowIso,horizons:[2]}),/PHASE4_LOOKAHEAD_DETECTED/);
+console.log("FENICE phase 4 end-to-end frozen research evaluation and no-lookahead: PASS");
