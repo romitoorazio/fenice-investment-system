@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {simulatePhase5Portfolio} from "../lib/global/phase5-virtual-portfolio.mjs";
+const closes=Array.from({length:31},(_,i)=>({observedAt:new Date(Date.parse("2026-09-01T12:00:00Z")+i*86400000).toISOString(),close:10+i}));
+const base={mic:"XMIL",instrumentId:"XMIL:TEST",currency:"EUR",synthetic:false,provenanceVerified:false,closes};
+const result=simulatePhase5Portfolio({histories:[base],initialCashEuro:1000,allocationPct:10,feeEuro:1,exitSessions:2});
+assert.equal(result.realPaperCertified,false);assert.equal(result.ordersGenerated,0);
+assert.equal(result.trades.length,0);assert.equal(result.pending.length,1);
+assert.equal(simulatePhase5Portfolio({histories:[{...base,currency:"USD"}]}).trades.length,0);
+assert.throws(()=>simulatePhase5Portfolio({allocationPct:200}),/INVALID_PHASE5_POLICY/);
+assert.equal(simulatePhase5Portfolio({histories:[]}).endingCashEuro,1000);
+console.log("FENICE phase5 virtual portfolio isolation and pending outcome: PASS");
