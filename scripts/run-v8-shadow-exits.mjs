@@ -35,6 +35,7 @@ function validProof(proof, at, symbol) {
     || !fresh(proof.market?.observedAt, at)
     || proof.market?.venue !== "US_EQUITIES"
     || proof.market?.state !== "OPEN" || proof.market?.authoritative !== true
+    || !Number.isFinite(ms(proof.market?.nextClose))
     || ms(proof.market?.nextClose) - at < 300000
     || !fresh(proof.coverage?.generatedAt, at)
     || Number(proof.coverage?.paperEligibleSymbols) < 3
