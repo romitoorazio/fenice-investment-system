@@ -71,6 +71,20 @@ jobs:
           const operational = readFileSync('scripts/refresh-twelve-data-batch-evidence-enhanced.mjs', 'utf8');
           assert.match(operational, /validateFxTimestamp\s*\(/, 'Operational FX refresh must invoke future-time guard');
           assert.match(operational, /prioritizeMissingSecondSource\s*\(/, 'Operational refresh must prioritize independent quote quorum');
+          // Keep the V6 frozen blobs byte-for-byte unchanged, not just a green alias.
+          const { execFileSync } = await import('node:child_process');
+          const frozenBlobs = {
+            'package.json': 'a34ec63743d745ec1e4b6d566e3a5e2eb74ec7fd',
+            'scripts/refresh-twelve-data-batch-evidence.mjs': 'f3d6cfed10da17bddba70b5f74097b092eb9d57d',
+          };
+          for (const [file, expected] of Object.entries(frozenBlobs)) {
+            const actual = execFileSync('git', ['hash-object', file], { encoding: 'utf8' }).trim();
+            assert.equal(actual, expected, `V6 frozen blob drift: ${file}`);
+          }
+          // Assert the improved runner is actually invoked by a workflow, not merely present.
+          const smokeWorkflow = readFileSync('.github/workflows/fenice-one-global-twelve-data-enhanced-smoke.yml', 'utf8');
+          assert.match(smokeWorkflow, /node --experimental-strip-types scripts\\/refresh-twelve-data-batch-evidence-enhanced\\.mjs/, 'Enhanced runner must be invoked in isolated smoke');
+          assert.match(smokeWorkflow, /contents: read/, 'Enhanced smoke must remain read-only');
           const validationWorkflow = readFileSync('.github/workflows/paper-validation.yml', 'utf8');
           assert.match(validationWorkflow, /run:\s*node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence\.mjs/, 'Frozen V6 workflow must retain its historical command');
           // The enhanced implementation is staged, not operational: the frozen V6 workflow
