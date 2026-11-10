@@ -16,7 +16,7 @@ const DAY_MS = 86400000;
 const sha = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const r4 = n => Math.round((n + Number.EPSILON) * 10000) / 10000;
 const ms = value => {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value)) return NaN;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return NaN;
   const t = Date.parse(value);
   return Number.isFinite(t) && new Date(t).toISOString() === value ? t : NaN;
 };
