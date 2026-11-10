@@ -14,7 +14,7 @@ const candidates=[{mic:"XMIL",instrumentId:"XMIL:A",observedAt:at("2026-11-02"),
  score:5,dataVerified:false,executable:false}];
 const capturedAt="2026-11-02T15:00:00.000Z";
 const signals=appendPhase4Signals({candidates,capturedAt}).journal;
-const advance=(existing,histories,nowIso,signalJournal=signals,fxReference=null)=>advancePhase5ForwardResearch({existing,signalJournal,histories,nowIso,fxReference});
+const advance=(existing,histories,nowIso,signalJournal=signals,fxReference=null)=>advancePhase5ForwardResearch({existing,signalJournal,histories:histories.map(h=>({...h,closes:h.closes.filter(p=>Date.parse(p.observedAt)<=Date.parse(nowIso))})),nowIso,fxReference});
 // No entry on signal day or same-day/unfinished bars.
 const zero=advance(null,[h()],"2026-11-03T13:00:00Z");
 assert.equal(zero.summary.openedThisRun,0);
