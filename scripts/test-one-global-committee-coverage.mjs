@@ -38,21 +38,35 @@ assert.equal(r.rows.find(x=>x.key==="XETR:SIE").venueRegion,"europe");
 assert.equal(r.rows.find(x=>x.key==="XASX:CBA").venueRegion,"oceania");
 assert.equal(r.rows.find(x=>x.key==="XTKS:7203").venueRegion,"asia-pacific");
 assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").exactIdentityRecent,false);
-assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").committeeResearchPresent,false);
-assert(r.rows.find(x=>x.key==="XMIL:ENEL").missingTasks.includes("BUILD_EXACT_LISTING_COMMITTEE_RESEARCH"));
+const actualEnel=inputs.committee.allDecisions.filter(x=>x.symbol==="ENEL");
+const enelResearchCurrent=actualEnel.length===1
+  &&Number.isFinite(actualEnel[0].committeeScore)
+  &&Date.parse(inputs.committee.generatedAt)<=Date.parse(nowIso)
+  &&Date.parse(nowIso)-Date.parse(inputs.committee.generatedAt)<=36*3600000;
+assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").committeeResearchPresent,enelResearchCurrent);
+assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").missingTasks.includes(
+  "BUILD_EXACT_LISTING_COMMITTEE_RESEARCH"),!enelResearchCurrent);
 assert.equal(r.rows.find(x=>x.key==="XETR:SIE").eodResearchStatus,null,
   "German EOD DTE must never be presented as Siemens SIE");
 assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").eodResearchStatus,"RETURNED_SYMBOL_MISMATCH");
-assert.deepEqual(r.researchQueue.slice(0,4).map(x=>x.region),[
+// Test regional round-robin on a deliberately uncovered synthetic snapshot:
+const noResearchCommittee={...inputs.committee,allDecisions:[]};
+const uncovered=run({committee:noResearchCommittee});
+assert.deepEqual(uncovered.researchQueue.slice(0,4).map(x=>x.region),[
   "europe","asia-pacific","latin-america-caribbean","middle-east-africa",
-],"Fair regional queue is not an investment-return ranking");
-const withNewDecision=structuredClone(inputs.committee);
-withNewDecision.allDecisions.push({symbol:"ENEL",decision:"ATTENDI",committeeScore:58});
+],"Fair regional queue must remain unbiased as real committee coverage evolves");
+const withoutEnel={...inputs.committee,allDecisions:inputs.committee.allDecisions
+  .filter(x=>x.symbol!=="ENEL")};
+const missingEnel=run({committee:withoutEnel});
+assert.equal(missingEnel.rows.find(x=>x.key==="XMIL:ENEL").committeeResearchPresent,false);
+const withNewDecision={...withoutEnel,allDecisions:[...withoutEnel.allDecisions,
+  {symbol:"ENEL",decision:"ATTENDI",committeeScore:58}]};
 const updated=run({committee:withNewDecision});
 assert.equal(updated.rows.find(x=>x.key==="XMIL:ENEL").committeeResearchPresent,true);
-assert.equal(updated.summary.nonUSVenueExcludedFromCommittee,missed.length-1);
+assert.equal(updated.summary.nonUSVenueExcludedFromCommittee,
+  missingEnel.summary.nonUSVenueExcludedFromCommittee-1);
 assert.equal(updated.rows.find(x=>x.key==="XMIL:ENEL").paperEligible,false,
-  "A research decision never grants paper quote rights");
+  "Research coverage never grants execution, regardless of rating");
 const fromFuture=run({committee:{...withNewDecision,generatedAt:new Date(nowMs+1000).toISOString()}});
 assert.equal(fromFuture.rows.find(x=>x.key==="XMIL:ENEL").committeeResearchPresent,false);
 const old=run({committee:{...withNewDecision,generatedAt:new Date(nowMs-40*3600000).toISOString()}});
