@@ -59,6 +59,18 @@ jobs:
           console.log(JSON.stringify({phase5Forward:"VALIDATED_UNATTESTED_ONLY",events:ledger.entries.length,
             open:summary.openPositions.length,closed:summary.closedTrades,ordersGenerated:0}));
           NODE
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          const f=JSON.parse(readFileSync("artifacts/phase5/latest-forward-research-portfolio.json"));
+          const r=JSON.parse(readFileSync("artifacts/phase6/latest-forward-risk-report.json"));
+          if(r.realPaperCertified!==false||r.liveTradingAllowed!==false||r.ordersGenerated!==0||
+             typeof r.haltNewVirtualEntries!=="boolean"||r.ledgerHeadHash!==f.ledgerHeadHash||
+             JSON.stringify(f.riskState.policy)!==JSON.stringify(r.policy)||
+             f.riskState.riskState!==r.riskState||
+             f.riskState.maxRealizedDrawdownPct!==r.maxRealizedDrawdownPct||
+             f.riskState.haltNewVirtualEntries!==r.haltNewVirtualEntries)process.exit(1);
+          console.log(JSON.stringify({phase6:r.riskState,realizedDrawdownPct:r.maxRealizedDrawdownPct,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -71,6 +83,7 @@ jobs:
           cp artifacts/phase5/latest-historical-portfolio.json /tmp/fenice-evidence/latest-phase5-historical-portfolio.json
           cp artifacts/phase5/persistent/forward-ledger.json /tmp/fenice-evidence/phase5-forward-ledger.json
           cp artifacts/phase5/latest-forward-research-portfolio.json /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json
+          cp artifacts/phase6/latest-forward-risk-report.json /tmp/fenice-evidence/latest-phase6-forward-risk-report.json
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -91,13 +104,22 @@ jobs:
           cp /tmp/fenice-evidence/latest-phase5-historical-portfolio.json latest-phase5-historical-portfolio.json
           cp /tmp/fenice-evidence/phase5-forward-ledger.json phase5-forward-ledger.json
           cp /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json latest-phase5-forward-research-portfolio.json
+          cp /tmp/fenice-evidence/latest-phase6-forward-risk-report.json latest-phase6-forward-risk-report.json
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload phase 6 forward virtual risk audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase6-forward-virtual-risk-not-executable
+          path: artifacts/phase6/latest-forward-risk-report.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload phase 5 research-only forward portfolio and integrity ledger
         if: always()
         uses: actions/upload-artifact@v4
