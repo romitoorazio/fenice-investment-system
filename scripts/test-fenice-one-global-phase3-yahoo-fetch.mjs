@@ -4,10 +4,11 @@ import {derivePhase3ResearchFromCloses} from "../lib/global/phase3-historical-re
 const nowIso="2026-11-10T10:00:00.000Z";
 const timestamp=Array.from({length:25},(_,i)=>Math.floor(Date.parse(nowIso)/1000)-(24-i)*86400);
 let calls=0;
-const fetchImpl=async(url,opts)=>{calls++;assert(url.startsWith("https://query1.finance.yahoo.com/v8/finance/chart/"));assert(opts.signal);return {ok:true,json:async()=>({chart:{result:[{meta:{symbol:"7203.T"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i+Math.sin(i))}]}}]}})}};
+const fetchImpl=async(url,opts)=>{calls++;assert(url.startsWith("https://query1.finance.yahoo.com/v8/finance/chart/"));assert(opts.signal);return {ok:true,json:async()=>({chart:{result:[{meta:{symbol:"7203.T",currency:"JPY"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i+Math.sin(i))}]}}]}})}};
 const result=await fetchPhase3YahooChartHistory({symbols:[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"},{symbol:"bad/symbol",mic:"XMIL",instrumentId:"XMIL:BAD"}],fetchImpl,nowIso});
 assert.equal(calls,1);assert.equal(result.histories.length,1);assert.equal(result.errors[0].reason,"INVALID_SYMBOL_MAPPING");
 assert.equal(result.histories[0].provenanceVerified,false);
+assert.equal(result.histories[0].currency,"JPY");
 const derived=derivePhase3ResearchFromCloses({series:result.histories,fxToEur:1,nowIso});
 assert.equal(derived.accepted.length,0);
 assert.equal(derived.rejected[0].reason,"UNVERIFIED_HISTORY_SOURCE");
