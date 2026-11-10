@@ -47,7 +47,7 @@ jobs:
           node scripts/scan-repository-secrets.mjs
 
   paper-forward:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: ${{ false }} # Retired, evidence preserved; V8 only
     needs: [regression]
     runs-on: ubuntu-latest
     timeout-minutes: 30
