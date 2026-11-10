@@ -87,6 +87,8 @@ if(process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH){
  await writeFile(path+".tmp",JSON.stringify(forward.ledger,null,2)+"\n");
  await rename(path+".tmp",path);
 }
+await mkdir("artifacts/phase6",{recursive:true});
+await writeFile("artifacts/phase6/latest-forward-risk-report.json",JSON.stringify({...forward.summary.riskState,generatedAt:nowIso,ledgerHeadHash:forward.ledger.headHash,sourceCoverage:coveragePolicy},null,2)+"\n");
 console.log(JSON.stringify({phase5Forward:"UNATTESTED_VIRTUAL_ONLY",
  opened:forward.summary.openedThisRun,closed:forward.summary.closedThisRun,
  active:forward.summary.openPositions.length,wins:forward.summary.wins,losses:forward.summary.losses,
