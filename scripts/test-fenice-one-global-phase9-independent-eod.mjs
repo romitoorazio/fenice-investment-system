@@ -42,5 +42,5 @@ assert(denied.providerResults.every(x=>x.status==="PROVIDER_REJECTED"));
 const missing=await gatherPhase9IndependentEod({histories:[],keys,nowIso,fetchImpl:get});
 assert.equal(missing.independentlyComparedEodProviders,0);
 assert.equal(missing.publicYahooReferenceAvailable,false);
-assert.throws(()=>gatherPhase9IndependentEod({histories:[],nowIso:"bad"}),/PHASE9_SOURCE_INVALID_POLICY/);
+await assert.rejects(gatherPhase9IndependentEod({histories:[],nowIso:"bad"}),/PHASE9_SOURCE_INVALID_POLICY/);
 console.log("FENICE Phase9 independent Twelve Data / Alpha Vantage EOD source audit: PASS (not executable)");
