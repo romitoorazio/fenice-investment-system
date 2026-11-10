@@ -18,6 +18,7 @@ try {
   assert.equal(report.ready,false);
   assert.equal(report.certified,false);
   assert.equal(report.observations,1);
+  assert.deepEqual(report.byVenue,{UNMAPPED:{observations:1,providerFamilies:["twelve-data"],executableClaims:0}});
   assert.equal(report.reason,"PAPER_INDEPENDENT_EXECUTABLE_QUORUM_MISSING");
   assert.ok(report.runId);
   assert.deepEqual(report.qualifiedSymbols,[]);
