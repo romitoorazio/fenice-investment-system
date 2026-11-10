@@ -53,6 +53,25 @@ export function selectOneGlobalStrategyIntents({committee,instruments,nowIso}){
     reasons.push("COMMITTEE_BUY_COUNT_INCONSISTENT");
   if(buys.length>LIMITS.maxCandidateCount)reasons.push("EXCESS_CANDIDATES_REVIEW_REQUIRED");
   const canPlan=reasons.length===0;
+  const researchBuyGapReasonCounts={};
+  for(const decision of decisions){
+    const gaps=Array.isArray(decision?.buyGapEvidence?.gaps)?decision.buyGapEvidence.gaps:[];
+    for(const gap of gaps){
+      if(typeof gap?.code==="string"&&gap.code.length<=90){
+        researchBuyGapReasonCounts[gap.code]=(researchBuyGapReasonCounts[gap.code]||0)+1;
+      }
+    }
+  }
+  const leadingResearchWatchlist=[...decisions]
+    .filter(d=>plainSymbol(d?.symbol)&&d?.decision!=="EVITA")
+    .sort((a,b)=>(a?.buyGapEvidence?.gaps?.length??99)-(b?.buyGapEvidence?.gaps?.length??99)
+      ||(b.committeeScore||0)-(a.committeeScore||0))
+    .slice(0,8).map(d=>({
+      symbol:d.symbol,decision:d.decision,committeeScore:d.committeeScore??null,
+      researchOnly:true,
+      gaps:(d?.buyGapEvidence?.gaps||[]).slice(0,8).map(x=>x.code),
+      paperExecutionAuthorized:false,investmentRecommendation:false,
+    }));
   const intents=[], candidates=[], seen=new Set();
   for(const d of decisions){
     if(!plainSymbol(d?.symbol))continue;
@@ -106,6 +125,7 @@ export function selectOneGlobalStrategyIntents({committee,instruments,nowIso}){
     committeeAsOf:committee?.generatedAt||null,decisionSnapshotSha256:snapHash(committee||{}),
     decisionCount:decisions.length,buySignals:buys.length,qualifiedResearchIntents:intents.length,
     reasons:uniq(reasons),candidates,intents,
+    researchBuyGapReasonCounts,leadingResearchWatchlist,
     scope:"RESEARCH_SIGNAL_TO_FORWARD_PAPER_ADAPTER_ONLY",
     liveTradingAllowed:false,brokerConnectivityAllowed:false,
   };
@@ -158,6 +178,8 @@ export function evaluateOneGlobalStrategyPaper({
     qualifiedMarketListings:base.summary.independentlyVerifiedListings,
     venuesChecked:base.summary.pilotListings,
     candidateDiagnostics:researchCandidates,
+    researchBuyGapReasonCounts:plan.researchBuyGapReasonCounts,
+    leadingResearchWatchlist:plan.leadingResearchWatchlist,
     blockers:uniq([...plan.reasons,
       ...(authorized?[]:["NO_SEPARATE_STRATEGY_PAPER_APPROVAL"]),
       ...(plan.buySignals?[]:["NO_COMPRA_DECISIONS"]),
