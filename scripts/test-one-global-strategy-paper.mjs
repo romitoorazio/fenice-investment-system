@@ -50,7 +50,7 @@ const session=[{exchangeMic:MIC,source:"test-exchange-clock",
   state:"OPEN",authoritative:true,observedAt:"2026-11-10T13:59:55.000Z"}];
 const fixture={
   committee:makeCommittee(),instruments:[listing],nowIso:now,authority:ownerApproval,
-  sessions,quotes:[q("provider-a",10),q("provider-b",10.001)],
+  sessions:session,quotes:[q("provider-a",10),q("provider-b",10.001)],
   entitlements:entitlement(),fx:[],
 };
 assert.equal(assessOneGlobalStrategyAuthority(null,now),false);
