@@ -498,7 +498,11 @@ function unifiedAsset(technical, company, snapshotQuality) {
   unified = Math.round(clamp(unified));
   const confidence = Math.round(clamp(completeness * 0.75 + snapshotQuality * 0.25));
   let decision;
-  if (preCommercial) decision = 'SPECULATIVA';
+  // A complete price history is not equivalent to a primary issuer filing.
+  // Regional research candidates stay non-actionable until issuer fundamentals
+  // are independently collected and assessed by the Committee.
+  if(technical.researchOnly===true&&!company)decision='ATTENDI';
+  else if (preCommercial) decision = 'SPECULATIVA';
   else if (unified >= (technical.assetClass === 'ETF' ? 72 : 76) && confidence >= 70 && technical.scores.risk <= 60 && ['FORTE', 'POSITIVO'].includes(technical.signal) && !(valuation.status === 'disponibile' && Number(valuation.upsideBasePercent) < -10)) decision = 'ACCUMULA';
   else if (unified >= 63 && technical.scores.risk <= 72) decision = 'MANTIENI';
   else if (unified >= 48) decision = 'ATTENDI';
@@ -576,7 +580,8 @@ function allocateAssets(assets, buckets) {
     reserve += Math.max(0, remaining);
   };
 
-  const eligible = assets.filter((asset) => asset.decision !== 'EVITA');
+  const eligible = assets.filter((asset) =>
+    asset.decision !== 'EVITA' && asset.globalVenueResearchOnly !== true);
   const core = eligible.filter((asset) => ['ETF', 'Obbligazioni', 'Materie prime'].includes(asset.assetClass)).slice(0, 5);
   const growth = eligible.filter((asset) => !['ETF', 'Obbligazioni', 'Materie prime', 'Criptovaluta'].includes(asset.assetClass) && asset.businessStage !== 'pre-commerciale').slice(0, 6);
   const speculative = eligible.filter((asset) => asset.businessStage === 'pre-commerciale' || asset.assetClass === 'Criptovaluta').slice(0, 2);
