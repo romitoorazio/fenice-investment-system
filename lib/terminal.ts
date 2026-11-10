@@ -85,6 +85,9 @@ export type UnifiedAsset = {
   symbol: string;
   name: string;
   assetClass: string;
+  // Exact-home-exchange world OHLC: research data, NOT an approved
+  // capital allocation, quote entitlement or broker-executable listing.
+  globalVenueResearchOnly?: boolean;
   businessStage?: "maturo" | "crescita" | "pre-commerciale";
   price?: number;
   currency?: string;
