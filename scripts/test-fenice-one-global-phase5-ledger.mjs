@@ -20,4 +20,10 @@ assert.equal(matched.trades[0].exitPrice,11);assert.equal(matched.trades[0].netP
 assert.equal(matched.netPnlEuro,3.25);assert.equal(matched.endingCashEuro,1003.25);
 assert.equal(matched.reconciliation.repricedDuplicateCount,1);
 assert.throws(()=>reconcilePhase5PortfolioToLedger({portfolio:{...current,trades:[{...revised,instrumentId:"XMIL:UNKNOWN"}]},ledger:replay}),/TRADE_NOT_FOUND/);
+const provisional={...trade,entryAt:"2026-11-04T08:00:00Z",exitAt:"2026-11-10T08:00:00Z"};
+const legacy=appendPhase5VirtualLedger({trades:[provisional],recordedAt:"2026-11-10T13:00:00Z"});
+assert.equal(legacy.integrityAudit.potentiallyUnsettled.length,1);
+assert.equal(legacy.integrityAudit.authoritativeProfitClaim,false);
+const reread=appendPhase5VirtualLedger({journal:legacy.journal,trades:[],recordedAt:"2026-11-11T13:00:00Z"});
+assert.equal(reread.integrityAudit.potentiallyUnsettled.length,1);
 console.log("FENICE phase5 virtual ledger integrity, dedupe and no lookahead: PASS");
