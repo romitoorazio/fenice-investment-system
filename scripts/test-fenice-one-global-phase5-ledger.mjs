@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {appendPhase5VirtualLedger} from "../lib/global/phase5-virtual-ledger.mjs";
+const trade={instrumentId:"XMIL:TEST",mic:"XMIL",entryAt:"2026-11-01T00:00:00Z",exitAt:"2026-11-05T00:00:00Z",netPnlEuro:3.25,classification:"HISTORICAL_SIMULATION_NOT_LIVE_FILL"};
+const a=appendPhase5VirtualLedger({trades:[trade],recordedAt:"2026-11-10T00:00:00Z"});
+assert.equal(a.appended,1);assert.equal(a.ordersGenerated,0);
+const b=appendPhase5VirtualLedger({journal:a.journal,trades:[trade],recordedAt:"2026-11-10T00:00:00Z"});
+assert.equal(b.appended,0);assert.equal(b.duplicates,1);
+const tampered=structuredClone(a.journal);tampered[0].trade.netPnlEuro=999;
+assert.throws(()=>appendPhase5VirtualLedger({journal:tampered}),/INTEGRITY/);
+assert.throws(()=>appendPhase5VirtualLedger({trades:[{...trade,exitAt:"2026-12-01T00:00:00Z"}],recordedAt:"2026-11-10T00:00:00Z"}),/INVALID_PHASE5_VIRTUAL_TRADE/);
+console.log("FENICE phase5 virtual ledger integrity, dedupe and no lookahead: PASS");
