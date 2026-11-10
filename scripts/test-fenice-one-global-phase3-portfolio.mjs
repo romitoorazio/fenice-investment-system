@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import {buildPhase3ResearchPortfolio} from "../lib/global/phase3-research-portfolio.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const mk=(mic,instrumentId,momentum5dPct)=>({mic,instrumentId,momentum5dPct,momentum20dPct:3,volatility20dPct:2,spreadPct:.1,lastPrice:20,fxToEur:1,observedAt:nowIso,synthetic:true,stopDistancePct:10});
+const candidates=[mk("XTKS","XTKS:7203",8),mk("XMIL","XMIL:TEST",7),mk("XETR","XETR:SAP",6),mk("XNYS","XNYS:TEST",5)];
+const r=buildPhase3ResearchPortfolio({candidates,capitalEur:1000,estimatedRoundTripFeesEur:2,maxPortfolioAllocationPct:20,maxPortfolioRiskPct:2,nowIso});
+assert.equal(r.selected.length,2);
+assert.equal(r.selected[0].mic,"XTKS");
+assert.equal(r.selected[0].referenceQuantity,4);
+assert.equal(r.selected[1].referenceQuantity,4);
+assert.equal(r.allocatedNotionalEur,160);
+assert.equal(r.plannedPortfolioLossAtStopEur,20);
+assert.equal(r.skipped.length,2);
+assert.equal(r.liveTradingAllowed,false);assert.equal(r.paperFillAuthorized,false);assert.equal(r.stopGuaranteed,false);
+const small=buildPhase3ResearchPortfolio({candidates,capitalEur:100,estimatedRoundTripFeesEur:2,maxPortfolioRiskPct:1,nowIso});
+assert.equal(small.selected.length,0);
+assert.throws(()=>buildPhase3ResearchPortfolio({candidates,capitalEur:1000,maxPortfolioRiskPct:21,nowIso}),/INVALID_PORTFOLIO_RESEARCH_POLICY/);
+console.log("FENICE phase 3 portfolio risk cap: PASS");
