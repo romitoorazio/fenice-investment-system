@@ -1,0 +1,25 @@
+name: FENICE Phase 3 World Research (unattested, read-only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7 * * 1-5"
+permissions:
+  contents: read
+jobs:
+  public-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch public historical observations and publish research-only report
+        run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Upload non-certified research report
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-world-research-unattested
+          path: artifacts/phase3/world-research-watchlist.json
+          if-no-files-found: error
+          retention-days: 14
