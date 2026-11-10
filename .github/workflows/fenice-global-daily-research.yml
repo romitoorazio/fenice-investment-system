@@ -87,6 +87,34 @@ jobs:
              !m.includes("Ordini Directa: **0**"))process.exit(1);
           console.log(JSON.stringify({phase7:"VALIDATED_RESEARCH_ONLY",worldSymbols:b.universe.received,shortlist:b.opportunities.length,ordersGenerated:0}));
           NODE
+      - name: Validate Phase 8 evidence dossier without ever certifying missing data
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          import {buildPhase8EvidenceAudit} from "./lib/global/phase8-evidence-audit.mjs";
+          const load=p=>JSON.parse(readFileSync(p,"utf8"));
+          const signalJournal=load("artifacts/phase4/persistent/journal.json");
+          const forwardEvaluation=load("artifacts/phase4/forward-evaluation.json");
+          const historicalLedger=load("artifacts/phase5/persistent/ledger.json");
+          const historicalPortfolio=load("artifacts/phase5/latest-historical-portfolio.json");
+          const forwardLedger=load("artifacts/phase5/persistent/forward-ledger.json");
+          const forwardPortfolio=load("artifacts/phase5/latest-forward-research-portfolio.json");
+          const riskReport=load("artifacts/phase6/latest-forward-risk-report.json");
+          const worldBrief=load("artifacts/phase7/latest-world-brief.json");
+          const audit=load("artifacts/phase8/latest-audit.json");
+          const rechecked=buildPhase8EvidenceAudit({signalJournal,forwardEvaluation,historicalLedger,
+            historicalPortfolio,forwardLedger,forwardPortfolio,riskReport,worldBrief,nowIso:audit.generatedAt});
+          if(audit.certification!=="NOT_CERTIFIED"||audit.eligibleForRealOrders!==false||
+             audit.ordersGenerated!==0||audit.realPaperCertified!==false||audit.engineeringAudit!=="PASS"||
+             audit.lineage.signalHash!==rechecked.lineage.signalHash||
+             audit.lineage.historicalHash!==rechecked.lineage.historicalHash||
+             audit.lineage.forwardHash!==rechecked.lineage.forwardHash||
+             JSON.stringify(audit.checks)!==JSON.stringify(rechecked.checks)||
+             JSON.stringify(audit.blockers)!==JSON.stringify(rechecked.blockers))process.exit(1);
+          console.log(JSON.stringify({phase8:"AUDIT_PUBLISHED_RESEARCH_ONLY",status:audit.certification,
+             blockers:audit.blockers,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -102,6 +130,8 @@ jobs:
           cp artifacts/phase6/latest-forward-risk-report.json /tmp/fenice-evidence/latest-phase6-forward-risk-report.json
           cp artifacts/phase7/latest-world-brief.json /tmp/fenice-evidence/latest-phase7-world-brief.json
           cp artifacts/phase7/latest-world-brief.md /tmp/fenice-evidence/phase7-daily-report.md
+          cp artifacts/phase8/latest-audit.json /tmp/fenice-evidence/latest-phase8-evidence-audit.json
+          cp artifacts/phase8/latest-audit.md /tmp/fenice-evidence/phase8-audit-report.md
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -125,13 +155,25 @@ jobs:
           cp /tmp/fenice-evidence/latest-phase6-forward-risk-report.json latest-phase6-forward-risk-report.json
           cp /tmp/fenice-evidence/latest-phase7-world-brief.json latest-phase7-world-brief.json
           cp /tmp/fenice-evidence/phase7-daily-report.md phase7-daily-report.md
+          cp /tmp/fenice-evidence/latest-phase8-evidence-audit.json latest-phase8-evidence-audit.json
+          cp /tmp/fenice-evidence/phase8-audit-report.md phase8-audit-report.md
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md latest-phase8-evidence-audit.json phase8-audit-report.md
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload Phase 8 evidence and audit certification blockers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase8-audit-evidence-no-paper-certification
+          path: |
+            artifacts/phase8/latest-audit.json
+            artifacts/phase8/latest-audit.md
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload phase 7 daily world research report
         if: always()
         uses: actions/upload-artifact@v4
