@@ -38,6 +38,10 @@ jobs:
           FENICE_PHASE4_JOURNAL_PATH: artifacts/phase4/persistent/journal.json
           FENICE_PHASE5_LEDGER_PATH: artifacts/phase5/persistent/ledger.json
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Validate phase 5 outputs before publication
+        shell: bash
+        run: |
+          node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync("artifacts/phase5/latest-historical-portfolio.json")); const l=JSON.parse(fs.readFileSync("artifacts/phase5/persistent/ledger.json")); if(p.liveTradingAllowed!==false||p.ordersGenerated!==0||!Array.isArray(p.trades)||l.liveTradingAllowed!==false||l.ordersGenerated!==0||!Array.isArray(l.journal)) process.exit(1); console.log(JSON.stringify({phase5:"VALIDATED_HISTORICAL_ONLY",trades:p.trades.length,ledgerEntries:l.journal.length,netPnlEuro:p.netPnlEuro}));'
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
