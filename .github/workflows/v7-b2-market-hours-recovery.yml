@@ -1,54 +1,35 @@
-name: Fenice V7 B2 Market-Hours Recovery
+name: Fenice Archived B2 Evidence Audit — Manual Only
 
-# Secondary trigger only. The immutable V7 B2 PAPER engine and its safety gates
-# remain the source of truth; no source/quote/FX/ledger files are changed here.
+# The redundant B2 recovery dispatcher was retired in favor of ONE GLOBAL V8.
+# Preserve the B2 baseline/ledger and leave the original signed core untouched.
+# This workflow is MANUAL and READ-ONLY: no dispatches, market API or broker.
 on:
-  workflow_run:
-    workflows:
-      - Fenice PAPER Market-Open Readiness
-    types: [completed]
-  schedule:
-    # Backup to the pinned B2 schedule (15:45 and 18:10 UTC).
-    # Staggered times avoid the top-of-hour GitHub Actions congestion.
-    - cron: '07 16 * * 1-5'
-    - cron: '07 19 * * 1-5'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  dispatch-paper-only:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+  audit-legacy-only:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
-    permissions:
-      contents: read
-      actions: write
+    timeout-minutes: 6
     steps:
-      - name: Require regular US equity session window
-        id: session_window
-        shell: bash
-        run: |
-          set -euo pipefail
-          weekday="$(TZ=America/New_York date +%u)"
-          clock="$(TZ=America/New_York date +%H%M)"
-          if (( weekday >= 1 && weekday <= 5 && 10#$clock >= 945 && 10#$clock <= 1515 )); then
-            echo 'allowed=true' >> "$GITHUB_OUTPUT"
-            echo "B2 recovery dispatch permitted at US/Eastern $clock; final session, data and risk admission remain in pinned B2."
-          else
-            echo 'allowed=false' >> "$GITHUB_OUTPUT"
-            echo "Outside regular US/Eastern PAPER window: weekday=$weekday time=$clock. No dispatch."
-          fi
-      - name: Dispatch the approved B2 PAPER-only workflow
-        if: steps.session_window.outputs.allowed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh workflow run v7-b2-forward-paper.yml --ref main --repo "$GITHUB_REPOSITORY"
-          echo 'Dispatched approved PAPER-only workflow. This is not evidence of a fill.'
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Historical B2 safety and replay-only regression
+        run: node scripts/test-v7-b2-baseline.mjs
+      - name: Report B2 frozen fingerprint versus current core without rewriting consent
+        run: node scripts/audit-paper-baselines.mjs --output "$RUNNER_TEMP/fenice-archived-b2-baseline.json"
+      - name: Publish forensic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: archived-b2-readonly-evidence
+          path: ${{ runner.temp }}/fenice-archived-b2-baseline.json
+          retention-days: 35
+      - name: Ensure no archived campaign mutation
+        run: test -z "$(git status --porcelain)"
