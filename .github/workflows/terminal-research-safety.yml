@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      - name: Verify free issuer LEI source discovery cannot fake fundamental ratios
+        run: node scripts/test-one-global-esef-discovery.mjs
       - name: Verify forward worldwide research outcomes and fail-closed hash chain
         run: node scripts/test-one-global-forward-research.mjs
       - name: Verify dedicated Terminal queue and safe concurrent push retry
