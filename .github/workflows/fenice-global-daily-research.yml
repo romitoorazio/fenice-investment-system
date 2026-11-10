@@ -18,10 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/one-global-integration-safety-reconcile-20261107
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Collect independent EOD evidence in trusted main checkout only
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        run: node scripts/collect-fenice-independent-eod.mjs
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/one-global-integration-safety-reconcile-20261107
+      - name: Import sanitized source audit without credentials
+        run: |
+          mkdir -p artifacts/phase9
+          cp /tmp/fenice-phase9-independent-eod.json artifacts/phase9/latest-independent-eod.json
       - name: Prepare persistent research journal from dedicated evidence branch
         shell: bash
         run: |
@@ -147,6 +159,28 @@ jobs:
             open:phase9.open.count,closed:phase9.realized.closed,
             netEuro:phase9.realized.netEuro,certifiedPaper:false,ordersGenerated:0}));
           NODE
+      - name: Verify independent EOD audit never certifies executable quotes
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          const e=JSON.parse(readFileSync("artifacts/phase9/latest-independent-eod.json","utf8"));
+          const p=JSON.parse(readFileSync("artifacts/phase9/latest-operational-status.json","utf8"));
+          if(e.mode!=="PHASE9_INDEPENDENT_EOD_RESEARCH_ONLY"||
+             e.subject!=="XNAS:MSFT"||e.ordersGenerated!==0||
+             e.confirmedExecutablePriceProviders!==0||e.liveTradingAllowed!==false||
+             e.certifiedPaper!==false||e.brokerContacted!==false||
+             e.independentlyComparedEodProviders<0||e.independentlyComparedEodProviders>2||
+             !Array.isArray(e.providerResults)||e.providerResults.length!==2||
+             e.providerResults.some(x=>x.countsTowardRealPaper!==false||
+               x.executableQuoteVerified!==false||x.sourceProvenanceAttested!==false)||
+             p.realPaperCertified!==false||p.ordersGenerated!==0||
+             p.sourceStatus.independentExecutableFamilies!==0||
+             JSON.stringify(e).includes("apikey="))process.exit(1);
+          console.log(JSON.stringify({phase9Sources:"RESEARCH_EOD_ONLY",
+            independentResearchProviders:e.independentlyComparedEodProviders,
+            independentlyVerifiedExecutionFeeds:0,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -166,6 +200,7 @@ jobs:
           cp artifacts/phase8/latest-audit.md /tmp/fenice-evidence/phase8-audit-report.md
           cp artifacts/phase9/latest-operational-status.json /tmp/fenice-evidence/latest-phase9-operational-status.json
           cp artifacts/phase9/latest-operational-status.md /tmp/fenice-evidence/phase9-forward-report.md
+          cp artifacts/phase9/latest-independent-eod.json /tmp/fenice-evidence/latest-phase9-independent-eod.json
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -193,9 +228,10 @@ jobs:
           cp /tmp/fenice-evidence/phase8-audit-report.md phase8-audit-report.md
           cp /tmp/fenice-evidence/latest-phase9-operational-status.json latest-phase9-operational-status.json
           cp /tmp/fenice-evidence/phase9-forward-report.md phase9-forward-report.md
+          cp /tmp/fenice-evidence/latest-phase9-independent-eod.json latest-phase9-independent-eod.json
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md latest-phase8-evidence-audit.json phase8-audit-report.md latest-phase9-operational-status.json phase9-forward-report.md
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md latest-phase8-evidence-audit.json phase8-audit-report.md latest-phase9-operational-status.json phase9-forward-report.md latest-phase9-independent-eod.json
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
@@ -208,6 +244,7 @@ jobs:
           path: |
             artifacts/phase9/latest-operational-status.json
             artifacts/phase9/latest-operational-status.md
+            artifacts/phase9/latest-independent-eod.json
           if-no-files-found: error
           retention-days: 30
       - name: Upload Phase 8 evidence and audit certification blockers
