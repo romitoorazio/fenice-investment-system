@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {
- WORLD_YAHOO_RESEARCH_SYMBOLS,worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta,
+ WORLD_YAHOO_RESEARCH_SYMBOLS,worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta,normalizeWorldYahooResearchPrice,
 } from "../lib/intelligence/world-terminal-universe.mjs";
 const load=name=>JSON.parse(readFileSync(new URL("../data/"+name,import.meta.url),"utf8"));
 const master=load("instrument-master.json");
@@ -15,12 +15,28 @@ assert.equal(list.find(x=>x[0]==="SIE")[1],"SIE.DE");
 assert.equal(list.find(x=>x[0]==="7203")[1],"7203.T");
 assert.equal(list.find(x=>x[0]==="0700")[1],"0700.HK");
 assert.equal(list.find(x=>x[0]==="CBA")[1],"CBA.AX");
+const naspers=list.find(x=>x[0]==="NPN");
+assert.equal(naspers[1],"NPN.JO");
+assert.equal(naspers[5].currency,"ZAR");
+assert.equal(naspers[5].providerCurrency,"ZAc");
+assert.equal(naspers[5].priceScaleToListing,0.01);
+assert.equal(normalizeWorldYahooResearchPrice(78178,naspers),781.78);
+assert.equal(normalizeWorldYahooResearchPrice(76900,naspers),769);
+assert.equal(normalizeWorldYahooResearchPrice(79900,naspers),799);
+assert.equal(normalizeWorldYahooResearchPrice(100,list.find(x=>x[0]==="ENEL")),100);
+assert.equal(verifiesWorldYahooResearchMeta({
+  symbol:"NPN.JO",currency:"ZAR",regularMarketPrice:78178},naspers),false,
+  "Unexpected rand-denominated Yahoo data must not get divided by 100");
+assert.equal(verifiesWorldYahooResearchMeta({
+  symbol:"NPN.JO",currency:"ZAc",regularMarketPrice:78178},naspers),true);
+assert(Number.isNaN(normalizeWorldYahooResearchPrice(-1,naspers)));
+assert(Number.isNaN(normalizeWorldYahooResearchPrice(undefined,naspers)));
 assert(list.every(x=>x[5].paperExecutionAllowed===false
   &&x[5].brokerSubmissionAllowed===false&&x[5].researchOnly===true
   &&x[5].exactMicExecutionVerified===false));
 for(const item of list){
   const def=item[5];
-  const meta={symbol:def.providerTicker,currency:def.currency,regularMarketPrice:100};
+  const meta={symbol:def.providerTicker,currency:def.providerCurrency,regularMarketPrice:100};
   assert.equal(verifiesWorldYahooResearchMeta(meta,item),true);
   assert.equal(verifiesWorldYahooResearchMeta({...meta,symbol:"WRONG.TICKER"},item),false);
   assert.equal(verifiesWorldYahooResearchMeta({...meta,currency:"USD"===def.currency?"EUR":"USD"},item),false);
