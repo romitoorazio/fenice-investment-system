@@ -5,6 +5,10 @@ const result=buildPhase4HistoricalWalkForward({histories:[{synthetic:false,prove
 assert.equal(result.mode,"HISTORICAL_WALK_FORWARD_BACKTEST_NOT_LIVE");
 assert.ok(result.results[0].positive>0);
 assert.ok(result.results[0].negative>0);
+assert.equal(result.byVenue.length,1);
+assert.equal(result.byVenue[0].mic,"UNKNOWN");
+assert.equal(result.byVenue[0].results[0].positive,result.results[0].positive);
+assert.equal(result.byVenue[0].results[0].negative,result.results[0].negative);
 assert.equal(result.ordersGenerated,0);assert.equal(result.realPaperCertified,false);
 assert.equal(buildPhase4HistoricalWalkForward({histories:[]}).results[0].meanReturnPct,null);
 console.log("FENICE phase 4 historical walk-forward positive and negative outcome test: PASS");
