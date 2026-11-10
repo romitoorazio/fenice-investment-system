@@ -10,6 +10,7 @@ console.log(JSON.stringify({mode:report.mode,source:report.source,found:report.f
   missing:report.missing,
   rows:report.rows.map(x=>({key:x.key,state:x.state,
     period:x.latestReport?.periodEnd||null,
-    rejected:x.rejected||{},availableReports:x.availableReports||0})),
+    rejected:x.rejected||{},invalidPeriodSamples:x.invalidPeriodSamples||[],
+    availableReports:x.availableReports||0})),
   errors:report.errors,
   financialFactsReconciled:false,phase9Credit:0,broker:false,live:false}));
