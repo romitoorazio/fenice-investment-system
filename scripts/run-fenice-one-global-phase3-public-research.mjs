@@ -24,6 +24,7 @@ const coverage={requestedVenues:[...new Set(symbols.map(x=>x.mic))],receivedVenu
 const acquisitionStatus=fetched.histories.length===0?"NO_DATA":fetched.histories.length<symbols.length?"PARTIAL":"COMPLETE";
 if(process.env.FENICE_PHASE4_JOURNAL_PATH&&acquisitionStatus!=="COMPLETE")throw Error(`PHASE4_GLOBAL_COLLECTION_INCOMPLETE:${fetched.histories.length}/${symbols.length}`);
 const report={schemaVersion:1,generatedAt:nowIso,mode:"PUBLIC_UNATTESTED_WORLD_RESEARCH",acquisitionStatus,coverage,source:"Yahoo Finance public chart HTTP; no independent attestation",requestedSymbols:symbols.length,receivedHistories:fetched.histories.length,fetchErrors:fetched.errors,watchlist,realPaperCertified:false,liveTradingAllowed:false,ordersGenerated:0};
+if(process.env.FENICE_PHASE4_JOURNAL_PATH&&watchlist.candidates.length!==symbols.length)throw Error(`PHASE4_GLOBAL_SIGNALS_INCOMPLETE:${watchlist.candidates.length}/${symbols.length}`);
 const journal=appendPhase4Signals({candidates:watchlist.candidates,capturedAt:nowIso});
 await mkdir("artifacts/phase4",{recursive:true});
 const historical=buildPhase4HistoricalWalkForward({histories:fetched.histories});
