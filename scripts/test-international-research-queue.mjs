@@ -19,7 +19,9 @@ assert.equal(report.summary.foreignListedOrAdr,2);
 assert.equal(report.rows.find(r=>r.symbol==="PETR4").issuerRegion,"latin-america-caribbean");
 assert.equal(report.rows.find(r=>r.symbol==="PETR4").listingType,"LOCAL_LISTING");
 assert.equal(report.summary.withIssuerDocuments,2);
-assert.equal(report.summary.withCommitteeResearch,2);
+assert.equal(report.summary.withCommitteeResearch,
+  report.rows.filter(r=>r.committeeResearchAvailable).length,
+  "Research coverage must advance when new venues join the actual committee");
 assert.equal(report.summary.executionGradeInternationalQuotes,0);
 // The catalogue is now refreshed automatically: old fixed "stale" assertions
 // would fail precisely when source collection is working. Test temporal safety.
@@ -37,7 +39,17 @@ assert.equal(build(master,fundamentals,terminal,committee,
 assert.equal(report.rows.find(r=>r.symbol==="ASML").tradingRegion,"north-america");
 assert.equal(report.rows.find(r=>r.symbol==="ASML").issuerRegion,"europe");
 assert.equal(report.rows.find(r=>r.symbol==="TSM").listingType,"FOREIGN_LISTING_OR_ADR");
-assert.equal(report.rows.find(r=>r.symbol==="SIE").committeeResearchAvailable,false);
+const withoutSiemens={...committee,allDecisions:(committee.allDecisions||[])
+  .filter(r=>r.symbol!=="SIE")};
+assert.equal(build(master,fundamentals,terminal,withoutSiemens,reference,now)
+  .rows.find(r=>r.symbol==="SIE").committeeResearchAvailable,false);
+const withSiemens={...withoutSiemens,allDecisions:[
+  ...withoutSiemens.allDecisions,
+  {symbol:"SIE",decision:"ATTENDI",committeeScore:45},
+]};
+assert.equal(build(master,fundamentals,terminal,withSiemens,reference,now)
+  .rows.find(r=>r.symbol==="SIE").committeeResearchAvailable,true,
+  "New exact-venue committee entries must become visible after verified research");
 assert.equal(report.rows.find(r=>r.symbol==="7203").issuerDocumentObserved,false);
 assert.equal(report.rows.find(r=>r.symbol==="SIE").identitySeedVerified,false);
 assert.equal(report.rows.find(r=>r.symbol==="SIE").tickerMatchedToProviderCatalogue,false);
