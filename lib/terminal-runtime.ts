@@ -32,6 +32,7 @@ function currentFreshness(asset: UnifiedAsset) {
 }
 
 function decisionFor(asset: UnifiedAsset): TerminalDecision {
+  if (asset.globalVenueResearchOnly === true) return "ATTENDI";
   const freshness = asset.technical.freshness?.status;
   const overvalued = asset.valuation.status === "disponibile" && Number(asset.valuation.upsideBasePercent) <= -20;
   if (freshness === "obsoleto" || freshness === "non disponibile") return asset.unifiedScore >= 48 ? "ATTENDI" : "EVITA";
@@ -45,6 +46,8 @@ function decisionFor(asset: UnifiedAsset): TerminalDecision {
 }
 
 function reasonFor(asset: UnifiedAsset) {
+  if (asset.globalVenueResearchOnly === true)
+    return "Solo ricerca su quotazione estera: fondamentali primari e dati eseguibili non verificati; nessuna allocazione.";
   if (asset.decision === "ACCUMULA") return "Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.";
   if (asset.decision === "MANTIENI") return "La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.";
   if (asset.decision === "SPECULATIVA") return "Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima e subordinata a catalizzatori verificati.";
@@ -111,7 +114,8 @@ function allocate(report: TerminalReport) {
     asset.targetWeightPercent = 0;
     asset.targetAmountEuro = 0;
   }
-  const eligible = report.assets.filter((asset) => ["ACCUMULA", "MANTIENI", "SPECULATIVA"].includes(asset.decision));
+  const eligible = report.assets.filter((asset) =>
+    asset.globalVenueResearchOnly !== true && ["ACCUMULA", "MANTIENI", "SPECULATIVA"].includes(asset.decision));
   distribute(eligible.filter((asset) => category(asset) === "core"), policy.core, 20);
   distribute(eligible.filter((asset) => category(asset) === "growth"), policy.growth, 7);
   distribute(eligible.filter((asset) => category(asset) === "speculative"), policy.speculative, 2.5);
@@ -152,6 +156,9 @@ function guardrails(report: TerminalReport) {
   if (maxSpeculative > 2.501) violations.push("Limite singola posizione speculativa superato.");
   if (crypto > 5.001) violations.push("Limite crypto complessivo superato.");
   if (speculativeTotal > 5.001) violations.push("Limite area speculativa superato.");
+  if (report.assets.some(asset => asset.globalVenueResearchOnly === true
+    && (Number(asset.targetWeightPercent) !== 0 || Number(asset.targetAmountEuro) !== 0)))
+    violations.push("Allocazione vietata su quotazione estera di sola ricerca.");
   if (!report.allocationCheck?.valid) violations.push("Allocazione totale diversa dal 100%.");
   report.guardrails = {
     maxCoreWeightPercent: round(maxCore),
@@ -202,7 +209,9 @@ export function buildRuntimeTerminal(input: TerminalReport, alertsCount = 0): Te
   report.averageUnifiedScore = report.assets.length ? Math.round(report.assets.reduce((sum, asset) => sum + asset.unifiedScore, 0) / report.assets.length) : 0;
   report.dataQuality = Math.round(clamp(report.dataQuality - delayed * 1.5 - obsolete * 4));
   report.warnings = [...new Set([
-    ...(report.warnings || []).filter((warning) => !/Limite area speculativa superato|Limite crypto complessivo superato/.test(warning)),
+    ...(report.warnings || []).filter((warning) =>
+      !/^(?:Area speculativa al |Crypto complessive al ).*sopra il limite/i.test(warning)
+      && !/^Limite (?:area speculativa|crypto complessivo) superato/i.test(warning)),
     ...(report.guardrails?.violations || []),
     ...(delayed ? [`${delayed} strumenti hanno dati ritardati.`] : []),
     ...(obsolete ? [`${obsolete} strumenti hanno dati obsoleti o non disponibili.`] : []),

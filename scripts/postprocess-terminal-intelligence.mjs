@@ -39,6 +39,10 @@ function freshnessFor(asset) {
 }
 
 function revisedDecision(asset) {
+  // A foreign exchange's historical OHLC is NOT primary issuer diligence.
+  // Preserve scores for analysis, but never upgrade these rows into ACCUMULA
+  // or even MANTIENI before separately certified fundamental intake.
+  if (asset.globalVenueResearchOnly === true) return 'ATTENDI';
   if (asset.businessStage === 'pre-commerciale') return 'SPECULATIVA';
   const freshness = asset.technical.freshness?.status;
   const overvaluation = asset.valuation?.status === 'disponibile' && Number(asset.valuation?.upsideBasePercent) <= -20;
@@ -59,6 +63,8 @@ function revisedDecision(asset) {
 }
 
 function decisionReason(asset, previousDecision) {
+  if (asset.globalVenueResearchOnly === true)
+    return 'Solo ricerca sulla quotazione estera: fondamentali primari e diritti di quotazione eseguibile non verificati; nessuna allocazione.';
   if (asset.decision === 'ACCUMULA') return 'Convergenza positiva tra punteggio, trend, rischio, freschezza e valutazione; eventuale ingresso soltanto graduale.';
   if (asset.decision === 'MANTIENI') return 'La tesi resta valida, ma non tutte le condizioni giustificano un incremento deciso.';
   if (asset.decision === 'SPECULATIVA') return 'Società pre-commerciale o asset ad alta incertezza: eventuale esposizione minima, subordinata a catalizzatori verificati.';
@@ -102,7 +108,8 @@ function recomputeAllocation(report) {
     asset.targetAmountEuro = 0;
   }
   const model = Object.fromEntries(report.portfolio.map((slice) => [slice.id, Number(slice.targetPercent || 0)]));
-  const eligible = report.assets.filter((asset) => ['ACCUMULA', 'MANTIENI', 'SPECULATIVA'].includes(asset.decision));
+  const eligible = report.assets.filter((asset) => asset.globalVenueResearchOnly !== true
+    && ['ACCUMULA', 'MANTIENI', 'SPECULATIVA'].includes(asset.decision));
   const core = eligible.filter((asset) => classify(asset) === 'core');
   const growth = eligible.filter((asset) => classify(asset) === 'growth');
   const speculative = eligible.filter((asset) => classify(asset) === 'speculative');
@@ -151,6 +158,9 @@ function buildGuardrails(report) {
   if (maxSpeculative > 2.51) violations.push(`Singola posizione speculativa al ${round(maxSpeculative)}%, sopra il limite 2,5%.`);
   if (cryptoTotal > 5.01) violations.push(`Crypto complessive al ${round(cryptoTotal)}%, sopra il limite 5%.`);
   if (speculativeTotal > 5.01) violations.push(`Area speculativa al ${round(speculativeTotal)}%, sopra il limite 5%.`);
+  if (report.assets.some(asset => asset.globalVenueResearchOnly === true
+    && (Number(asset.targetWeightPercent) > 0 || Number(asset.targetAmountEuro) > 0)))
+    violations.push('Strumento estero in sola ricerca ha ricevuto una allocazione non consentita.');
   if (!report.allocationCheck?.valid) violations.push('La somma delle allocazioni non è pari al 100%.');
   report.guardrails = {
     maxCoreWeightPercent: round(maxCore),
@@ -259,7 +269,9 @@ report.methodology = [...new Set([
   'I cambi di decisione, segnale, punteggio e prezzo vengono registrati nell’Alert Center.',
 ])];
 report.warnings = [...new Set([
-  ...(report.warnings || []),
+  ...(report.warnings || []).filter(warning =>
+    !/^(?:Area speculativa al |Crypto complessive al ).*sopra il limite/i.test(warning)
+    && !/^Limite (?:area speculativa|crypto complessivo) superato/i.test(warning)),
   ...(report.guardrails.violations || []),
   ...(delayedAssets ? [`${delayedAssets} strumenti hanno dati ritardati.`] : []),
   ...(obsoleteAssets ? [`${obsoleteAssets} strumenti hanno dati obsoleti o non disponibili.`] : []),
