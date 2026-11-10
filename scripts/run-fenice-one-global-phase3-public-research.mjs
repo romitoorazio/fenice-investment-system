@@ -44,14 +44,14 @@ if(process.env.FENICE_PHASE4_JOURNAL_PATH){
 // Phase 5 historical simulation is explicitly not a forward PAPER fill.
 const phase5=simulatePhase5Portfolio({histories:fetched.histories,mode:"HISTORICAL_BACKTEST"});
 await mkdir("artifacts/phase5",{recursive:true});
-await writeFile("artifacts/phase5/latest-historical-portfolio.json",JSON.stringify(phase5,null,2)+"\\n");
+await writeFile("artifacts/phase5/latest-historical-portfolio.json",JSON.stringify(phase5,null,2)+"\n");
 if(process.env.FENICE_PHASE5_LEDGER_PATH){
  const path=process.env.FENICE_PHASE5_LEDGER_PATH;
  let existing=[];
  try{existing=JSON.parse(await readFile(path,"utf8")).journal;}catch(e){if(e.code!=="ENOENT")throw e;}
  const ledger=appendPhase5VirtualLedger({journal:existing,trades:phase5.trades,recordedAt:nowIso});
  await mkdir(path.slice(0,path.lastIndexOf("/"))||".",{recursive:true});
- await writeFile(path+".tmp",JSON.stringify({schemaVersion:1,...ledger},null,2)+"\\n");
+ await writeFile(path+".tmp",JSON.stringify({schemaVersion:1,...ledger},null,2)+"\n");
  await rename(path+".tmp",path);
  console.log(JSON.stringify({phase5:"HISTORICAL_ONLY",trades:phase5.trades.length,appended:ledger.appended,duplicates:ledger.duplicates,ordersGenerated:0}));
 }
