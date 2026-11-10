@@ -117,6 +117,18 @@ jobs:
           console.log('Enhanced Twelve Data candidate tested; production activation remains blocked pending reviewed non-frozen integration');
           console.log('V6 operational Twelve Data safety and bottleneck regression: PASS');
           NODE
+      - name: Collect real public worldwide historical data (unattested research only)
+        if: always()
+        continue-on-error: true
+        run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Upload phase 3 real-source research diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-phase3-public-world-research
+          path: artifacts/phase3/world-research-watchlist.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload synthetic-only phase 2 closure evidence
         if: always()
         uses: actions/upload-artifact@v4
