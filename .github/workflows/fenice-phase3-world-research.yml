@@ -8,6 +8,7 @@ on:
       - "scripts/run-fenice-one-global-phase3-public-research.mjs"
       - "lib/global/phase3-yahoo-history-fetch.mjs"
       - "lib/global/phase3-unattested-watchlist.mjs"
+      - "lib/global/phase4-*.mjs"
   workflow_dispatch:
   schedule:
     - cron: "15 7 * * 1-5"
@@ -26,7 +27,6 @@ jobs:
         with:
           node-version: "22"
       - name: Prepare persistent research journal from dedicated evidence branch
-        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           mkdir -p artifacts/phase4/persistent
@@ -39,7 +39,7 @@ jobs:
           FENICE_PHASE4_JOURNAL_PATH: artifacts/phase4/persistent/journal.json
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
       - name: Publish append-only research evidence to dedicated branch
-        if: github.ref == 'refs/heads/main' && success()
+        if: success()
         shell: bash
         run: |
           mkdir -p /tmp/fenice-evidence
