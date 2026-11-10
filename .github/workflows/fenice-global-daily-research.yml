@@ -1,0 +1,96 @@
+name: FENICE Global Daily Research Scheduler (research only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7 * * 1-5"
+permissions:
+  contents: write
+concurrency:
+  group: fenice-phase4-persistent-evidence
+  cancel-in-progress: false
+jobs:
+  public-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/one-global-integration-safety-reconcile-20261107
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prepare persistent research journal from dedicated evidence branch
+        shell: bash
+        run: |
+          mkdir -p artifacts/phase4/persistent
+          if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
+            git fetch origin fenice-phase4-evidence
+            git show FETCH_HEAD:journal.json > artifacts/phase4/persistent/journal.json
+          fi
+      - name: Fetch public historical observations and publish research-only report
+        env:
+          FENICE_PHASE4_JOURNAL_PATH: artifacts/phase4/persistent/journal.json
+        run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Publish append-only research evidence to dedicated branch
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p /tmp/fenice-evidence
+          cp artifacts/phase4/persistent/journal.json /tmp/fenice-evidence/journal.json
+          cp artifacts/phase4/forward-evaluation.json /tmp/fenice-evidence/latest-evaluation.json
+          cp artifacts/phase4/historical-walkforward.json /tmp/fenice-evidence/latest-historical-backtest.json
+          if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
+            git fetch origin fenice-phase4-evidence
+          fi
+          if git show-ref --verify --quiet refs/remotes/origin/fenice-phase4-evidence; then
+            git worktree add --detach /tmp/fenice-evidence-work origin/fenice-phase4-evidence
+            cd /tmp/fenice-evidence-work
+            git switch -C fenice-phase4-evidence
+          else
+            git worktree add --detach /tmp/fenice-evidence-work HEAD
+            cd /tmp/fenice-evidence-work
+            git switch --orphan fenice-phase4-evidence
+            git rm -rf . >/dev/null || true
+          fi
+          cp /tmp/fenice-evidence/journal.json journal.json
+          cp /tmp/fenice-evidence/latest-evaluation.json latest-evaluation.json
+          cp /tmp/fenice-evidence/latest-historical-backtest.json latest-historical-backtest.json
+          git config user.name 'fenice-evidence-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add journal.json latest-evaluation.json latest-historical-backtest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'FENICE phase4: record immutable public research observations'
+            git push origin HEAD:refs/heads/fenice-phase4-evidence
+          fi
+      - name: Upload phase 4 historical positive and negative outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-historical-observed-backtest
+          path: artifacts/phase4/historical-walkforward.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload phase 4 forward outcome report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-forward-outcomes
+          path: artifacts/phase4/forward-evaluation.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload phase 4 signal snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-frozen-research-snapshot
+          path: artifacts/phase4/signal-snapshot.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload non-certified research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-world-research-unattested
+          path: artifacts/phase3/world-research-watchlist.json
+          if-no-files-found: error
+          retention-days: 14
