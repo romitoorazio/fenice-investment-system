@@ -51,7 +51,7 @@ assert.equal(revisedRun.ledger.headHash,finish.ledger.headHash);
 const corrupted=structuredClone(finish.ledger);corrupted.entries[0].event.priceLocal=1;
 assert.throws(()=>validatePhase5ForwardLedger(corrupted),/HASH_FAILURE/);
 const corruptHead=structuredClone(finish.ledger);corruptHead.headHash="bogus";
-assert.throws(()=>validatePhase5ForwardLedger(corruptHead),/HEAD_MISMATCH/);
+assert.throws(()=>validatePhase5ForwardLedger(corruptHead,"2026-11-11T13:03:00Z"),/HEAD_MISMATCH/);
 // Historical FX only, never executable and fail closed on unavailable currencies.
 const xml=`<?xml version="1.0"?><gesmes:Envelope><gesmes:Sender><gesmes:name>European Central Bank</gesmes:name></gesmes:Sender><Cube><Cube time='2026-11-02'><Cube currency='JPY' rate='160'/></Cube><Cube time='2026-11-03'><Cube currency='JPY' rate='170'/></Cube><Cube time='2026-11-09'><Cube currency='JPY' rate='175'/></Cube></Cube></gesmes:Envelope>`;
 const fx=parseEcb90DayReferenceXml(xml);assert.equal(fx.ok,true);
