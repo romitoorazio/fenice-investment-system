@@ -65,6 +65,14 @@ jobs:
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload phase 4 historical positive and negative outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-historical-observed-backtest
+          path: artifacts/phase4/historical-walkforward.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload phase 4 forward outcome report
         if: always()
         uses: actions/upload-artifact@v4
