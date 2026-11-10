@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { yahooRegularSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
-import { worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta } from '../lib/intelligence/world-terminal-universe.mjs';
+import { worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta,normalizeWorldYahooResearchPrice } from '../lib/intelligence/world-terminal-universe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const reportPath = path.join(root, 'data', 'terminal-intelligence.json');
@@ -302,9 +302,10 @@ async function fetchTechnical(definition) {
   // Never use historical bars as entitled executable quotes.
   const researchScale = worldResearch?.priceScaleToListing ?? 1;
   for (let index = 0; index < timestamps.length; index += 1) {
-    const close = Number(adjusted[index] ?? quote.close?.[index]) * researchScale;
-    const high = Number(quote.high?.[index] ?? (close/researchScale)) * researchScale;
-    const low = Number(quote.low?.[index] ?? (close/researchScale)) * researchScale;
+    const rawClose = adjusted[index] ?? quote.close?.[index];
+    const close = normalizeWorldYahooResearchPrice(rawClose,definition);
+    const high = normalizeWorldYahooResearchPrice(quote.high?.[index] ?? rawClose,definition);
+    const low = normalizeWorldYahooResearchPrice(quote.low?.[index] ?? rawClose,definition);
     if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(high) || !Number.isFinite(low)) continue;
     rows.push({ timestamp: Number(timestamps[index]), close, high, low });
   }
