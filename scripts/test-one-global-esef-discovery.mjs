@@ -53,6 +53,11 @@ for(const change of [
 }
 assert.throws(()=>parseEuropeanFilings(identity,{data:[filing()]},now),
   /EU_FILINGS_SCHEMA_INVALID/);
+const emptyIndex=parseEuropeanFilings(identity,{data:[]},now);
+assert.equal(emptyIndex.state,"NO_VERIFIED_INDEXED_REPORT",
+  "An empty German/other OAM index is not an API outage");
+assert.equal(emptyIndex.availableReports,0);
+assert.equal(emptyIndex.strategyPaperEligible,false);
 assert.throws(()=>buildExactLeiFilingQuery({...identity,lei:"111"}),
   /EU_FILINGS_IDENTITY_INVALID/);
 let calls=0;
