@@ -12,6 +12,10 @@ try {
  const replay=await persistPhase4SignalJournal({path,candidates:[signal],capturedAt:"2026-11-10T12:00:00Z"});
  assert.equal(replay.total,1);assert.equal(replay.duplicates,1);
  const file=JSON.parse(await readFile(path,"utf8"));
+ file.headHash="wrong";
+ await writeFile(path,JSON.stringify(file));
+ await assert.rejects(()=>persistPhase4SignalJournal({path,candidates:[],capturedAt:"2026-11-10T12:00:00Z"}),/HEAD_MISMATCH/);
+ file.headHash=first.headHash;
  file.journal[0].signal.score=999;
  await writeFile(path,JSON.stringify(file));
  await assert.rejects(()=>persistPhase4SignalJournal({path,candidates:[],capturedAt:"2026-11-10T12:00:00Z"}),/INTEGRITY_FAILURE/);
