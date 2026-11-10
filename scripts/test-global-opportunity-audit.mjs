@@ -9,8 +9,17 @@ assert.equal(x.summary.reviewedInCommittee,c.allDecisions.length);
 assert.equal(x.summary.verifiedLiveQuotes,0);
 assert.equal(x.summary.tradeReady,0);
 assert.equal(x.dataQuality.referenceCurrent,false,"Oct 13 catalog must not be current Oct 19");
-assert.equal(x.regions.find(q=>q.id==="asia-pacific").ordinaryStockReferences,34825);
-assert.equal(x.regions.find(q=>q.id==="europe").ordinaryStockReferences,97701);
+// Provider catalogues evolve daily: verify the computed regional count against
+// the actual sanitized country records instead of freezing old vendor totals.
+for(const regionId of ["asia-pacific","europe"]){
+  const actual=x.regions.find(q=>q.id===regionId);
+  const source=r.regionCoverage.find(q=>q.regionId===regionId);
+  const countries=r.countryCoverage.filter(q=>q.regionId===regionId&&q.providerCovered===true);
+  const expected=countries.reduce((n,q)=>n+(q.instrumentTypes?.["Common Stock"]??0),0);
+  assert.equal(countries.length,source.providerMatchedCountries);
+  assert.equal(actual.ordinaryStockReferences,expected);
+  assert(Number.isSafeInteger(expected)&&expected>0);
+}
 assert.equal(x.rows.find(q=>q.symbol==="ASML").issuerRegion,"europe");
 assert.equal(x.rows.find(q=>q.symbol==="ASML").venueMic,"XNAS");
 assert.equal(x.rows.find(q=>q.symbol==="ASML").venueRegion,"north-america");

@@ -21,7 +21,19 @@ assert.equal(report.rows.find(r=>r.symbol==="PETR4").listingType,"LOCAL_LISTING"
 assert.equal(report.summary.withIssuerDocuments,2);
 assert.equal(report.summary.withCommitteeResearch,2);
 assert.equal(report.summary.executionGradeInternationalQuotes,0);
-assert.equal(report.catalogueRecent,false);
+// The catalogue is now refreshed automatically: old fixed "stale" assertions
+// would fail precisely when source collection is working. Test temporal safety.
+const referenceAt=Date.parse(reference.generatedAt);
+const expectedCatalogueRecent=reference.safety?.researchOnly===true
+  &&reference.safety?.paperExecutionAllowed===false
+  &&reference.safety?.liveTradingAllowed===false
+  &&reference.safety?.brokerConnectivityAllowed===false
+  &&reference.safety?.isolatedFromPaperV6InstrumentMaster===true
+  &&reference.safety?.changesPaperV6Fingerprint===false
+  &&Number.isFinite(referenceAt)&&referenceAt<=now&&now-referenceAt<=72*3600000;
+assert.equal(report.catalogueRecent,expectedCatalogueRecent);
+assert.equal(build(master,fundamentals,terminal,committee,
+  {...reference,generatedAt:new Date(now+60000).toISOString()},now).catalogueRecent,false);
 assert.equal(report.rows.find(r=>r.symbol==="ASML").tradingRegion,"north-america");
 assert.equal(report.rows.find(r=>r.symbol==="ASML").issuerRegion,"europe");
 assert.equal(report.rows.find(r=>r.symbol==="TSM").listingType,"FOREIGN_LISTING_OR_ADR");
@@ -38,7 +50,9 @@ assert.equal(build(bad,fundamentals,terminal,committee,reference,now).rows.find(
 const dup=structuredClone(master);dup.instruments.push({...dup.instruments.find(x=>x.ticker==="ASML")});
 assert.equal(build(dup,fundamentals,terminal,committee,reference,now).summary.internationalSeedEquities,9);
 const changed=structuredClone(fundamentals);
-changed.companies.find(x=>x.ticker==="ASML").observedAt="2026-10-25T00:00:00.000Z";
+// Use a genuinely future-dated filing, not a historical constant that has
+// become past evidence after the scheduled source refresh.
+changed.companies.find(x=>x.ticker==="ASML").observedAt=new Date(now+60_000).toISOString();
 assert.equal(build(master,changed,terminal,committee,reference,now).rows.find(r=>r.symbol==="ASML").issuerDocumentObserved,false);
 for(const path of ["../app/api/research/global-opportunities/route.ts","../app/opportunita-mondo/page.tsx"]){
  const src=await readFile(new URL(path,import.meta.url),"utf8");
