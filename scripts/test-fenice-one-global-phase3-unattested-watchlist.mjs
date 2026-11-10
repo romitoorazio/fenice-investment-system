@@ -4,7 +4,7 @@ import {buildPhase3UnattestedWatchlist} from "../lib/global/phase3-unattested-wa
 const nowIso="2026-11-10T10:00:00.000Z";
 const timestamp=Array.from({length:25},(_,i)=>Math.floor(Date.parse(nowIso)/1000)-(24-i)*86400);
 const symbols=[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"},{symbol:"ENI.MI",mic:"XMIL",instrumentId:"XMIL:ENI"},{symbol:"SAP.DE",mic:"XETR",instrumentId:"XETR:SAP"}];
-const fetchImpl=async(url)=>{const symbol=decodeURIComponent(url.split("/chart/")[1].split("?")[0]);return {ok:true,json:async()=>({chart:{result:[{meta:{symbol},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i*(symbol==="7203.T"?1.4:symbol==="ENI.MI"?1.1:.7)+Math.sin(i))}]}}]}})}};
+const fetchImpl=async(url)=>{const symbol=decodeURIComponent(url.split("/chart/")[1].split("?")[0]);return {ok:true,json:async()=>({chart:{result:[{meta:{symbol,currency:symbol==="7203.T"?"JPY":"EUR"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i*(symbol==="7203.T"?1.4:symbol==="ENI.MI"?1.1:.7)+Math.sin(i))}]}}]}})}};
 const fetched=await fetchPhase3YahooChartHistory({symbols,fetchImpl,nowIso});
 assert.equal(fetched.histories.length,3);
 const radar=buildPhase3UnattestedWatchlist({histories:fetched.histories,nowIso});
