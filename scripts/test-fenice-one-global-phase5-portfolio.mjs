@@ -5,6 +5,9 @@ const base={mic:"XMIL",instrumentId:"XMIL:TEST",currency:"EUR",synthetic:false,p
 const result=simulatePhase5Portfolio({histories:[base],initialCashEuro:1000,allocationPct:10,feeEuro:1,exitSessions:2});
 assert.equal(result.realPaperCertified,false);assert.equal(result.ordersGenerated,0);
 assert.equal(result.trades.length,0);assert.equal(result.pending.length,1);
+const historical=simulatePhase5Portfolio({histories:[base],initialCashEuro:1000,allocationPct:10,feeEuro:1,exitSessions:2,mode:"HISTORICAL_BACKTEST"});
+assert.equal(historical.trades.length,1);assert.equal(historical.pending.length,0);
+assert.ok(historical.netPnlEuro>0);
 assert.equal(simulatePhase5Portfolio({histories:[{...base,currency:"USD"}]}).trades.length,0);
 assert.throws(()=>simulatePhase5Portfolio({allocationPct:200}),/INVALID_PHASE5_POLICY/);
 assert.equal(simulatePhase5Portfolio({histories:[]}).endingCashEuro,1000);
