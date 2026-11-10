@@ -20,5 +20,7 @@ jobs:
           node-version: 22
       - name: Verify daily quotes are research-only and stale signals cannot receive allocations
         run: node --experimental-strip-types scripts/test-terminal-research-freshness.mjs
+      - name: Verify eleven non-US exact-venue research seeds, vendor identity and PAPER locks
+        run: node scripts/test-world-terminal-universe.mjs
       - name: Verify missing DCF values never become fictitious zero estimates
         run: node scripts/test-committee-valuation-numbers.mjs
