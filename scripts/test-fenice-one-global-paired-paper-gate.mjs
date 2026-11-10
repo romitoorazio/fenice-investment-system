@@ -23,6 +23,9 @@ try {
     {symbol:"TEST",mic:"XMIL",currency:"EUR",instrumentId:"TEST",observedAt:"2026-11-10T10:00:00Z",sourceFamily:"source-a",family:"source-a",synthetic:false,sourceId:"provider-a",provider:"provider-a",sourceUrl:"https://example.org/a",verificationStatus:"INDEPENDENTLY_VERIFIED_EXECUTABLE_BID_ASK",executableBidAsk:true,provenanceVerified:true,bid:9,ask:10},
     {symbol:"TEST",mic:"XMIL",currency:"EUR",instrumentId:"TEST",observedAt:"2026-11-10T10:00:00Z",sourceFamily:"source-b",family:"source-b",synthetic:false,sourceId:"provider-b",provider:"provider-b",sourceUrl:"https://example.org/b",verificationStatus:"INDEPENDENTLY_VERIFIED_EXECUTABLE_BID_ASK",executableBidAsk:true,provenanceVerified:true,bid:9,ask:10},
   ]};
+  const sameSourceId={...enhanced,observations:[enhanced.observations[0],{...enhanced.observations[1],sourceId:"provider-a"}]};
+  await publishPairedEvidence({directory,fx,quotes:sameSourceId,nowIso});
+  assert.equal((await loadPairedPaperInputs({directory,nowIso})).reason,"PAPER_INDEPENDENT_EXECUTABLE_QUORUM_MISSING");
   const sameProvider={...enhanced,observations:[enhanced.observations[0],{...enhanced.observations[1],provider:"provider-a"}]};
   await publishPairedEvidence({directory,fx,quotes:sameProvider,nowIso});
   assert.equal((await loadPairedPaperInputs({directory,nowIso})).reason,"PAPER_INDEPENDENT_EXECUTABLE_QUORUM_MISSING");
