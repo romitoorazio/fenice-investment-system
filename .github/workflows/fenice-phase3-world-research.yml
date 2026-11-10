@@ -32,7 +32,7 @@ jobs:
           mkdir -p artifacts/phase4/persistent
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
-            git show FETCH_HEAD:journal.json > artifacts/phase4/persistent/journal.json || true
+            git show FETCH_HEAD:journal.json > artifacts/phase4/persistent/journal.json
           fi
       - name: Fetch public historical observations and publish research-only report
         env:
@@ -45,6 +45,7 @@ jobs:
           mkdir -p /tmp/fenice-evidence
           cp artifacts/phase4/persistent/journal.json /tmp/fenice-evidence/journal.json
           cp artifacts/phase4/forward-evaluation.json /tmp/fenice-evidence/latest-evaluation.json
+          cp artifacts/phase4/historical-walkforward.json /tmp/fenice-evidence/latest-historical-backtest.json
           git fetch origin fenice-phase4-evidence || true
           if git show-ref --verify --quiet refs/remotes/origin/fenice-phase4-evidence; then
             git worktree add --detach /tmp/fenice-evidence-work origin/fenice-phase4-evidence
@@ -58,9 +59,10 @@ jobs:
           fi
           cp /tmp/fenice-evidence/journal.json journal.json
           cp /tmp/fenice-evidence/latest-evaluation.json latest-evaluation.json
+          cp /tmp/fenice-evidence/latest-historical-backtest.json latest-historical-backtest.json
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json
+          git add journal.json latest-evaluation.json latest-historical-backtest.json
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
