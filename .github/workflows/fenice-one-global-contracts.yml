@@ -46,6 +46,8 @@ jobs:
       - run: node scripts/test-fenice-one-global-accounting.mjs
       - run: node scripts/test-fenice-one-global-durable-ledger.mjs
       - run: node scripts/test-fenice-one-global-durable-shadow.mjs
+      - name: Phase 4 source-linked daily market closes
+        run: node scripts/run-fenice-one-global-phase4-quote-snapshot.mjs
       - name: Phase 4 historical walk-forward positive and negative results
         run: node scripts/test-fenice-one-global-phase4-walkforward.mjs
       - name: Phase 4 research evidence sufficiency
