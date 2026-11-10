@@ -41,8 +41,12 @@ on:
 permissions:
   contents: write
 
+# The shared fenice-data-writer group can silently replace a pending
+# Terminal refresh when unrelated data bots run in quick succession, even
+# with cancel-in-progress: false. Isolate the Terminal queue; its existing
+# 3-attempt fetch/reset/reapply/push loop protects concurrent main updates.
 concurrency:
-  group: fenice-data-writer
+  group: fenice-world-terminal-writer
   cancel-in-progress: false
 
 jobs:
@@ -130,7 +134,7 @@ jobs:
           printf 'World Terminal will publish only:\n'
           printf ' - %s\n' "${generated_files[@]}"
 
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5 6; do
             git fetch origin main
             git reset --hard origin/main
 
@@ -151,9 +155,9 @@ jobs:
               exit 0
             fi
 
-            echo "Push race detected, retrying ($attempt/3)"
+            echo "Push race detected, retrying ($attempt/6)"
             sleep $((attempt * 2))
           done
 
-          echo "Unable to publish Terminal data after 3 attempts"
+          echo "Unable to publish Terminal data after 6 attempts"
           exit 1
