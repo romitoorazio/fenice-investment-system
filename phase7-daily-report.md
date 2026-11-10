@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-10T14:37:16.298Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-10T16:06:41.468Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
