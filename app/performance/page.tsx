@@ -1,5 +1,6 @@
 import Link from "next/link";
 import paper from "@/data/paper-oms-state.json";
+import v8TechnicalPnL from "@/data/paper-v8-pnl-report.json";
 import v7 from "@/data/v7-decision-outcomes.json";
 import calibration from "@/data/calibration-analysis.json";
 import { reconcilePaperPositions, type PaperPositionSnapshot } from "@/lib/ui/paper-position-reconciliation";
@@ -93,6 +94,62 @@ export default function PerformancePage() {
           </div>
           <Link href="/" className="rounded-xl border border-white/20 px-4 py-2 text-sm">← Oggi</Link>
         </header>
+
+        <section className="space-y-3 rounded-2xl border border-sky-300/30 bg-sky-300/[0.04] p-5" aria-label="Risultati PAPER tecnici V8">
+          <div>
+            <h2 className="text-lg font-black text-sky-200">FENICE ONE GLOBAL · risultati PAPER tecnici V8</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Registro prospettico verificabile · ultimo snapshot: {evidenceDate(v8TechnicalPnL.generatedAt)}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              ["Acquisti tecnici simulati", String(v8TechnicalPnL.sampleBuys)],
+              ["Vendite virtuali chiuse", String(v8TechnicalPnL.closedTechnicalRoundtrips)],
+              ["Utile/perdita realizzati virtuali", amount(v8TechnicalPnL.realizedNetEuro)],
+              ["Valore non realizzato (storico)", amount(v8TechnicalPnL.unrealizedNetEuro)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-xs text-slate-400">{label}</p>
+                <p className="mt-2 text-xl font-black">{value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs leading-5 text-slate-300">
+            {v8TechnicalPnL.allMarksCurrent
+              ? "Le quotazioni per le posizioni aperte risultano recenti al momento dello snapshot."
+              : "Le posizioni aperte sono valorizzate con prove storiche: NON sono prezzi attuali o eseguibili."}
+            {" "}Costi d'ingresso e uscita inclusi secondo il modello PAPER.
+            Queste operazioni testano l'esecuzione, NON dimostrano segnali d'investimento profittevoli,
+            NON valgono come trade certificati della Fase 9 e non sono transazioni Directa.
+          </p>
+          <div className="overflow-x-auto rounded-xl border border-white/10">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-white/[0.07] text-xs text-slate-300">
+                <tr><th className="p-3">Campione</th><th className="p-3">Stato</th>
+                  <th className="p-3">P/L netto virtuale</th></tr>
+              </thead>
+              <tbody>
+                {(v8TechnicalPnL.rows as Array<{
+                  entryId: string; symbol: string; state: string;
+                  realizedPnLEuro: number | null; unrealizedPnLEuro: number | null;
+                }>).map(row => (
+                  <tr key={row.entryId} className="border-t border-white/10">
+                    <td className="p-3 font-semibold">{row.symbol}</td>
+                    <td className="p-3 text-xs text-slate-300">
+                      {row.state === "CLOSED_TECHNICAL_SIMULATION"
+                        ? "Chiuso · simulato" : "Aperto · stima storica"}
+                    </td>
+                    <td className="p-3">
+                      {row.state === "CLOSED_TECHNICAL_SIMULATION"
+                        ? amount(row.realizedPnLEuro) : amount(row.unrealizedPnLEuro)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.04] p-5">
           <p className="text-sm font-black text-amber-200">Redditività netta non ancora dimostrata</p>
