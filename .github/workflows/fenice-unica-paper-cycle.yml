@@ -1,29 +1,57 @@
-name: Fenice Unica PAPER Cycle — Read Only
+name: Fenice ONE GLOBAL — Unified PAPER Evidence
+
+# Single read-only daily scoreboard. It cannot dispatch archived campaigns,
+# place broker orders or write to PAPER ledgers.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "25 22 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fenice-unica-paper-cycle.mjs"
+      - "scripts/test-fenice-unica-paper-cycle.mjs"
+      - ".github/workflows/fenice-unica-paper-cycle.yml"
   pull_request:
     branches: [main]
     paths:
-      - scripts/fenice-unica-paper-cycle.mjs
-      - scripts/test-fenice-unica-paper-cycle.mjs
-      - .github/workflows/fenice-unica-paper-cycle.yml
+      - "scripts/fenice-unica-paper-cycle.mjs"
+      - "scripts/test-fenice-unica-paper-cycle.mjs"
+      - ".github/workflows/fenice-unica-paper-cycle.yml"
+
 permissions:
   contents: read
+
+concurrency:
+  group: fenice-one-global-readonly-scoreboard-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout latest evidence on main or inspected PR revision
+        uses: actions/checkout@v5
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
           persist-credentials: false
+          fetch-depth: 1
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-      - run: node scripts/test-fenice-unica-paper-cycle.mjs
-      - run: node scripts/fenice-unica-paper-cycle.mjs > fenice-unica-paper-cycle.json
-      - uses: actions/upload-artifact@v4
+      - name: Fail-closed replay and test of one global scorecard
+        run: node scripts/test-fenice-unica-paper-cycle.mjs
+      - name: Produce V8/B2/world audited scoreboard, no provider calls
+        run: node scripts/fenice-unica-paper-cycle.mjs > fenice-one-global-paper.json
+      - name: Publish per-day evidence as artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: fenice-unica-paper-cycle
-          path: fenice-unica-paper-cycle.json
-          retention-days: 14
+          name: fenice-one-global-paper
+          path: fenice-one-global-paper.json
+          retention-days: 35
+          if-no-files-found: error
+      - name: Confirm no historical ledgers or source files modified
+        run: |
+          test -z "$(git status --porcelain)"
+          echo "ONE GLOBAL report is read-only; no broker and no historical mutations."
