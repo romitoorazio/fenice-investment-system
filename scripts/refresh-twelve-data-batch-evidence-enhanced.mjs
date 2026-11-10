@@ -1,4 +1,5 @@
 import path from "node:path";
+import { publishPairedEvidence, readPairedEvidence } from "../lib/global/paired-evidence-store.mjs";
 import { prioritizeMissingSecondSource } from "../lib/trading/paper-quote-probe-priority.mjs";
 import { validateFxTimestamp } from "../lib/trading/paper-fx-timestamp.mjs";
 import { fileURLToPath } from "node:url";
@@ -252,7 +253,7 @@ const report = {
 // and FX gates still validate both snapshots before staging any PAPER order.
 const fx = await fetchFreshUsdEur();
 const fxGeneratedAt = new Date().toISOString();
-await writeJsonStateAtomic(fxEvidencePath, {
+const fxReport = {
   version: 1,
   generatedAt: fxGeneratedAt,
   baseCurrency: "EUR",
@@ -266,7 +267,18 @@ await writeJsonStateAtomic(fxEvidencePath, {
   freshnessAttempt: fx.freshnessAttempt,
   liveTradingAllowed: false,
   brokerConnectivityAllowed: false,
-});
-await writeJsonStateAtomic(evidencePath, report);
+};
+const pairedMode = process.env.FENICE_ONE_GLOBAL_PAIRED_SNAPSHOT === "1";
+if (pairedMode) {
+  // Opt-in only: never overwrite V6 historical evidence or its scheduler outputs.
+  const directory = path.join(dataDir, "one-global-paired-evidence");
+  const published = await publishPairedEvidence({directory, fx:fxReport, quotes:report});
+  const verified = await readPairedEvidence({directory});
+  if (!verified.accepted || verified.runId !== published.runId) throw new Error(`PAIRED_SNAPSHOT_VERIFY_FAILED_${verified.reason || "RUN_MISMATCH"}`);
+  console.log(`ONE GLOBAL paired snapshot published and verified: ${published.runId}`);
+} else {
+  await writeJsonStateAtomic(fxEvidencePath, fxReport);
+  await writeJsonStateAtomic(evidencePath, report);
+}
 
 console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fx.rate}, fxAge=${fx.ageSeconds.toFixed(1)}s, fxAttempt=${fx.freshnessAttempt}.`);
