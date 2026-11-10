@@ -11,7 +11,7 @@ const v8Status = read("paper-v8-technical-status.json");
 const v8Days = read("paper-v8-technical-days.json");
 const coverage = read("execution-market-coverage.json");
 const fingerprint = await computeV7B2Fingerprint(".");
-const nowIso = "2026-11-10T17:00:00.000Z";
+const nowIso = new Date().toISOString();
 const base = {approval,b2Ledger,b2Days,v8Status,v8Days,coverage,
   fingerprint,baselineAncestor:true,nowIso};
 const run = changes => auditPhase9({...base,...changes});
@@ -22,8 +22,14 @@ const technicalInputs = {
   shadowExitLedger: read("paper-v8-shadow-exits.json"),
 };
 const shadowTruth = run(technicalInputs);
-assert.equal(shadowTruth.diagnostics.v8TechnicalRoundtripsObserved, 0);
-assert.equal(shadowTruth.diagnostics.v8TechnicalRealizedNetEuro, 0);
+// The technical ledger grows each trading day. Do not pin CI to the
+// snapshot that existed when this test was first written.
+const expectedTechnicalExits = technicalInputs.shadowExitLedger.events.length;
+const expectedTechnicalPnl = Math.round(technicalInputs.shadowExitLedger.events
+  .reduce((sum, event) => sum + event.realizedPnLEuro, 0) * 10000) / 10000;
+assert.equal(shadowTruth.diagnostics.v8TechnicalRoundtripsObserved, expectedTechnicalExits);
+assert.equal(shadowTruth.diagnostics.v8TechnicalRealizedNetEuro, expectedTechnicalPnl);
+assert.equal(shadowTruth.state, "NOT_CERTIFIED");
 assert.equal(shadowTruth.diagnostics.v8TechnicalExitsCreditedAsStrategyTrades, 0);
 assert.equal(shadowTruth.requirements.closedForwardTrades.observed, 0);
 const forgedExit = structuredClone(technicalInputs.shadowExitLedger);
@@ -44,8 +50,14 @@ assert(deliberatelyMismatched.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_N
   "A changed core digest cannot silently be treated as approved.");
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("alpaca"));
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("twelve-data"));
-assert.equal(truth.diagnostics.v8TechnicalDays,6);
-assert.equal(truth.diagnostics.coverageFresh,false);
+assert.equal(truth.diagnostics.v8TechnicalDays, v8Days.records.filter(
+  day => day.certificationScope === "V8_TECHNICAL_ONLY"
+    && day.liveTradingAllowed === false && day.brokerConnectivityAllowed === false,
+).length);
+const coverageTime = Date.parse(coverage.generatedAt);
+const nowTime = Date.parse(nowIso);
+assert.equal(truth.diagnostics.coverageFresh, Number.isFinite(coverageTime)
+  && coverageTime <= nowTime && nowTime - coverageTime <= 120000);
 assert.equal(truth.diagnostics.b2BuyFillsCreditedAsClosedTrades,0);
 assert.equal(truth.diagnostics.v8TechnicalSamplesCreditedAsForwardTrades,0);
 
@@ -80,7 +92,7 @@ const breached = run({approval:{...approval,liveTradingAllowed:true}});
 assert(breached.reasonCodes.includes("LIVE_OR_BROKER_SAFETY_FAILURE"));
 const corruptedDays=run({b2Days:{...b2Days,days:[...b2Days.days].reverse()}});
 assert(corruptedDays.reasonCodes.includes("B2_DAY_EVIDENCE_INVALID"));
-const future=run({coverage:{...coverage,generatedAt:"2026-11-11T10:00:00.000Z"}});
+const future=run({coverage:{...coverage,generatedAt:new Date(Date.parse(nowIso)+86400000).toISOString()}});
 assert.equal(future.diagnostics.coverageFresh,false);
 const invalidClock=run({nowIso:"NOT_A_CLOCK"});
 assert(invalidClock.reasonCodes.includes("AUDIT_CLOCK_INVALID"));
