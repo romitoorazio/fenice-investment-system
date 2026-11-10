@@ -119,8 +119,8 @@ export default function PerformancePage() {
             {v8TechnicalPnL.allMarksCurrent
               ? "Le quotazioni per le posizioni aperte risultano recenti al momento dello snapshot."
               : "Le posizioni aperte sono valorizzate con prove storiche: NON sono prezzi attuali o eseguibili."}
-            {" "}Costi d'ingresso e uscita inclusi secondo il modello PAPER.
-            Queste operazioni testano l'esecuzione, NON dimostrano segnali d'investimento profittevoli,
+            {" "}Costi d&apos;ingresso e uscita inclusi secondo il modello PAPER.
+            Queste operazioni testano l&apos;esecuzione, NON dimostrano segnali d&apos;investimento profittevoli,
             NON valgono come trade certificati della Fase 9 e non sono transazioni Directa.
           </p>
           <div className="overflow-x-auto rounded-xl border border-white/10">
