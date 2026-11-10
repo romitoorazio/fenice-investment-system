@@ -13,6 +13,11 @@ assert.deepEqual(new Set(radar.candidates.map(x=>x.mic)),new Set(["XTKS","XMIL",
 assert(radar.candidates.every(x=>x.dataVerified===false&&x.executable===false));
 assert.equal(radar.ordersGenerated,0);
 assert.equal(radar.paperFillAuthorized,false);
+assert.equal(radar.dailyBarPolicy,"EXCLUDE_CURRENT_UTC_DATE_AS_UNSETTLED");
+assert(radar.candidates.every(x=>x.observedAt.slice(0,10)<nowIso.slice(0,10)));
+const intradayRevised=fetched.histories.map(h=>({...h,closes:h.closes.map((p,i)=>i===h.closes.length-1?{...p,close:p.close*7}:p)}));
+const revisedRadar=buildPhase3UnattestedWatchlist({histories:intradayRevised,nowIso});
+assert.deepEqual(revisedRadar.candidates,radar.candidates,"Unsettled current-day bar must not alter frozen worldwide ranking");
 const old=buildPhase3UnattestedWatchlist({histories:[{...fetched.histories[0],closes:fetched.histories[0].closes.map(p=>({...p,observedAt:new Date(Date.parse(p.observedAt)-8*86400000).toISOString()}))}],nowIso});
 assert.equal(old.candidates.length,0);
 assert.equal(assessPhase3PersistentCoverage({requested:8,received:8,ranked:8}).status,"COMPLETE");

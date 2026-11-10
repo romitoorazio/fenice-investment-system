@@ -10,7 +10,7 @@ const days=["2026-10-30","2026-11-02","2026-11-03","2026-11-04","2026-11-05","20
 "2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-16"];
 const closes=days.map((d,i)=>({observedAt:at(d),close:100+i*2}));
 const h=(currency="EUR",mic="XMIL",instrumentId=mic+":A")=>({currency,mic,instrumentId,sourceUrl:"https://query1.finance.yahoo.com/v8/finance/chart/AAA",synthetic:false,provenanceVerified:false,closes});
-const candidates=[{mic:"XMIL",instrumentId:"XMIL:A",observedAt:at("2026-11-02"),
+const candidates=[{mic:"XMIL",instrumentId:"XMIL:A",observedAt:at("2026-10-30"),
  score:5,dataVerified:false,executable:false}];
 const capturedAt="2026-11-02T15:00:00.000Z";
 const signals=appendPhase4Signals({candidates,capturedAt}).journal;
@@ -22,6 +22,11 @@ assert.equal(zero.summary.closedTrades,0);
 assert.equal(zero.summary.ordersGenerated,0);
 assert.equal(zero.summary.realPaperCertified,false);
 assert.equal(zero.summary.portfolioEquityEuro,1000);
+// Replaying a legacy provisional same-day signal must never open a position.
+const oldUnsettled=appendPhase4Signals({candidates:[{...candidates[0],observedAt:at("2026-11-02")}],capturedAt}).journal;
+const prevented=advance(null,[h()],"2026-11-04T13:00:00Z",oldUnsettled);
+assert.equal(prevented.summary.openedThisRun,0);
+assert(prevented.summary.rejected.some(x=>x.reason==="UNSETTLED_DAILY_SIGNAL_AT_CAPTURE_EXCLUDED"));
 const first=advance(zero.ledger,[h()],"2026-11-04T13:00:00Z");
 assert.equal(first.summary.openedThisRun,1);
 assert.equal(first.summary.openPositions.length,1);
