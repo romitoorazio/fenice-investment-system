@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import {buildPhase4HistoricalWalkForward} from "../lib/global/phase4-historical-walkforward.mjs";
+const closes=Array.from({length:35},(_,i)=>({observedAt:new Date(Date.parse("2026-09-01T12:00:00Z")+i*86400000).toISOString(),close:i<30?100+i:130-(i-29)*3}));
+const result=buildPhase4HistoricalWalkForward({histories:[{synthetic:false,provenanceVerified:false,closes}],horizons:[2,5]});
+assert.equal(result.mode,"HISTORICAL_WALK_FORWARD_BACKTEST_NOT_LIVE");
+assert.ok(result.results[0].positive>0);
+assert.ok(result.results[0].negative>0);
+assert.equal(result.ordersGenerated,0);assert.equal(result.realPaperCertified,false);
+assert.equal(buildPhase4HistoricalWalkForward({histories:[]}).results[0].meanReturnPct,null);
+console.log("FENICE phase 4 historical walk-forward positive and negative outcome test: PASS");
