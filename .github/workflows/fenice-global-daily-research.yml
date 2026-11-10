@@ -32,16 +32,33 @@ jobs:
             if git cat-file -e FETCH_HEAD:phase5-virtual-ledger.json 2>/dev/null; then
               git show FETCH_HEAD:phase5-virtual-ledger.json > artifacts/phase5/persistent/ledger.json
             fi
+            if git cat-file -e FETCH_HEAD:phase5-forward-ledger.json 2>/dev/null; then
+              git show FETCH_HEAD:phase5-forward-ledger.json > artifacts/phase5/persistent/forward-ledger.json
+            fi
           fi
       - name: Fetch public historical observations and publish research-only report
         env:
           FENICE_PHASE4_JOURNAL_PATH: artifacts/phase4/persistent/journal.json
           FENICE_PHASE5_LEDGER_PATH: artifacts/phase5/persistent/ledger.json
+          FENICE_PHASE5_FORWARD_LEDGER_PATH: artifacts/phase5/persistent/forward-ledger.json
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
       - name: Validate phase 5 outputs before publication
         shell: bash
         run: |
           node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync("artifacts/phase5/latest-historical-portfolio.json")); const l=JSON.parse(fs.readFileSync("artifacts/phase5/persistent/ledger.json")); if(p.liveTradingAllowed!==false||p.ordersGenerated!==0||!Array.isArray(p.trades)||l.liveTradingAllowed!==false||l.ordersGenerated!==0||!Array.isArray(l.journal)) process.exit(1); console.log(JSON.stringify({phase5:"VALIDATED_HISTORICAL_ONLY",trades:p.trades.length,ledgerEntries:l.journal.length,netPnlEuro:p.netPnlEuro}));'
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          import {validatePhase5ForwardLedger} from "./lib/global/phase5-forward-research.mjs";
+          const ledger=JSON.parse(readFileSync("artifacts/phase5/persistent/forward-ledger.json"));
+          const summary=JSON.parse(readFileSync("artifacts/phase5/latest-forward-research-portfolio.json"));
+          const state=validatePhase5ForwardLedger(ledger);
+          if(summary.liveTradingAllowed!==false||summary.paperFillAuthorized!==false||summary.ordersGenerated!==0||
+             summary.realPaperCertified!==false||summary.ledgerHeadHash!==ledger.headHash||
+             summary.totalEvents!==ledger.entries.length||summary.openPositions.length!==state.accounting.openPositions.length||
+             summary.cashEuro!==state.accounting.cashEuro||summary.realizedNetPnlEuro!==state.accounting.realizedNetPnlEuro)process.exit(1);
+          console.log(JSON.stringify({phase5Forward:"VALIDATED_UNATTESTED_ONLY",events:ledger.entries.length,
+            open:summary.openPositions.length,closed:summary.closedTrades,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -52,6 +69,8 @@ jobs:
           cp artifacts/phase4/historical-walkforward.json /tmp/fenice-evidence/latest-historical-backtest.json
           cp artifacts/phase5/persistent/ledger.json /tmp/fenice-evidence/phase5-virtual-ledger.json
           cp artifacts/phase5/latest-historical-portfolio.json /tmp/fenice-evidence/latest-phase5-historical-portfolio.json
+          cp artifacts/phase5/persistent/forward-ledger.json /tmp/fenice-evidence/phase5-forward-ledger.json
+          cp artifacts/phase5/latest-forward-research-portfolio.json /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -70,13 +89,25 @@ jobs:
           cp /tmp/fenice-evidence/latest-historical-backtest.json latest-historical-backtest.json
           cp /tmp/fenice-evidence/phase5-virtual-ledger.json phase5-virtual-ledger.json
           cp /tmp/fenice-evidence/latest-phase5-historical-portfolio.json latest-phase5-historical-portfolio.json
+          cp /tmp/fenice-evidence/phase5-forward-ledger.json phase5-forward-ledger.json
+          cp /tmp/fenice-evidence/latest-phase5-forward-research-portfolio.json latest-phase5-forward-research-portfolio.json
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload phase 5 research-only forward portfolio and integrity ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-forward-virtual-research-not-executable
+          path: |
+            artifacts/phase5/latest-forward-research-portfolio.json
+            artifacts/phase5/persistent/forward-ledger.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload phase 5 virtual historical portfolio
         if: always()
         uses: actions/upload-artifact@v4
