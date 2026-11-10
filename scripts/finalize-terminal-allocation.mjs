@@ -29,6 +29,15 @@ function trim(assets, maximum) {
 }
 
 const report = JSON.parse(await readFile(reportPath, 'utf8'));
+// Final fail-closed allocation firewall. A postprocessor or old cached
+// snapshot must never reintroduce model capital to research-only listings.
+for (const asset of report.assets) {
+  if (asset.globalVenueResearchOnly !== true) continue;
+  asset.targetWeightPercent = 0;
+  asset.targetAmountEuro = 0;
+  asset.decision = 'ATTENDI';
+  asset.reason = 'Quotazione estera disponibile solo per ricerca storica; fondamentali primari e diritti di esecuzione non verificati.';
+}
 const policy = /CAUTO|DIFENSIVO|ATTENDERE/i.test(String(report.marketRegime || '')) || Number(report.dataQuality) < 60
   ? { core: 55, growth: 15, speculative: 5 }
   : /OFFENSIVO/i.test(String(report.marketRegime || '')) && Number(report.dataQuality) >= 75
@@ -73,6 +82,9 @@ if (maxGrowth > 7.001) violations.push('Limite singola posizione growth superato
 if (maxSpeculative > 2.501) violations.push('Limite singola posizione speculativa superato.');
 if (cryptoTotal > 5.001) violations.push('Limite crypto complessivo superato.');
 if (totals.speculative > 5.001) violations.push('Limite area speculativa superato.');
+if (report.assets.some(asset => asset.globalVenueResearchOnly === true
+  && (Number(asset.targetWeightPercent) !== 0 || Number(asset.targetAmountEuro) !== 0)))
+  violations.push('Allocazione vietata su quotazione estera di sola ricerca.');
 if (!report.allocationCheck.valid) violations.push('Allocazione totale diversa dal 100%.');
 report.guardrails = {
   maxCoreWeightPercent: round(maxCore),
@@ -82,7 +94,10 @@ report.guardrails = {
   speculativeTotalPercent: totals.speculative,
   violations,
 };
-report.warnings = [...new Set((report.warnings || []).filter((warning) => !/Limite area speculativa superato|Limite crypto complessivo superato/.test(warning)).concat(violations))];
+report.warnings = [...new Set((report.warnings || []).filter((warning) =>
+  !/^(?:Area speculativa al |Crypto complessive al ).*sopra il limite/i.test(warning)
+  && !/^Limite (?:area speculativa|crypto complessivo) superato/i.test(warning)
+).concat(violations))];
 
 await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(`Allocazione finalizzata: investito ${invested}%, riserva ${reserve}%, speculativo ${totals.speculative}%, violazioni ${violations.length}.`);
