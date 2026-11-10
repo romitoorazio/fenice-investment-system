@@ -1,9 +1,72 @@
-import { readFileSync, appendFileSync } from "node:fs";
+import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { computeV7B2Fingerprint } from "../lib/trading/paper-v7-b2-fingerprint.mjs";
 import { replayV7PhaseBLedger } from "../lib/trading/paper-v7-phase-b-v6-parity.mjs";
+
+
+/**
+ * A renewed PAPER-only owner authorization has its own record; the Nov 2
+ * original approval is never overwritten or credited into the new epoch.
+ */
+export function selectV7B2ActiveApproval(legacy, renewal = null) {
+  if (!renewal) return legacy;
+  const safe = renewal?.version === 1
+    && renewal.mode === "PAPER" && renewal.approved === true
+    && renewal.humanConfirmation === true
+    && renewal.liveTradingAllowed === false
+    && renewal.brokerConnectivityAllowed === false
+    && renewal.allowBackfill === false
+    && renewal.previousApprovalId === legacy?.approvalId
+    && renewal.previousDigest === legacy?.coreFingerprint?.digest
+    && renewal.approvalEvidence?.kind === "EXPLICIT_CHAT_OWNER_INSTRUCTION"
+    && renewal.approvalEvidence?.instructionText ===
+       "Sblocca la b2 è dimmi dettagliatamente cosa farai?"
+    && renewal.approvalEvidence?.liveTradingExcluded === true
+    && renewal.approvalEvidence?.brokerOrdersExcluded === true
+    && renewal.approvalEvidence?.paidDataServicesAuthorized === false
+    && /^[a-f0-9]{40}$/.test(renewal.baselineCommit || "")
+    && /^[a-f0-9]{64}$/.test(renewal.coreFingerprint?.digest || "")
+    && renewal.coreFingerprint?.complete === true
+    && renewal.coreFingerprint?.domain === legacy?.coreFingerprint?.domain
+    && JSON.stringify(renewal.coreFingerprint?.files) ===
+       JSON.stringify(legacy?.coreFingerprint?.files)
+    && Number.isFinite(Date.parse(renewal.approvedAt))
+    && renewal.approvedAt === renewal.effectiveFrom
+    && Date.parse(renewal.approvedAt) > Date.parse(legacy?.approvedAt || "")
+    && Date.parse(renewal.expiresAt) - Date.parse(renewal.approvedAt) >= 30 * 86400000;
+  if (!safe) throw Error("B2_RENEWAL_RECORD_INVALID_OR_UNSAFE");
+  return {
+    ...legacy,
+    ...renewal,
+    approvalId: legacy.approvalId,
+    idPrefix: legacy.idPrefix,
+    capitalEuro: legacy.capitalEuro,
+    maxOrdersPerDay: legacy.maxOrdersPerDay,
+    maxProbeAttemptsTotal: legacy.maxProbeAttemptsTotal,
+    maxNotionalEuroPerOrder: legacy.maxNotionalEuroPerOrder,
+    maxCapitalPercentPerProbe: legacy.maxCapitalPercentPerProbe,
+    maxSingleAssetWeightPercentForProbe: legacy.maxSingleAssetWeightPercentForProbe,
+    minTcaProbeNotionalEuro: legacy.minTcaProbeNotionalEuro,
+    minCommitteeScore: legacy.minCommitteeScore,
+    minValidationDataConfidence: legacy.minValidationDataConfidence,
+    maxRiskScore: legacy.maxRiskScore,
+    minCalendarDays: legacy.minCalendarDays,
+    minEvidenceDays: legacy.minEvidenceDays,
+    targetPaperFills: legacy.targetPaperFills,
+    fxPolicy: legacy.fxPolicy,
+    permittedDecisionStates: legacy.permittedDecisionStates,
+    permittedCurrencies: legacy.permittedCurrencies,
+    previousV6AndV7HistoryImmutable: true,
+  };
+}
+export function readV7B2ActiveApproval(read) {
+  const legacy = read("paper-v7-b2-approval.json");
+  const path = resolve("data","paper-v7-b2-reapproval.json");
+  return selectV7B2ActiveApproval(legacy,
+    existsSync(path) ? read("paper-v7-b2-reapproval.json") : null);
+}
 
 export function assessV7B2Preflight({approval,fingerprint,ledger,days,nowMs,shaAncestor}) {
   const blocked = reason=>({allowed:false,reason});
@@ -40,6 +103,11 @@ export function assessV7B2Preflight({approval,fingerprint,ledger,days,nowMs,shaA
       ||(i>0&&all[i-1].date>=d.date)
       ||d.liveTradingAllowed!==false||d.brokerConnectivityAllowed!==false))
     return blocked("B2_DAILY_HISTORY_INVALID");
+  // Preserve historical attempts for replay without accrediting earlier fills.
+  if (approval?.previousApprovalId && ledger.attempts.some(e =>
+    Date.parse(e.occurredAt || "") < Date.parse(approval.approvedAt)
+    && e.status === "PAPER_FILLED"))
+    return blocked("B2_PREVIOUS_EPOCH_FILLS_REQUIRE_INDEPENDENT_ACCOUNTING");
   if (replay.fills>=10||replay.attempts>=20) return blocked("B2_TOTAL_ATTEMPT_LIMIT");
   const today=new Date(nowMs).toISOString().slice(0,10);
   if (ledger.attempts.some(a=>a.occurredAt?.slice(0,10)===today)
@@ -50,7 +118,7 @@ export function assessV7B2Preflight({approval,fingerprint,ledger,days,nowMs,shaA
 
 async function main() {
   const read=n=>JSON.parse(readFileSync(resolve("data",n),"utf8"));
-  const approval=read("paper-v7-b2-approval.json");
+  const approval=readV7B2ActiveApproval(read);
   const ledger=read("paper-v7-b2-forward-ledger.json");
   const days=read("paper-v7-b2-forward-days.json");
   const fingerprint=await computeV7B2Fingerprint(".");
