@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
+import {buildPhase3UnattestedWatchlist} from "../lib/global/phase3-unattested-watchlist.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const timestamp=Array.from({length:25},(_,i)=>Math.floor(Date.parse(nowIso)/1000)-(24-i)*86400);
+const symbols=[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"},{symbol:"ENI.MI",mic:"XMIL",instrumentId:"XMIL:ENI"},{symbol:"SAP.DE",mic:"XETR",instrumentId:"XETR:SAP"}];
+const fetchImpl=async(url)=>{const symbol=decodeURIComponent(url.split("/chart/")[1].split("?")[0]);return {ok:true,json:async()=>({chart:{result:[{meta:{symbol},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i*(symbol==="7203.T"?1.4:symbol==="ENI.MI"?1.1:.7)+Math.sin(i))}]}}]}})}};
+const fetched=await fetchPhase3YahooChartHistory({symbols,fetchImpl,nowIso});
+assert.equal(fetched.histories.length,3);
+const radar=buildPhase3UnattestedWatchlist({histories:fetched.histories,nowIso});
+assert.equal(radar.candidates.length,3);
+assert.deepEqual(new Set(radar.candidates.map(x=>x.mic)),new Set(["XTKS","XMIL","XETR"]));
+assert(radar.candidates.every(x=>x.dataVerified===false&&x.executable===false));
+assert.equal(radar.ordersGenerated,0);
+assert.equal(radar.paperFillAuthorized,false);
+const old=buildPhase3UnattestedWatchlist({histories:[{...fetched.histories[0],closes:fetched.histories[0].closes.map(p=>({...p,observedAt:new Date(Date.parse(p.observedAt)-8*86400000).toISOString()}))}],nowIso});
+assert.equal(old.candidates.length,0);
+console.log("FENICE phase 3 public history to unverified global watchlist: PASS");
