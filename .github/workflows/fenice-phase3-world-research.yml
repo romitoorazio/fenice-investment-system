@@ -17,6 +17,7 @@ jobs:
       - name: Fetch public historical observations and publish research-only report
         run: node scripts/run-fenice-one-global-phase3-public-research.mjs
       - name: Upload non-certified research report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase3-world-research-unattested
