@@ -7,6 +7,7 @@ import {persistPhase4SignalJournal} from "../lib/global/phase4-journal-file.mjs"
 import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs";
 import {buildPhase4HistoricalWalkForward} from "../lib/global/phase4-historical-walkforward.mjs";
 import {readFile} from "node:fs/promises";
+import {fetchEcb90DayFxReference} from "../lib/global/ecb-daily-fx-reference.mjs";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -45,7 +46,9 @@ if(process.env.FENICE_PHASE4_JOURNAL_PATH){
  console.log(JSON.stringify({phase4:"PERSISTED_FORWARD_RESEARCH",entries:persisted.total,appended:persisted.appended,duplicates:persisted.duplicates,observed:evaluation.summary.stats.map(x=>({sessions:x.sessions,observed:x.observed,wins:x.wins,losses:x.losses,pending:x.pending})),ordersGenerated:0}));
 }
 // Phase 5 historical simulation is explicitly not a forward PAPER fill.
-const phase5={...simulatePhase5Portfolio({histories:fetched.histories,mode:"HISTORICAL_BACKTEST"}),sourceCoverage:coveragePolicy,missingSourceSymbols:fetched.errors.map(e=>e.symbol??null).filter(Boolean)};
+const fxReference=await fetchEcb90DayFxReference({nowIso});
+console.log(JSON.stringify({phase5FxHistoricalResearch:fxReference.ok?"ECB_90_DAY_AVAILABLE":fxReference.reason,referenceDays:fxReference.ok?fxReference.days.length:0,countsTowardRealPaper:false}));
+const phase5={...simulatePhase5Portfolio({histories:fetched.histories,mode:"HISTORICAL_BACKTEST",asOfIso:nowIso,fxReference}),sourceCoverage:coveragePolicy,missingSourceSymbols:fetched.errors.map(e=>e.symbol??null).filter(Boolean),fxAcquisition:{status:fxReference.ok?"AVAILABLE":"UNAVAILABLE",reason:fxReference.ok?null:fxReference.reason,sourceUrl:fxReference.ok?fxReference.sourceUrl:null,countsTowardRealPaper:false}};
 await mkdir("artifacts/phase5",{recursive:true});
 let publishedPhase5=phase5;
 if(process.env.FENICE_PHASE5_LEDGER_PATH){

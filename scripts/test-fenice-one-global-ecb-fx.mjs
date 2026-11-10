@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {ECB_DAILY_FX_URL,parseEcbDailyReferenceXml,fetchEcbDailyFxReference} from "../lib/global/ecb-daily-fx-reference.mjs";
+import {ECB_DAILY_FX_URL,parseEcbDailyReferenceXml,fetchEcbDailyFxReference,ECB_90_DAY_FX_URL,parseEcb90DayReferenceXml,fetchEcb90DayFxReference,lookupEcbHistoricalFx} from "../lib/global/ecb-daily-fx-reference.mjs";
 import {evaluateFxConsensus} from "../lib/global/fx-consensus.mjs";
 const nowIso="2026-11-07T08:00:00.000Z";
 const xml=(date="2026-11-06",rows="<Cube currency='USD' rate='1.1165'/><Cube currency='JPY' rate='176.77'/><Cube currency='GBP' rate='0.83415'/>")=>
@@ -58,4 +58,24 @@ assert.equal((await fetchEcbDailyFxReference({baseCurrency:"USD",nowIso:"invalid
 const notExecutable=evaluateFxConsensus({base:"JPY",nowIso,observations:[jpy.reference,jpy.reference]});
 assert.equal(notExecutable.allowed,false);
 assert.equal(notExecutable.reason,"FX_INDEPENDENT_SOURCES_MISSING");
+const ninety=fixture.replace("<Cube><Cube time='2026-11-06'>","<Cube><Cube time='2026-11-06'>").replace("</Cube></Cube></gesmes:Envelope>","</Cube><Cube time='2026-11-05'><Cube currency='USD' rate='1.2'/><Cube currency='JPY' rate='180'/><Cube currency='GBP' rate='0.85'/></Cube></Cube></gesmes:Envelope>");
+const history=parseEcb90DayReferenceXml(ninety);
+assert.equal(history.ok,true);
+assert.equal(history.days.length,2);
+assert.equal(history.days[0].date,"2026-11-05");
+assert.equal(parseEcb90DayReferenceXml(ninety.replace("time='2026-11-05'","time='2026-11-06'")).ok,false);
+assert.equal(parseEcb90DayReferenceXml(ninety.replace("rate='180'","rate='-180'")).ok,false);
+const historical=await fetchEcb90DayFxReference({nowIso,fetchImpl:async(url,req)=>{
+ assert.equal(url,ECB_90_DAY_FX_URL);assert.equal(req.method,"GET");
+ return {ok:true,status:200,headers:{get:()=>"text/xml"},text:async()=>ninety};
+}});
+assert.equal(historical.ok,true);
+const fx=lookupEcbHistoricalFx({series:historical,currency:"JPY",at:"2026-11-06T08:00:00Z"});
+assert.equal(fx.ok,true);assert.equal(fx.referenceDate,"2026-11-05");
+assert.equal(fx.rateToEur,1/180);assert.equal(fx.eligibleForExecution,false);
+assert.equal(lookupEcbHistoricalFx({series:historical,currency:"JPY",at:"2026-11-05T08:00:00Z"}).ok,false);
+assert.equal(lookupEcbHistoricalFx({series:historical,currency:"USD",at:"2026-11-07T08:00:00Z"}).referenceDate,"2026-11-06");
+assert.equal(lookupEcbHistoricalFx({series:historical,currency:"INR",at:"2026-11-07T08:00:00Z"}).ok,false);
+assert.equal(lookupEcbHistoricalFx({series:historical,currency:"EUR",at:"2026-11-06T08:00:00Z"}).rateToEur,1);
+assert.equal((await fetchEcb90DayFxReference({nowIso,fetchImpl:async()=>({ok:false,status:429})})).reason,"ECB_HISTORICAL_RATE_LIMITED");
 console.log("Fenice ONE GLOBAL official ECB daily FX research-only contracts: PASS");
