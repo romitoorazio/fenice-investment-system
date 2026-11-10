@@ -1,0 +1,58 @@
+name: Fenice Phase 9 Evidence Gate (audit only)
+
+# Produces an explicit NOT_CERTIFIED report when forward evidence is absent.
+# This is an auditor, NOT a PAPER execution runner or an approval authority.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/phase9-evidence-gate.yml"
+      - "scripts/audit-phase9-readiness.mjs"
+      - "scripts/test-phase9-readiness.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/phase9-evidence-gate.yml"
+      - "scripts/audit-phase9-readiness.mjs"
+      - "scripts/test-phase9-readiness.mjs"
+      - "data/paper-v7-b2-forward-ledger.json"
+      - "data/paper-v7-b2-forward-days.json"
+      - "data/paper-v8-technical-days.json"
+      - "data/paper-v8-technical-status.json"
+      - "data/execution-market-coverage.json"
+  workflow_dispatch:
+  schedule:
+    - cron: "25 21 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase9-evidence-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout immutable source and full history for B2 ancestor proof
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test impossible-to-fake forward certification and safety
+        run: node scripts/test-phase9-readiness.mjs
+      - name: Produce truthful phase 9 gate report
+        run: node scripts/audit-phase9-readiness.mjs --output "$RUNNER_TEMP/phase9-readiness.json"
+      - name: Publish read-only phase 9 report
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase9-readiness-gate
+          path: ${{ runner.temp }}/phase9-readiness.json
+          retention-days: 30
+          if-no-files-found: error
