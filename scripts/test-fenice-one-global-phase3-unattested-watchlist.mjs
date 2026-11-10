@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
-import {buildPhase3UnattestedWatchlist} from "../lib/global/phase3-unattested-watchlist.mjs";
+import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const nowIso="2026-11-10T10:00:00.000Z";
 const timestamp=Array.from({length:25},(_,i)=>Math.floor(Date.parse(nowIso)/1000)-(24-i)*86400);
 const symbols=[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"},{symbol:"ENI.MI",mic:"XMIL",instrumentId:"XMIL:ENI"},{symbol:"SAP.DE",mic:"XETR",instrumentId:"XETR:SAP"}];
@@ -15,4 +15,10 @@ assert.equal(radar.ordersGenerated,0);
 assert.equal(radar.paperFillAuthorized,false);
 const old=buildPhase3UnattestedWatchlist({histories:[{...fetched.histories[0],closes:fetched.histories[0].closes.map(p=>({...p,observedAt:new Date(Date.parse(p.observedAt)-8*86400000).toISOString()}))}],nowIso});
 assert.equal(old.candidates.length,0);
+assert.equal(assessPhase3PersistentCoverage({requested:8,received:8,ranked:8}).status,"COMPLETE");
+const degraded=assessPhase3PersistentCoverage({requested:8,received:7,ranked:7});
+assert.equal(degraded.status,"PARTIAL");assert.equal(degraded.eligibleForResearchPersistence,true);assert.equal(degraded.verifiedForPaper,false);
+assert.equal(assessPhase3PersistentCoverage({requested:8,received:6,ranked:6}).eligibleForResearchPersistence,false);
+assert.equal(assessPhase3PersistentCoverage({requested:8,received:7,ranked:6}).eligibleForResearchPersistence,false);
+assert.throws(()=>assessPhase3PersistentCoverage({requested:8,received:9,ranked:7}),/INVALID_PHASE3_COVERAGE/);
 console.log("FENICE phase 3 public history to unverified global watchlist: PASS");

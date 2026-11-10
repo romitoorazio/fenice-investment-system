@@ -13,4 +13,9 @@ const derived=derivePhase3ResearchFromCloses({series:result.histories,fxToEur:1,
 assert.equal(derived.accepted.length,0);
 assert.equal(derived.rejected[0].reason,"UNVERIFIED_HISTORY_SOURCE");
 assert.equal(result.paperFillAuthorized,false);
+let transientCalls=0;
+const retryResult=await fetchPhase3YahooChartHistory({symbols:[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"}],fetchImpl:async()=>{transientCalls++;return transientCalls===1?{ok:false,status:503}:{ok:true,json:async()=>({chart:{result:[{meta:{symbol:"7203.T",currency:"JPY"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>100+i+Math.sin(i))}]}}]}})};},nowIso});
+assert.equal(transientCalls,2);assert.equal(retryResult.histories.length,1);assert.equal(retryResult.errors.length,0);
+const permanentResult=await fetchPhase3YahooChartHistory({symbols:[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"}],fetchImpl:async()=>({ok:false,status:404}),nowIso});
+assert.equal(permanentResult.histories.length,0);assert.equal(permanentResult.errors[0].reason,"HTTP_404");assert.equal(permanentResult.errors[0].attempts,1);
 console.log("FENICE phase 3 public chart fetch provenance boundary: PASS");
