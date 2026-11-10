@@ -10,6 +10,7 @@ import {readFile} from "node:fs/promises";
 import {fetchEcb90DayFxReference} from "../lib/global/ecb-daily-fx-reference.mjs";
 import {advancePhase5ForwardResearch} from "../lib/global/phase5-forward-research.mjs";
 import {buildPhase7WorldBrief,formatPhase7WorldMarkdown} from "../lib/global/phase7-world-brief.mjs";
+import {buildPhase8EvidenceAudit,phase8AuditMarkdown} from "../lib/global/phase8-evidence-audit.mjs";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -103,6 +104,25 @@ await writeFile("artifacts/phase7/latest-world-brief.json",JSON.stringify(phase7
 await writeFile("artifacts/phase7/latest-world-brief.md",formatPhase7WorldMarkdown(phase7),"utf8");
 console.log(JSON.stringify({phase7:"GLOBAL_DAILY_RESEARCH",shortlist:phase7.opportunities.length,
  forwardNet:phase7.forward.netRealizedEuro,risk:phase7.risk.status,ordersGenerated:0}));
+
+if(process.env.FENICE_PHASE4_JOURNAL_PATH&&process.env.FENICE_PHASE5_LEDGER_PATH&&
+ process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH){
+ const savedSignals=JSON.parse(await readFile(process.env.FENICE_PHASE4_JOURNAL_PATH,"utf8"));
+ const historicalLedger=JSON.parse(await readFile(process.env.FENICE_PHASE5_LEDGER_PATH,"utf8"));
+ const savedForward=JSON.parse(await readFile(process.env.FENICE_PHASE5_FORWARD_LEDGER_PATH,"utf8"));
+ const forwardEvaluation=JSON.parse(await readFile("artifacts/phase4/forward-evaluation.json","utf8"));
+ const riskReport=JSON.parse(await readFile("artifacts/phase6/latest-forward-risk-report.json","utf8"));
+ const audit=buildPhase8EvidenceAudit({signalJournal:savedSignals,forwardEvaluation,
+  historicalLedger,historicalPortfolio:publishedPhase5,forwardLedger:savedForward,
+  forwardPortfolio:{...forward.summary,sourceCoverage:coveragePolicy},
+  riskReport,worldBrief:phase7,nowIso});
+ await mkdir("artifacts/phase8",{recursive:true});
+ await writeFile("artifacts/phase8/latest-audit.json",JSON.stringify(audit,null,2)+"\n");
+ await writeFile("artifacts/phase8/latest-audit.md",phase8AuditMarkdown(audit),"utf8");
+ console.log(JSON.stringify({phase8:"TECHNICAL_AUDIT_EXECUTED",engineering:audit.engineeringAudit,
+  certification:audit.certification,blockers:audit.blockers,
+  closedForward:audit.measurements.forwardClosed,ordersGenerated:0}));
+}
 
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
