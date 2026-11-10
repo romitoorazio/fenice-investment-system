@@ -18,4 +18,11 @@ const retryResult=await fetchPhase3YahooChartHistory({symbols:[{symbol:"7203.T",
 assert.equal(transientCalls,2);assert.equal(retryResult.histories.length,1);assert.equal(retryResult.errors.length,0);
 const permanentResult=await fetchPhase3YahooChartHistory({symbols:[{symbol:"7203.T",mic:"XTKS",instrumentId:"XTKS:7203"}],fetchImpl:async()=>({ok:false,status:404}),nowIso});
 assert.equal(permanentResult.histories.length,0);assert.equal(permanentResult.errors[0].reason,"HTTP_404");assert.equal(permanentResult.errors[0].attempts,1);
+// LSE prices quoted in GBp are pence, not pounds: 3700 GBp must become GBP 37.
+const penceResult=await fetchPhase3YahooChartHistory({symbols:[{symbol:"SHEL.L",mic:"XLON",instrumentId:"XLON:SHEL"}],fetchImpl:async()=>({ok:true,json:async()=>({chart:{result:[{meta:{symbol:"SHEL.L",currency:"GBp"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>3700+i)}]}}]}})}),nowIso});
+assert.equal(penceResult.errors.length,0);
+assert.equal(penceResult.histories[0].currency,"GBP");
+assert.equal(penceResult.histories[0].sourceCurrency,"GBp");
+assert.equal(penceResult.histories[0].priceScaleToCurrencyUnit,0.01);
+assert.equal(penceResult.histories[0].closes[0].close,37);
 console.log("FENICE phase 3 public chart fetch provenance boundary: PASS");
