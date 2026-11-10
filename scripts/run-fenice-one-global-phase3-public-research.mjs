@@ -9,6 +9,7 @@ import {buildPhase4HistoricalWalkForward} from "../lib/global/phase4-historical-
 import {readFile} from "node:fs/promises";
 import {fetchEcb90DayFxReference} from "../lib/global/ecb-daily-fx-reference.mjs";
 import {advancePhase5ForwardResearch} from "../lib/global/phase5-forward-research.mjs";
+import {buildPhase7WorldBrief,formatPhase7WorldMarkdown} from "../lib/global/phase7-world-brief.mjs";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist,assessPhase3PersistentCoverage} from "../lib/global/phase3-unattested-watchlist.mjs";
 const symbols=[
@@ -93,6 +94,15 @@ console.log(JSON.stringify({phase5Forward:"UNATTESTED_VIRTUAL_ONLY",
  opened:forward.summary.openedThisRun,closed:forward.summary.closedThisRun,
  active:forward.summary.openPositions.length,wins:forward.summary.wins,losses:forward.summary.losses,
  certifiedPaper:false,ordersGenerated:0}));
+
+const phase7=buildPhase7WorldBrief({research:report,forward:{...forward.summary,sourceCoverage:coveragePolicy},
+ risk:{...forward.summary.riskState,generatedAt:nowIso,ledgerHeadHash:forward.ledger.headHash},
+ historical:publishedPhase5,nowIso});
+await mkdir("artifacts/phase7",{recursive:true});
+await writeFile("artifacts/phase7/latest-world-brief.json",JSON.stringify(phase7,null,2)+"\n");
+await writeFile("artifacts/phase7/latest-world-brief.md",formatPhase7WorldMarkdown(phase7),"utf8");
+console.log(JSON.stringify({phase7:"GLOBAL_DAILY_RESEARCH",shortlist:phase7.opportunities.length,
+ forwardNet:phase7.forward.netRealizedEuro,risk:phase7.risk.status,ordersGenerated:0}));
 
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
