@@ -46,7 +46,9 @@ jobs:
           cp artifacts/phase4/persistent/journal.json /tmp/fenice-evidence/journal.json
           cp artifacts/phase4/forward-evaluation.json /tmp/fenice-evidence/latest-evaluation.json
           cp artifacts/phase4/historical-walkforward.json /tmp/fenice-evidence/latest-historical-backtest.json
-          git fetch origin fenice-phase4-evidence || true
+          if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
+            git fetch origin fenice-phase4-evidence
+          fi
           if git show-ref --verify --quiet refs/remotes/origin/fenice-phase4-evidence; then
             git worktree add --detach /tmp/fenice-evidence-work origin/fenice-phase4-evidence
             cd /tmp/fenice-evidence-work
