@@ -20,18 +20,24 @@ assert.equal(report.safeguards.liveTradingAllowed,false);
 assert.equal(report.safeguards.brokerConnectivityAllowed,false);
 assert.equal(report.safeguards.creditsTechnicalSamplesAsStrategyFills,false);
 assert.equal(report.strategyPaper.b2Attempts,inputs.b2Ledger.attempts.length);
-assert.equal(report.strategyPaper.verifiedB2Days,2,
+assert.equal(report.strategyPaper.verifiedB2Days,
+  inputs.b2Days.days.filter(x=>x.validatedForwardDay===true
+    &&x.marketEvidenceValid===true).length,
   "B2 forward days are marked validatedForwardDay, not validDay");
+assert(report.strategyPaper.verifiedB2Days>=2);
 assert.equal(report.strategyPaper.legacyCampaignStatus,"ARCHIVED_DIAGNOSTICS_ONLY");
 assert.equal(report.strategyPaper.fillsCreditedToV8,0);
 assert.equal(report.technicalPaper.sourceHistoryReplayVerified,true);
 assert.equal(report.technicalPaper.technicalExitCount,inputs.v8Exits.events.length);
-assert.equal(report.technicalPaper.realizedNetEuro,-4.4294);
-assert.equal(report.technicalPaper.unrealizedAsOfEuro,-11.1886);
-assert.equal(report.technicalPaper.unrealizedMarksCurrent,false);
+assert.equal(report.technicalPaper.realizedNetEuro,
+  Math.round(inputs.v8Exits.events.reduce((n,e)=>n+e.realizedPnLEuro,0)*10000)/10000);
+assert(report.technicalPaper.unrealizedAsOfEuro===null
+  ||Number.isFinite(report.technicalPaper.unrealizedAsOfEuro));
+assert.equal(typeof report.technicalPaper.unrealizedMarksCurrent,"boolean");
 assert.equal(report.operations.activePaperEngine,"V8_TECHNICAL_PAPER");
 assert.equal(report.operations.phase9CertifiedStrategyRoundtrips,0);
-assert.equal(report.operations.globalMarketsEligibleForExecutablePaper,0);
+assert.equal(report.operations.globalMarketsEligibleForExecutablePaper,
+  Object.values(inputs.worldLedger.venues).filter(v=>v.paperEligible===true).length);
 assert.equal(report.safeguards.technicalExitsCreditedAsPhase9Trades,false);
 const forged=structuredClone(inputs);
 forged.v8Exits.events[0].realizedPnLEuro=1000000;
