@@ -23,6 +23,15 @@ try {
   assert.equal(quorum.reason,"PAPER_VENUE_AND_FILL_ATTESTATION_REQUIRED");
   assert.equal(quorum.certificationCredit,0);
   assert.deepEqual(quorum.qualifiedSymbols,["XMIL:TEST"]);
+  // A second family on a different venue must not qualify the first venue.
+  const splitVenue={...enhanced,observations:[enhanced.observations[0],{...enhanced.observations[1],mic:"XETR"}]};
+  await publishPairedEvidence({directory,fx,quotes:splitVenue,nowIso});
+  assert.equal((await loadPairedPaperInputs({directory,nowIso})).reason,"PAPER_INDEPENDENT_EXECUTABLE_QUORUM_MISSING");
+  // Old quotes are not executable evidence, even if the snapshot itself is recent.
+  const staleQuotes={...enhanced,observations:enhanced.observations.map(q=>({...q,observedAt:"2026-11-10T09:57:00Z"}))};
+  await publishPairedEvidence({directory,fx,quotes:staleQuotes,nowIso});
+  assert.equal((await loadPairedPaperInputs({directory,nowIso})).reason,"PAPER_INDEPENDENT_EXECUTABLE_QUORUM_MISSING");
+  await publishPairedEvidence({directory,fx,quotes:enhanced,nowIso});
   assert.equal((await loadPairedPaperInputs({directory,nowIso:"2026-11-10T10:05:00Z"})).reason,"SNAPSHOT_STALE");
   console.log("Paired PAPER fail-closed input gate: PASS (synthetic fixtures only)");
 }finally{await rm(directory,{recursive:true,force:true});}
