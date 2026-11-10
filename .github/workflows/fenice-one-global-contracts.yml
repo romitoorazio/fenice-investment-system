@@ -83,7 +83,7 @@ jobs:
           }
           // Assert the improved runner is actually invoked by a workflow, not merely present.
           const smokeWorkflow = readFileSync('.github/workflows/fenice-one-global-twelve-data-enhanced-smoke.yml', 'utf8');
-          assert.match(smokeWorkflow, /node --experimental-strip-types scripts\\/refresh-twelve-data-batch-evidence-enhanced\\.mjs/, 'Enhanced runner must be invoked in isolated smoke');
+          assert.ok(smokeWorkflow.includes('node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs'), 'Enhanced runner must be invoked in isolated smoke');
           assert.match(smokeWorkflow, /contents: read/, 'Enhanced smoke must remain read-only');
           const validationWorkflow = readFileSync('.github/workflows/paper-validation.yml', 'utf8');
           assert.match(validationWorkflow, /run:\s*node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence\.mjs/, 'Frozen V6 workflow must retain its historical command');
