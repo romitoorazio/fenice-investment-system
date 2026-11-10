@@ -3,6 +3,7 @@ import {writeFile,mkdir} from "node:fs/promises";
 import {appendPhase4Signals} from "../lib/global/phase4-signal-journal.mjs";
 import {persistPhase4SignalJournal} from "../lib/global/phase4-journal-file.mjs";
 import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs";
+import {buildPhase4HistoricalWalkForward} from "../lib/global/phase4-historical-walkforward.mjs";
 import {readFile} from "node:fs/promises";
 import {fetchPhase3YahooChartHistory} from "../lib/global/phase3-yahoo-history-fetch.mjs";
 import {buildPhase3UnattestedWatchlist} from "../lib/global/phase3-unattested-watchlist.mjs";
@@ -24,6 +25,9 @@ const acquisitionStatus=fetched.histories.length===0?"NO_DATA":fetched.histories
 const report={schemaVersion:1,generatedAt:nowIso,mode:"PUBLIC_UNATTESTED_WORLD_RESEARCH",acquisitionStatus,coverage,source:"Yahoo Finance public chart HTTP; no independent attestation",requestedSymbols:symbols.length,receivedHistories:fetched.histories.length,fetchErrors:fetched.errors,watchlist,realPaperCertified:false,liveTradingAllowed:false,ordersGenerated:0};
 const journal=appendPhase4Signals({candidates:watchlist.candidates,capturedAt:nowIso});
 await mkdir("artifacts/phase4",{recursive:true});
+const historical=buildPhase4HistoricalWalkForward({histories:fetched.histories});
+await writeFile("artifacts/phase4/historical-walkforward.json",JSON.stringify(historical,null,2)+"\n");
+console.log(JSON.stringify({phase4Historical:"OBSERVED_CLOSES_BACKTEST_NOT_LIVE",results:historical.results,ordersGenerated:0}));
 await writeFile("artifacts/phase4/signal-snapshot.json",JSON.stringify({schemaVersion:1,generatedAt:nowIso,mode:"PHASE4_RUN_SNAPSHOT_NOT_PERSISTENT",journal:journal.journal,headHash:journal.headHash,ordersGenerated:0},null,2)+"\n");
 if(process.env.FENICE_PHASE4_JOURNAL_PATH){
  const path=process.env.FENICE_PHASE4_JOURNAL_PATH;
