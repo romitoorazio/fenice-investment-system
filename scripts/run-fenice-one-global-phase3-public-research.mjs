@@ -15,7 +15,9 @@ const symbols=[
 const nowIso=new Date().toISOString();
 const fetched=await fetchPhase3YahooChartHistory({symbols,nowIso});
 const watchlist=buildPhase3UnattestedWatchlist({histories:fetched.histories,nowIso});
-const report={schemaVersion:1,generatedAt:nowIso,mode:"PUBLIC_UNATTESTED_WORLD_RESEARCH",source:"Yahoo Finance public chart HTTP; no independent attestation",requestedSymbols:symbols.length,receivedHistories:fetched.histories.length,fetchErrors:fetched.errors,watchlist,realPaperCertified:false,liveTradingAllowed:false,ordersGenerated:0};
+const coverage={requestedVenues:[...new Set(symbols.map(x=>x.mic))],receivedVenues:[...new Set(fetched.histories.map(x=>x.mic))],rankedVenues:[...new Set(watchlist.candidates.map(x=>x.mic))]};
+const acquisitionStatus=fetched.histories.length===0?"NO_DATA":fetched.histories.length<symbols.length?"PARTIAL":"COMPLETE";
+const report={schemaVersion:1,generatedAt:nowIso,mode:"PUBLIC_UNATTESTED_WORLD_RESEARCH",acquisitionStatus,coverage,source:"Yahoo Finance public chart HTTP; no independent attestation",requestedSymbols:symbols.length,receivedHistories:fetched.histories.length,fetchErrors:fetched.errors,watchlist,realPaperCertified:false,liveTradingAllowed:false,ordersGenerated:0};
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
-console.log(JSON.stringify({requested:report.requestedSymbols,received:report.receivedHistories,ranked:watchlist.candidates.length,fetchErrors:fetched.errors.length,rejected:watchlist.rejected.length,realPaperCertified:false,ordersGenerated:0}));
+console.log(JSON.stringify({status:acquisitionStatus,requested:report.requestedSymbols,received:report.receivedHistories,ranked:watchlist.candidates.length,fetchErrors:fetched.errors.length,rejected:watchlist.rejected.length,realPaperCertified:false,ordersGenerated:0}));
