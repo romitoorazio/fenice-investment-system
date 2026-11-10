@@ -4,11 +4,16 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {publishPairedEvidence} from "../lib/global/paired-evidence-store.mjs";
 import {loadPairedPaperInputs} from "../lib/global/paired-paper-input-gate.mjs";
+import {sameQuoteMultiset} from "../lib/global/paired-paper-shadow-runner.mjs";
 const directory=await mkdtemp(join(tmpdir(),"fenice-paper-gate-"));
 const nowIso="2026-11-10T10:00:30Z";
 const fx={generatedAt:"2026-11-10T10:00:00Z",provenanceVerified:true,ratesToEuro:{EUR:{rate:1}},liveTradingAllowed:false};
 const quotes={generatedAt:"2026-11-10T10:00:01Z",policy:{liveTradingAllowed:false},observations:[{symbol:"TEST",sourceFamily:"twelve-data",eligibility:"PAPER",price:10,provenanceVerified:true}]};
 try {
+  assert.equal(sameQuoteMultiset([{bid:1},{bid:2}],[{bid:1},{bid:2}]),true);
+  assert.equal(sameQuoteMultiset([{bid:1},{bid:1}],[{bid:1},{bid:2}]),false);
+  assert.equal(sameQuoteMultiset([{bid:2},{bid:1}],[{bid:1},{bid:2}]),true);
+  assert.equal(sameQuoteMultiset([{bid:1}],[{bid:1},{bid:2}]),false);
   assert.equal((await loadPairedPaperInputs({directory,nowIso})).reason,"SNAPSHOT_INCOMPLETE");
   await publishPairedEvidence({directory,fx,quotes,nowIso});
   const unverified=await loadPairedPaperInputs({directory,nowIso});
