@@ -6,6 +6,7 @@ import reference from "@/data/global-reference-coverage.json";
 import { runWorldPaperV7 } from "@/lib/trading/world-paper-v7.mjs";
 import bakedObservations from "@/data/world-v7-provider-observation.json";
 import bakedEod from "@/data/world-v7-eod-research.json";
+import bakedWorldLedger from "@/data/world-v7-validation-ledger.json";
 
 
 type GlobalEodRecord={
@@ -32,6 +33,50 @@ async function readLatestEod(): Promise<GlobalEodBook> {
       !book.records || typeof book.records!=="object" || Array.isArray(book.records))return fallback;
     return book;
   }catch {return fallback;}
+}
+
+type GlobalVenueHistory = {
+  region?:string;latestState?:string;latestAt?:string|null;
+  researchDays?:number;paperEligible?:boolean;certifiedPaperFills?:number;
+  blockers?:string[];
+};
+type GlobalVenueHistoryBook = {
+  generatedAt?:string;mode?:string;
+  diagnosticOnly?:boolean;paperEligible?:boolean;
+  brokerSubmissionAllowed?:boolean;liveTradingAllowed?:boolean;
+  certifiedPaperFills?:number;
+  venues?:Record<string,GlobalVenueHistory>;
+};
+const WORLD_VENUES=[
+  {mic:"XNAS",name:"Nasdaq",area:"America"},
+  {mic:"XNYS",name:"NYSE",area:"America"},
+  {mic:"ARCX",name:"NYSE Arca",area:"America"},
+  {mic:"XMIL",name:"Milano",area:"Europa"},
+  {mic:"XETR",name:"Francoforte",area:"Europa"},
+  {mic:"XTKS",name:"Tokyo",area:"Asia"},
+  {mic:"BVMF",name:"San Paolo",area:"America Latina"},
+  {mic:"XASX",name:"Australia",area:"Oceania"},
+] as const;
+async function readLatestWorldVenueHistory():Promise<GlobalVenueHistoryBook> {
+  const fallback:GlobalVenueHistoryBook=bakedWorldLedger;
+  try {
+    const r=await fetch(
+      "https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/world-v7-validation-ledger.json",
+      {cache:"no-store",signal:AbortSignal.timeout(3500)}
+    );
+    if(!r.ok)return fallback;
+    const payload:unknown=await r.json();
+    if(!payload||typeof payload!=="object"||Array.isArray(payload))return fallback;
+    const book=payload as GlobalVenueHistoryBook;
+    if(book.mode!=="WORLD_V7_FORWARD_DIAGNOSTIC"||book.diagnosticOnly!==true
+       ||book.paperEligible!==false||book.brokerSubmissionAllowed!==false
+       ||book.liveTradingAllowed!==false||book.certifiedPaperFills!==0
+       ||!book.venues||typeof book.venues!=="object"||Array.isArray(book.venues)
+       ||WORLD_VENUES.some(v=>book.venues?.[v.mic]?.paperEligible!==false
+         ||book.venues?.[v.mic]?.certifiedPaperFills!==0))
+      return fallback;
+    return book;
+  }catch{return fallback;}
 }
 
 type ProviderRecord = {
@@ -76,7 +121,7 @@ export const revalidate = 0;
 
 // Independent observation. This page never submits to the V6 OMS or any broker.
 export default async function WorldPaperPilotPage() {
-  const [providerBook,eodBook] = await Promise.all([readLatestProviderObservation(),readLatestEod()]);
+  const [providerBook,eodBook,worldBook] = await Promise.all([readLatestProviderObservation(),readLatestEod(),readLatestWorldVenueHistory()]);
   const report = runWorldPaperV7({
     nowIso: new Date().toISOString(), instruments: [...master.instruments, ...regionalSeeds.instruments],
     paperRunAuthorized: false, sessions: [], quotes: [], fx: [],
@@ -131,6 +176,44 @@ export default async function WorldPaperPilotPage() {
             Il refresh della pagina aggiorna la diagnosi di ammissibilità, non scarica nuove quotazioni né apre ordini.
           </p>
         </section>
+        <section className="space-y-3 rounded-2xl border border-sky-300/25 bg-sky-400/5 p-4" aria-label="FENICE ONE GLOBAL: otto Borse e impedimenti documentati">
+          <h2 className="text-xl font-black">ONE GLOBAL · stato documentato delle otto Borse</h2>
+          <p className="text-sm text-slate-300">
+            Prove storiche distinte dalla disponibilità per operazioni PAPER. Ogni mercato
+            presenta il proprio stato, la data di osservazione e i motivi che impediscono
+            la certificazione. Nessuna semplice quotazione EOD o presenza nel catalogo
+            concede automaticamente i diritti per operare.
+          </p>
+          <p className="text-xs text-slate-400">
+            Snapshot mondiale: {worldBook.generatedAt??"non disponibile"}.
+            Questo dato è aggiornato dal repository; non corrisponde a una verifica in tempo reale della Borsa.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {WORLD_VENUES.map(venue=>{
+              const record=worldBook.venues?.[venue.mic];
+              const seenAt=Date.parse(record?.latestAt??"");
+              const fresh=Number.isFinite(seenAt)&&seenAt<=readAt&&readAt-seenAt<=86400000;
+              const safe=record?.paperEligible===false&&record.certifiedPaperFills===0;
+              const blockers=Array.isArray(record?.blockers)
+                ?record.blockers.filter(x=>typeof x==="string").slice(0,5)
+                :[];
+              return <article key={venue.mic} className="rounded-xl border border-white/15 bg-slate-950/65 p-3 text-xs">
+                <h3 className="text-sm font-bold text-white">{venue.name} · {venue.mic}</h3>
+                <p className="mt-1 text-slate-400">{venue.area}</p>
+                <p className="mt-2 text-slate-200">Ricerca storica: {safe?(record?.researchDays??0):0} giornate</p>
+                <p className="text-slate-200">Ultima prova: {safe?(record?.latestAt??"assente"):"non validata"}</p>
+                <p className={fresh?"text-sky-200":"text-amber-300"}>
+                  {fresh?"Osservazione recente":"Osservazione assente o non recente"}
+                </p>
+                <p className="mt-2 font-semibold text-amber-200">PAPER strategico: NON CERTIFICATO</p>
+                <p className="mt-1 break-words text-slate-400">
+                  {safe&&blockers.length?blockers.join(" · "):"Fonti, sessione e diritti non certificati"}
+                </p>
+              </article>;
+            })}
+          </div>
+        </section>
+
         <section className="space-y-3 rounded-2xl border border-cyan-300/25 bg-cyan-400/5 p-4" aria-label="Prove dati reali per le Borse estere">
           <h2 className="text-xl font-black">Accesso reale ai dati: Tokyo, Milano e Francoforte</h2>
           <p className="text-sm text-slate-300">
