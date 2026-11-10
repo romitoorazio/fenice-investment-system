@@ -8,9 +8,19 @@ export async function diagnosePairedPaper({directory,nowIso=new Date().toISOStri
   const snapshot=await readPairedEvidence({directory,nowIso});
   if(!snapshot.accepted)return {mode:"READ_ONLY_PAPER_DIAGNOSTIC",certified:false,ready:false,reason:snapshot.reason,runId:null,observations:0,qualifiedSymbols:[]};
   const gate=await loadPairedPaperInputs({directory,nowIso});
+  const observations=Array.isArray(snapshot.quotes?.observations)?snapshot.quotes.observations:[];
+  const byVenue={};
+  for(const quote of observations){
+    const mic=typeof quote?.mic==="string"&&quote.mic.trim()?quote.mic:"UNMAPPED";
+    if(!Object.hasOwn(byVenue,mic))byVenue[mic]={observations:0,providerFamilies:[],executableClaims:0};
+    byVenue[mic].observations++;
+    if(typeof quote?.sourceFamily==="string"&&quote.sourceFamily.trim()&&!byVenue[mic].providerFamilies.includes(quote.sourceFamily))byVenue[mic].providerFamilies.push(quote.sourceFamily);
+    if(quote?.executableBidAsk===true)byVenue[mic].executableClaims++;
+  }
+  for(const entry of Object.values(byVenue))entry.providerFamilies.sort();
   return {mode:"READ_ONLY_PAPER_DIAGNOSTIC",certified:false,ready:false,
     reason:gate.reason,runId:snapshot.runId,
-    observations:Array.isArray(snapshot.quotes?.observations)?snapshot.quotes.observations.length:0,
+    observations:observations.length,byVenue,
     qualifiedSymbols:gate.qualifiedSymbols??[]};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
