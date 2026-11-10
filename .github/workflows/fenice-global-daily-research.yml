@@ -115,6 +115,38 @@ jobs:
           console.log(JSON.stringify({phase8:"AUDIT_PUBLISHED_RESEARCH_ONLY",status:audit.certification,
              blockers:audit.blockers,ordersGenerated:0}));
           NODE
+      - name: Validate Phase 9 forward PnL and unverified source boundaries
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          import {validatePhase5ForwardLedger} from "./lib/global/phase5-forward-research.mjs";
+          const load=path=>JSON.parse(readFileSync(path,"utf8"));
+          const ledger=load("artifacts/phase5/persistent/forward-ledger.json");
+          const phase8=load("artifacts/phase8/latest-audit.json");
+          const phase9=load("artifacts/phase9/latest-operational-status.json");
+          const report=readFileSync("artifacts/phase9/latest-operational-status.md","utf8");
+          const account=validatePhase5ForwardLedger(ledger).accounting;
+          if(phase9.mode!=="PHASE9_WORLD_FORWARD_VALIDATION_RESEARCH_ONLY"||
+             phase9.certification!=="NOT_CERTIFIED"||
+             phase9.eligibleForRealOrders!==false||phase9.realPaperCertified!==false||
+             phase9.ordersGenerated!==0||phase9.liveTradingAllowed!==false||
+             phase9.brokerContacted!==false||
+             phase9.sourceStatus.independentExecutableFamilies!==0||
+             phase9.lineage.forwardHeadHash!==ledger.headHash||
+             phase8.lineage.forwardHash!==ledger.headHash||
+             phase9.realized.closed!==account.closedTrades||
+             phase9.realized.netEuro!==account.realizedNetPnlEuro||
+             phase9.portfolio.cashEuro!==account.cashEuro||
+             phase9.open.count!==account.openPositions.length||
+             phase9.open.marks.length+phase9.open.missing.length!==phase9.open.count||
+             (phase9.open.missing.length>0&&phase9.portfolio.indicativeEquityEuro!==null)||
+             !report.includes("Ordini Directa: 0"))
+            process.exit(1);
+          console.log(JSON.stringify({phase9:"VALIDATED_FORWARD_RESEARCH_ONLY",
+            open:phase9.open.count,closed:phase9.realized.closed,
+            netEuro:phase9.realized.netEuro,certifiedPaper:false,ordersGenerated:0}));
+          NODE
       - name: Publish append-only research evidence to dedicated branch
         if: success()
         shell: bash
@@ -132,6 +164,8 @@ jobs:
           cp artifacts/phase7/latest-world-brief.md /tmp/fenice-evidence/phase7-daily-report.md
           cp artifacts/phase8/latest-audit.json /tmp/fenice-evidence/latest-phase8-evidence-audit.json
           cp artifacts/phase8/latest-audit.md /tmp/fenice-evidence/phase8-audit-report.md
+          cp artifacts/phase9/latest-operational-status.json /tmp/fenice-evidence/latest-phase9-operational-status.json
+          cp artifacts/phase9/latest-operational-status.md /tmp/fenice-evidence/phase9-forward-report.md
           if git ls-remote --exit-code --heads origin fenice-phase4-evidence; then
             git fetch origin fenice-phase4-evidence
           fi
@@ -157,13 +191,25 @@ jobs:
           cp /tmp/fenice-evidence/phase7-daily-report.md phase7-daily-report.md
           cp /tmp/fenice-evidence/latest-phase8-evidence-audit.json latest-phase8-evidence-audit.json
           cp /tmp/fenice-evidence/phase8-audit-report.md phase8-audit-report.md
+          cp /tmp/fenice-evidence/latest-phase9-operational-status.json latest-phase9-operational-status.json
+          cp /tmp/fenice-evidence/phase9-forward-report.md phase9-forward-report.md
           git config user.name 'fenice-evidence-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md latest-phase8-evidence-audit.json phase8-audit-report.md
+          git add journal.json latest-evaluation.json latest-historical-backtest.json phase5-virtual-ledger.json latest-phase5-historical-portfolio.json phase5-forward-ledger.json latest-phase5-forward-research-portfolio.json latest-phase6-forward-risk-report.json latest-phase7-world-brief.json phase7-daily-report.md latest-phase8-evidence-audit.json phase8-audit-report.md latest-phase9-operational-status.json phase9-forward-report.md
           if ! git diff --cached --quiet; then
             git commit -m 'FENICE phase4: record immutable public research observations'
             git push origin HEAD:refs/heads/fenice-phase4-evidence
           fi
+      - name: Upload Phase 9 operational forward performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase9-forward-operational-research-not-certified
+          path: |
+            artifacts/phase9/latest-operational-status.json
+            artifacts/phase9/latest-operational-status.md
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload Phase 8 evidence and audit certification blockers
         if: always()
         uses: actions/upload-artifact@v4
