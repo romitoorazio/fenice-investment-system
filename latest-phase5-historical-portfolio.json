@@ -1,29 +1,29 @@
 {
   "mode": "PHASE5_HISTORICAL_VIRTUAL_PORTFOLIO_NOT_LIVE",
   "initialCashEuro": 1000,
-  "endingCashEuro": 992.9162,
-  "netPnlEuro": -7.0838,
+  "endingCashEuro": 990.8283,
+  "netPnlEuro": -9.1717,
   "trades": [
-    {
-      "mic": "XMIL",
-      "instrumentId": "XMIL:ENI",
-      "entryAt": "2026-11-03T08:00:00.000Z",
-      "exitAt": "2026-11-10T08:00:00.000Z",
-      "quantity": 3.802573,
-      "entryPrice": 26.03499984741211,
-      "exitPrice": 24.549999237060547,
-      "netPnlEuro": -7.6468,
-      "classification": "HISTORICAL_SIMULATION_NOT_LIVE_FILL"
-    },
     {
       "mic": "XETR",
       "instrumentId": "XETR:SAP",
-      "entryAt": "2026-11-03T08:00:00.000Z",
-      "exitAt": "2026-11-10T08:00:00.000Z",
-      "quantity": 0.47907,
-      "entryPrice": 206.64999389648438,
-      "exitPrice": 212,
-      "netPnlEuro": 0.563,
+      "entryAt": "2026-11-02T08:00:00.000Z",
+      "exitAt": "2026-11-09T08:00:00.000Z",
+      "quantity": 0.470308,
+      "entryPrice": 210.5,
+      "exitPrice": 211.64999389648438,
+      "netPnlEuro": -1.4591,
+      "classification": "HISTORICAL_SIMULATION_NOT_LIVE_FILL"
+    },
+    {
+      "mic": "XMIL",
+      "instrumentId": "XMIL:ENI",
+      "entryAt": "2026-11-02T08:00:00.000Z",
+      "exitAt": "2026-11-09T08:00:00.000Z",
+      "quantity": 3.733735,
+      "entryPrice": 26.514999389648438,
+      "exitPrice": 24.985000610351562,
+      "netPnlEuro": -7.7126,
       "classification": "HISTORICAL_SIMULATION_NOT_LIVE_FILL"
     }
   ],
@@ -33,10 +33,12 @@
     "feeEuro": 1,
     "exitSessions": 5,
     "maxPositions": 3,
-    "commonCutoff": "2026-11-03T08:00:00.000Z",
+    "commonCutoff": "2026-11-02T08:00:00.000Z",
     "fxConversion": "EUR_ONLY_NON_EUR_EXCLUDED",
     "fees": "FLAT_SIMULATED",
-    "lookAheadProtection": "COMMON_CUTOFF"
+    "lookAheadProtection": "COMMON_CUTOFF",
+    "dailyBarPolicy": "EXCLUDE_UNSETTLED_CURRENT_UTC_DATE",
+    "settledBeforeUtc": "2026-11-10T00:00:00.000Z"
   },
   "realPaperCertified": false,
   "liveTradingAllowed": false,
@@ -50,5 +52,24 @@
     "eligibleForResearchPersistence": true,
     "verifiedForPaper": false
   },
-  "missingSourceSymbols": []
+  "missingSourceSymbols": [],
+  "reconciliation": {
+    "policy": "IMMUTABLE_FIRST_OBSERVATION_LEDGER_CANONICAL",
+    "originalRecomputedNetPnlEuro": -9.1717,
+    "repricedDuplicateCount": 0,
+    "repricedDuplicates": [],
+    "ledgerEntries": 4,
+    "ledgerHeadHash": "53cf171f34a06797fdf866493588f6c9cc50916812a82f8cf66742d7caca04e6",
+    "potentiallyUnsettledLegacyTrades": [
+      {
+        "key": "XMIL:ENI|2026-11-03T08:00:00.000Z|2026-11-10T08:00:00.000Z",
+        "reason": "SAME_DAY_DAILY_BAR_POTENTIALLY_UNSETTLED"
+      },
+      {
+        "key": "XETR:SAP|2026-11-03T08:00:00.000Z|2026-11-10T08:00:00.000Z",
+        "reason": "SAME_DAY_DAILY_BAR_POTENTIALLY_UNSETTLED"
+      }
+    ],
+    "realPaperCertified": false
+  }
 }
