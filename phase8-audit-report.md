@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 8: verbale di verifica
 
-**Data:** 2026-11-10T16:17:56.400Z
+**Data:** 2026-11-10T16:19:43.048Z
 **Audit tecnico:** PASS
 **PAPER certificato:** NO | **Ordini Directa:** 0
 
