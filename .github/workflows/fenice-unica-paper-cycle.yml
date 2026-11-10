@@ -22,12 +22,18 @@ on:
       - "app/opportunita-mondo/page.tsx"
       - "app/paper-mondo/page.tsx"
       - "scripts/test-one-global-strategy-paper.mjs"
+      - "lib/intelligence/one-global-tactical-watchlist.mjs"
+      - "scripts/report-one-global-tactical-watchlist.mjs"
+      - "scripts/test-one-global-tactical-watchlist.mjs"
       - ".github/workflows/fenice-unica-paper-cycle.yml"
   pull_request:
     branches: [main]
     paths:
       - "scripts/fenice-unica-paper-cycle.mjs"
       - "scripts/test-fenice-unica-paper-cycle.mjs"
+      - "lib/intelligence/one-global-tactical-watchlist.mjs"
+      - "scripts/report-one-global-tactical-watchlist.mjs"
+      - "scripts/test-one-global-tactical-watchlist.mjs"
       - ".github/workflows/fenice-unica-paper-cycle.yml"
 
 permissions:
@@ -58,6 +64,7 @@ jobs:
           node scripts/test-one-global-venue-readiness.mjs
           node scripts/test-one-global-venue-ui.mjs
           node scripts/test-one-global-committee-coverage.mjs
+          node scripts/test-one-global-tactical-watchlist.mjs
       - name: Produce V8/B2/world audited scoreboard, no provider calls
         run: node scripts/fenice-unica-paper-cycle.mjs > fenice-one-global-paper.json
       - name: Evaluate committee-to-world-PAPER forward intent blockers
@@ -66,6 +73,8 @@ jobs:
         run: node scripts/diagnose-one-global-venues.mjs --output=fenice-one-global-venue-readiness.json
       - name: Audit actual committee coverage of world-listed equities
         run: node scripts/audit-one-global-committee-coverage.mjs --output=fenice-one-global-committee-coverage.json
+      - name: Rank worldwide short-horizon technical research watchlist, never BUYs
+        run: node scripts/report-one-global-tactical-watchlist.mjs --output=fenice-world-tactical-watchlist.json
       - name: Publish per-day evidence as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -75,6 +84,7 @@ jobs:
             fenice-one-global-strategy-readiness.json
             fenice-one-global-venue-readiness.json
             fenice-one-global-committee-coverage.json
+            fenice-world-tactical-watchlist.json
           retention-days: 35
           if-no-files-found: error
       - name: Confirm no historical ledgers or source files modified
