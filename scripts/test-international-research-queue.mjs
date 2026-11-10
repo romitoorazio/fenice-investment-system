@@ -50,7 +50,9 @@ assert.equal(build(bad,fundamentals,terminal,committee,reference,now).rows.find(
 const dup=structuredClone(master);dup.instruments.push({...dup.instruments.find(x=>x.ticker==="ASML")});
 assert.equal(build(dup,fundamentals,terminal,committee,reference,now).summary.internationalSeedEquities,9);
 const changed=structuredClone(fundamentals);
-changed.companies.find(x=>x.ticker==="ASML").observedAt="2026-10-25T00:00:00.000Z";
+// Use a genuinely future-dated filing, not a historical constant that has
+// become past evidence after the scheduled source refresh.
+changed.companies.find(x=>x.ticker==="ASML").observedAt=new Date(now+60_000).toISOString();
 assert.equal(build(master,changed,terminal,committee,reference,now).rows.find(r=>r.symbol==="ASML").issuerDocumentObserved,false);
 for(const path of ["../app/api/research/global-opportunities/route.ts","../app/opportunita-mondo/page.tsx"]){
  const src=await readFile(new URL(path,import.meta.url),"utf8");
