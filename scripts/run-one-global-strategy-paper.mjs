@@ -111,6 +111,9 @@ export function selectOneGlobalStrategyIntents({committee,instruments,nowIso}){
         id,symbol:d.symbol,exchangeMic:instrument.exchangeMic,side:"BUY",
         strategyId:"one-global-committee-forward",createdAt:nowIso,
         maxNotionalEuro,approvedForWorldPaper:false,
+        // Fractional sizing is virtual-only: no assumption about Directa share lots.
+        fractionalPaperAllowed:true,fractionalPaperOnly:true,
+        brokerExecutionEligible:false,
         maximumLimitPrice:d.entryPlan.maxEntryPrice,
       });
     }
@@ -157,6 +160,7 @@ export function evaluateOneGlobalStrategyPaper({
     }
     proposals.push({id:intent.id,symbol:intent.symbol,exchangeMic:intent.exchangeMic,
       marketReady:market?.ready===true,entryLimit:intent.maximumLimitPrice,
+      fractionalPaperOnly:true,transferableToBroker:false,
       executable:false,blockers:uniq(blockers)});
   }
   const enabled=authorized&&plan.reasons.length===0&&approvedIntents.length>0;
