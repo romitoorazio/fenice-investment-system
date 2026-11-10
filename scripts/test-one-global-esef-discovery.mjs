@@ -28,6 +28,12 @@ const good=parseEuropeanFilings(identity,payload,now);
 assert.equal(good.state,"LEI_INDEXED_REPORT_FOUND");
 assert.equal(good.availableReports,1);
 assert.equal(good.latestReport.periodEnd,"2025-12-31");
+assert.equal(parseEuropeanFilings(identity,{
+  ...payload,data:[filing({processed:"2025-04-29T15:28:31"})],
+},now).state,"LEI_INDEXED_REPORT_FOUND");
+assert.equal(parseEuropeanFilings(identity,{
+  ...payload,data:[filing({processed:"2025-04-29T15:28:31.123456+00:00"})],
+},now).state,"LEI_INDEXED_REPORT_FOUND");
 assert.equal(good.financialFactsReviewed,false);
 assert.equal(good.latestReport.valuationEligible,false);
 assert.equal(good.strategyPaperEligible,false);
