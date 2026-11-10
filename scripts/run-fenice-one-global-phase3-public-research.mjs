@@ -1,7 +1,7 @@
 /** Phase 3 public-data research run. No credentials, orders, ledger or broker access. */
 import {writeFile,mkdir,rename} from "node:fs/promises";
 import {simulatePhase5Portfolio} from "../lib/global/phase5-virtual-portfolio.mjs";
-import {appendPhase5VirtualLedger} from "../lib/global/phase5-virtual-ledger.mjs";
+import {appendPhase5VirtualLedger,validatePhase5PersistedLedger,reconcilePhase5PortfolioToLedger} from "../lib/global/phase5-virtual-ledger.mjs";
 import {appendPhase4Signals} from "../lib/global/phase4-signal-journal.mjs";
 import {persistPhase4SignalJournal} from "../lib/global/phase4-journal-file.mjs";
 import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs";
@@ -47,17 +47,19 @@ if(process.env.FENICE_PHASE4_JOURNAL_PATH){
 // Phase 5 historical simulation is explicitly not a forward PAPER fill.
 const phase5={...simulatePhase5Portfolio({histories:fetched.histories,mode:"HISTORICAL_BACKTEST"}),sourceCoverage:coveragePolicy,missingSourceSymbols:fetched.errors.map(e=>e.symbol??null).filter(Boolean)};
 await mkdir("artifacts/phase5",{recursive:true});
-await writeFile("artifacts/phase5/latest-historical-portfolio.json",JSON.stringify(phase5,null,2)+"\n");
+let publishedPhase5=phase5;
 if(process.env.FENICE_PHASE5_LEDGER_PATH){
  const path=process.env.FENICE_PHASE5_LEDGER_PATH;
  let existing=[];
- try{existing=JSON.parse(await readFile(path,"utf8")).journal;}catch(e){if(e.code!=="ENOENT")throw e;}
+ try{existing=validatePhase5PersistedLedger(JSON.parse(await readFile(path,"utf8")),nowIso);}catch(e){if(e.code!=="ENOENT")throw e;}
  const ledger=appendPhase5VirtualLedger({journal:existing,trades:phase5.trades,recordedAt:nowIso});
+ publishedPhase5=reconcilePhase5PortfolioToLedger({portfolio:phase5,ledger});
  await mkdir(path.slice(0,path.lastIndexOf("/"))||".",{recursive:true});
  await writeFile(path+".tmp",JSON.stringify({schemaVersion:1,...ledger,sourceCoverage:coveragePolicy},null,2)+"\n");
  await rename(path+".tmp",path);
- console.log(JSON.stringify({phase5:"HISTORICAL_ONLY",trades:phase5.trades.length,appended:ledger.appended,duplicates:ledger.duplicates,ordersGenerated:0}));
+ console.log(JSON.stringify({phase5:"HISTORICAL_ONLY",trades:phase5.trades.length,appended:ledger.appended,duplicates:ledger.duplicates,repricedDuplicateCount:publishedPhase5.reconciliation.repricedDuplicateCount,ordersGenerated:0}));
 }
+await writeFile("artifacts/phase5/latest-historical-portfolio.json",JSON.stringify(publishedPhase5,null,2)+"\n");
 await mkdir("artifacts/phase3",{recursive:true});
 await writeFile("artifacts/phase3/world-research-watchlist.json",JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify({status:acquisitionStatus,requested:report.requestedSymbols,received:report.receivedHistories,ranked:watchlist.candidates.length,fetchErrors:fetched.errors.length,rejected:watchlist.rejected.length,realPaperCertified:false,ordersGenerated:0}));

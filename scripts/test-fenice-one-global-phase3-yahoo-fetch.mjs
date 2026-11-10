@@ -25,4 +25,7 @@ assert.equal(penceResult.histories[0].currency,"GBP");
 assert.equal(penceResult.histories[0].sourceCurrency,"GBp");
 assert.equal(penceResult.histories[0].priceScaleToCurrencyUnit,0.01);
 assert.equal(penceResult.histories[0].closes[0].close,37);
+const malformedPence=await fetchPhase3YahooChartHistory({symbols:[{symbol:"SHEL.L",mic:"XLON",instrumentId:"XLON:SHEL"}],fetchImpl:async()=>({ok:true,json:async()=>({chart:{result:[{meta:{symbol:"SHEL.L",currency:"GBp"},timestamp,indicators:{quote:[{close:timestamp.map((_,i)=>i===0?"3700":3700+i)}]}}]}})}),nowIso});
+assert.equal(malformedPence.histories.length,1);
+assert.equal(malformedPence.histories[0].closes.length,24);
 console.log("FENICE phase 3 public chart fetch provenance boundary: PASS");
