@@ -34,6 +34,16 @@ assert.equal(parseEuropeanFilings(identity,{
 assert.equal(parseEuropeanFilings(identity,{
   ...payload,data:[filing({processed:"2025-04-29T15:28:31.123456+00:00"})],
 },now).state,"LEI_INDEXED_REPORT_FOUND");
+assert.equal(parseEuropeanFilings(identity,{
+  ...payload,data:[filing({processed:null,date_added:null})],
+},now).state,"LEI_INDEXED_REPORT_FOUND",
+  "Missing optional processing metadata must not hide an exact LEI annual report");
+assert.equal(parseEuropeanFilings(identity,{
+  ...payload,data:[filing({processed:null,date_added:"2025-04-29T15:28:31"})],
+},now).latestReport.processingTimestampAvailable,true);
+assert.equal(parseEuropeanFilings(identity,{
+  ...payload,data:[filing({processed:"impossible",date_added:null})],
+},now).state,"NO_VERIFIED_INDEXED_REPORT");
 assert.equal(good.financialFactsReviewed,false);
 assert.equal(good.latestReport.valuationEligible,false);
 assert.equal(good.strategyPaperEligible,false);
