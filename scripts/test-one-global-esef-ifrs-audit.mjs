@@ -120,4 +120,18 @@ assert.equal(outage.rows.length,3);
 assert.equal(outage.errors.length,0,
   "Index errors remain in discovery diagnostics; do not hallucinate facts");
 assert(outage.rows.every(x=>x.state==="INDEX_FILING_NOT_VERIFIED"));
+const huge=await auditEuropeanXbrlFacts({nowIso:now,fetchImpl:async rawUrl=>{
+  const u=new URL(rawUrl);
+  if(u.pathname==="/api/filings"){
+    const lei=JSON.parse(u.searchParams.get("filter"))[0].val;
+    return {ok:true,headers:{get:k=>k==="content-type"?"application/json":null},
+      text:async()=>JSON.stringify(indexResponse(lei))};
+  }
+  return {ok:true,headers:{get:k=>k==="content-type"?"application/json"
+    :k==="content-length"?"33000000":null},
+    text:async()=>{throw Error("MUST_NOT_DOWNLOAD_OVERSIZED_UNTRUSTED_FACTS");}};
+}});
+assert.equal(huge.parsedIssuers,0);
+assert(huge.errors.every(e=>e.code==="XBRL_JSON_TOO_LARGE_DECLARED_33MB"),
+  "Large XBRL documents must be rejected before downloading them");
 console.log("PASS ONE GLOBAL IFRS fact audit: precise LEI/year/EUR/unit, consolidated contexts, balance sheet, conflict, stale 2024, and zero PAPER authorization");
