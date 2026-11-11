@@ -46,9 +46,11 @@ rejected(x=>{x.evidence.observedAt="2026-11-11T17:13:00.000Z"},
 rejected(x=>{x.nextClose="2026-11-11T17:15:00.000Z"},
  "US_SESSION_TOO_CLOSE_TO_END","2026-11-11T17:12:00.001Z");
 rejected(x=>{x.nextClose=null},"US_MARKET_CLOCK_STALE_OR_UNTRUSTED");
-rejected(x=>{x.nextOpen="2026-11-11T23:00:00.000Z";
- x.nextClose="2026-11-11T22:00:00.000Z"},
- "US_SESSION_TIME_WINDOW_INCONSISTENT");
+rejected(x=>{x.nextOpen="malformed-next-open"},
+ "US_NEXT_OPEN_TIMESTAMP_INVALID");
+// Alpaca's next_open can legitimately be tomorrow or after the next holiday:
+// never conflate next open with the current session's closing boundary.
+assert.equal(gate({session:{...session,nextOpen:"2026-11-13T14:30:00.000Z"},nowIso}).allowed,true);
 const noSession=gate({session:null,nowIso});
 assert.equal(noSession.allowed,false);
 assert.equal(noSession.reason,"AUTHORITATIVE_US_CLOCK_UNAVAILABLE");
