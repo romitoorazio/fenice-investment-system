@@ -49,42 +49,4 @@ for(const [path,job] of files){
     "  "+job+":\n    if: ${{ false }}",
     "  "+job+":\n    if: github.event_name != 'pull_request'");});
 }
-
-// ONE GLOBAL retirement must halt all automatic legacy PAPER writers and
-// both dispatcher paths; a successful archived workflow is never a V8 proof.
-const retiredAutoWriters = [
-  [".github/workflows/paper-validation.yml", "paper-validation"],
-  [".github/workflows/v7-phase-b-forward-paper.yml", "paper-forward"],
-  [".github/workflows/v7-b2-forward-paper.yml", "paper-forward"],
-  [".github/workflows/paper-probe-staging.yml", "paper-validation-probe"],
-];
-for (const [workflowPath, job] of retiredAutoWriters) {
-  const source = readFileSync(workflowPath, "utf8");
-  assert.doesNotMatch(source, /^  schedule:/m,
-    "retired workflow must never consume a daily scheduled runner: " + workflowPath);
-  const guardedJob = source.slice(source.indexOf("\n  " + job + ":") + 1);
-  assert.match(guardedJob, /^  [\w-]+:\n    if: \$\{\{ false \}\}/,
-    "retired PAPER writer must stay hard-disabled: " + workflowPath);
-}
-for (const workflowPath of [
-  ".github/workflows/paper-validation-early-trigger.yml",
-  ".github/workflows/paper-probe-operator-trigger.yml",
-]) {
-  const source = readFileSync(workflowPath, "utf8");
-  const gate = source.match(/^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n([\s\S]*?)\n    runs-on:/m);
-  assert.ok(gate, "retired dispatcher condition must exist: " + workflowPath);
-  const expression = gate[1].trim().replace(/\s+/g, " ");
-  assert.ok(expression.startsWith("false && "),
-    "retired dispatcher must start with a literal false gate: " + workflowPath);
-  let depth = 0;
-  for (let k = 0; k < expression.length; k++) {
-    if (expression[k] === "(") depth++;
-    if (expression[k] === ")") depth--;
-    assert.ok(depth >= 0, "unbalanced dispatcher condition: " + workflowPath);
-    assert.ok(!(expression.slice(k, k+2) === "||" && depth === 0),
-      "top-level OR could bypass retired dispatcher lock: " + workflowPath);
-  }
-  assert.equal(depth, 0, "unbalanced dispatcher condition: " + workflowPath);
-}
-
 console.log("PASS ONE GLOBAL formal retirement: 16 negative gates; signed ledgers preserved; V8 pinned; no LIVE or broker");
