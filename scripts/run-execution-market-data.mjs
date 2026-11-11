@@ -1,3 +1,4 @@
+import { includeApprovedV8TechnicalProbes } from "../lib/trading/v8-approved-technical-probes.mjs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -394,11 +395,12 @@ async function fetchKraken(instrument) {
   });
 }
 
-const [queue, terminal, master, directaSnapshot] = await Promise.all([
+const [queue, terminal, master, directaSnapshot, v8TechnicalApproval] = await Promise.all([
   readJson("paper-order-queue.json", { orders: [] }),
   readJson("terminal-intelligence.json", { assets: [] }),
   readJson("instrument-master.json", { instruments: [] }),
   readJsonState(directaSnapshotPath, null),
+  readJson("paper-v8-technical-approval.json", null),
 ]);
 
 const masterByTicker = new Map(
@@ -422,7 +424,15 @@ if (usingTerminalFallback) {
   }
 }
 
-const instruments = [...requested].map((symbol) => {
+// This is exclusively a V8 engineering quote-intake focus. It never changes
+// the worldwide Terminal research roster or a real PAPER order queue.
+const probeRequested = includeApprovedV8TechnicalProbes([...requested], {
+  usingTerminalFallback,
+  job: process.env.FENICE_JOB,
+  approval: v8TechnicalApproval,
+  nowIso: new Date().toISOString(),
+});
+const instruments = probeRequested.map((symbol) => {
   const masterInstrument = masterByTicker.get(symbol) || {};
   const terminalAsset = terminalBySymbol.get(symbol) || {};
   return {
