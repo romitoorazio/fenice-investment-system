@@ -44,7 +44,7 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
     const at = isoMs(record?.observedAt);
     return at !== null && at >= started - 30000 && at <= ended + 120000;
   };
-  const today's = days.records.find(x => x.date === date);
+  const todays = days.records.find(x => x.date === date);
   const thisRunProof = days.records.find(x => x.date === date && inRun(x));
   const todaySamples = samples.events.filter(x => x.occurredAt?.slice(0,10) === date).length;
   const marketMatches = [...String(log).matchAll(/Fenice PAPER market session:\s*(OPEN|CLOSED|UNKNOWN)/g)];
@@ -53,7 +53,7 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   const base = {
     version:1, runId:run.id, runUrl:run.html_url, observedDateUTC:date,
     workflowConclusion:run.conclusion, marketStateInJobLog:marketState,
-    sourceClues:clues, v8DayAlreadyRecorded:!!today's,
+    sourceClues:clues, v8DayAlreadyRecorded:!!todays,
     v8DayRecordedByThisRun:!!thisRunProof, recordedTechnicalSamplesToday:todaySamples,
     certificationScope:"V8_TECHNICAL_ONLY", strategyPaperTradeCertified:false,
     certificationCredit:0, liveTradingAllowed:false, brokerConnectivityAllowed:false,
@@ -67,7 +67,7 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   if (thisRunProof)
     return result("ADMISSIBLE_V8_TECHNICAL_DAY","LEDGER_PERSISTED",
       "Prospective date-matched signed technical day exists inside actual run window");
-  if (today's)
+  if (todays)
     return result("ALREADY_ADMITTED_TODAY","DAILY_DEDUPLICATION",
       "A valid earlier technical day already exists; do not add duplicate evidence");
   if (run.conclusion !== "success")
