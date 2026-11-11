@@ -33,6 +33,24 @@ function validPaperApproval(authority,nowMs){
     &&authority.brokerConnectivityAllowed===false
     &&start!==null&&end!==null&&start<=nowMs&&nowMs<end;
 }
+function checkB2DeclaredDays(days,approval,nowMs){
+  const observed=new Set(),from=isoTime(approval?.effectiveFrom),until=isoTime(approval?.expiresAt);
+  if(!Array.isArray(days?.days)||from===null||until===null||days.days.length>90)
+    return {count:0,valid:false};
+  let count=0;
+  for(const row of days.days){
+    const checked=isoTime(row?.checkedAt),date=String(row?.date||"");
+    if(checked===null||checked>nowMs||checked<from||checked>=until
+      ||date!==new Date(checked).toISOString().slice(0,10)||observed.has(date)
+      ||row?.liveTradingAllowed!==false||row?.brokerConnectivityAllowed!==false
+      ||row?.fingerprintPinned!==true
+      ||!Number.isSafeInteger(row?.fillCount)||row.fillCount<0)
+      return {count:0,valid:false};
+    observed.add(date);
+    if(row.validatedForwardDay===true&&row.marketEvidenceValid===true)count++;
+  }
+  return {count,valid:true};
+}
 export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledger,b2Days,
   v8Status,worldLedger,v8Approval,v8Days,v8Samples,v8Exits,nowIso}){
   const inspectedAt=nowIso??new Date().toISOString();
@@ -50,6 +68,9 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     const b=replayExecutionLabLedger(v8Samples);
     const c=replayShadowExits({ledger:v8Exits,samples:v8Samples,days:v8Days,approval:v8Approval});
     if(!a.valid||!b.valid||!c.valid)throw Error("ONE_GLOBAL_V8_SOURCE_REPLAY_FAILED");
+    if(v8Days.records.some(x=>isoTime(x.observedAt)>nowMs)
+      ||v8Samples.events.some(x=>isoTime(x.occurredAt)>nowMs))
+      throw Error("ONE_GLOBAL_V8_FUTURE_EVIDENCE_REJECTED");
     v8Replayed={days:a.validDays,samples:b.simulatedExecutions};
     technicalAccounting=reportV8VirtualPnL({
       approval:v8Approval,samples:v8Samples,days:v8Days,exits:v8Exits,
@@ -108,6 +129,10 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
   const v8TrustedDays=v8Replayed?.days??0;
   const v8TrustedSamples=v8Replayed?.samples??0;
   const v8ElapsedCalendarDays=v8Start===null?0:Math.max(0,Math.floor((nowMs-v8Start)/DAY));
+  const elapsedMinimumsMet=v8Replayed!==null
+    &&v8ElapsedCalendarDays>=Number(v8Approval?.minCalendarDays??30)
+    &&v8TrustedDays>=Number(v8Approval?.minEvidenceDays??25)
+    &&v8TrustedSamples>=Number(v8Approval?.minTechnicalSamples??10);
   const statusCountersConsistent=v8Replayed!==null
     &&v8Status?.campaignId===v8Approval?.campaignId
     &&v8Status?.validDays===v8TrustedDays
@@ -119,19 +144,19 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     &&v8Status?.automaticallyLiveReady===false
     &&v8Status?.investmentSignalQualityCertified===false
     &&v8Status?.liveTradingAllowed===false
-    &&v8Status?.brokerConnectivityAllowed===false;
+    &&v8Status?.brokerConnectivityAllowed===false
+    &&(v8Status?.readyForTechnicalReview!==true||elapsedMinimumsMet)
+    &&(v8Status?.status!=="READY_FOR_INDEPENDENT_TECHNICAL_REVIEW"||elapsedMinimumsMet);
   const v8TechnicalReviewEligible=v8ApprovalCurrent&&statusCountersConsistent
-    &&v8ElapsedCalendarDays>=v8Approval.minCalendarDays
-    &&v8TrustedDays>=v8Approval.minEvidenceDays
-    &&v8TrustedSamples>=v8Approval.minTechnicalSamples;
-  const trustedB2Days=(b2Days.days||[]).filter(x=>x.validatedForwardDay===true
-    &&x.marketEvidenceValid===true&&x.liveTradingAllowed===false
-    &&x.brokerConnectivityAllowed===false).length;
+    &&elapsedMinimumsMet;
+  const b2DayAudit=checkB2DeclaredDays(b2Days,approval,nowMs);
+  const trustedB2Days=b2DayAudit.count;
   const blockers=[
     ...(!coverageFresh?["PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"]:[]),
     ...(!committeeFresh?["COMMITTEE_SNAPSHOT_TOO_OLD"]:[]),
     ...(!b2ApprovalCurrent?["B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"]:[]),
-    ...(committee.buyCandidateCount!==1&&committee.buyCandidateCount<1?["COMMITTEE_NO_COMPRA_SIGNAL"]:[]),
+    ...(!b2DayAudit.valid?["B2_DAILY_STATUS_IDENTITY_OR_TIME_INVALID"]:[]),
+    ...(!(Number(committee?.buyCandidateCount)>0)?["COMMITTEE_NO_COMPRA_SIGNAL"]:[]),
     ...(b2Replay.fills<Number(approval?.targetPaperFills??10)?["B2_STRATEGY_FILLS_BELOW_APPROVED_TARGET"]:[]),
     ...(trustedB2Days<Number(approval?.minEvidenceDays??25)?["B2_PROSPECTIVE_DAYS_BELOW_APPROVED_TARGET"]:[]),
     ...(!v8ApprovalCurrent?["V8_TECHNICAL_APPROVAL_EXPIRED_OR_UNSAFE"]:[]),
@@ -179,7 +204,8 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       // but these older files can NEVER create an eligible candidate.
       savedQuoteCoverageFresh:coverageFresh,
       savedCommitteeFresh:committeeFresh,
-      b2ApprovalCurrent,b2ProspectiveDays:trustedB2Days,
+      b2ApprovalCurrent,b2DailyRecordsBasicIntegrityValid:b2DayAudit.valid,
+      b2ProspectiveDays:trustedB2Days,
       b2RequiredProspectiveDays:Number(approval?.minEvidenceDays??25),
       b2ConfirmedStrategyFills:b2Replay.fills,
       b2RequiredStrategyFills:Number(approval?.targetPaperFills??10),
