@@ -8,6 +8,11 @@ on:
         description: Internal correlation token for an orchestrated PAPER run
         required: false
         type: string
+  schedule:
+    # Weekday attempts are dispatched by paper-validation-early-trigger.yml,
+    # which understands DST/pre-open evidence and suppresses duplicates. This
+    # direct schedule preserves weekend no-risk evidence for the 30-day audit.
+    - cron: "35 16 * * 0,6"
 
 permissions:
   contents: write
