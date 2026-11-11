@@ -68,7 +68,7 @@ tamperedOfficial.companies[0].lei="INVALID";
 assert.throws(()=>run({annualPrimaryReleases:tamperedOfficial}),
   /FY2025_ISSUER_LEI_OR_IDENTITY_MISMATCH/);
 const tamperedInterim=structuredClone(inputs.interimPrimaryReleases);
-tamperedInterim.issuers[0].policy={paperExecutionAllowed:true};
+tamperedInterim.policy.strategyPaperEligible=true;
 assert.throws(()=>run({interimPrimaryReleases:tamperedInterim}),
   /INTERIM_RESEARCH_SCHEMA_INVALID|INTERIM_RIGHTS_ESCALATION|INTERIM_RESEARCH_POLICY_MISSING/);
 
