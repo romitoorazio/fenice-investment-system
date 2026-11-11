@@ -11,6 +11,9 @@ on:
       - "scripts/test-v8-shadow-session-preflight.mjs"
       - "scripts/diagnose-v8-session-proof.mjs"
       - "scripts/test-v8-session-proof-diagnostic.mjs"
+      - "lib/trading/v8-approved-technical-probes.mjs"
+      - "scripts/test-v8-approved-technical-probes.mjs"
+      - "scripts/run-execution-market-data.mjs"
       - "scripts/run-v8-shadow-exits.mjs"
       - "scripts/test-v8-shadow-exits.mjs"
       - "scripts/report-v8-virtual-pnl.mjs"
@@ -50,6 +53,7 @@ jobs:
           node scripts/test-v8-technical-evidence.mjs
           node scripts/test-v8-shadow-session-preflight.mjs
           node scripts/test-v8-session-proof-diagnostic.mjs
+          node scripts/test-v8-approved-technical-probes.mjs
       - name: No committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
