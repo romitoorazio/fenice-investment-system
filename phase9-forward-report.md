@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 9: controllo operativo forward
 
-**Aggiornato:** 2026-11-10T16:36:43.950Z · **PAPER certificato: NO** · **Ordini Directa: 0**
+**Aggiornato:** 2026-11-11T15:12:38.856Z · **PAPER certificato: NO** · **Ordini Directa: 0**
 
 ## Risultati forward (non storici)
 - Operazioni virtuali chiuse: 0, positive: 0, negative: 0, pari: 0

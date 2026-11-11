@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 8: verbale di verifica
 
-**Data:** 2026-11-10T16:36:43.950Z
+**Data:** 2026-11-11T15:12:38.856Z
 **Audit tecnico:** PASS
 **PAPER certificato:** NO | **Ordini Directa:** 0
 
@@ -8,7 +8,7 @@
 
 | Verifica | Esito | Evidenza |
 |---|---|---|
-| SIGNAL_JOURNAL_INTEGRITY | PASS | 14 valid entries |
+| SIGNAL_JOURNAL_INTEGRITY | PASS | 15 valid entries |
 | HISTORICAL_LEDGER_INTEGRITY | PASS | 7 valid entries |
 | FORWARD_LEDGER_INTEGRITY | PASS | 0 valid events |
 | RISK_CONTROLS_MATCH | PASS | ACTIVE |
@@ -18,7 +18,7 @@
 | INDEPENDENT_EXECUTABLE_QUOTES | PENDING | 0 independently attested providers |
 
 ## Performance e provenienza
-- Segnali forward valutabili: 12; esclusi motivatamente: 2
+- Segnali forward valutabili: 15; esclusi motivatamente: 0
 - Operazioni forward chiuse: 0; positive: 0; negative: 0
 - Risultato forward simulato: €0.0000
 - Backtest storico, completamente separato: €-14.2712
@@ -31,7 +31,7 @@
 - INDEPENDENT_EXECUTABLE_QUOTES
 
 ## Integrità registri
-- Segnali: 8481e4137d95361c7d9af7a22d0bf161692a512065aa3709e02b92dfdff0151d
+- Segnali: 9d68d118867c6c0cbbcf1b76c755eefa609970156e0795682ea768c1c3e86345
 - Storico: d7b436e6881939171befa0a3ee4c2f2731960d49f76aa0c0841ebbc85798c378
 - Forward: GENESIS
 
