@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { computeV7B2Fingerprint } from "../lib/trading/paper-v7-b2-fingerprint.mjs";
 import { replayV7PhaseBLedger } from "../lib/trading/paper-v7-phase-b-v6-parity.mjs";
 import { replayShadowExits } from "./run-v8-shadow-exits.mjs";
+import { auditOneGlobalStrategyLedger } from "../lib/trading/one-global-strategy-ledger-audit.mjs";
 
 const FILE = fileURLToPath(import.meta.url);
 const ROOT = resolve(FILE, "../..");
@@ -25,7 +26,7 @@ const sourceFamily = value => typeof value === "string" ? value.trim().toLowerCa
 
 export function auditPhase9({
   approval, b2Ledger, b2Days, fingerprint, baselineAncestor,
-  v8Status, v8Days, v8Approval, v8Samples, shadowExitLedger, coverage, nowIso,
+  v8Status, v8Days, v8Approval, v8Samples, shadowExitLedger, strategyLedger, coverage, nowIso,
 }) {
   const reasons = [];
   const add = code => { if (!reasons.includes(code)) reasons.push(code); };
@@ -86,6 +87,16 @@ export function auditPhase9({
   });
   if (shadow && !shadow.valid) add("V8_TECHNICAL_EXIT_JOURNAL_INVALID");
 
+  // ONE GLOBAL can be replayed and measured without granting the resulting
+  // virtual P/L a Phase 9 certificate. The World V7 event stores source family
+  // labels, NOT independently verifiable original venue/vendor receipts.
+  const strategy = auditOneGlobalStrategyLedger({ ledger: strategyLedger, nowIso });
+  if (!strategy.journalPresent) add("ONE_GLOBAL_STRATEGY_JOURNAL_NOT_PERSISTED");
+  else if (!strategy.valid) add("ONE_GLOBAL_STRATEGY_JOURNAL_INVALID");
+  else if (strategy.closedVirtualRoundTrips === 0) add("ONE_GLOBAL_FORWARD_VIRTUAL_EXITS_NOT_YET_OBSERVED");
+  if (!strategy.hasIndependentlyAuthenticatedExecutionReceipts)
+    add("ONE_GLOBAL_INDEPENDENT_EXECUTION_RECEIPTS_MISSING");
+
   // The currently persisted B2 journal records buy/fill attempts, not
   // independently reconciled ENTRY -> EXIT round trips. It would be dishonest
   // to infer a closed trade from a fill or any backtest/engineering ledger.
@@ -129,6 +140,7 @@ export function auditPhase9({
       v8TechnicalRoundtripsObserved: shadow?.valid ? shadow.closedTechnicalRoundtrips : 0,
       v8TechnicalRealizedNetEuro: shadow?.valid ? shadow.realizedEuro : null,
       v8TechnicalExitsCreditedAsStrategyTrades: 0,
+      oneGlobalForwardVirtualStrategy: strategy,
     },
     policy: {
       liveTradingAllowed: false,
@@ -161,6 +173,7 @@ async function main() {
     v8Approval: read("paper-v8-technical-approval.json"),
     v8Samples: read("paper-v8-technical-samples.json"),
     shadowExitLedger: read("paper-v8-shadow-exits.json"),
+    strategyLedger: read("one-global-strategy-paper-ledger.json"),
     coverage: read("execution-market-coverage.json"),
     nowIso: new Date().toISOString(),
   });
@@ -178,6 +191,9 @@ async function main() {
       + "- Fonti di esecuzione certificate: " + report.requirements.certifiedExecutableSourceFamilies.observed + "/2\n"
       + "- Uscite virtuali tecniche V8: " + report.diagnostics.v8TechnicalRoundtripsObserved
       + "; profitto/perdita simulato €: " + report.diagnostics.v8TechnicalRealizedNetEuro + "\n"
+      + "- Operazioni virtuali ONE GLOBAL chiuse: " + report.diagnostics.oneGlobalForwardVirtualStrategy.closedVirtualRoundTrips
+      + "; profitto/perdita virtuale €: " + report.diagnostics.oneGlobalForwardVirtualStrategy.realizedNetEuro
+      + "; credito Fase 9: **0** (ricevute indipendenti non presenti)\n"
       + "- Fingerprint B2 corrispondente: " + (report.diagnostics.b2FingerprintPinned ? "SÌ" : "NO") + "\n"
       + "- Motivi: `" + report.reasonCodes.join("`, `") + "`\n"
       + "\n> Le evidenze V8 e i fill BUY B2 non dimostrano trade forward chiusi. Directa resta bloccata.\n");
@@ -185,6 +201,7 @@ async function main() {
   if (report.reasonCodes.includes("B2_LEDGER_INVALID")
     || report.reasonCodes.includes("LIVE_OR_BROKER_SAFETY_FAILURE")
     || report.reasonCodes.includes("B2_DAY_EVIDENCE_INVALID")
-    || report.reasonCodes.includes("V8_TECHNICAL_EXIT_JOURNAL_INVALID")) process.exitCode = 2;
+    || report.reasonCodes.includes("V8_TECHNICAL_EXIT_JOURNAL_INVALID")
+    || report.reasonCodes.includes("ONE_GLOBAL_STRATEGY_JOURNAL_INVALID")) process.exitCode = 2;
 }
 if (process.argv[1] && resolve(process.argv[1]) === FILE) await main();
