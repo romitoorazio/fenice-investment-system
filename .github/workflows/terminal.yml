@@ -11,6 +11,8 @@ on:
     paths:
       - "scripts/run-terminal-engine.mjs"
       - "lib/intelligence/yahoo-regular-research-quote.mjs"
+      - "lib/intelligence/yahoo-completed-daily-candles.mjs"
+      - "scripts/test-yahoo-completed-daily-candles.mjs"
       - "scripts/test-yahoo-regular-research-quote.mjs"
       - "scripts/postprocess-terminal-intelligence.mjs"
       - "lib/trading/one-global-forward-research.mjs"
@@ -78,6 +80,8 @@ jobs:
 
       - name: Verify last-trade provenance is independent of daily bars
         run: node scripts/test-yahoo-regular-research-quote.mjs
+      - name: Verify Yahoo daily candles are withheld until regular venue sessions settle
+        run: node scripts/test-yahoo-completed-daily-candles.mjs
 
       - name: Reject substring-only catalyst matches
         run: node scripts/test-investment-committee-catalysts.mjs

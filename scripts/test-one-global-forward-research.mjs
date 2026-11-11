@@ -5,6 +5,25 @@ import {advanceWorldForwardResearchLedger,replayWorldForwardResearchLedger,
   from "../lib/trading/one-global-forward-research.mjs";
 
 const terminal=JSON.parse(readFileSync(new URL("../data/terminal-intelligence.json",import.meta.url),"utf8"));
+// This synthetic replay represents Terminal after the new same-day close gate.
+// The actual historical fixture predates the policy and must not be upgraded.
+for(const asset of terminal.assets){
+  if(!asset.technical)continue;
+  asset.technical.dailyBarCompletion={
+    status:"RESEARCH_SESSION_COMPLETED",heldBackUnsettledCandles:0,
+    eligibilityRule:"EXCHANGE_LOCAL_DAY_ELAPSED_OR_PROVIDER_REGULAR_SESSION_END_PLUS_20M",
+    independentExchangeCloseCertified:false,paperEligible:false,
+    brokerOrderAllowed:false,liveTradingAllowed:false,
+  };
+}
+const actualLegacy=JSON.parse(readFileSync(
+  new URL("../data/one-global-forward-research-ledger.json",import.meta.url),"utf8"));
+const historicReport=summarizeWorldForwardResearchLedger(actualLegacy);
+assert.equal(historicReport.legacyCompletionUnverifiedSetups,historicReport.setups,
+  "Immutable pre-gate research setups must not acquire retrospective close certification");
+assert.equal(historicReport.shortOutcomesMeasured,0,
+  "Previously collected intraday bars are never rehabilitated as measured EOD gains");
+
 const at=new Date(Date.parse(terminal.generatedAt)+60_000).toISOString();
 const blank=newWorldForwardResearchLedger();
 assert.deepEqual(blank.events,[]);
@@ -15,6 +34,8 @@ assert(first.newObservations>=10,"Must capture international research using real
 assert(first.newSetups>=8,"Global balanced watchlist should have nonempty live candidates");
 assert.equal(first.ledger.events.length,first.newObservations+first.newSetups);
 assert.equal(first.performance.shortOutcomesMeasured,0);
+assert.equal(first.performance.completionGatedResearchSetups,first.newSetups);
+assert.equal(first.performance.legacyCompletionUnverifiedSetups,0);
 assert.equal(first.performance.phase9Credit,0);
 assert.equal(replayWorldForwardResearchLedger(first.ledger).valid,true);
 const repeat=advanceWorldForwardResearchLedger({
@@ -43,6 +64,10 @@ assert.equal(second.performance.shortOutcomesMeasured,0,
   "An outcome requires TWO later observations, not a backfilled guess");
 const third=moveDays(2,second.ledger);
 assert(third.performance.shortOutcomesMeasured>0);
+assert.equal(third.performance.legacyCompletionUnverifiedSetups,0);
+assert(third.ledger.events.filter(e=>e.kind==="BAR_OBSERVATION").every(e=>
+  e.candleCompletionPolicy==="EXCHANGE_LOCAL_DAY_ELAPSED_OR_PROVIDER_REGULAR_SESSION_END_PLUS_20M"
+  &&e.independentExchangeCloseCertified===false));
 assert(third.performance.shortNegative>=1,"Record losses as readily as gains");
 assert(third.performance.shortPositive>=1);
 assert.equal(third.performance.mediumOutcomesMeasured,0);
@@ -72,4 +97,12 @@ const none=summarizeWorldForwardResearchLedger(newWorldForwardResearchLedger());
 assert.equal(none.shortPositive,0);
 assert.equal(none.shortNegative,0);
 assert.equal(none.phase9Credit,0);
+const withoutSessionEvidence=structuredClone(terminal);
+for(const asset of withoutSessionEvidence.assets)
+  if(asset.technical)delete asset.technical.dailyBarCompletion;
+const blockedNoEvidence=advanceWorldForwardResearchLedger({
+  terminal:withoutSessionEvidence,nowIso:at,previousLedger:newWorldForwardResearchLedger()});
+assert.equal(blockedNoEvidence.newObservations,0,
+  "Never append today's chart as a final daily close if provider session gate is missing");
+assert.equal(blockedNoEvidence.newSetups,0);
 console.log("PASS ONE GLOBAL prospective worldwide research: immutable sessions, no backfill, positive/negative outcomes, stale safety, zero PAPER/Directa");

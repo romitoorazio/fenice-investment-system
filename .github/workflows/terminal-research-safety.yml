@@ -32,6 +32,8 @@ jobs:
         run: node scripts/test-one-global-world-radar-ui.mjs
       - name: Verify dedicated Terminal queue and safe concurrent push retry
         run: node scripts/test-terminal-trigger-config.mjs
+      - name: Prevent partial Johannesburg/Tokyo/New York daily candles from generating outcomes
+        run: node scripts/test-yahoo-completed-daily-candles.mjs
       - name: Verify daily quotes are research-only and stale signals cannot receive allocations
         run: node --experimental-strip-types scripts/test-terminal-research-freshness.mjs
       - name: Verify eleven non-US exact-venue research seeds, vendor identity and PAPER locks

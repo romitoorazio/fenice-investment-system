@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { yahooRegularSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
+import { selectCompletedYahooDailyCandles } from '../lib/intelligence/yahoo-completed-daily-candles.mjs';
 import { worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta,normalizeWorldYahooResearchPrice } from '../lib/intelligence/world-terminal-universe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -296,7 +297,7 @@ async function fetchTechnical(definition) {
   const timestamps = result.timestamp || [];
   const quote = result.indicators?.quote?.[0] || {};
   const adjusted = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
-  const rows = [];
+  let rows = [];
   // Yahoo may quote JSE securities in cents (ZAc); convert all OHLC and
   // adjusted closes to the instrument's ZAR unit before computing indicators.
   // Never use historical bars as entitled executable quotes.
@@ -309,6 +310,11 @@ async function fetchTechnical(definition) {
     if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(high) || !Number.isFinite(low)) continue;
     rows.push({ timestamp: Number(timestamps[index]), close, high, low });
   }
+  // Prevent in-progress worldwide market candles from entering momentum,
+  // daily RSI, later-bar research outcomes or valuation/committee signals.
+  // The chart timestamp is a session bucket, not a last-trade timestamp.
+  const completion=selectCompletedYahooDailyCandles({rows,meta:result.meta,now});
+  rows=completion.rows;
   if (rows.length < 60) throw new Error(`Solo ${rows.length} osservazioni valide`);
 
   const closes = rows.map((row) => row.close);
@@ -380,6 +386,14 @@ async function fetchTechnical(definition) {
     observedAt,
     source: `Yahoo Finance chart (${sourceHost})`,
     timestampSemantics: 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE',
+    dailyBarCompletion:{
+      status:'RESEARCH_SESSION_COMPLETED',
+      heldBackUnsettledCandles:completion.heldBack,
+      withheldReason:completion.reason,
+      eligibilityRule:completion.eligibilityRule,
+      independentExchangeCloseCertified:false,
+      paperEligible:false,brokerOrderAllowed:false,liveTradingAllowed:false,
+    },
     researchQuote,
     status: dataCompleteness >= 80 ? 'operativo' : 'parziale',
     price: round(price, price < 1 ? 6 : 2),
