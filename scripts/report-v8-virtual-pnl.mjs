@@ -21,11 +21,14 @@ const r4=n=>Math.round((n+Number.EPSILON)*10000)/10000;
 function comparableReport(report){
   if(!report||typeof report!=="object"||!Array.isArray(report.rows))
     return null;
-  const {generatedAt:omittedGeneratedAt,rows,...payload}=report;
-  return {...payload,rows:rows.map(row=>{
-    const {proofAgeMinutes:omittedProofAge,...substantive}=row;
+  const payload={...report};
+  delete payload.generatedAt;
+  payload.rows=report.rows.map(row=>{
+    const substantive={...row};
+    delete substantive.proofAgeMinutes;
     return substantive;
-  })};
+  });
+  return payload;
 }
 export function shouldPublishV8VirtualPnL({previous,next}){
   if(!next||next.scope!=="V8_TECHNICAL_SIMULATED_ACCOUNTING_ONLY"
@@ -117,7 +120,9 @@ async function main(){
   const path=resolve(ROOT,"data","paper-v8-pnl-report.json");
   let previous=null;
   try{previous=JSON.parse(readFileSync(path,"utf8"))}catch(error){
-    if(error?.code!=="ENOENT"&&error?.name!=="SyntaxError")throw error;
+    // A corrupted existing result is evidence of a problem, not a reason to
+    // silently erase it. Only a genuinely missing report can be created.
+    if(error?.code!=="ENOENT")throw error;
   }
   const published=shouldPublishV8VirtualPnL({previous,next:result});
   if(published)writeFileSync(path,JSON.stringify(result,null,2)+"\n",{mode:0o600});
