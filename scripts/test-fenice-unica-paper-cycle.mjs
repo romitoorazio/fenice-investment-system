@@ -13,8 +13,20 @@ const inputs={
  v8Samples:read("paper-v8-technical-samples.json"),
  v8Exits:read("paper-v8-shadow-exits.json"),
  legacyRetirement:read("one-global-legacy-retirement.json"),
- nowIso:"2026-11-10T18:44:00.000Z"
+ // Test time is after the persistent, signed V8 evidence, rather than a
+ // forever-frozen Nov 10 reference that rejects genuine subsequent sessions.
+ nowIso:null
 };
+const latestEvidence=Math.max(
+ Date.parse("2026-11-10T18:44:00.000Z"),
+ Date.parse(inputs.v8Status.generatedAt)+1000,
+ ...inputs.v8Days.records.map(x=>Date.parse(x.observedAt)+1000),
+ ...inputs.v8Samples.events.map(x=>Date.parse(x.occurredAt)+1000),
+ ...inputs.v8Exits.events.map(x=>Date.parse(x.closedAt)+1000),
+ Date.parse(inputs.coverage.generatedAt)+31*60000,
+);
+assert(Number.isFinite(latestEvidence));
+inputs.nowIso=new Date(latestEvidence).toISOString();
 const report=evaluatePaperCycle(inputs);
 assert.equal(report.safeguards.readOnly,true);
 assert.equal(report.safeguards.liveTradingAllowed,false);
