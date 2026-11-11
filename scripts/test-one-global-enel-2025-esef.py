@@ -115,6 +115,23 @@ other_ifrs = module.audit_zip_bytes(archive(
     fixture().replace("http://xbrl.ifrs.org/taxonomy/2025-03-27/ifrs-full",
                       "https://fake.invalid/ifrs-full")))
 assert all(v is None for v in other_ifrs["metrics"].values())
+spoofed_ifrs = module.audit_zip_bytes(archive(fixture().replace(
+    "http://xbrl.ifrs.org/taxonomy/2025-03-27/ifrs-full",
+    "https://evil.invalid/xbrl.ifrs.org/taxonomy/2025-03-27/ifrs-full")))
+assert all(v is None for v in spoofed_ifrs["metrics"].values())
+spoofed_unit = module.audit_zip_bytes(archive(fixture().replace(
+    "http://www.xbrl.org/2003/iso4217",
+    "https://evil.invalid/2003/iso4217")))
+assert all(v is None for v in spoofed_unit["metrics"].values())
+spoofed_lei_scheme = module.audit_zip_bytes(archive(fixture().replace(
+    "http://standards.iso.org/iso/17442",
+    "https://evil.invalid/iso/17442")))
+assert all(v is None for v in spoofed_lei_scheme["metrics"].values())
+reject(lambda: module.audit_zip_bytes(archive(
+    '<!DOCTYPE html [<!ENTITY test "BOMB">]>' + fixture().replace(
+        '<?xml version="1.0" encoding="utf-8"?>', ""))),
+    "ESEF_XHTML_DOCTYPE_OR_ENTITIES_FORBIDDEN")
+
 
 alias_conflict = fixture().replace("</body>", """<ix:nonFraction
  name="ifrs-full:RevenueFromContractsWithCustomers" contextRef="FY" unitRef="EUR"
@@ -131,8 +148,6 @@ assert unsupported_transform["scanCounts"]["rejectedNumericTransformation"] >= 1
 
 reject(lambda: module.audit_zip_bytes(archive(fixture(), extra=("../escape.txt", "bad"))),
        "ESEF_ZIP_UNSAFE_MEMBER")
-reject(lambda: module.audit_zip_bytes(archive("<html>not a valid XML body")),
-       "ESEF_ZIP_NO_IXBRL_XHTML") if False else None
 reject(lambda: module.audit_zip_bytes(archive(fixture(), name="filing.txt")),
        "ESEF_ZIP_NO_IXBRL_XHTML")
 reject(lambda: module.audit_zip_bytes(archive(fixture().replace(
