@@ -151,6 +151,8 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     &&elapsedMinimumsMet;
   const b2DayAudit=checkB2DeclaredDays(b2Days,approval,nowMs);
   const trustedB2Days=b2DayAudit.count;
+  const b2Start=isoTime(approval?.effectiveFrom);
+  const b2ElapsedCalendarDays=b2Start===null?0:Math.max(0,Math.floor((nowMs-b2Start)/DAY));
   const blockers=[
     ...(!coverageFresh?["PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"]:[]),
     ...(!committeeFresh?["COMMITTEE_SNAPSHOT_TOO_OLD"]:[]),
@@ -159,6 +161,7 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     ...(!(Number(committee?.buyCandidateCount)>0)?["COMMITTEE_NO_COMPRA_SIGNAL"]:[]),
     ...(b2Replay.fills<Number(approval?.targetPaperFills??10)?["B2_STRATEGY_FILLS_BELOW_APPROVED_TARGET"]:[]),
     ...(trustedB2Days<Number(approval?.minEvidenceDays??25)?["B2_PROSPECTIVE_DAYS_BELOW_APPROVED_TARGET"]:[]),
+    ...(b2ElapsedCalendarDays<Number(approval?.minCalendarDays??30)?["B2_CALENDAR_WINDOW_NOT_MATURE"]:[]),
     ...(!v8ApprovalCurrent?["V8_TECHNICAL_APPROVAL_EXPIRED_OR_UNSAFE"]:[]),
     ...(!statusCountersConsistent?["V8_CACHED_STATUS_DISAGREES_WITH_SIGNED_EVIDENCE"]:[]),
     ...(v8TrustedDays<Number(v8Approval?.minEvidenceDays??25)?["V8_SIGNED_VALID_DAYS_INSUFFICIENT"]:[]),
@@ -207,8 +210,15 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       b2ApprovalCurrent,b2DailyRecordsBasicIntegrityValid:b2DayAudit.valid,
       b2ProspectiveDays:trustedB2Days,
       b2RequiredProspectiveDays:Number(approval?.minEvidenceDays??25),
+      b2RemainingProspectiveDays:gap(Number(approval?.minEvidenceDays??25),trustedB2Days),
+      b2ElapsedCalendarDays,
+      b2RequiredCalendarDays:Number(approval?.minCalendarDays??30),
+      b2RemainingCalendarDays:gap(Number(approval?.minCalendarDays??30),b2ElapsedCalendarDays),
+      b2DaysOnlyHaveReportedValidationFlags:true,
+      b2DaySourceCryptographicallySigned:false,
       b2ConfirmedStrategyFills:b2Replay.fills,
       b2RequiredStrategyFills:Number(approval?.targetPaperFills??10),
+      b2RemainingStrategyFills:gap(Number(approval?.targetPaperFills??10),b2Replay.fills),
       v8ApprovalCurrent,verifiedTechnicalDays:v8TrustedDays,
       requiredTechnicalDays:Number(v8Approval?.minEvidenceDays??25),
       remainingTechnicalDays:gap(Number(v8Approval?.minEvidenceDays??25),v8TrustedDays),
