@@ -128,7 +128,11 @@ export default async function GlobalOpportunitiesPage(){
           {radar.stale?<p className="rounded-lg border border-amber-400/25 p-3 text-sm text-amber-200">
             Le candele disponibili non sono abbastanza recenti: nessun candidato tecnico viene mostrato come attuale.
           </p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {radar.watchlist.map((item,index)=><article key={item.key}
+            {radar.watchlist.map((item:{
+              key:string;venueMic:string|null;region:string;symbol:string;name:string;
+              shortScore:number;shortAttention:string;mediumAttention:string;
+              mediumScore:number;evidence:string[];historicalBarBucketAt:string;
+            },index:number)=><article key={item.key}
               className="rounded-xl border border-white/10 bg-black/25 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
