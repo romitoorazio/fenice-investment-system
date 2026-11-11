@@ -1,0 +1,70 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {assessPinnedIssuer2025Results} from "../lib/intelligence/one-global-fy2025-release-audit.mjs";
+const source=JSON.parse(readFileSync(new URL("../data/one-global-fy2025-official-issuer-releases.json",import.meta.url),"utf8"));
+const asOf="2026-11-11T07:27:00.000Z";
+const run=d=>assessPinnedIssuer2025Results({data:d,nowIso:asOf});
+const r=run(source);
+assert.equal(r.mode,"ONE_GLOBAL_FY2025_ISSUER_RELEASE_EVIDENCE_ONLY");
+assert.equal(r.count,3);
+assert.equal(r.metricsCount,14);
+assert.deepEqual(r.companies.map(x=>x.key),["XMIL:ENEL","XPAR:MC","XETR:SIE"]);
+assert.equal(r.policy.phase9Credit,0);
+assert.equal(r.policy.paperExecutionAllowed,false);
+assert.equal(r.policy.brokerConnectivityAllowed,false);
+assert.equal(r.policy.liveTradingAllowed,false);
+const enel=r.companies[0],lvmh=r.companies[1],siemens=r.companies[2];
+const find=(row,code)=>row.metrics.find(x=>x.code===code);
+assert.equal(find(enel,"REVENUE").valueEurMillions,80346);
+assert.equal(find(enel,"ORDINARY_GROUP_NET_INCOME").valueEurMillions,7011);
+assert.equal(find(enel,"ORDINARY_EBITDA").valueEurMillions,22874);
+assert.equal(find(enel,"NET_FINANCIAL_DEBT").valueEurMillions,57182);
+assert.equal(find(enel,"ORDINARY_GROUP_NET_INCOME").comparativeBasis,
+ "2024_RESTATED_EXCLUDING_DISPOSED_ASSETS");
+assert.equal(find(lvmh,"REVENUE").valueEurMillions,80807);
+assert.equal(find(lvmh,"GROUP_SHARE_NET_PROFIT").valueEurMillions,10878);
+assert.equal(find(lvmh,"OPERATING_FREE_CASH_FLOW").valueEurMillions,11333);
+assert.equal(find(lvmh,"NET_FINANCIAL_DEBT").valueEurMillions,6857);
+assert.equal(find(lvmh,"REVENUE").comparative2024EurMillions,84683);
+assert(find(lvmh,"REVENUE").arithmeticChangePercent<0,
+ "The official year-on-year revenue change was negative");
+assert.equal(siemens.fiscalPeriodStart,"2024-10-01");
+assert.equal(siemens.fiscalPeriodEnd,"2025-09-30");
+assert.equal(find(siemens,"REVENUE").valueEurMillions,78900);
+assert.equal(find(siemens,"NET_INCOME_TOTAL").valueEurMillions,10400);
+assert.equal(find(siemens,"FCF_CONTINUING_DISCONTINUED").valueEurMillions,10800);
+assert.equal(find(siemens,"REVENUE").sourcePrecisionEurMillions,100);
+assert(siemens.annualPeriodAgeDays>enel.annualPeriodAgeDays,
+ "Siemens September FY is older than Enel December FY");
+assert(r.companies.every(x=>x.accountingFactAuditState.includes("NOT_RECONCILED")));
+assert(r.companies.every(x=>x.latestInterimPeriodNotInspected));
+assert(r.companies.every(x=>!x.committeeScoreEligible&&!x.dcfEligible&&!x.paperEligible&&!x.liveTradingAllowed));
+assert(r.companies.every(x=>x.metrics.every(y=>y.xbrlStatementFactReconciled===false&&y.isLiveMarketQuote===false)));
+assert.equal(find(enel,"ORDINARY_GROUP_NET_INCOME").code==="GROUP_SHARE_NET_PROFIT",false,
+ "No interchange between management-adjusted Enel and IFRS LVMH profits");
+function corrupted(change,pattern){
+ const d=structuredClone(source);change(d);
+ assert.throws(()=>run(d),pattern);
+}
+corrupted(d=>{d.policy.paperExecutionAllowed=true},/FY2025_RESEARCH_POLICY_ESCALATED/);
+corrupted(d=>{d.policy.phase9Credit=10},/FY2025_PAPER_CREDIT_FORBIDDEN/);
+corrupted(d=>{d.companies[0].lei="INVALID_LEI"},/FY2025_ISSUER_LEI_OR_IDENTITY_MISMATCH/);
+corrupted(d=>{d.companies[0].sourceUrl="https://www.enel.com.evil.invalid/path"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
+corrupted(d=>{d.companies[0].sourceUrl="https://www.enel.com@evil.invalid/path"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
+corrupted(d=>{d.companies[1].sourceUrl="https://www.lvmh.com/en/publications/foo?token=SECRETS"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
+corrupted(d=>{d.companies[2].periodEnd="2025-08-31"},/FY2025_FISCAL_CALENDAR_MISMATCH/);
+corrupted(d=>{d.companies[0].publishedAt="2028-03-19"},/FY2025_ISSUER_RELEASE_TIME_INVALID/);
+corrupted(d=>{d.companies[1].metrics[0].precisionEurMillions=100},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
+corrupted(d=>{d.companies[2].metrics[0].precisionEurMillions=1},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
+corrupted(d=>{d.companies[0].metrics[1].comparativeBasis="UNKNOWN"},/FY2025_COMPARATIVE_BASIS_UNKNOWN/);
+corrupted(d=>{d.companies[1].metrics[0].comparativeBasis="2024_RESTATED_EXCLUDING_DISPOSED_ASSETS"},/FY2025_RESTATEMENT_WRONG_ISSUER/);
+corrupted(d=>{d.companies[0].metrics[0].code="FREE_CASH_FLOW"},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
+corrupted(d=>{d.companies[0].metrics.push(structuredClone(d.companies[0].metrics[0]))},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
+corrupted(d=>{d.companies[1].metrics[0].comparativePriorYearEurMillions=0},/FY2025_COMPARATIVE_INVALID/);
+corrupted(d=>{d.companies[2].metrics[0].comparativePriorYearEurMillions=75900},/FY2025_FABRICATED_COMPARATIVE/);
+corrupted(d=>{d.companies[1].metrics=d.companies[1].metrics.filter(x=>x.code!=="REVENUE")},/FY2025_ISSUER_REVENUE_MISSING/);
+corrupted(d=>{d.companies[0].metrics[0].valueEurMillions=Infinity},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
+const mismatch=structuredClone(source);
+mismatch.companies.splice(1,1);
+assert.throws(()=>run(mismatch),/FY2025_SOURCE_SCHEMA_INVALID/);
+console.log("PASS ONE GLOBAL audited FY2025 issuer releases: 3 distinct issuer perimeters, 14 pinned source-backed fiscal figures, accounting bases/precision, no fake IFRS, PAPER or Directa rights");
