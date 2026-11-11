@@ -28,6 +28,38 @@ const good=parseEuropeanFilings(identity,payload,now);
 assert.equal(good.state,"LEI_INDEXED_REPORT_FOUND");
 assert.equal(good.availableReports,1);
 assert.equal(good.latestReport.periodEnd,"2025-12-31");
+assert.equal(good.officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,false);
+assert.equal(good.officialAnnualEsefResearchGap.documentedAnnualPeriodEnd,"2025-12-31");
+assert.equal(good.officialAnnualEsefResearchGap.officialZipContentsDownloadedOrParsed,false);
+assert.equal(good.officialAnnualEsefResearchGap.dcfEligible,false);
+const oldIndex=parseEuropeanFilings(identity,{
+  ...payload,data:[filing({period_end:"2024-12-31",
+    processed:"2025-04-29T15:28:31.000Z"})],
+},now);
+assert.equal(oldIndex.state,"LEI_INDEXED_REPORT_FOUND");
+assert.equal(oldIndex.latestReport.periodEnd,"2024-12-31");
+assert.equal(oldIndex.officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,true,
+  "A known official ENEL 2025 annual ESEF ZIP must not disappear because the independent index stops at 2024");
+assert.equal(oldIndex.officialAnnualEsefResearchGap.latestIndexedPeriodEnd,"2024-12-31");
+assert(oldIndex.officialAnnualEsefResearchGap.officialAnnualEsefZipUrl.startsWith(
+ "https://www.enel.com/content/dam/enel-com/documenti/investitori/informazioni-finanziarie/2025/annuali/"));
+assert.equal(oldIndex.officialAnnualEsefResearchGap.separateIxbRlZipReconciliationRequired,true);
+assert.equal(oldIndex.officialAnnualEsefResearchGap.consolidatedAnnualStatementFactsAudited,false);
+assert.equal(oldIndex.financialFactsReviewed,false);
+assert.equal(oldIndex.strategyPaperEligible,false);
+const wrongFiscalYear=parseEuropeanFilings(identity,{
+  ...payload,data:[filing({period_end:"2026-06-30",
+    processed:"2026-08-29T15:28:31.000Z"})],
+},now);
+assert.equal(wrongFiscalYear.officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,true,
+  "A 2026 interim period is not an independently indexed 2025 annual report");
+const beforeVerified=parseEuropeanFilings(identity,{
+  ...payload,data:[filing({period_end:"2024-12-31",
+    processed:"2025-04-29T15:28:31.000Z"})],
+},"2026-11-10T10:00:00.000Z");
+assert.equal(beforeVerified.officialAnnualEsefResearchGap.sourceStatus,"NOT_YET_VERIFIED_AS_OF_CLOCK");
+assert.equal(beforeVerified.officialAnnualEsefResearchGap.officialAnnualEsefZipUrl,null);
+
 assert.equal(parseEuropeanFilings(identity,{
   ...payload,data:[filing({processed:"2025-04-29T15:28:31"})],
 },now).state,"LEI_INDEXED_REPORT_FOUND");
@@ -101,4 +133,11 @@ assert.equal(offline.found,0);
 assert.equal(offline.missing,3);
 assert.equal(offline.errors.length,3);
 assert(offline.rows.every(x=>x.strategyPaperEligible===false));
+assert.equal(offline.rows[0].officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,false,
+  "Unavailable provider does not establish that the filing is missing from its index");
+assert.equal(offline.rows[0].officialAnnualEsefResearchGap.independentIndexUnavailable,true,
+  "Official issuer source remains a separate follow-up when third-party index is unavailable");
+assert.equal(offline.rows[0].officialAnnualEsefResearchGap.officialZipContentsDownloadedOrParsed,false);
+assert.equal(offline.rows[1].officialAnnualEsefResearchGap,null);
+
 console.log("PASS ONE GLOBAL ESEF primary issuer report discovery: exact LEI, country, date, trusted host, missing provider, and PAPER locks");

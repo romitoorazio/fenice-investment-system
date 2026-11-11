@@ -109,6 +109,16 @@ assert.equal(indexRequests,3);
 assert.equal(jsonRequests,2);
 assert.equal(tested.discoveredIssuers,2);
 assert.equal(tested.parsedIssuers,2);
+assert.equal(tested.officialAnnualSourceGaps.length,1);
+const enel2025Gap=tested.officialAnnualSourceGaps[0];
+assert.equal(enel2025Gap.key,"XMIL:ENEL");
+assert.equal(enel2025Gap.officialAnnualPeriodEnd,"2025-12-31");
+assert.equal(enel2025Gap.latestIndexedPeriodEnd,"2024-12-31");
+assert.equal(enel2025Gap.financialFactsReconciled,false);
+assert.equal(enel2025Gap.dcfEligible,false);
+assert.equal(enel2025Gap.paperExecutionAllowed,false);
+assert.equal(enel2025Gap.nextAction,
+ "PARSE_OFFICIAL_CONSOLIDATED_IXBRL_ZIP_AND_RECONCILE_PERIODS_AND_CONTEXTS");
 assert.equal(tested.rows[0].researchCompleteness,6);
 assert.equal(tested.rows[1].researchCompleteness,6);
 assert.equal(tested.rows[2].state,"INDEX_FILING_NOT_VERIFIED");
@@ -116,6 +126,9 @@ assert.equal(tested.policy.noCommitteeScoreUpdates,true);
 assert.equal(tested.policy.noPaperFills,true);
 const outage=await auditEuropeanXbrlFacts({nowIso:now,fetchImpl:async()=>{throw Error("offline")}});
 assert.equal(outage.parsedIssuers,0);
+assert.equal(outage.officialAnnualSourceGaps.length,1,
+ "An independent-index outage does not erase a separately documented official source");
+assert.equal(outage.officialAnnualSourceGaps[0].financialFactsReconciled,false);
 assert.equal(outage.rows.length,3);
 assert.equal(outage.errors.length,0,
   "Index errors remain in discovery diagnostics; do not hallucinate facts");

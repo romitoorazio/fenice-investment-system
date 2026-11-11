@@ -13,4 +13,10 @@ console.log(JSON.stringify({mode:report.mode,source:report.source,found:report.f
     rejected:x.rejected||{},invalidPeriodSamples:x.invalidPeriodSamples||[],
     availableReports:x.availableReports||0})),
   errors:report.errors,
+  officialAnnualEsefIndexGaps:report.rows.filter(x=>x.officialAnnualEsefResearchGap?.officialPeriodMissingFromIndependentIndex||x.officialAnnualEsefResearchGap?.independentIndexUnavailable)
+    .map(x=>({key:x.key,officialPeriodEnd:x.officialAnnualEsefResearchGap.documentedAnnualPeriodEnd,
+      indexedPeriodEnd:x.officialAnnualEsefResearchGap.latestIndexedPeriodEnd,
+      independentIndexUnavailable:x.officialAnnualEsefResearchGap.independentIndexUnavailable,
+      sourceGapConfirmed:x.officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,
+      parseRequired:true,financialFactsReconciled:false})),
   financialFactsReconciled:false,phase9Credit:0,broker:false,live:false}));
