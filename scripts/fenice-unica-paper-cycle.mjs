@@ -181,7 +181,9 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       fillsCreditedToV8:0,
       candidateCount:candidates.length,preliminaryEligibleCount:candidates.filter(x=>x.preliminaryEligible).length,
       note:"Preliminary gates only: FX, market-open, budget, OMS and pinned baseline must still pass"},
-    technicalPaper:{status:v8TechnicalReviewEligible?"READY_FOR_INDEPENDENT_TECHNICAL_REVIEW":"COLLECTING",
+    technicalPaper:{status:v8TechnicalReviewEligible?"READY_FOR_INDEPENDENT_TECHNICAL_REVIEW"
+      :!statusCountersConsistent?"UNVERIFIED_STATUS"
+      :v8Status.status==="BLOCKED"?"BLOCKED":"COLLECTING",
       cachedStatus:v8Status.status,
       cachedStatusCountersVerified:statusCountersConsistent,
       approvalCurrent:v8ApprovalCurrent,
