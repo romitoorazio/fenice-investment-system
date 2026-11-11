@@ -21,6 +21,9 @@ on:
       - "scripts/test-v7-phase-b-forward-paper.mjs"
       - "data/paper-v7-phase-b-approval.json"
       - ".github/workflows/v7-phase-b-forward-paper.yml"
+  schedule:
+    # Afternoon after existing refresh; weekends audit but cannot open markets.
+    - cron: "25 17 * * *"
 
 permissions:
   contents: write
