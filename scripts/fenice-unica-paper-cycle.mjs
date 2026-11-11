@@ -52,10 +52,29 @@ function checkB2DeclaredDays(days,approval,nowMs){
   return {count,valid:true};
 }
 export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledger,b2Days,
-  v8Status,worldLedger,v8Approval,v8Days,v8Samples,v8Exits,nowIso}){
+  v8Status,worldLedger,v8Approval,v8Days,v8Samples,v8Exits,legacyRetirement,nowIso}){
   const inspectedAt=nowIso??new Date().toISOString();
   const nowMs=isoTime(inspectedAt);
   if(nowMs===null)throw Error("ONE_GLOBAL_CERTIFICATION_CLOCK_INVALID");
+  // A still-unexpired historical approval is not an active writer.
+  // ONE GLOBAL deliberately retired B2; never project its dates/fills
+  // forward or represent it as an autonomous active PAPER campaign.
+  const retirementValid=legacyRetirement?.version===1
+    &&legacyRetirement.mode==="ONE_GLOBAL_LEGACY_RETIREMENT_READ_ONLY"
+    &&legacyRetirement.stopAutomaticLegacyWriters===true
+    &&legacyRetirement.retainsHistory===true
+    &&legacyRetirement.previousApprovedProofsUnchanged===true
+    &&legacyRetirement.activeTechnicalPaper==="V8_TECHNICAL_ONLY"
+    &&Array.isArray(legacyRetirement.retiredCampaigns)
+    &&["V6","V7_PHASE_B","V7_B2"].every(x=>legacyRetirement.retiredCampaigns.includes(x))
+    &&legacyRetirement.enableLiveTrading===false
+    &&legacyRetirement.brokerConnectivityAllowed===false
+    &&legacyRetirement.liveTradingAllowed===false
+    &&legacyRetirement.authorizePaidServices===false
+    &&Number.isFinite(Date.parse(String(legacyRetirement.authorizedOn)+"T00:00:00Z"))
+    &&Date.parse(String(legacyRetirement.authorizedOn)+"T00:00:00Z")<=nowMs;
+  if(legacyRetirement!==undefined&&!retirementValid)
+    throw Error("ONE_GLOBAL_LEGACY_RETIREMENT_SAFETY_INVALID");
   const coverageFresh=freshEvidence(coverage?.generatedAt,nowMs,30*MINUTE);
   const committeeFresh=freshEvidence(committee?.generatedAt,nowMs,24*60*MINUTE);
   const b2ApprovalCurrent=validPaperApproval(approval,nowMs);
@@ -157,6 +176,8 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     ...(!coverageFresh?["PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"]:[]),
     ...(!committeeFresh?["COMMITTEE_SNAPSHOT_TOO_OLD"]:[]),
     ...(!b2ApprovalCurrent?["B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"]:[]),
+    ...(retirementValid?["B2_AUTOMATIC_WRITER_RETIRED_AND_HISTORY_ONLY"]
+       :["B2_ACTIVE_WRITER_NOT_PROVEN"]),
     ...(!b2DayAudit.valid?["B2_DAILY_STATUS_IDENTITY_OR_TIME_INVALID"]:[]),
     ...(!(Number(committee?.buyCandidateCount)>0)?["COMMITTEE_NO_COMPRA_SIGNAL"]:[]),
     ...(b2Replay.fills<Number(approval?.targetPaperFills??10)?["B2_STRATEGY_FILLS_BELOW_APPROVED_TARGET"]:[]),
@@ -176,6 +197,8 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     strategyPaper:{b2Attempts:(b2Ledger.attempts||[]).length,
       verifiedB2Days:trustedB2Days,
       legacyCampaignStatus:"ARCHIVED_DIAGNOSTICS_ONLY",
+      b2ForwardWriterRetired:retirementValid,
+      b2ArchivedNotAutoCollecting:retirementValid,
       attemptsIntegrityVerified:true,
       filledBuyProbes:b2Replay.fills,
       fillsCreditedToV8:0,
@@ -209,7 +232,11 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       // but these older files can NEVER create an eligible candidate.
       savedQuoteCoverageFresh:coverageFresh,
       savedCommitteeFresh:committeeFresh,
-      b2ApprovalCurrent,b2DailyRecordsBasicIntegrityValid:b2DayAudit.valid,
+      b2ApprovalCurrent,
+      b2WriterRetired:retirementValid,
+      b2ActiveAutoCollection:false,
+      b2ApprovalDoesNotReactivateRetiredWriter:true,
+      b2DailyRecordsBasicIntegrityValid:b2DayAudit.valid,
       b2ProspectiveDays:trustedB2Days,
       b2RequiredProspectiveDays:Number(approval?.minEvidenceDays??25),
       b2RemainingProspectiveDays:gap(Number(approval?.minEvidenceDays??25),trustedB2Days),
@@ -264,7 +291,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     v8Approval:"paper-v8-technical-approval.json",
     v8Days:"paper-v8-technical-days.json",
     v8Samples:"paper-v8-technical-samples.json",
-    v8Exits:"paper-v8-shadow-exits.json"};
+    v8Exits:"paper-v8-shadow-exits.json",
+    legacyRetirement:"one-global-legacy-retirement.json"};
   const inputs=Object.fromEntries(await Promise.all(Object.entries(keys).map(async ([key,file])=>[key,await load(file)])));
   const report=evaluatePaperCycle(inputs);
   console.log(JSON.stringify(report,null,2));
