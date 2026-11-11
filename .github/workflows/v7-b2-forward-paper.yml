@@ -15,11 +15,6 @@ on:
       - "data/paper-v7-b2-forward-ledger.json"
       - "data/paper-v7-b2-forward-days.json"
   workflow_dispatch:
-  schedule:
-    # Both are during normal US cash equity hours, even across US/EU DST.
-    # A second attempt is skipped once the day has a valid open-market proof.
-    - cron: "45 15 * * 1-5"
-    - cron: "10 18 * * 1-5"
 
 permissions:
   contents: read
