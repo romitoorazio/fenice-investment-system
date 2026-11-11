@@ -55,7 +55,7 @@ assert.match(workflow,/workflows:\s*\["Fenice Independent PAPER Execution Lab"\]
 assert.match(workflow,/diagnose-v8-session-proof\.mjs/);
 assert.match(workflow,/name: fenice-v8-session-proof-diagnostic/);
 assert.match(workflow,/actions: read/);
-assert.match(workflow,/GITHUB_STEP_SUMMARY/); // markdown summary from script, no user secret
+assert.match(readFileSync(new URL("./diagnose-v8-session-proof.mjs",import.meta.url),"utf8"),/GITHUB_STEP_SUMMARY/);
 const approval=JSON.parse(readFileSync(new URL("../data/paper-v8-technical-approval.json",import.meta.url),"utf8"));
 assert(!Object.keys(approval.coreFileBlobs).includes(".github/workflows/v8-shadow-exits.yml"));
 assert.equal(approval.liveTradingAllowed,false);
