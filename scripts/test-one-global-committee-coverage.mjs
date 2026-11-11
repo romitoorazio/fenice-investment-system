@@ -10,6 +10,8 @@ const inputs={
  fundamentals:read("fundamental-research.json"),
  eod:read("world-v7-eod-research.json"),
  world:read("world-v7-validation-ledger.json"),
+ annualPrimaryReleases:read("one-global-fy2025-official-issuer-releases.json"),
+ interimPrimaryReleases:read("one-global-2026-interim-primary-releases.json"),
 };
 const nowMs=Date.parse(inputs.committee.generatedAt)+60000;
 const nowIso=new Date(nowMs).toISOString();
@@ -26,6 +28,50 @@ assert.equal(r.safety.v8TechnicalProofCredited,false);
 assert.equal(r.summary.listedEquities,19,"Current master and research seeds: 15+4 equities");
 const missed=r.rows.filter(x=>x.nonUSVenue&&!x.committeeResearchPresent);
 assert.equal(r.summary.nonUSVenueExcludedFromCommittee,missed.length);
+assert.equal(r.summary.validatedPrimaryIssuerReleasePairProvided,true);
+assert.equal(r.summary.nonUSVenueNeedingEvidenceCompletion,r.evidenceCompletionQueue.length,
+  "All missing issuer financials must be surfaced, even if Committee already contains a research-only ATTENDI");
+assert.equal(r.summary.nonUSVenueMissingPrimaryIssuerFinancials,11,
+  "Existing eleven non-US venue listings still lack full primary audited financials");
+assert.equal(r.summary.nonUSVenueValidatedIssuerPressReleaseSets,3,
+  "Three available issuer release sets must be validated and surfaced as partial research");
+assert.equal(new Set(r.evidenceCompletionQueue.map(x=>x.key)).size,r.evidenceCompletionQueue.length);
+assert(r.evidenceCompletionQueue.every(x=>!x.tradeSignal&&!x.executionAuthorized
+  &&x.expectedProfit===null&&x.phase9Credit===0));
+for(const key of ["XMIL:ENEL","XETR:SIE","XPAR:MC"]){
+  const row=r.rows.find(x=>x.key===key),task=r.evidenceCompletionQueue.find(x=>x.key===key);
+  assert(row&&task,`Expected issuer-research triage for ${key}`);
+  assert.equal(row.pinnedIssuerAnnualDocumentValidated,true);
+  assert.equal(row.pinnedIssuerInterimDocumentValidated,true);
+  assert.equal(row.issuerPressMetricsAreNotAuditedFinancialStatements,true);
+  assert.equal(row.primaryFinancialsRecent,false);
+  assert(task.primaryIssuerReleaseEvidenceValidated);
+  assert.equal(task.hasAuditedPrimaryFinancials,false);
+  assert(task.missingEvidenceTasks.includes(
+    "RECONCILE_ISSUER_RELEASES_TO_IFRS_FACTS_SHARES_AND_VALUATION"));
+  assert(task.verifiedIssuerSourceUrl.startsWith("https://"));
+  assert.equal(row.paperEligible,false);
+}
+assert(r.evidenceCompletionQueue.some(x=>x.currentCommitteeDecision!==null),
+ "Documented ATTENDI/OSSERVA signals must not hide missing fundamentals");
+assert.equal(r.safety.issuerPressReleasesAreNotValuationAuthorization,true);
+const noIssuerPair=run({
+  annualPrimaryReleases:null,interimPrimaryReleases:null,
+});
+assert.equal(noIssuerPair.summary.nonUSVenueValidatedIssuerPressReleaseSets,0);
+assert(noIssuerPair.rows.find(x=>x.key==="XMIL:ENEL").missingTasks.includes(
+  "FIND_PRIMARY_ISSUER_FINANCIALS"));
+assert.throws(()=>run({annualPrimaryReleases:null}),
+  /WORLD_COMMITTEE_PRIMARY_RELEASE_EVIDENCE_PAIR_REQUIRED/);
+const tamperedOfficial=structuredClone(inputs.annualPrimaryReleases);
+tamperedOfficial.companies[0].lei="INVALID";
+assert.throws(()=>run({annualPrimaryReleases:tamperedOfficial}),
+  /FY2025_ISSUER_LEI_OR_IDENTITY_MISMATCH/);
+const tamperedInterim=structuredClone(inputs.interimPrimaryReleases);
+tamperedInterim.issuers[0].policy={paperExecutionAllowed:true};
+assert.throws(()=>run({interimPrimaryReleases:tamperedInterim}),
+  /INTERIM_RESEARCH_SCHEMA_INVALID|INTERIM_RIGHTS_ESCALATION|INTERIM_RESEARCH_POLICY_MISSING/);
+
 assert.equal(r.researchQueue.length,missed.length);
 assert.equal(new Set(r.researchQueue.map(x=>x.key)).size,r.researchQueue.length);
 assert(r.researchQueue.every(x=>!x.tradeSignal&&!x.executionAuthorized&&x.expectedProfit===null));
