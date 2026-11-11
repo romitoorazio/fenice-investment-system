@@ -8,11 +8,6 @@ on:
         description: Internal correlation token for an orchestrated PAPER probe
         required: false
         type: string
-  schedule:
-    # Runs after the regular 16:35 UTC PAPER validation cycle. This job performs
-    # a complete same-run evidence -> stage -> PAPER OMS -> evidence-record cycle,
-    # so a queued probe never narrows the next day's broad market-data coverage.
-    - cron: "55 16 * * 1-5"
 
 permissions:
   contents: write
@@ -26,6 +21,7 @@ concurrency:
 
 jobs:
   paper-validation-probe:
+    if: ${{ false }} # Retired V6 PAPER writer; preserve history and tests, never execute
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
