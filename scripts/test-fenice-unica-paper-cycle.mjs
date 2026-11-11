@@ -12,6 +12,7 @@ const inputs={
  v8Days:read("paper-v8-technical-days.json"),
  v8Samples:read("paper-v8-technical-samples.json"),
  v8Exits:read("paper-v8-shadow-exits.json"),
+ legacyRetirement:read("one-global-legacy-retirement.json"),
  nowIso:"2026-11-10T18:44:00.000Z"
 };
 const report=evaluatePaperCycle(inputs);
@@ -72,6 +73,16 @@ assert.equal(report.certification.remainingTechnicalSamples,
 assert.equal(report.certification.eligibleForIndependentV8TechnicalReview,false);
 assert.equal(report.certification.cachedStatusMatchesCryptographicReplay,true);
 assert.equal(report.certification.b2DailyRecordsBasicIntegrityValid,true);
+assert.equal(report.certification.b2WriterRetired,true);
+assert.equal(report.certification.b2ActiveAutoCollection,false);
+assert.equal(report.strategyPaper.b2ForwardWriterRetired,true);
+assert.equal(report.certification.b2ApprovalDoesNotReactivateRetiredWriter,true);
+assert(report.certification.blockers.includes("B2_AUTOMATIC_WRITER_RETIRED_AND_HISTORY_ONLY"));
+const forgedRetirement=structuredClone(inputs);
+forgedRetirement.legacyRetirement.stopAutomaticLegacyWriters=false;
+assert.throws(()=>evaluatePaperCycle(forgedRetirement),
+ /ONE_GLOBAL_LEGACY_RETIREMENT_SAFETY_INVALID/,
+ "Malformed retirement policy cannot silently revive the archived B2 writer");
 assert.equal(report.certification.b2ConfirmedStrategyFills,0);
 assert.equal(report.certification.b2ProspectiveDays,2);
 assert.equal(report.certification.savedQuoteCoverageFresh,false,
