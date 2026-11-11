@@ -36,8 +36,18 @@ assert.equal(historicReport.legacyCompletionUnverifiedSetups,
   "New verified research observations must never rehabilitate legacy intraday entries");
 assert(historicReport.legacyCompletionUnverifiedSetups>=1,
   "Test fixture must retain genuine older pre-gate evidence for regression coverage");
-assert.equal(historicReport.shortOutcomesMeasured,0,
-  "Real later-bar outcomes must require two subsequent correctly captured post-session buckets");
+assert.equal(historicReport.shortPositive+historicReport.shortNegative+historicReport.shortFlat,
+  historicReport.shortOutcomesMeasured,
+  "All actually matured later-bar research outcomes must be counted, including losses");
+assert(historicReport.results.filter(x=>x.legacyEntryUnverified).every(x=>
+  x.entryCandleCompletionGated===false
+  &&x.shortAfter2ObservedBars===null
+  &&x.shortAfter10ObservedBars===null
+  &&x.mediumAfter40ObservedBars===null),
+  "No legacy source bar may gain a return merely by collecting newer daily snapshots");
+assert(historicReport.results.filter(x=>x.shortAfter2ObservedBars!==null).every(x=>
+  x.entryCandleCompletionGated===true),
+  "Genuine measured outcomes may grow naturally as new settled bars arrive");
 
 const at=new Date(Date.parse(terminal.generatedAt)+60_000).toISOString();
 const blank=newWorldForwardResearchLedger();
