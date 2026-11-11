@@ -37,6 +37,9 @@ MAX_XHTML = 500 * 1024 * 1024
 MAX_FILES = 5000
 MAX_FACTS = 100000
 MAX_RATIO = 1000
+# Publisher archive review fingerprint from the first real 2026-11-11 CI intake.
+# SHA256 is a change-detection pin, NOT a cryptographic issuer signature.
+EXPECTED_OFFICIAL_ARCHIVE_SHA256 = "4ed1e83bee7a51fe6114dedb7727702a420490110c6e8983660a47ffb12a43fd"
 IX = "{http://www.xbrl.org/2013/inlineXBRL}"
 XBRLI = "{http://www.xbrl.org/2003/instance}"
 METRICS = {
@@ -213,6 +216,8 @@ def audit_zip_bytes(data, *, source_is_official=False):
     if not isinstance(data, bytes) or not data or len(data) > MAX_ZIP:
         raise ValueError("ESEF_ZIP_SIZE_INVALID")
     digest = hashlib.sha256(data).hexdigest()
+    if source_is_official and digest != EXPECTED_OFFICIAL_ARCHIVE_SHA256:
+        raise ValueError("ESEF_OFFICIAL_ARCHIVE_CHANGED_REVIEW_REQUIRED")
     accepted = defaultdict(list)
     count = Counter()
     xhtml_files = []
@@ -374,6 +379,7 @@ def audit_zip_bytes(data, *, source_is_official=False):
     return final_report(
         state,
         sourceArchiveSha256=digest,
+        officialArchiveMatchesReviewedSha256=source_is_official and digest == EXPECTED_OFFICIAL_ARCHIVE_SHA256,
         fetchedDirectlyFromPinnedIssuerUrl=source_is_official,
         sourceZipBytes=len(data),
         scanCounts=dict(count),
@@ -388,6 +394,53 @@ def audit_zip_bytes(data, *, source_is_official=False):
     )
 
 
+def reconcile_issuer_annual_press_release(report, pinned):
+    """Never confuse the IFRS sales/services tag with group TOTAL revenue.
+
+    Existing pinned issuer materials are not annual IFRS facts. A difference
+    is a reconciliation TASK, never a score improvement, BUY or DCF number.
+    """
+    issuer = [x for x in pinned.get("companies", [])
+              if x.get("key") == KEY and x.get("lei") == LEI]
+    if (len(issuer) != 1 or issuer[0].get("sourcePublisher") != "Enel S.p.A."
+            or issuer[0].get("periodStart") != YEAR_START
+            or issuer[0].get("periodEnd") != YEAR_END
+            or issuer[0].get("sourceKind") != "ISSUER_FULL_YEAR_RESULTS_PRESS_RELEASE"
+            or not issuer[0].get("sourceUrl", "").startswith("https://www.enel.com/")):
+        raise ValueError("ESEF_PINNED_ANNUAL_PRESS_SOURCE_INVALID")
+    mapping = {m["code"]: m for m in issuer[0].get("metrics", [])}
+    if len(mapping) != len(issuer[0].get("metrics", [])):
+        raise ValueError("ESEF_PINNED_ANNUAL_METRICS_DUPLICATE")
+    required = {"REVENUE", "ORDINARY_GROUP_NET_INCOME", "NET_FINANCIAL_DEBT"}
+    if not required.issubset(mapping):
+        raise ValueError("ESEF_PINNED_ANNUAL_PRESS_METRICS_MISSING")
+    reported = {}
+    for key in required:
+        m = mapping[key]
+        v = m.get("valueEurMillions")
+        if not isinstance(v, int) or v < 0 or m.get("precisionEurMillions") != 1:
+            raise ValueError("ESEF_PINNED_ANNUAL_PRESS_METRIC_PRECISION")
+        reported[key] = Decimal(v) * Decimal(1000000)
+    tag = report.get("metrics", {}).get("revenue")
+    delta = reported["REVENUE"] - Decimal(tag["valueEur"]) if tag else None
+    return {
+        "status": "PUBLISHED_GROUP_TOTAL_REQUIRES_ACCOUNTING_BRIDGE",
+        "issuerPressReleaseSourceUrl": issuer[0]["sourceUrl"],
+        "yearEnd": YEAR_END,
+        "ifrsRevenueTagDescription": "sales_and_services_NOT_group_total_revenue",
+        "ifrsTaggedSalesServicesEur": tag["valueEur"] if tag else None,
+        "issuerPublishedTotalRevenueEur": str(reported["REVENUE"]),
+        "unreconciledRevenueDifferenceEur": str(delta) if delta is not None else None,
+        "otherIncomeIndependentTagReconciliationCompleted": False,
+        "issuerOrdinaryGroupProfitEur": str(reported["ORDINARY_GROUP_NET_INCOME"]),
+        "ifrsProfitLossIsNotOrdinaryGroupProfit": True,
+        "issuerPublishedNetFinancialDebtEur": str(reported["NET_FINANCIAL_DEBT"]),
+        "netDebtIsNotTotalBalanceSheetLiabilities": True,
+        "fundamentalScoreEligible": False, "dcfEligible": False,
+        "paperExecutionAllowed": False, "phase9Credit": 0,
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     src = parser.add_mutually_exclusive_group(required=True)
@@ -398,6 +451,9 @@ def main(argv=None):
     try:
         if args.fetch_official:
             result = audit_zip_bytes(official_bytes(), source_is_official=True)
+            pinned = json.loads((Path(__file__).resolve().parent.parent / "data" /
+                "one-global-fy2025-official-issuer-releases.json").read_text(encoding="utf-8"))
+            result["annualIssuerReleaseComparison"] = reconcile_issuer_annual_press_release(result, pinned)
         else:
             # Caller-provided bytes are never upgraded to official provenance.
             path = Path(args.input)
