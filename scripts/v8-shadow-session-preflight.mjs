@@ -38,10 +38,11 @@ export function assessShadowExitSession({session,nowIso}){
   // Never fetch whole quote batches in the final 5 minutes of cash session:
   // late responses cannot create eligible research-only shadow exits.
   if(close-now<300000)return deny("US_SESSION_TOO_CLOSE_TO_END");
-  // The next_open may be in the future even while open on some APIs;
-  // the authoritative state and close time are the deciding fields.
-  if(open!==null&&open>now&&close<=open)
-    return deny("US_SESSION_TIME_WINDOW_INCONSISTENT");
+  // Alpaca may report the NEXT trading day's opening while the current
+  // session is open. Never compare next_open to today's next_close as if
+  // they were boundaries of the same session.
+  if(session.nextOpen!==null&&open===null)
+    return deny("US_NEXT_OPEN_TIMESTAMP_INVALID");
   return {allowed:true,reason:"AUTHORITATIVE_US_SESSION_OPEN_FRESH",
     checkedAt:nowIso,providerQuotesAuthorized:true,
     paperOrdersAuthorized:false,liveTradingAllowed:false,
