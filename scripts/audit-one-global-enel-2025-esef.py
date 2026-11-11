@@ -189,6 +189,25 @@ def annual_context(context, metric):
     return context["start"] == YEAR_START and context["end"] == YEAR_END
 
 
+class GuardedXhtmlStream:
+    """Reject inline entity declarations even when split across ZIP reads.
+
+    A harmless <!DOCTYPE html> may appear in valid issuer XHTML; internal
+    DTD entity declarations are never needed for extracting annual IFRS data.
+    """
+    def __init__(self, reader):
+        self.reader = reader
+        self.tail = b""
+
+    def read(self, size=-1):
+        block = self.reader.read(size if size >= 0 else 65536)
+        combined = (self.tail + block).upper()
+        if b"<!ENTITY" in combined:
+            raise ValueError("ESEF_XHTML_DOCTYPE_OR_ENTITIES_FORBIDDEN")
+        self.tail = combined[-40:]
+        return block
+
+
 def audit_zip_bytes(data, *, source_is_official=False):
     if not isinstance(data, bytes) or not data or len(data) > MAX_ZIP:
         raise ValueError("ESEF_ZIP_SIZE_INVALID")
@@ -234,7 +253,7 @@ def audit_zip_bytes(data, *, source_is_official=False):
             ended = 0
             with archive.open(member, "r") as file:
                 for event, element in ET.iterparse(
-                        file, events=("start-ns", "start", "end")):
+                        GuardedXhtmlStream(file), events=("start-ns", "start", "end")):
                     if event == "start-ns":
                         prefix, uri = element
                         if prefix in namespaces and namespaces[prefix] != uri:
