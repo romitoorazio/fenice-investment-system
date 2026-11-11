@@ -13,6 +13,10 @@ console.log(JSON.stringify({
   rows:result.rows.map(x=>({key:x.key,state:x.state,
     periodEnd:x.periodEnd,sourceAgeDays:x.sourceAgeDays,
     researchCompleteness:x.researchCompleteness,
+    verifiedMetricKeys:x.metrics?Object.entries(x.metrics).filter(([,v])=>v!==null)
+      .map(([k])=>k):[],
+    missingMetricKeys:x.metrics?Object.entries(x.metrics).filter(([,v])=>v===null)
+      .map(([k])=>k):[],
     balanceSheetReconciled:x.balanceSheetReconciliation?.passed||false,
     issuerFundamentalScoreEligible:false,
     strategyPaperEligible:false})),
