@@ -131,12 +131,19 @@ export function recordV8ShadowExit({ ledger, samples, days, approval, proof, now
   if (ledger.events.some(e=>e.closedAt.slice(0,10)===nowIso.slice(0,10)))
     return {status:"NO_OP",reason:"EXIT_ALREADY_RECORDED_TODAY",ledger,eventsAdded:0};
   const existing = new Set(ledger.events.map(e=>e.entryEventId));
-  const eligible = samples.events.filter(s=>!existing.has(s.id)
+  const ageEligible = samples.events.filter(s=>!existing.has(s.id)
     && s.occurredAt.slice(0,10) < nowIso.slice(0,10)
-    && ms(s.occurredAt) < now - DAY_MS
-    && validProof(proof,now,s.symbol))
+    && ms(s.occurredAt) < now - DAY_MS);
+  // Purely classify the exact bottleneck: never weaken any original proof
+  // or holding-period condition, nor grant credit for a missing quotation.
+  if (!ageEligible.length)
+    return {status:"NO_OP",reason:"NO_UNCLOSED_SAMPLE_OVER_24H_OLD",ledger,eventsAdded:0};
+  if (!proof)
+    return {status:"NO_OP",reason:"FRESH_DUAL_PROVIDER_EXIT_PROOF_MISSING",ledger,eventsAdded:0};
+  const eligible = ageEligible.filter(s=>validProof(proof,now,s.symbol))
     .sort((a,b)=>a.occurredAt.localeCompare(b.occurredAt));
-  if (!eligible.length) return {status:"NO_OP",reason:"NO_ELIGIBLE_SAMPLE_WITH_FRESH_2_PROVIDER_EXIT",ledger,eventsAdded:0};
+  if (!eligible.length)
+    return {status:"NO_OP",reason:"AGED_SAMPLE_SYMBOL_NOT_IN_VALID_TWO_SOURCE_PROOF",ledger,eventsAdded:0};
   const sample = eligible[0], item=proof.instruments.find(x=>x.symbol===sample.symbol);
   const exitUnitEuro = r4(item.medianPrice * proof.fx.rate * (1 - 0.0005));
   const exitGrossEuro = r4(sample.quantity * exitUnitEuro);
@@ -189,8 +196,17 @@ async function main() {
     writeFileSync(temp,JSON.stringify(result.ledger,null,2)+"\n",{mode:0o600});
     renameSync(temp,file);
   }
+  // Log safe category codes only: do not expose raw market prices, credentials,
+  // broker identifiers or source responses in public GitHub Action logs.
+  const remaining = samples.events.filter(s=>!ledger.events.some(e=>e.entryEventId===s.id)
+    && s.occurredAt.slice(0,10)<nowIso.slice(0,10)
+    && ms(s.occurredAt)<ms(nowIso)-DAY_MS);
   console.log("V8 technical shadow exits: "+JSON.stringify({
     status:result.status,reason:result.reason||proofReason,
+    proofAcquired:proof!==null,proofRejectReason:proofReason,
+    agedUnclosedSamples:remaining.length,
+    agedUnclosedSymbols:[...new Set(remaining.map(s=>s.symbol))].sort(),
+    verifiedProofSymbols:proof?.instruments?.map(x=>x.symbol).sort()||[],
     added:result.eventsAdded,closures:result.ledger.events.length,
     totalRealizedEuro:replayShadowExits({ledger:result.ledger,samples,days,approval}).realizedEuro,
     scope:"EXPERIMENTAL_TECHNICAL_ONLY",phase9CertificationCredit:0,
