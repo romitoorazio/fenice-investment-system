@@ -49,4 +49,30 @@ for(const [path,job] of files){
     "  "+job+":\n    if: ${{ false }}",
     "  "+job+":\n    if: github.event_name != 'pull_request'");});
 }
+
+// ONE GLOBAL retirement must halt all automatic legacy PAPER writers and
+// both dispatcher paths; a successful archived workflow is never a V8 proof.
+const retiredAutoWriters = [
+  [".github/workflows/paper-validation.yml", "paper-validation"],
+  [".github/workflows/v7-phase-b-forward-paper.yml", "paper-forward"],
+  [".github/workflows/v7-b2-forward-paper.yml", "paper-forward"],
+  [".github/workflows/paper-probe-staging.yml", "paper-validation-probe"],
+];
+for (const [workflowPath, job] of retiredAutoWriters) {
+  const source = readFileSync(workflowPath, "utf8");
+  assert.doesNotMatch(source, /^  schedule:/m,
+    "retired workflow must never consume a daily scheduled runner: " + workflowPath);
+  const guardedJob = source.slice(source.indexOf("\n  " + job + ":") + 1);
+  assert.match(guardedJob, /^  [\w-]+:\n    if: \$\{\{ false \}\}/,
+    "retired PAPER writer must stay hard-disabled: " + workflowPath);
+}
+for (const workflowPath of [
+  ".github/workflows/paper-validation-early-trigger.yml",
+  ".github/workflows/paper-probe-operator-trigger.yml",
+]) {
+  const source = readFileSync(workflowPath, "utf8");
+  assert.match(source, /^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n      false &&/m,
+    "legacy automatic dispatcher must be hard-disabled: " + workflowPath);
+}
+
 console.log("PASS ONE GLOBAL formal retirement: 16 negative gates; signed ledgers preserved; V8 pinned; no LIVE or broker");
