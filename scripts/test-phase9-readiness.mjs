@@ -12,8 +12,9 @@ const v8Days = read("paper-v8-technical-days.json");
 const coverage = read("execution-market-coverage.json");
 const fingerprint = await computeV7B2Fingerprint(".");
 const nowIso = new Date().toISOString();
+const strategyLedger=read("one-global-strategy-paper-ledger.json");
 const base = {approval,b2Ledger,b2Days,v8Status,v8Days,coverage,
-  fingerprint,baselineAncestor:true,nowIso};
+  fingerprint,baselineAncestor:true,nowIso,strategyLedger};
 const run = changes => auditPhase9({...base,...changes});
 const truth = run();
 const technicalInputs = {
@@ -43,6 +44,17 @@ assert.equal(truth.requirements.closedForwardTrades.observed,0);
 assert.equal(truth.requirements.certifiedExecutableSourceFamilies.observed,0);
 assert.equal(truth.requirements.distinctTradeMarkets.observed,0);
 assert.equal(truth.requirements.distinctForwardTradeDays.observed,0);
+assert.equal(truth.diagnostics.oneGlobalForwardVirtualStrategy.status,"EMPTY_APPROVAL_REQUIRED");
+assert.equal(truth.diagnostics.oneGlobalForwardVirtualStrategy.virtualBuys,0);
+assert.equal(truth.diagnostics.oneGlobalForwardVirtualStrategy.closedVirtualRoundTrips,0);
+assert.equal(truth.diagnostics.oneGlobalForwardVirtualStrategy.forwardStrategyCertificationCredit,0);
+assert(truth.reasonCodes.includes("ONE_GLOBAL_INDEPENDENT_EXECUTION_RECEIPTS_MISSING"));
+const injectedVirtual=run({strategyLedger:{...strategyLedger,cashEuro:10100}});
+assert(injectedVirtual.reasonCodes.includes("ONE_GLOBAL_STRATEGY_JOURNAL_INVALID"));
+assert.equal(injectedVirtual.requirements.closedForwardTrades.observed,0);
+const missingStrategy=run({strategyLedger:null});
+assert(missingStrategy.reasonCodes.includes("ONE_GLOBAL_STRATEGY_JOURNAL_NOT_PERSISTED"));
+assert.equal(missingStrategy.state,"NOT_CERTIFIED");
 assert.equal(truth.policy.liveTradingAllowed,false);
 assert.equal(truth.policy.brokerConnectivityAllowed,false);
 const deliberatelyMismatched = run({fingerprint:{...fingerprint,digest:"f".repeat(64)}});
