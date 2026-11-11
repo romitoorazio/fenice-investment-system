@@ -82,6 +82,14 @@ assert result["metrics"]["operatingCashFlow"]["valueEur"] == "500000000"
 assert result["metrics"]["assets"]["valueEur"] == "1000000000"
 assert result["metrics"]["liabilities"]["valueEur"] == "600000000"
 assert result["metrics"]["equity"]["valueEur"] == "400000000"
+# ESEF Transformation Registry 5 uses hyphenated names in real 2025
+# issuer documents: ixt:num-comma-decimal, e.g. 78.057 (million).
+registry5 = module.audit_zip_bytes(archive(fixture().replace(
+    'format="ixt:numcommadecimal">12.345,6',
+    'format="ixt:num-comma-decimal">78.057')))
+assert registry5["metrics"]["revenue"]["valueEur"] == "78057000000"
+assert registry5["state"] == "RESEARCH_FACTS_EXTRACTED_UNCERTIFIED"
+assert registry5["issuerFundamentalScoreEligible"] is False
 assert result["balanceSheetNumericConsistency"]["passed"] is True
 assert result["balanceSheetNumericConsistency"]["differenceEur"] == "0"
 for name in ("issuerFundamentalScoreEligible", "dcfEligible", "approvedForStrategicPaper",
