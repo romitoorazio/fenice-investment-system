@@ -43,7 +43,7 @@ assert.equal(evaluate({ upstream: { ...goodUpstream, name: "Unknown workflow" } 
 
 const workflow = readFileSync(".github/workflows/paper-validation-early-trigger.yml", "utf8");
 
-const dispatchGate = workflow.match(/\n  dispatch:\n    if: >-\n([\s\S]*?)\n    runs-on:/)?.[1] ?? "";
+const dispatchGate = workflow.match(/\n  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n([\s\S]*?)\n    runs-on:/)?.[1] ?? "";
 assert.ok(dispatchGate, "dispatch condition must exist");
 let parentheses = 0;
 for (const char of dispatchGate) {
@@ -52,6 +52,13 @@ for (const char of dispatchGate) {
   assert.ok(parentheses >= 0, "PAPER dispatcher condition must not close parentheses early");
 }
 assert.equal(parentheses, 0, "PAPER dispatcher expression must balance all parentheses");
+assert.match(dispatchGate.trim(), /^false &&/,
+  "archived V6 dispatcher must be hard-disabled, irrespective of old policy input");
+assert.doesNotMatch(workflow, /^  schedule:/m);
+assert.doesNotMatch(workflow, /^  workflow_run:/m);
+assert.match(workflow, /github\.event_name == 'workflow_dispatch' && inputs\.audit_only == true/,
+  "historical after-open proof is only available by explicit manual read-only audit");
+
 
 assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository/,
   "early trigger must reject cross-repository or non-main workflow_run events before runner work");
