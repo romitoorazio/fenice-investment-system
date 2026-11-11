@@ -24,6 +24,8 @@ jobs:
         run: node scripts/test-one-global-esef-ifrs-audit.mjs
       - name: Verify FY2025 issuer announcements never create non-equivalent ratios or PAPER orders
         run: node scripts/test-one-global-fy2025-release-audit.mjs
+      - name: Verify 2026 interim periods, issuer identities, baseline comparisons and no orders
+        run: node scripts/test-one-global-2026-interim-research.mjs
       - name: Verify forward worldwide research outcomes and fail-closed hash chain
         run: node scripts/test-one-global-forward-research.mjs
       - name: Verify dedicated Terminal queue and safe concurrent push retry
