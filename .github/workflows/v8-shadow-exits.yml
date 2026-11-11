@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/v8-shadow-exits.yml"
+      - "scripts/v8-shadow-session-preflight.mjs"
+      - "scripts/test-v8-shadow-session-preflight.mjs"
       - "scripts/run-v8-shadow-exits.mjs"
       - "scripts/test-v8-shadow-exits.mjs"
       - "scripts/report-v8-virtual-pnl.mjs"
@@ -16,6 +18,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/v8-shadow-exits.yml"
+      - "scripts/v8-shadow-session-preflight.mjs"
+      - "scripts/test-v8-shadow-session-preflight.mjs"
       - "scripts/run-v8-shadow-exits.mjs"
   workflow_dispatch:
   workflow_run:
@@ -42,6 +46,7 @@ jobs:
           node scripts/test-v8-shadow-exits.mjs
           node scripts/test-v8-virtual-pnl.mjs
           node scripts/test-v8-technical-evidence.mjs
+          node scripts/test-v8-shadow-session-preflight.mjs
       - name: No committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -95,11 +100,18 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
             "fetchQuotes="+(!first&&!done)+"\n");
           NODE
-      - name: Install existing data adapters only for a prospective exit
+      - name: Check authoritative US market clock before consuming execution provider requests
         if: steps.source.outputs.fetchQuotes == 'true'
+        run: node --experimental-strip-types scripts/check-paper-market-session.mjs
+      - name: Verify fresh authorized regular-market session or suppress expensive data queries
+        if: steps.source.outputs.fetchQuotes == 'true'
+        id: session
+        run: node scripts/v8-shadow-session-preflight.mjs --github-output
+      - name: Install existing data adapters only after authorized regular session verified
+        if: steps.source.outputs.fetchQuotes == 'true' && steps.session.outputs.allowed == 'true'
         run: npm install --no-audit --no-fund --package-lock=false
       - name: Fetch fresh two-source PAPER-only market, FX and session evidence
-        if: steps.source.outputs.fetchQuotes == 'true'
+        if: steps.source.outputs.fetchQuotes == 'true' && steps.session.outputs.allowed == 'true'
         run: |
           set -euo pipefail
           npm run marketdata:execution
