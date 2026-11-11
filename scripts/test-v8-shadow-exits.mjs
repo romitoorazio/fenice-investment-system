@@ -79,6 +79,22 @@ assert.equal(stale.eventsAdded,0);
 const zero=recordV8ShadowExit({...base,ledger:activation.ledger,
   nowIso:"2026-11-12T17:00:05.000Z",proof:null});
 assert.equal(zero.eventsAdded,0);
+assert.equal(zero.reason,"FRESH_DUAL_PROVIDER_EXIT_PROOF_MISSING");
 assert.equal(check(zero.ledger).valid,true);
+const unusableProof=structuredClone(proofFor("2026-11-12T17:00:05.000Z"));
+unusableProof.instruments=[]; // no matching symbol and no valid two-source proof
+const unmatched=recordV8ShadowExit({...base,ledger:activation.ledger,
+  nowIso:"2026-11-12T17:00:05.000Z",proof:unusableProof});
+assert.equal(unmatched.reason,"AGED_SAMPLE_SYMBOL_NOT_IN_VALID_TWO_SOURCE_PROOF");
+assert.equal(unmatched.eventsAdded,0);
+assert.deepEqual(unmatched.ledger,activation.ledger);
+const noAge=recordV8ShadowExit({...base,
+  ledger:{...freshExitLedger(),activatedAt:"2026-11-03T20:00:00.000Z"},
+  nowIso:"2026-11-03T20:05:00.000Z",
+  proof:proofFor("2026-11-03T20:05:00.000Z")});
+assert.equal(noAge.reason,"NO_UNCLOSED_SAMPLE_OVER_24H_OLD");
+assert.equal(noAge.eventsAdded,0);
+assert.equal(noAge.ledger.liveTradingAllowed,false);
+
 assert.equal(check(first.ledger).scope,"NOT_PHASE9_CERTIFIED");
 console.log("PASS V8 forward technical exits: 17 evidence/safety checks, genuine prospective timestamps, EUR fee-aware PnL, broker OFF, no Phase9 credit");
