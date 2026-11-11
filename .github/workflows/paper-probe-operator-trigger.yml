@@ -45,7 +45,11 @@ concurrency:
 
 jobs:
   dispatch:
+    # Explicit ONE GLOBAL retirement: never start archived V6 canonical/probe
+    # work, regardless of schedules, Foundation completion, or old approvals.
+    # Existing read-only audit jobs (when present) remain independent.
     if: >-
+      false &&
       github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
