@@ -121,7 +121,10 @@ def xbrl_contexts(root):
         scenario = xml_child(context, "scenario")
         contexts[key] = {
             "lei": text_of(identifier),
-            "validLEIScheme": scheme.rstrip("/").endswith("/iso/17442"),
+            "validLEIScheme": scheme.rstrip("/") in {
+                "http://standards.iso.org/iso/17442",
+                "https://standards.iso.org/iso/17442",
+            },
             "dimensional": segment is not None or scenario is not None,
             "start": text_of(xml_child(period, "startDate")),
             "end": text_of(xml_child(period, "endDate")),
@@ -224,6 +227,8 @@ def audit_zip_bytes(data, *, source_is_official=False):
         for member in xhtml_files:
             raw = archive.read(member)
             namespaces = collect_namespaces(raw)
+            if b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
+                raise ValueError("ESEF_XHTML_DOCTYPE_OR_ENTITIES_FORBIDDEN")
             root = ET.fromstring(raw)
             contexts, units = xbrl_contexts(root)
             count["xhtmlFiles"] += 1
@@ -237,7 +242,9 @@ def audit_zip_bytes(data, *, source_is_official=False):
                 concept = item.attrib.get("name", "")
                 prefix, colon, local = concept.partition(":")
                 ns = namespaces.get(prefix, "")
-                if not colon or "xbrl.ifrs.org/taxonomy/" not in ns or "/ifrs-full" not in ns:
+                if not colon or not re.fullmatch(
+                    r"https?://xbrl\.ifrs\.org/taxonomy/\d{4}-\d{2}-\d{2}/ifrs-full/?", ns
+                ):
                     continue
                 for metric, concepts in METRICS.items():
                     if local not in concepts:
@@ -246,7 +253,10 @@ def audit_zip_bytes(data, *, source_is_official=False):
                     if not context or not annual_context(context, metric):
                         count["rejectedPeriodEntityOrDimensions"] += 1
                         continue
-                    if not unit or len(unit) != 1 or not unit[0].endswith(":EUR"):
+                    u_prefix, u_colon, u_local = unit[0].partition(":") if unit and len(unit) == 1 else ("", "", "")
+                    if not u_colon or u_local != "EUR" or namespaces.get(u_prefix) != (
+                        "http://www.xbrl.org/2003/iso4217"
+                    ):
                         count["rejectedCurrency"] += 1
                         continue
                     amount = decimal_fact(item, namespaces)
