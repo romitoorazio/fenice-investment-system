@@ -5,25 +5,17 @@ import { PAPER_PROBE_RECOVERY_UPSTREAMS } from "./paper-probe-recovery-trigger.m
 const workflowPath = ".github/workflows/paper-probe-operator-trigger.yml";
 const workflow = readFileSync(workflowPath, "utf8");
 
-const workflowRun = workflow.match(/  workflow_run:\n([\s\S]*?)\n  push:/)?.[1] ?? "";
-// The controller's provenance allow-list is intentionally a superset of the
-// subscribed hooks. A single downstream World Terminal event now suffices;
-// independent intraday crons remain a separate recovery mechanism.
-const configuredUpstreams = [...workflowRun.matchAll(/^      - (Fenice .+)$/gm)].map((match) => match[1]);
-assert.deepEqual(configuredUpstreams, ["Fenice Foundation"], "only a genuinely scheduled recovery upstream is subscribed");
-assert.ok(configuredUpstreams.every((name) => PAPER_PROBE_RECOVERY_UPSTREAMS.includes(name)),
-  "subscribed workflow must remain within the independently tested provenance allow-list");
-assert.match(workflowRun, /types:\n\s+- completed\b/, "recovery must only inspect completed upstream runs");
-assert.match(workflow, /github\.event_name != 'workflow_run'[\s\S]*github\.event\.workflow_run\.conclusion == 'success'[\s\S]*github\.event\.workflow_run\.head_branch == 'main'[\s\S]*github\.event\.workflow_run\.head_repository\.full_name == github\.repository[\s\S]*github\.event\.workflow_run\.event == 'schedule'[\s\S]*github\.event\.workflow_run\.event == 'push'[\s\S]*github\.event\.workflow_run\.name == 'Fenice Foundation'/,
-  "runner-level filter must allow scheduled upstreams or successful Foundation push on repository main only");
-
-const schedule = workflow.match(/  schedule:\n([\s\S]*?)\n  workflow_run:/)?.[1] ?? "";
-const recoveryTimes = [...schedule.matchAll(/cron: "(\d+) (\d+) \* \* 1-5"/g)]
-  .map((match) => Number(match[2]) * 60 + Number(match[1]));
-assert.equal(recoveryTimes.length, 5, "recovery needs distinct early, middle, late and final quality-recovery opportunities");
-assert.ok(recoveryTimes.every((time) => time >= 875 && time <= 1170), "recovery schedules must fit the conservative US window");
-assert.ok(recoveryTimes.at(-1) - recoveryTimes[0] >= 180, "nearby schedules must not be the only recovery opportunities");
-assert.ok(recoveryTimes.at(-1) >= 1160, "recovery must include a final checkpoint after 19:20 UTC for late quality recovery");
+// The original V6 operator logic remains inspectable, but its automatic
+// triggers are retired. Manual requests also cannot execute the old dispatcher.
+assert.ok(PAPER_PROBE_RECOVERY_UPSTREAMS.includes("Fenice Foundation"),
+  "retain historical source-provenance policy for audits");
+assert.doesNotMatch(workflow, /^  schedule:/m,
+  "retired V6 operator must not compete for scheduled GitHub runner slots");
+assert.doesNotMatch(workflow, /^  workflow_run:/m,
+  "Foundation must not restart an archived V6 probe");
+assert.match(workflow, /^  workflow_dispatch:/m);
+assert.match(workflow, /^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n      false &&/m,
+  "operator dispatch job must be permanently inert after retirement");
 
 assert.match(workflow, /Checkout trusted main recovery policy[\s\S]*ref: main\n\s+persist-credentials: false/);
 assert.match(workflow, /id: trigger_gate\n\s+run: node scripts\/paper-probe-recovery-trigger\.mjs --github-output/);

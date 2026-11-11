@@ -1,37 +1,8 @@
 name: Fenice PAPER Early Validation Trigger
 
 on:
-  schedule:
-    # First attempt five minutes after the regular US equity open while US
-    # daylight-saving time is active. During US standard time this attempt is
-    # intentionally harmless because the canonical Alpaca market clock fails closed.
-    - cron: "35 13 * * 1-5"
-    # Year-round fallback five minutes after the standard-time US open. It is
-    # skipped only when today's evidence is final rather than PRE_OPEN.
-    - cron: "35 14 * * 1-5"
-    # Late fallback handles transient provider/API failures without duplicating
-    # a successful OPEN or final market-closed evidence day.
-    - cron: "35 16 * * 1-5"
-    # Registration/recovery fallback. This intentionally performs only the
-    # lightweight dispatch-policy read when final evidence already exists; it
-    # does not call market-data providers or dispatch the canonical workflow.
-    - cron: "5 17 * * 1-5"
-    # GitHub occasionally omits the canonical weekend schedule entirely. These
-    # guarded recovery checkpoints only read the dispatch policy first: they
-    # dispatch at most one canonical run when today's final CLOSED evidence is
-    # absent, and suppress themselves when a canonical run is already active.
-    - cron: "5 17 * * 0,6"
-    - cron: "5 19 * * 0,6"
-    - cron: "35 19 * * 0,6"
-  workflow_run:
-    # Only subscribed upstream is Foundation. Its successful scheduled AND
-    # push runs may repair missed weekday cron dispatches. A push from any
-    # other workflow cannot satisfy this workflow_run filter. The dispatcher
-    # must also pass the date, active-run and daily-rate-limit policy.
-    # No PAPER V6 engine files or LIVE permissions are affected.
-    workflows:
-      - "Fenice Foundation"
-    types: [completed]
+  # Archived V6/B2 dispatch: no automatic cron or upstream workflow event.
+  # Keep the explicit manual audit_only entrypoint read-only.
   workflow_dispatch:
     inputs:
       audit_only:
@@ -50,7 +21,11 @@ concurrency:
 
 jobs:
   dispatch:
+    # Explicit ONE GLOBAL retirement: never start archived V6 canonical/probe
+    # work, regardless of schedules, Foundation completion, or old approvals.
+    # Existing read-only audit jobs (when present) remain independent.
     if: >-
+      false &&
       (github.event_name != 'workflow_dispatch' || inputs.audit_only != true) &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -122,10 +97,7 @@ jobs:
     # Reuse existing fallback events to avoid extra GitHub Actions and provider-budget fanout.
     name: Independent after-open evidence proof (read-only)
     if: >-
-      (github.event_name == 'schedule' &&
-       (github.event.schedule == '35 16 * * 1-5' ||
-        github.event.schedule == '5 17 * * 1-5')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.audit_only == true)
+      github.event_name == 'workflow_dispatch' && inputs.audit_only == true
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:

@@ -47,7 +47,36 @@ jobs:
         run: node scripts/test-paper-probe-operator-gate.mjs
       - name: Verify owner preparation has no PAPER or LIVE grant
         run: node --experimental-strip-types scripts/test-paper-v6-continuation.mjs
-      - name: Verify original core digest, existing ledger and approval read-only
-        run: node --experimental-strip-types scripts/check-paper-v6-continuation.mjs
+      - name: Verify immutable historical records and explicit ONE GLOBAL retirement
+        run: node scripts/test-one-global-legacy-retirement.mjs
+
+      # The expired V6 campaign deliberately reports BLOCKED_INTEGRITY_REVIEW.
+      # Treat only that exact archival denial as safe; never turn it into
+      # renewed PAPER authorization or an accepted prospective market day.
+      - name: Assert old V6 continuation remains explicitly blocked
+        run: |
+          set +e
+          node --experimental-strip-types scripts/check-paper-v6-continuation.mjs > "$RUNNER_TEMP/v6-retired-status.json"
+          actual_exit=$?
+          set -e
+          export V6_RETIREMENT_CHECK_EXIT="$actual_exit"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const p = JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/v6-retired-status.json','utf8'));
+          const denied = Number(process.env.V6_RETIREMENT_CHECK_EXIT) === 2
+            && p.status === 'BLOCKED_INTEGRITY_REVIEW'
+            && JSON.stringify(p.reasons) === JSON.stringify(['V6_FINGERPRINT_DIFFERENCE'])
+            && p.authorizationToRenewOriginalV6 === false
+            && p.authorizationToStageNewProbesFromPlan === false
+            && p.postExpiryProbeAllowedFromPlan === false
+            && p.brokerOrderSubmissionAllowed === false
+            && p.liveTradingAllowed === false
+            && Date.parse(p.originalApprovalExpiresAt || '') <= Date.parse('2026-10-24T21:59:59.000Z');
+          if (!denied) {
+            console.error('V6_ARCHIVE_DENIAL_UNEXPECTED: fail closed; do not reopen historical campaign');
+            process.exit(1);
+          }
+          console.log('Expected historical V6 continuation rejection verified; no V6/B2 PAPER or LIVE entitlement');
+          NODE
       - name: Scan published files for credentials
         run: node scripts/scan-repository-secrets.mjs

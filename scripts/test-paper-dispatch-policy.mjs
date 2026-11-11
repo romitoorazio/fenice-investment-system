@@ -142,23 +142,22 @@ assert.match(bootstrap, /-f dispatch_token=/);
 assert.match(bootstrap, /displayTitle/);
 assert.doesNotMatch(bootstrap, /before=/);
 assert.doesNotMatch(bootstrap, /push:\s*\n/);
+// Historical dispatch algorithms stay testable, but the retired V6 pipeline
+// must have no automatically scheduled or subscribed recovery entry point.
 assert.match(early, /group:\s*fenice-paper-validation-dispatcher/);
-assert.match(early, /check-paper-validation-dispatch\.mjs/);
-assert.match(early, /steps\.today\.outputs\.should_dispatch == 'true'/);
-assert.match(early, /-f dispatch_token=/);
-assert.equal((early.match(/^  workflow_run:/gm) || []).length, 1, "early dispatcher must define workflow_run exactly once");
-assert.match(early, /Fenice Foundation/);
-assert.match(early, /workflow_run\.name == 'Fenice Foundation'/);
-assert.match(early, /paper-validation-event-recovery-trigger\.mjs/);
-assert.doesNotMatch(early, /workflows:\s*\["Fenice PAPER Validation Probe Cycle"\]/);
-assert.match(early, /github\.event_name != 'workflow_run'/);
-assert.match(early, /github\.event\.workflow_run\.conclusion == 'success'/);
-assert.match(early, /github\.event\.workflow_run\.head_branch == 'main'/);
-assert.match(early, /cron:\s*["']5 17 \* \* 1-5["']/);
-assert.match(early, /cron:\s*["']5 17 \* \* 0,6["']/);
-assert.match(early, /cron:\s*["']5 19 \* \* 0,6["']/);
-assert.match(early, /cron:\s*["']35 19 \* \* 0,6["']/);
-assert.doesNotMatch(early, /push:\s*\n/);
+assert.match(early, /workflow_dispatch:/);
+assert.match(early, /audit_only:/);
+assert.match(early, /after-open-proof:/);
+assert.match(early, /github\.event_name == 'workflow_dispatch' && inputs\.audit_only == true/);
+assert.doesNotMatch(early, /^  schedule:/m);
+assert.doesNotMatch(early, /^  workflow_run:/m);
+assert.doesNotMatch(early, /^  push:/m);
+assert.match(early, /^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n      false &&/m,
+  "retired daily V6 dispatcher must be permanently disabled");
+assert.doesNotMatch(operator, /^  schedule:/m);
+assert.doesNotMatch(operator, /^  workflow_run:/m);
+assert.match(operator, /^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n      false &&/m,
+  "retired V6 probe dispatcher must be permanently disabled");
 assert.match(operator, /-f dispatch_token=/);
 
 console.log("Fenice PAPER dispatch policy tests passed");

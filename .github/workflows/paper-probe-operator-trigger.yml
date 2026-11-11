@@ -2,30 +2,8 @@ name: Fenice PAPER Probe Operator Trigger
 
 on:
   workflow_dispatch:
-  schedule:
-    # Spread recovery checkpoints across the session: nearby cron events have
-    # repeatedly arrived together after the US close. These checks do not
-    # execute PAPER logic itself: it can only dispatch the fingerprinted
-    # canonical probe after duplicate/quality/cooldown/active-run suppression.
-    - cron: "55 14 * * 1-5"
-    - cron: "5 16 * * 1-5"
-    - cron: "15 17 * * 1-5"
-    - cron: "25 18 * * 1-5"
-    # Final late-session quality-recovery checkpoint. The runtime gate below
-    # still refuses dispatch after 19:30 UTC, so delayed GitHub cron delivery
-    # cannot turn this into a near-close or after-hours PAPER probe.
-    - cron: "25 19 * * 1-5"
-  workflow_run:
-    workflows:
-      # Subscribe only to successful trusted Foundation completions: scheduled
-      # AND main-branch push runs. Previously the filter permitted only
-      # Production CI push while subscribed exclusively to Foundation,
-      # so every Foundation push was skipped and missed crons had no recovery.
-      # Canonical probe still enforces operator approval, fresh feeds, risk,
-      # one approved probe/day, cooldown, same-day attempt cap and LIVE lock.
-      - Fenice Foundation
-    types:
-      - completed
+  # Archived V6 probe dispatcher: removed all automatic cron and
+  # Foundation completion listeners. Manual and PR checks remain inert.
   push:
     branches: [main]
     paths:
@@ -45,14 +23,18 @@ concurrency:
 
 jobs:
   dispatch:
+    # Explicit ONE GLOBAL retirement: never start archived V6 canonical/probe
+    # work, regardless of schedules, Foundation completion, or old approvals.
+    # Existing read-only audit jobs (when present) remain independent.
     if: >-
-      github.event_name != 'workflow_run' ||
+      false &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
        (github.event.workflow_run.event == 'schedule' ||
         (github.event.workflow_run.event == 'push' &&
-         github.event.workflow_run.name == 'Fenice Foundation')))
+         github.event.workflow_run.name == 'Fenice Foundation'))))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
