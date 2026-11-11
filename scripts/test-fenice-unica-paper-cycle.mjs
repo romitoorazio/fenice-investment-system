@@ -54,4 +54,66 @@ if(spy && spy.committeeScore<Number(inputs.approval.minCommitteeScore??70))
 const broken=structuredClone(inputs);
 broken.coverage.rows=broken.coverage.rows.map(x=>({...x,paperEligible:false}));
 assert.equal(evaluatePaperCycle(broken).strategyPaper.preliminaryEligibleCount,0);
+// Certification MUST recompute counters from protected forward-day and
+// independent virtual sample ledgers, not trust a JSON summary that can be
+// outdated or maliciously inflated.
+assert.equal(report.certification.ready,false);
+assert.equal(report.certification.liveTradingAllowed,false);
+assert.equal(report.certification.brokerConnectivityAllowed,false);
+assert.equal(report.certification.phase9CertifiedClosedStrategyTrades,0);
+assert.equal(report.certification.archivedLegacyFillsCredited,0);
+assert.equal(report.certification.doesNotCreditTechnicalV8AsStrategy,true);
+assert.equal(report.certification.verifiedTechnicalDays,inputs.v8Days.records.length);
+assert.equal(report.certification.verifiedTechnicalSamples,inputs.v8Samples.events.length);
+assert.equal(report.certification.remainingTechnicalDays,
+  inputs.v8Approval.minEvidenceDays-inputs.v8Days.records.length);
+assert.equal(report.certification.remainingTechnicalSamples,
+  inputs.v8Approval.minTechnicalSamples-inputs.v8Samples.events.length);
+assert.equal(report.certification.eligibleForIndependentV8TechnicalReview,false);
+assert.equal(report.certification.cachedStatusMatchesCryptographicReplay,true);
+assert.equal(report.certification.b2DailyRecordsBasicIntegrityValid,true);
+assert.equal(report.certification.b2ConfirmedStrategyFills,0);
+assert.equal(report.certification.b2ProspectiveDays,2);
+assert.equal(report.certification.savedQuoteCoverageFresh,false,
+  "Committed provider quotes from Nov 5 cannot pass a Nov 10 intraday PAPER gate");
+assert(report.certification.blockers.includes("PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"));
+assert(report.candidates.every(x=>x.preliminaryEligible===false));
+const forgedStatus=structuredClone(inputs);
+forgedStatus.v8Status.validDays=25;
+forgedStatus.v8Status.validTechnicalSamples=10;
+forgedStatus.v8Status.readyForTechnicalReview=true;
+forgedStatus.v8Status.status="READY_FOR_INDEPENDENT_TECHNICAL_REVIEW";
+const inflated=evaluatePaperCycle(forgedStatus);
+assert.equal(inflated.technicalPaper.validDays,inputs.v8Days.records.length);
+assert.equal(inflated.technicalPaper.technicalSamples,inputs.v8Samples.events.length);
+assert.equal(inflated.certification.cachedStatusMatchesCryptographicReplay,false);
+assert.equal(inflated.certification.eligibleForIndependentV8TechnicalReview,false);
+assert(inflated.certification.blockers.includes("V8_CACHED_STATUS_DISAGREES_WITH_SIGNED_EVIDENCE"));
+const falseReady=structuredClone(inputs);
+falseReady.v8Status.readyForTechnicalReview=true;
+falseReady.v8Status.status="READY_FOR_INDEPENDENT_TECHNICAL_REVIEW";
+assert.equal(evaluatePaperCycle(falseReady).certification.cachedStatusMatchesCryptographicReplay,false,
+  "Even unchanged counters cannot impersonate independent technical-review readiness");
+const expiredB2=structuredClone(inputs);
+expiredB2.approval.expiresAt="2026-11-10T18:00:00.000Z";
+const expiredReport=evaluatePaperCycle(expiredB2);
+assert.equal(expiredReport.certification.b2ApprovalCurrent,false);
+assert(expiredReport.certification.blockers.includes("B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"));
+assert(expiredReport.candidates.every(x=>x.preliminaryEligible===false));
+const duplicatedB2=structuredClone(inputs);
+duplicatedB2.b2Days.days.push(structuredClone(duplicatedB2.b2Days.days.at(-1)));
+const duplicatedReport=evaluatePaperCycle(duplicatedB2);
+assert.equal(duplicatedReport.certification.b2DailyRecordsBasicIntegrityValid,false);
+assert.equal(duplicatedReport.certification.b2ProspectiveDays,0);
+const futureB2=structuredClone(inputs);
+futureB2.b2Days.days.at(-1).checkedAt="2026-12-10T17:37:27.536Z";
+assert.equal(evaluatePaperCycle(futureB2).certification.b2ProspectiveDays,0);
+const forgedFutureV8=structuredClone(inputs);
+forgedFutureV8.nowIso="2026-11-09T10:00:00.000Z";
+assert.throws(()=>evaluatePaperCycle(forgedFutureV8),/ONE_GLOBAL_V8_FUTURE_EVIDENCE_REJECTED/,
+  "Do not count signatures from a future date in current certification");
+const expiredV8=structuredClone(inputs);
+expiredV8.nowIso="2027-01-03T16:00:00.000Z";
+assert.equal(evaluatePaperCycle(expiredV8).certification.v8ApprovalCurrent,false);
+assert.equal(evaluatePaperCycle(expiredV8).certification.eligibleForIndependentV8TechnicalReview,false);
 console.log("Fenice Unica PAPER cycle diagnostics: PASS");
