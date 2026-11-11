@@ -71,8 +71,20 @@ for (const workflowPath of [
   ".github/workflows/paper-probe-operator-trigger.yml",
 ]) {
   const source = readFileSync(workflowPath, "utf8");
-  assert.match(source, /^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n      false &&/m,
-    "legacy automatic dispatcher must be hard-disabled: " + workflowPath);
+  const gate = source.match(/^  dispatch:\n(?:    #[^\n]*\n)*    if: >-\n([\s\S]*?)\n    runs-on:/m);
+  assert.ok(gate, "retired dispatcher condition must exist: " + workflowPath);
+  const expression = gate[1].trim().replace(/\s+/g, " ");
+  assert.ok(expression.startsWith("false && "),
+    "retired dispatcher must start with a literal false gate: " + workflowPath);
+  let depth = 0;
+  for (let k = 0; k < expression.length; k++) {
+    if (expression[k] === "(") depth++;
+    if (expression[k] === ")") depth--;
+    assert.ok(depth >= 0, "unbalanced dispatcher condition: " + workflowPath);
+    assert.ok(!(expression.slice(k, k+2) === "||" && depth === 0),
+      "top-level OR could bypass retired dispatcher lock: " + workflowPath);
+  }
+  assert.equal(depth, 0, "unbalanced dispatcher condition: " + workflowPath);
 }
 
 console.log("PASS ONE GLOBAL formal retirement: 16 negative gates; signed ledgers preserved; V8 pinned; no LIVE or broker");
