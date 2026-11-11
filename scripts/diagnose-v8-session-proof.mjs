@@ -70,23 +70,19 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   if (todays)
     return result("ALREADY_ADMITTED_TODAY","DAILY_DEDUPLICATION",
       "A valid earlier technical day already exists; do not add duplicate evidence");
-  if (run.conclusion !== "success")
-    return result("UPSTREAM_WORKFLOW_FAILED",failingStep(observe)||"WORKFLOW",
-      "Independent PAPER lab did not complete successfully");
   if (!observe || observe.conclusion === "skipped")
     return result("OBSERVER_NOT_EXECUTED","JOB_GATE","No V8 observation job executed");
   const session=stepResult(observe,"Verify session is OPEN, fresh and not near closing");
   const collection=stepResult(observe,"Collect genuine, independent quote and FX evidence");
   const proof=stepResult(observe,"Record V8 verified day or precise fail-closed diagnostic");
   const persist=stepResult(observe,"Persist independent V8 and lab evidence even when V8 reports BLOCKED");
-  if (session === "skipped" || session === "missing")
-    return result("SESSION_CHECK_NOT_REACHED","EARLY_BUDGET_OR_DUPLICATE_GATE",
-      "Opening clock was not queried; no fresh proof could be produced");
-  if (collection === "skipped")
-    return result("SESSION_GATE_BLOCKED","AUTHORITATIVE_US_CLOCK",
-      marketState === "CLOSED" ? "Alpaca reports CLOSED: not an eligible trading session at run time"
-      : marketState === "UNKNOWN" ? "Alpaca clock UNKNOWN: credentials, freshness or provider must be checked"
-      : "Open-session authorization failed; inspect lab market-clock step and fresh session validity");
+  const failed=failingStep(observe);
+  if (failed === "Check authoritative US session before market-data requests")
+    return result("SESSION_CLOCK_REQUEST_FAILED","ALPACA_AUTHORITATIVE_CLOCK",
+      "The primary authenticated market clock did not complete; consult upstream job");
+  if (failed === "Verify session is OPEN, fresh and not near closing")
+    return result("SESSION_VALIDATION_FAILED","FRESH_MARKET_SESSION_GATE",
+      "Market clock authorization step failed; no provider quotes are eligible");
   if (collection === "failure")
     return result("SOURCE_COLLECTION_FAILED","EXECUTION_QUOTES_OR_FX",
       "Quote/FX acquisition failed: check sourceClues and the linked upstream job logs");
@@ -96,6 +92,17 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   if (persist === "failure")
     return result("PROOF_PERSISTENCE_FAILED","GIT_LEDGER_PUSH",
       "Technical evidence could not be committed; never credit a transient snapshot");
+  if (run.conclusion !== "success")
+    return result("UPSTREAM_WORKFLOW_FAILED",failed||"WORKFLOW",
+      "Independent PAPER lab did not complete successfully");
+  if (session === "skipped" || session === "missing")
+    return result("SESSION_CHECK_NOT_REACHED","EARLY_BUDGET_OR_DUPLICATE_GATE",
+      "Opening clock was not queried; no fresh proof could be produced");
+  if (collection === "skipped")
+    return result("SESSION_GATE_BLOCKED","AUTHORITATIVE_US_CLOCK",
+      marketState === "CLOSED" ? "Alpaca reports CLOSED: not an eligible trading session at run time"
+      : marketState === "UNKNOWN" ? "Alpaca clock UNKNOWN: credentials, freshness or provider must be checked"
+      : "Open-session authorization failed; inspect lab market-clock step and fresh session validity");
   const statusTime=isoMs(status?.generatedAt);
   const currentStatus=statusTime!==null && statusTime>=started-30000 && statusTime<=ended+120000;
   if (currentStatus && status?.reason)
