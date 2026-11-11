@@ -120,7 +120,7 @@ const futureB2=structuredClone(inputs);
 futureB2.b2Days.days.at(-1).checkedAt="2026-12-10T17:37:27.536Z";
 assert.equal(evaluatePaperCycle(futureB2).certification.b2ProspectiveDays,0);
 const forgedFutureV8=structuredClone(inputs);
-forgedFutureV8.nowIso="2026-11-09T10:00:00.000Z";
+forgedFutureV8.nowIso="2026-11-10T08:00:00.000Z";
 assert.throws(()=>evaluatePaperCycle(forgedFutureV8),/ONE_GLOBAL_V8_FUTURE_EVIDENCE_REJECTED/,
   "Do not count signatures from a future date in current certification");
 const expiredV8=structuredClone(inputs);
