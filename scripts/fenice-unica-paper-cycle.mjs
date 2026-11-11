@@ -153,7 +153,7 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
   const trustedB2Days=b2DayAudit.count;
   const b2Start=isoTime(approval?.effectiveFrom);
   const b2ElapsedCalendarDays=b2Start===null?0:Math.max(0,Math.floor((nowMs-b2Start)/DAY));
-  const blockers=[
+  const certificationBlockers=[
     ...(!coverageFresh?["PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"]:[]),
     ...(!committeeFresh?["COMMITTEE_SNAPSHOT_TOO_OLD"]:[]),
     ...(!b2ApprovalCurrent?["B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"]:[]),
@@ -236,7 +236,7 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       archivedLegacyFillsCredited:0,
       noPaperOrdersAuthorizedByReport:true,
       liveTradingAllowed:false,brokerConnectivityAllowed:false,
-      blockers,
+      blockers:certificationBlockers,
     },
     operations:{
       activePaperEngine:"V8_TECHNICAL_PAPER",
