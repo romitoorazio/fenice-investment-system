@@ -13,8 +13,10 @@ const coverage = read("execution-market-coverage.json");
 const fingerprint = await computeV7B2Fingerprint(".");
 const nowIso = new Date().toISOString();
 const strategyLedger=read("one-global-strategy-paper-ledger.json");
+const legacyRetirement=read("one-global-legacy-retirement.json");
 const base = {approval,b2Ledger,b2Days,v8Status,v8Days,coverage,
-  fingerprint,baselineAncestor:true,nowIso,strategyLedger};
+  fingerprint,baselineAncestor:true,nowIso,strategyLedger,
+  legacyRetirement,legacyArchiveBlobsMatch:true};
 const run = changes => auditPhase9({...base,...changes});
 const truth = run();
 const technicalInputs = {
@@ -58,8 +60,24 @@ assert.equal(missingStrategy.state,"NOT_CERTIFIED");
 assert.equal(truth.policy.liveTradingAllowed,false);
 assert.equal(truth.policy.brokerConnectivityAllowed,false);
 const deliberatelyMismatched = run({fingerprint:{...fingerprint,digest:"f".repeat(64)}});
-assert(deliberatelyMismatched.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED"),
-  "A changed core digest cannot silently be treated as approved.");
+assert(!deliberatelyMismatched.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED"),
+  "An independently verified retired B2 core is a historical warning, not a live strategy gate");
+assert(deliberatelyMismatched.diagnostics.legacyArchiveWarnings.includes(
+  "RETIRED_B2_FINGERPRINT_NOT_CURRENT_CORE"));
+assert.equal(truth.diagnostics.b2RetiredAndSourceBlobsVerified,true);
+assert.equal(truth.policy.archivedB2WriterMayReactivate,false);
+const noLegacyProof=run({fingerprint:{...fingerprint,digest:"f".repeat(64)},
+  legacyRetirement:null,legacyArchiveBlobsMatch:false});
+assert(noLegacyProof.reasonCodes.includes("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED"),
+  "No proven retirement => retain strict old B2 fingerprint gate");
+const mutatedLegacy=run({legacyRetirement:{...legacyRetirement,
+  previousApprovedProofsUnchanged:false}});
+assert(mutatedLegacy.reasonCodes.includes("LEGACY_ARCHIVE_RETIREMENT_OR_BLOBS_INVALID"));
+assert.equal(mutatedLegacy.state,"NOT_CERTIFIED");
+const replacedArchive=run({legacyArchiveBlobsMatch:false});
+assert(replacedArchive.reasonCodes.includes("LEGACY_ARCHIVE_RETIREMENT_OR_BLOBS_INVALID"));
+assert.equal(replacedArchive.diagnostics.b2RetiredAndSourceBlobsVerified,false);
+
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("alpaca"));
 assert(truth.diagnostics.technicalQuoteSourceFamiliesObserved.includes("twelve-data"));
 assert.equal(truth.diagnostics.v8TechnicalDays, v8Days.records.filter(

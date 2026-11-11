@@ -23,12 +23,46 @@ const isSafe = value => value?.liveTradingAllowed === false
 const asArray = value => Array.isArray(value) ? value : [];
 const uniq = values => [...new Set(values)].sort();
 const sourceFamily = value => typeof value === "string" ? value.trim().toLowerCase() : "";
+const ARCHIVED_B2_SOURCES=[
+  "data/paper-validation-campaign.json",
+  "data/paper-v7-phase-b-approval.json",
+  "data/paper-v7-b2-approval.json",
+];
+export function validOneGlobalLegacyRetirement({policy,archiveBlobsMatch,nowIso}={}) {
+  const authorized=String(policy?.authorizedOn||"");
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(authorized)
+    ?Date.parse(authorized+"T00:00:00.000Z"):NaN;
+  const now=Date.parse(nowIso||"");
+  const blobs=policy?.legacySourceBlobShas;
+  return policy?.version===1
+    &&policy.mode==="ONE_GLOBAL_LEGACY_RETIREMENT_READ_ONLY"
+    &&policy.stopAutomaticLegacyWriters===true
+    &&policy.retainsHistory===true
+    &&policy.previousApprovedProofsUnchanged===true
+    &&policy.activeTechnicalPaper==="V8_TECHNICAL_ONLY"
+    &&policy.historicalFillsCreditedToV8===0
+    &&policy.certificationCredit===0
+    &&policy.renewPreviousApprovals===false
+    &&policy.enableLiveTrading===false
+    &&policy.brokerConnectivityAllowed===false
+    &&policy.liveTradingAllowed===false
+    &&policy.authorizePaidServices===false
+    &&Array.isArray(policy.retiredCampaigns)
+    &&["V6","V7_PHASE_B","V7_B2"].every(x=>policy.retiredCampaigns.includes(x))
+    &&typeof blobs==="object"&&blobs!==null
+    &&JSON.stringify(Object.keys(blobs).sort())===JSON.stringify([...ARCHIVED_B2_SOURCES].sort())
+    &&ARCHIVED_B2_SOURCES.every(x=>/^[a-f0-9]{40}$/.test(blobs[x]||""))
+    &&archiveBlobsMatch===true
+    &&Number.isFinite(now)&&Number.isFinite(date)&&date<=now;
+}
 
 export function auditPhase9({
   approval, b2Ledger, b2Days, fingerprint, baselineAncestor,
   v8Status, v8Days, v8Approval, v8Samples, shadowExitLedger, strategyLedger, coverage, nowIso,
+  legacyRetirement, legacyArchiveBlobsMatch=false,
 }) {
   const reasons = [];
+  const legacyArchiveWarnings = [];
   const add = code => { if (!reasons.includes(code)) reasons.push(code); };
   const nowMs = isIso(nowIso) ? Date.parse(nowIso) : NaN;
   if (!Number.isFinite(nowMs)) add("AUDIT_CLOCK_INVALID");
@@ -44,17 +78,30 @@ export function auditPhase9({
       || (index > 0 && days[index - 1].date >= day.date)
       || !isSafe(day))) add("B2_DAY_EVIDENCE_INVALID");
 
+  const legacyRetired = legacyRetirement && validOneGlobalLegacyRetirement({
+    policy: legacyRetirement,archiveBlobsMatch:legacyArchiveBlobsMatch,nowIso,
+  });
+  if (legacyRetirement && !legacyRetired) add("LEGACY_ARCHIVE_RETIREMENT_OR_BLOBS_INVALID");
+
   const pinned = baselineAncestor === true && fingerprint?.complete === true
     && approval?.coreFingerprint?.complete === true
     && fingerprint.domain === approval.coreFingerprint.domain
     && fingerprint.digest === approval.coreFingerprint.digest
     && JSON.stringify(fingerprint.files) === JSON.stringify(approval.coreFingerprint.files);
-  if (!pinned) add("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED");
-  if (approval?.approved !== true || approval?.humanConfirmation !== true
-    || approval?.mode !== "PAPER" || approval?.allowBackfill !== false)
-    add("B2_FORWARD_APPROVAL_INVALID");
-  if (!Number.isFinite(nowMs) || !Number.isFinite(Date.parse(approval?.expiresAt || ""))
-    || nowMs >= Date.parse(approval.expiresAt)) add("B2_APPROVAL_EXPIRED");
+  // The immutable B2 files remain independently audited. A retired B2
+  // fingerprint cannot *activate* the ONE GLOBAL strategy or block it forever.
+  // Decoupling requires proven owner retirement plus unchanged source blobs.
+  if (!pinned) {
+    if (legacyRetired) legacyArchiveWarnings.push("RETIRED_B2_FINGERPRINT_NOT_CURRENT_CORE");
+    else add("B2_FROZEN_CORE_FINGERPRINT_NOT_PINNED");
+  }
+  if (!legacyRetired) {
+    if (approval?.approved !== true || approval?.humanConfirmation !== true
+      || approval?.mode !== "PAPER" || approval?.allowBackfill !== false)
+      add("B2_FORWARD_APPROVAL_INVALID");
+    if (!Number.isFinite(nowMs) || !Number.isFinite(Date.parse(approval?.expiresAt || ""))
+      || nowMs >= Date.parse(approval.expiresAt)) add("B2_APPROVAL_EXPIRED");
+  }
 
   // These are independent engineering observations only. Never treat them as
   // PAPER forward orders, executed trades or investment strategy returns.
@@ -125,6 +172,8 @@ export function auditPhase9({
     },
     diagnostics: {
       b2FingerprintPinned: pinned,
+      b2RetiredAndSourceBlobsVerified: legacyRetired===true,
+      legacyArchiveWarnings,
       expectedB2Digest: approval?.coreFingerprint?.digest || null,
       observedB2Digest: fingerprint?.digest || null,
       b2BuyFills,
@@ -146,6 +195,7 @@ export function auditPhase9({
       liveTradingAllowed: false,
       brokerConnectivityAllowed: false,
       historicalBackfillAllowed: false,
+      archivedB2WriterMayReactivate: false,
       technicalSamplesAreCertification: false,
       ciSuccessIsTradingProof: false,
     },
@@ -174,6 +224,11 @@ async function main() {
     v8Samples: read("paper-v8-technical-samples.json"),
     shadowExitLedger: read("paper-v8-shadow-exits.json"),
     strategyLedger: read("one-global-strategy-paper-ledger.json"),
+    legacyRetirement: read("one-global-legacy-retirement.json"),
+    legacyArchiveBlobsMatch: ARCHIVED_B2_SOURCES.every(name => {
+      const blob=execFileSync("git",["hash-object",name],{cwd:ROOT,encoding:"utf8"}).trim();
+      return blob===read("one-global-legacy-retirement.json").legacySourceBlobShas?.[name];
+    }),
     coverage: read("execution-market-coverage.json"),
     nowIso: new Date().toISOString(),
   });
@@ -194,6 +249,9 @@ async function main() {
       + "- Operazioni virtuali ONE GLOBAL chiuse: " + report.diagnostics.oneGlobalForwardVirtualStrategy.closedVirtualRoundTrips
       + "; profitto/perdita virtuale €: " + report.diagnostics.oneGlobalForwardVirtualStrategy.realizedNetEuro
       + "; credito Fase 9: **0** (ricevute indipendenti non presenti)\n"
+      + "- B2 archiviato e hash sorgenti originali verificati: "
+      + (report.diagnostics.b2RetiredAndSourceBlobsVerified?"SÌ":"NO")
+      + "; differenze legacy: " + report.diagnostics.legacyArchiveWarnings.join(", ") + "\n"
       + "- Fingerprint B2 corrispondente: " + (report.diagnostics.b2FingerprintPinned ? "SÌ" : "NO") + "\n"
       + "- Motivi: `" + report.reasonCodes.join("`, `") + "`\n"
       + "\n> Le evidenze V8 e i fill BUY B2 non dimostrano trade forward chiusi. Directa resta bloccata.\n");
@@ -202,6 +260,7 @@ async function main() {
     || report.reasonCodes.includes("LIVE_OR_BROKER_SAFETY_FAILURE")
     || report.reasonCodes.includes("B2_DAY_EVIDENCE_INVALID")
     || report.reasonCodes.includes("V8_TECHNICAL_EXIT_JOURNAL_INVALID")
-    || report.reasonCodes.includes("ONE_GLOBAL_STRATEGY_JOURNAL_INVALID")) process.exitCode = 2;
+    || report.reasonCodes.includes("ONE_GLOBAL_STRATEGY_JOURNAL_INVALID")
+    || report.reasonCodes.includes("LEGACY_ARCHIVE_RETIREMENT_OR_BLOBS_INVALID")) process.exitCode = 2;
 }
 if (process.argv[1] && resolve(process.argv[1]) === FILE) await main();
