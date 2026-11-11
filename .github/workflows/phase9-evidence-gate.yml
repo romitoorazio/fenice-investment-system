@@ -11,6 +11,10 @@ on:
       - "scripts/test-phase9-readiness.mjs"
       - "scripts/run-v8-shadow-exits.mjs"
       - "data/paper-v8-shadow-exits.json"
+      - "lib/trading/one-global-strategy-ledger-audit.mjs"
+      - "data/one-global-strategy-paper-ledger.json"
+      - "scripts/test-one-global-strategy-ledger-audit.mjs"
+      - "scripts/run-one-global-strategy-paper.mjs"
   push:
     branches: [main]
     paths:
@@ -23,6 +27,10 @@ on:
       - "data/paper-v8-technical-status.json"
       - "data/paper-v8-technical-samples.json"
       - "data/execution-market-coverage.json"
+      - "lib/trading/one-global-strategy-ledger-audit.mjs"
+      - "data/one-global-strategy-paper-ledger.json"
+      - "scripts/test-one-global-strategy-ledger-audit.mjs"
+      - "scripts/run-one-global-strategy-paper.mjs"
   workflow_dispatch:
   schedule:
     - cron: "25 21 * * 1-5"
@@ -49,7 +57,9 @@ jobs:
         with:
           node-version: "22"
       - name: Test impossible-to-fake forward certification and safety
-        run: node scripts/test-phase9-readiness.mjs
+        run: |
+          node scripts/test-one-global-strategy-ledger-audit.mjs
+          node scripts/test-phase9-readiness.mjs
       - name: Produce truthful phase 9 gate report
         run: node scripts/audit-phase9-readiness.mjs --output "$RUNNER_TEMP/phase9-readiness.json"
       - name: Publish read-only phase 9 report
