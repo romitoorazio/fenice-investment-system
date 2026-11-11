@@ -133,8 +133,10 @@ assert.equal(offline.found,0);
 assert.equal(offline.missing,3);
 assert.equal(offline.errors.length,3);
 assert(offline.rows.every(x=>x.strategyPaperEligible===false));
-assert.equal(offline.rows[0].officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,true,
-  "Independent index failure must preserve a distinct issuer-origin ESEF follow-up");
+assert.equal(offline.rows[0].officialAnnualEsefResearchGap.officialPeriodMissingFromIndependentIndex,false,
+  "Unavailable provider does not establish that the filing is missing from its index");
+assert.equal(offline.rows[0].officialAnnualEsefResearchGap.independentIndexUnavailable,true,
+  "Official issuer source remains a separate follow-up when third-party index is unavailable");
 assert.equal(offline.rows[0].officialAnnualEsefResearchGap.officialZipContentsDownloadedOrParsed,false);
 assert.equal(offline.rows[1].officialAnnualEsefResearchGap,null);
 
