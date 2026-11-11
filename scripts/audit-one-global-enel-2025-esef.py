@@ -215,6 +215,7 @@ def audit_zip_bytes(data, *, source_is_official=False):
     accepted = defaultdict(list)
     count = Counter()
     xhtml_files = []
+    rejected_numeric_samples = []
     with zipfile.ZipFile(BytesIO(data)) as archive:
         members = archive.infolist()
         if len(members) > MAX_FILES:
@@ -335,6 +336,15 @@ def audit_zip_bytes(data, *, source_is_official=False):
                     amount = decimal_fact(item, namespaces)
                     if amount is None:
                         count["rejectedNumericTransformation"] += 1
+                        if len(rejected_numeric_samples) < 8:
+                            rejected_numeric_samples.append({
+                                "metric": metric,
+                                "format": attrs.get("format"),
+                                "scale": attrs.get("scale"),
+                                "sign": attrs.get("sign"),
+                                "unverifiedDisplayedText": value_text[:100],
+                                "notCertifiedNumericFact": True,
+                            })
                         continue
                     accepted[metric].append(amount)
                     count["acceptedFacts"] += 1
@@ -366,6 +376,7 @@ def audit_zip_bytes(data, *, source_is_official=False):
         fetchedDirectlyFromPinnedIssuerUrl=source_is_official,
         sourceZipBytes=len(data),
         scanCounts=dict(count),
+        rejectedNumericFormatExamples=rejected_numeric_samples,
         metrics=metrics, ambiguousMetrics=ambiguous,
         balanceSheetNumericConsistency={
             "available": difference is not None, "passed": consistent,
