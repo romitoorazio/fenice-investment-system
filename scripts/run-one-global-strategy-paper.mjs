@@ -233,6 +233,10 @@ async function main(){
     instruments:[...load("instrument-master.json").instruments,
       ...load("world-paper-v7-research-seeds.json").instruments],
     nowIso,
+    // Observe the one current persistent strategy ledger rather than
+    // resetting history to an empty in-memory journal every dashboard run.
+    // The CLI stays READ-ONLY: no authority or source receipts are injected.
+    previousLedger:load("one-global-strategy-paper-ledger.json"),
   });
   const {outputPaperLedger,...publicReport}=result;
   const out=process.argv.find(x=>x.startsWith("--output="))?.slice("--output=".length)
