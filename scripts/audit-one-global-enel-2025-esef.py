@@ -154,9 +154,10 @@ def decimal_fact(elem, namespaces):
         ns = namespaces.get(prefix, "")
         if not sep or "xbrl.org/inlineXBRL/transformation/" not in ns:
             return None
-        if transform.lower() in {"numcommadecimal", "numspacecomma"}:
+        if transform.lower() in {"numcommadecimal", "num-comma-decimal",
+                                 "numspacecomma", "num-space-comma"}:
             printed = printed.replace(".", "").replace(" ", "").replace(",", ".")
-        elif transform.lower() == "numdotdecimal":
+        elif transform.lower() in {"numdotdecimal", "num-dot-decimal"}:
             printed = printed.replace(",", "").replace(" ", "")
         else:
             return None
