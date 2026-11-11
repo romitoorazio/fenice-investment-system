@@ -9,6 +9,8 @@ on:
       - ".github/workflows/v8-shadow-exits.yml"
       - "scripts/v8-shadow-session-preflight.mjs"
       - "scripts/test-v8-shadow-session-preflight.mjs"
+      - "scripts/diagnose-v8-session-proof.mjs"
+      - "scripts/test-v8-session-proof-diagnostic.mjs"
       - "scripts/run-v8-shadow-exits.mjs"
       - "scripts/test-v8-shadow-exits.mjs"
       - "scripts/report-v8-virtual-pnl.mjs"
@@ -47,6 +49,7 @@ jobs:
           node scripts/test-v8-virtual-pnl.mjs
           node scripts/test-v8-technical-evidence.mjs
           node scripts/test-v8-shadow-session-preflight.mjs
+          node scripts/test-v8-session-proof-diagnostic.mjs
       - name: No committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -143,3 +146,60 @@ jobs:
           done
           echo "V8 accounting write failed closed"
           exit 1
+
+  diagnose-upstream-proof:
+    # Existing unpinned V8 supplement observes the lab completion as a
+    # first-class event. Pinned V8 lab workflow and signed inputs are unchanged.
+    # A successful upstream job is not proof when the session or providers skip.
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout current persistent V8 evidence without broker credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Regression-test real-session evidence classifications
+        run: node scripts/test-v8-session-proof-diagnostic.mjs
+      - name: Fetch completed upstream lab job status and diagnostic log
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostic
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_RUN_ID" > diagnostic/run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_RUN_ID/jobs?per_page=100" > diagnostic/jobs.json
+          observer_id="$(jq -r '.jobs[] | select(.name == "observe") | .id' diagnostic/jobs.json | head -n 1)"
+          : > diagnostic/upstream.log
+          if [ -n "$observer_id" ]; then
+            # Log stays local and is NEVER uploaded. The parser emits only
+            # bounded categorical status codes and safe provider-family hints.
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$observer_id/logs" \
+              > diagnostic/upstream.log || : > diagnostic/upstream.log
+          fi
+      - name: Classify admitted daily proof or precise blocking gate
+        run: |
+          node scripts/diagnose-v8-session-proof.mjs \
+            --run=diagnostic/run.json \
+            --jobs=diagnostic/jobs.json \
+            --log=diagnostic/upstream.log \
+            --output=diagnostic/report.json
+      - name: Archive source-safe, no-credit V8 session diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-v8-session-proof-diagnostic
+          if-no-files-found: warn
+          retention-days: 35
+          path: diagnostic/report.json
