@@ -11,6 +11,41 @@ import { replayShadowExits } from "./run-v8-shadow-exits.mjs";
 
 const ROOT=resolve(fileURLToPath(import.meta.url),"../..");
 const r4=n=>Math.round((n+Number.EPSILON)*10000)/10000;
+/**
+ * Do not create a new data commit merely because a closed-market check ran
+ * another minute later. Only quote/sample/exit content, freshness-state
+ * transitions, gains, losses or independently sourced marks may update PnL.
+ * The retained generatedAt/proofAgeMinutes refer to the last actual written
+ * evaluation, and asOf/sourceDayHash remain authoritative quote metadata.
+ */
+function comparableReport(report){
+  if(!report||typeof report!=="object"||!Array.isArray(report.rows))
+    return null;
+  const payload={...report};
+  delete payload.generatedAt;
+  payload.rows=report.rows.map(row=>{
+    const substantive={...row};
+    delete substantive.proofAgeMinutes;
+    return substantive;
+  });
+  return payload;
+}
+export function shouldPublishV8VirtualPnL({previous,next}){
+  if(!next||next.scope!=="V8_TECHNICAL_SIMULATED_ACCOUNTING_ONLY"
+    ||next.certificationCredit!==0||next.phase9CertifiedClosedTrades!==0
+    ||next.liveTradingAllowed!==false||next.brokerConnectivityAllowed!==false)
+    throw Error("V8_PNL_PUBLICATION_UNSAFE_RESULT");
+  const nextAt=Date.parse(next.generatedAt);
+  const prevAt=Date.parse(previous?.generatedAt);
+  if(!Number.isFinite(nextAt))throw Error("V8_PNL_PUBLICATION_CLOCK_INVALID");
+  if(previous&&Number.isFinite(prevAt)&&prevAt>nextAt)
+    throw Error("V8_PNL_PUBLICATION_CLOCK_REGRESSION");
+  if(!previous)return true;
+  if(previous.liveTradingAllowed!==false||previous.brokerConnectivityAllowed!==false)
+    throw Error("V8_PNL_PRIOR_REPORT_SAFETY_TAMPER");
+  return JSON.stringify(comparableReport(previous))
+    !==JSON.stringify(comparableReport(next));
+}
 
 export function reportV8VirtualPnL({approval,samples,days,exits,nowIso}) {
   const replay=replayExecutionLabLedger(samples);
@@ -83,8 +118,16 @@ async function main(){
     nowIso:new Date().toISOString(),
   });
   const path=resolve(ROOT,"data","paper-v8-pnl-report.json");
-  writeFileSync(path,JSON.stringify(result,null,2)+"\n",{mode:0o600});
+  let previous=null;
+  try{previous=JSON.parse(readFileSync(path,"utf8"))}catch(error){
+    // A corrupted existing result is evidence of a problem, not a reason to
+    // silently erase it. Only a genuinely missing report can be created.
+    if(error?.code!=="ENOENT")throw error;
+  }
+  const published=shouldPublishV8VirtualPnL({previous,next:result});
+  if(published)writeFileSync(path,JSON.stringify(result,null,2)+"\n",{mode:0o600});
   console.log("FENICE virtual EUR PnL: "+JSON.stringify({
+    published,reason:published?"SOURCE_OR_FRESHNESS_STATE_CHANGED":"NO_SUBSTANTIVE_CHANGE",
     sampleBuys:result.sampleBuys,closedTechnicalRoundtrips:result.closedTechnicalRoundtrips,
     realizedEuro:result.realizedNetEuro,unrealizedEuro:result.unrealizedNetEuro,
     allMarksCurrent:result.allMarksCurrent,unpriced:result.unpricedSamples,
