@@ -52,7 +52,7 @@ corrupted(d=>{d.companies[0].lei="INVALID_LEI"},/FY2025_ISSUER_LEI_OR_IDENTITY_M
 corrupted(d=>{d.companies[0].sourceUrl="https://www.enel.com.evil.invalid/path"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
 corrupted(d=>{d.companies[0].sourceUrl="https://www.enel.com@evil.invalid/path"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
 corrupted(d=>{d.companies[1].sourceUrl="https://www.lvmh.com/en/publications/foo?token=SECRETS"},/FY2025_RELEASE_URL_NOT_OFFICIAL/);
-corrupted(d=>{d.companies[2].periodEnd="2025-12-31"},/FY2025_FISCAL_CALENDAR_MISMATCH/);
+corrupted(d=>{d.companies[2].periodEnd="2025-08-31"},/FY2025_FISCAL_CALENDAR_MISMATCH/);
 corrupted(d=>{d.companies[0].publishedAt="2028-03-19"},/FY2025_ISSUER_RELEASE_TIME_INVALID/);
 corrupted(d=>{d.companies[1].metrics[0].precisionEurMillions=100},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
 corrupted(d=>{d.companies[2].metrics[0].precisionEurMillions=1},/FY2025_METRIC_PRECISION_OR_IDENTITY_INVALID/);
