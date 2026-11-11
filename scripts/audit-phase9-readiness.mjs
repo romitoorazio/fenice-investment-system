@@ -30,7 +30,7 @@ const ARCHIVED_B2_SOURCES=[
 ];
 export function validOneGlobalLegacyRetirement({policy,archiveBlobsMatch,nowIso}={}) {
   const authorized=String(policy?.authorizedOn||"");
-  const date=/^\\d{4}-\\d{2}-\\d{2}$/.test(authorized)
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(authorized)
     ?Date.parse(authorized+"T00:00:00.000Z"):NaN;
   const now=Date.parse(nowIso||"");
   const blobs=policy?.legacySourceBlobShas;
@@ -251,7 +251,7 @@ async function main() {
       + "; credito Fase 9: **0** (ricevute indipendenti non presenti)\n"
       + "- B2 archiviato e hash sorgenti originali verificati: "
       + (report.diagnostics.b2RetiredAndSourceBlobsVerified?"SÌ":"NO")
-      + "; differenze legacy: " + report.diagnostics.legacyArchiveWarnings.join(", ") + "\\n"
+      + "; differenze legacy: " + report.diagnostics.legacyArchiveWarnings.join(", ") + "\n"
       + "- Fingerprint B2 corrispondente: " + (report.diagnostics.b2FingerprintPinned ? "SÌ" : "NO") + "\n"
       + "- Motivi: `" + report.reasonCodes.join("`, `") + "`\n"
       + "\n> Le evidenze V8 e i fill BUY B2 non dimostrano trade forward chiusi. Directa resta bloccata.\n");
