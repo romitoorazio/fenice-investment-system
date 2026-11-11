@@ -90,6 +90,26 @@ registry5 = module.audit_zip_bytes(archive(fixture().replace(
 assert registry5["metrics"]["revenue"]["valueEur"] == "78057000000"
 assert registry5["state"] == "RESEARCH_FACTS_EXTRACTED_UNCERTIFIED"
 assert registry5["issuerFundamentalScoreEligible"] is False
+pinned = json.loads((HERE.parent / "data" /
+    "one-global-fy2025-official-issuer-releases.json").read_text(encoding="utf8"))
+bridge = module.reconcile_issuer_annual_press_release(registry5, pinned)
+assert bridge["ifrsTaggedSalesServicesEur"] == "78057000000"
+assert bridge["issuerPublishedTotalRevenueEur"] == "80346000000"
+assert bridge["unreconciledRevenueDifferenceEur"] == "2289000000"
+assert bridge["issuerOrdinaryGroupProfitEur"] == "7011000000"
+assert bridge["issuerPublishedNetFinancialDebtEur"] == "57182000000"
+assert bridge["ifrsProfitLossIsNotOrdinaryGroupProfit"] is True
+assert bridge["netDebtIsNotTotalBalanceSheetLiabilities"] is True
+assert bridge["otherIncomeIndependentTagReconciliationCompleted"] is False
+assert bridge["fundamentalScoreEligible"] is bridge["dcfEligible"] is False
+assert bridge["paperExecutionAllowed"] is False
+assert bridge["phase9Credit"] == 0
+tampered_pinned = json.loads(json.dumps(pinned))
+next(c for c in tampered_pinned["companies"] if c["key"] == "XMIL:ENEL")["sourceUrl"] = "https://evil.invalid/2025"
+reject(lambda: module.reconcile_issuer_annual_press_release(registry5,tampered_pinned),
+    "ESEF_PINNED_ANNUAL_PRESS_SOURCE_INVALID")
+reject(lambda: module.audit_zip_bytes(base, source_is_official=True),
+    "ESEF_OFFICIAL_ARCHIVE_CHANGED_REVIEW_REQUIRED")
 assert result["balanceSheetNumericConsistency"]["passed"] is True
 assert result["balanceSheetNumericConsistency"]["differenceEur"] == "0"
 for name in ("issuerFundamentalScoreEligible", "dcfEligible", "approvedForStrategicPaper",
