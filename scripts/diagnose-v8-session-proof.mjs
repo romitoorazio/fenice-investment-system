@@ -9,7 +9,7 @@ import { replayExecutionLabLedger } from "./run-paper-execution-lab.mjs";
 
 const isoMs = value => {
   const n = typeof value === "string" ? Date.parse(value) : NaN;
-  return Number.isFinite(n) && new Date(n).toISOString() === value ? n : null;
+  return Number.isFinite(n) && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(value) ? n : null;
 };
 const stepResult = (job, name) => (job?.steps || []).find(x => x.name === name)?.conclusion || "missing";
 const failingStep = job => (job?.steps || []).find(x => x.conclusion === "failure")?.name || null;
