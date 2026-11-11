@@ -32,9 +32,10 @@ SOURCE_URL = ("https://www.enel.com/content/dam/enel-com/documenti/"
               "investitori/informazioni-finanziarie/2025/annuali/it/"
               "relazione-finanziaria-annuale-consolidata-2025-ixbrl.zip")
 MAX_ZIP = 96 * 1024 * 1024
-MAX_UNCOMPRESSED = 240 * 1024 * 1024
-MAX_XHTML = 72 * 1024 * 1024
+MAX_UNCOMPRESSED = 640 * 1024 * 1024
+MAX_XHTML = 500 * 1024 * 1024
 MAX_FILES = 5000
+MAX_FACTS = 100000
 MAX_RATIO = 1000
 IX = "{http://www.xbrl.org/2013/inlineXBRL}"
 XBRLI = "{http://www.xbrl.org/2003/instance}"
@@ -204,8 +205,7 @@ def audit_zip_bytes(data, *, source_is_official=False):
             name = member.filename
             path = PurePosixPath(name)
             if (name.startswith("/") or "\\" in name or ".." in path.parts
-                    or not name or (member.external_attr >> 16) & stat.S_IFMT(
-                        member.external_attr >> 16) == stat.S_IFLNK):
+                    or not name or stat.S_ISLNK(member.external_attr >> 16)):
                 raise ValueError("ESEF_ZIP_UNSAFE_MEMBER")
             if member.flag_bits & 1:
                 raise ValueError("ESEF_ZIP_ENCRYPTED_MEMBER")
@@ -225,21 +225,73 @@ def audit_zip_bytes(data, *, source_is_official=False):
         if len(xhtml_files) > 20:
             raise ValueError("ESEF_ZIP_EXCESS_XHTML_REPORTS")
         for member in xhtml_files:
-            raw = archive.read(member)
-            namespaces = collect_namespaces(raw)
-            if b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
-                raise ValueError("ESEF_XHTML_DOCTYPE_OR_ENTITIES_FORBIDDEN")
-            root = ET.fromstring(raw)
-            contexts, units = xbrl_contexts(root)
+            # An issuer's full XHTML annual report may exceed 100 MiB.
+            # Parse the ZIP member as a stream, retain only contexts/units and
+            # bounded numeric facts, release XML subtrees as they are scanned.
+            namespaces, contexts, units, pending = {}, {}, {}, []
+            protected = 0
+            root = None
+            ended = 0
+            with archive.open(member, "r") as file:
+                for event, element in ET.iterparse(
+                        file, events=("start-ns", "start", "end")):
+                    if event == "start-ns":
+                        prefix, uri = element
+                        if prefix in namespaces and namespaces[prefix] != uri:
+                            raise ValueError("ESEF_NAMESPACE_PREFIX_REASSIGNED")
+                        namespaces[prefix] = uri
+                        continue
+                    if event == "start":
+                        if root is None:
+                            root = element
+                        if element.tag in {XBRLI + "context", XBRLI + "unit", IX + "nonFraction"}:
+                            protected += 1
+                        continue
+                    ended += 1
+                    if element.tag == XBRLI + "context":
+                        context_id = element.attrib.get("id")
+                        if not context_id or context_id in contexts:
+                            raise ValueError("ESEF_DUPLICATE_OR_MISSING_CONTEXT_ID")
+                        entity = xml_child(element, "entity")
+                        identifier = xml_child(entity, "identifier")
+                        period = xml_child(element, "period")
+                        scheme = identifier.attrib.get("scheme", "") if identifier is not None else ""
+                        contexts[context_id] = {
+                            "lei": text_of(identifier),
+                            "validLEIScheme": scheme.rstrip("/") in {
+                                "http://standards.iso.org/iso/17442",
+                                "https://standards.iso.org/iso/17442",
+                            },
+                            "dimensional": xml_child(entity, "segment") is not None
+                            or xml_child(element, "scenario") is not None,
+                            "start": text_of(xml_child(period, "startDate")),
+                            "end": text_of(xml_child(period, "endDate")),
+                            "instant": text_of(xml_child(period, "instant")),
+                        }
+                    elif element.tag == XBRLI + "unit":
+                        unit_id = element.attrib.get("id")
+                        if not unit_id or unit_id in units:
+                            raise ValueError("ESEF_DUPLICATE_OR_MISSING_UNIT_ID")
+                        units[unit_id] = [text_of(x) for x in element.iter(XBRLI + "measure")]
+                    elif element.tag == IX + "nonFraction":
+                        count["inlineNumericFacts"] += 1
+                        if len(pending) >= MAX_FACTS:
+                            raise ValueError("ESEF_IXBRL_TOO_MANY_NUMERIC_FACTS")
+                        pending.append((element.attrib.copy(), text_of(element)))
+                    if element.tag in {XBRLI + "context", XBRLI + "unit", IX + "nonFraction"}:
+                        protected -= 1
+                    if protected == 0:
+                        element.clear()
+                        if root is not None and ended % 2048 == 0:
+                            root.clear()
             count["xhtmlFiles"] += 1
             count["contexts"] += len(contexts)
             count["units"] += len(units)
-            for item in root.iter(IX + "nonFraction"):
-                count["inlineNumericFacts"] += 1
-                ref = item.attrib.get("contextRef", "")
+            for attrs, value_text in pending:
+                ref = attrs.get("contextRef", "")
                 context = contexts.get(ref)
-                unit = units.get(item.attrib.get("unitRef", ""))
-                concept = item.attrib.get("name", "")
+                unit = units.get(attrs.get("unitRef", ""))
+                concept = attrs.get("name", "")
                 prefix, colon, local = concept.partition(":")
                 ns = namespaces.get(prefix, "")
                 if not colon or not re.fullmatch(
@@ -259,6 +311,8 @@ def audit_zip_bytes(data, *, source_is_official=False):
                     ):
                         count["rejectedCurrency"] += 1
                         continue
+                    item = ET.Element(IX + "nonFraction", attrs)
+                    item.text = value_text
                     amount = decimal_fact(item, namespaces)
                     if amount is None:
                         count["rejectedNumericTransformation"] += 1
