@@ -14,6 +14,8 @@ export function buildOneGlobalWorldCommitteeReport(nowIso){
     fundamentals:read("fundamental-research.json"),
     eod:read("world-v7-eod-research.json"),
     world:read("world-v7-validation-ledger.json"),
+    annualPrimaryReleases:read("one-global-fy2025-official-issuer-releases.json"),
+    interimPrimaryReleases:read("one-global-2026-interim-primary-releases.json"),
     nowIso,
   });
 }
@@ -30,6 +32,11 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     nonUSVenueExcluded:report.summary.nonUSVenueExcludedFromCommittee,
     foreignIssuerUSListings:report.summary.foreignIssuerUSListings,
     suggestedNextResearch:report.researchQueue.map(x=>x.key).slice(0,6),
+    missingPrimaryIssuerFinancials:report.summary.nonUSVenueMissingPrimaryIssuerFinancials,
+    validatedIssuerReleaseSets:report.summary.nonUSVenueValidatedIssuerPressReleaseSets,
+    evidenceCompletionQueue:report.evidenceCompletionQueue.map(x=>({
+      key:x.key,firstAction:x.firstAction,issuerPressValidated:x.primaryIssuerReleaseEvidenceValidated,
+    })).slice(0,8),
     live:false,broker:false,verifiedStrategyOrders:0,
   }));
 }
