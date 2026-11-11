@@ -6,8 +6,8 @@
  * non-display venue/quote/FX entitlements exist.
  */
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
+import { resolve, dirname, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runWorldPaperV7 } from "../lib/trading/world-paper-v7.mjs";
 import {
@@ -22,6 +22,51 @@ const snapHash=v=>createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const uniq=values=>[...new Set(values)];
 const LIMITS=Object.freeze({maxCommitteeAgeMs:24*3600000,maxIntentAgeMs:180000,capitalEuro:1000,
   maxNotionalEuro:50,maxCandidateCount:30});
+
+const PRIVATE_ARRAYS=Object.freeze({
+  observations:["quotes","sessions","fx"],
+  rights:["sources","sessions","fx"],
+});
+/**
+ * Opt-in PRIVATE source data intake, useful for diagnosing the exact
+ * source->venue->strategy boundary. The operator owns license provenance;
+ * an external file CANNOT grant PAPER/LIVE authorization or prove a contract.
+ * Both files must live OUTSIDE the repository, including after symlink resolution.
+ */
+export function loadPrivateOneGlobalEvidence({observationsPath=null,rightsRegistryPath=null}={}){
+  if(!observationsPath&&!rightsRegistryPath)return {
+    provided:false,observations:{quotes:[],sessions:[],fx:[]},
+    rights:{sources:[],sessions:[],fx:[]},
+  };
+  if(!observationsPath||!rightsRegistryPath)throw Error("PRIVATE_EVIDENCE_PAIR_REQUIRED");
+  const root=realpathSync(ROOT);
+  const readPrivate=(file,kind)=>{
+    if(typeof file!=="string"||!isAbsolute(file))
+      throw Error("PRIVATE_EVIDENCE_ABSOLUTE_PATH_REQUIRED");
+    const real=realpathSync(file);
+    if(real===root||real.startsWith(root+sep))
+      throw Error("PRIVATE_EVIDENCE_INSIDE_REPOSITORY_FORBIDDEN");
+    const buffer=readFileSync(real);
+    if(buffer.byteLength===0||buffer.byteLength>2_000_000)
+      throw Error("PRIVATE_EVIDENCE_SIZE_INVALID");
+    let doc;
+    try{doc=JSON.parse(buffer.toString("utf8"));}catch{throw Error("PRIVATE_EVIDENCE_JSON_INVALID");}
+    const allowed=PRIVATE_ARRAYS[kind];
+    if(!doc||typeof doc!=="object"||Array.isArray(doc)
+      ||Object.keys(doc).length!==allowed.length
+      ||Object.keys(doc).some(key=>!allowed.includes(key))
+      ||allowed.some(key=>!Array.isArray(doc[key])))
+      throw Error("PRIVATE_EVIDENCE_UNTRUSTED_FIELDS_OR_SCHEMA");
+    const limits=kind==="observations"?{quotes:250,sessions:250,fx:100}
+      :{sources:250,sessions:250,fx:100};
+    if(allowed.some(key=>doc[key].length>limits[key]))
+      throw Error("PRIVATE_EVIDENCE_ITEM_LIMIT");
+    return doc;
+  };
+  return {provided:true,observations:readPrivate(observationsPath,"observations"),
+    rights:readPrivate(rightsRegistryPath,"rights")};
+}
+
 
 export function assessOneGlobalStrategyAuthority(authority,nowIso){
   const now=iso(nowIso),from=iso(authority?.approvedAt),until=iso(authority?.expiresAt);
@@ -226,26 +271,64 @@ export function evaluateOneGlobalStrategyPaper({
   };
 }
 async function main(){
+  const options=new Map();
+  for(const raw of process.argv.slice(2)){
+    const parsed=/^--([a-z-]+)=(.+)$/.exec(raw);
+    if(!parsed||!["output","observations","rights-registry"].includes(parsed[1])
+      ||options.has(parsed[1]))throw Error("ONE_GLOBAL_UNSAFE_OR_UNKNOWN_ARG");
+    options.set(parsed[1],parsed[2]);
+  }
   const load=name=>JSON.parse(readFileSync(resolve(ROOT,"data",name),"utf8"));
+  const privateInputs=loadPrivateOneGlobalEvidence({
+    observationsPath:options.get("observations"),
+    rightsRegistryPath:options.get("rights-registry"),
+  });
   const nowIso=new Date().toISOString();
   const result=evaluateOneGlobalStrategyPaper({
     committee:load("investment-committee.json"),
     instruments:[...load("instrument-master.json").instruments,
       ...load("world-paper-v7-research-seeds.json").instruments],
     nowIso,
-    // Observe the one current persistent strategy ledger rather than
-    // resetting history to an empty in-memory journal every dashboard run.
-    // The CLI stays READ-ONLY: no authority or source receipts are injected.
+    // Read ONLY. Operator-supplied quote/rights records may be evaluated by
+    // existing exact-MIC, authoritative open-session, two-provider and FX gates.
+    // They must NEVER supply strategy authority, historical fills, or ledger.
+    sessions:privateInputs.observations.sessions,
+    quotes:privateInputs.observations.quotes,
+    fx:privateInputs.observations.fx,
+    entitlements:privateInputs.rights,
+    authority:null,
     previousLedger:load("one-global-strategy-paper-ledger.json"),
   });
+  if(result.authorizedForForwardStrategyPaper!==false
+    ||result.cycle.newlySimulatedOrders!==0||result.cycle.simulatedFills.length!==0
+    ||result.liveTradingAllowed!==false||result.brokerConnectivityAllowed!==false
+    ||result.strategyVirtualAccounting.certifiedForwardTrades!==0)
+    throw Error("ONE_GLOBAL_PRIVATE_PREFLIGHT_MUST_NEVER_EXECUTE");
   const {outputPaperLedger,...publicReport}=result;
-  const out=process.argv.find(x=>x.startsWith("--output="))?.slice("--output=".length)
-    ||"/tmp/fenice-one-global-strategy-paper-readiness.json";
+  // Never expose source-provided prices or quote-derived projected returns.
+  // They can be used privately for strict eligibility decisions only.
+  publicReport.virtualExitPlans=publicReport.virtualExitPlans.map(plan=>({
+    ...plan,projectedNetReturnPercent:null,
+  }));
+  publicReport.privateMarketDataPreflight={
+    provided:privateInputs.provided,
+    operatorRightsRegistryProvided:privateInputs.provided,
+    exactVenueRuntimeChecksPassed:result.qualifiedMarketListings,
+    sourceRightsIndependentlyLegallyCertifiedByThisScript:false,
+    separateStrategyPaperApprovalProvided:false,
+    simulationAuthorized:false,
+    providerPricesPublished:false,
+    certifiedStrategyFills:0,
+    brokerConnectivityAllowed:false,liveTradingAllowed:false,
+  };
+  const out=options.get("output")||"/tmp/fenice-one-global-strategy-paper-readiness.json";
   mkdirSync(dirname(out),{recursive:true});
   writeFileSync(out,JSON.stringify(publicReport,null,2)+"\n",{mode:0o600});
   console.log("FENICE ONE GLOBAL strategy PAPER bridge: "+JSON.stringify({
     buySignals:result.buySignals,researchIntents:result.qualifiedResearchIntents,
-    verifiedVenues:result.qualifiedMarketListings,newFills:result.cycle.newlySimulatedOrders,
+    runtimeVerifiedVenues:result.qualifiedMarketListings,
+    privateEvidenceProvided:privateInputs.provided,
+    legalRightsIndependentlyCertified:false,newFills:0,
     blockers:result.blockers,liveTradingAllowed:false,
   }));
 }
