@@ -41,6 +41,8 @@ on:
       - "lib/intelligence/one-global-esef-ifrs-audit.mjs"
       - "scripts/audit-one-global-esef-ifrs.mjs"
       - "scripts/test-one-global-esef-ifrs-audit.mjs"
+      - "scripts/audit-one-global-enel-2025-esef.py"
+      - "scripts/test-one-global-enel-2025-esef.py"
       - "lib/intelligence/one-global-fy2025-release-audit.mjs"
       - "scripts/test-one-global-fy2025-release-audit.mjs"
       - "scripts/report-one-global-fy2025-releases.mjs"
@@ -79,6 +81,8 @@ on:
       - "lib/intelligence/one-global-esef-discovery.mjs"
       - "scripts/audit-one-global-esef-ifrs.mjs"
       - "scripts/test-one-global-esef-ifrs-audit.mjs"
+      - "scripts/audit-one-global-enel-2025-esef.py"
+      - "scripts/test-one-global-enel-2025-esef.py"
       - ".github/workflows/fenice-unica-paper-cycle.yml"
 
 permissions:
@@ -116,6 +120,7 @@ jobs:
           node scripts/test-one-global-forward-research.mjs
           node scripts/test-one-global-esef-discovery.mjs
           node scripts/test-one-global-esef-ifrs-audit.mjs
+          python3 scripts/test-one-global-enel-2025-esef.py
           node scripts/test-one-global-fy2025-release-audit.mjs
           node scripts/test-one-global-2026-interim-research.mjs
       - name: Produce V8/B2/world audited scoreboard, no provider calls
@@ -134,6 +139,8 @@ jobs:
         run: node scripts/discover-one-global-esef-filings.mjs --output=fenice-one-global-esef-filing-sources.json
       - name: Audit actual EU issuer xBRL-JSON monetary fact periods, entity and EUR reconciliation
         run: node scripts/audit-one-global-esef-ifrs.mjs --output=fenice-one-global-ifrs-fact-audit.json
+      - name: Audit official ENEL 2025 ESEF ZIP and annual IFRS monetary facts (read-only, bounded)
+        run: python3 scripts/audit-one-global-enel-2025-esef.py --fetch-official --output=fenice-enel-2025-issuer-ixbrl.json
       - name: Publish three FY2025 source-backed issuer releases, never strategy BUYs
         run: node scripts/report-one-global-fy2025-releases.mjs --output=fenice-one-global-fy2025-primary-release-facts.json
       - name: Audit actual official 2026 issuer interim sources with noncomparable period safeguards
@@ -151,6 +158,7 @@ jobs:
             fenice-one-global-forward-research-results.json
             fenice-one-global-esef-filing-sources.json
             fenice-one-global-ifrs-fact-audit.json
+            fenice-enel-2025-issuer-ixbrl.json
             fenice-one-global-fy2025-primary-release-facts.json
             fenice-one-global-2026-current-interim-facts.json
           retention-days: 35
