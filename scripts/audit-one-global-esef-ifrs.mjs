@@ -21,5 +21,8 @@ console.log(JSON.stringify({
     issuerFundamentalScoreEligible:false,
     strategyPaperEligible:false})),
   errors:result.errors,
+  officialAnnualSourceGaps:result.officialAnnualSourceGaps?.map(x=>({key:x.key,
+    indexedPeriodEnd:x.latestIndexedPeriodEnd,officialAnnualPeriodEnd:x.officialAnnualPeriodEnd,
+    nextAction:x.nextAction,financialFactsReconciled:false}))??[],
   committeeScoresModified:false,phase9Credit:0,brokerOrdersAllowed:false,
 }));
