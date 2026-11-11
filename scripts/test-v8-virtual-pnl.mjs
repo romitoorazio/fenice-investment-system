@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { reportV8VirtualPnL } from "./report-v8-virtual-pnl.mjs";
+import { reportV8VirtualPnL,shouldPublishV8VirtualPnL } from "./report-v8-virtual-pnl.mjs";
 import { freshExitLedger, recordV8ShadowExit } from "./run-v8-shadow-exits.mjs";
 const read=n=>JSON.parse(readFileSync("data/"+n,"utf8"));
 const approval=read("paper-v8-technical-approval.json");
@@ -37,4 +37,37 @@ const forged=structuredClone(samples);forged.cashEuro=999999;
 assert.throws(()=>reportV8VirtualPnL({...original,samples:forged}),/TAMPER/);
 const broker=structuredClone(approval);broker.liveTradingAllowed=true;
 assert.throws(()=>reportV8VirtualPnL({...original,approval:broker}),/TAMPER/);
+// Repeated closed-market trigger cannot create a new main data commit purely
+// from generatedAt or proof-age minute drift. Freshness status changes, source
+// evidence, EUR gain/loss or exits MUST remain publishable.
+const laterSame=structuredClone(r);
+laterSame.generatedAt="2026-11-12T17:02:00.000Z";
+for(const row of laterSame.rows)
+  if(Number.isInteger(row.proofAgeMinutes))row.proofAgeMinutes+=2;
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:laterSame}),false,
+ "Time-only churn wastes GitHub writers and never improves market evidence");
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:r}),false);
+assert.equal(shouldPublishV8VirtualPnL({previous:null,next:r}),true);
+const becameFresh=structuredClone(laterSame);
+becameFresh.rows.find(x=>x.state==="OPEN_MARKED_AS_OF_HISTORICAL_PROOF").isFreshNow=true;
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:becameFresh}),true,
+ "Change in real freshness state must update the persisted report");
+const sourceChanged=structuredClone(laterSame);
+sourceChanged.rows.find(x=>x.sourceDayHash).sourceDayHash="a".repeat(64);
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:sourceChanged}),true);
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:p}),true,
+ "A genuine NEW prospective technical exit must update realized EUR gain/loss");
+const newPnl=structuredClone(laterSame);newPnl.realizedNetEuro=-99;
+assert.equal(shouldPublishV8VirtualPnL({previous:r,next:newPnl}),true,
+ "Negative results must never be suppressed by no-op filtering");
+const unsafe=structuredClone(laterSame);unsafe.liveTradingAllowed=true;
+assert.throws(()=>shouldPublishV8VirtualPnL({previous:r,next:unsafe}),
+ /V8_PNL_PUBLICATION_UNSAFE_RESULT/);
+const unsafePrevious=structuredClone(r);unsafePrevious.brokerConnectivityAllowed=true;
+assert.throws(()=>shouldPublishV8VirtualPnL({previous:unsafePrevious,next:laterSame}),
+ /V8_PNL_PRIOR_REPORT_SAFETY_TAMPER/);
+const backwards=structuredClone(laterSame);
+backwards.generatedAt="2026-11-11T17:02:00.000Z";
+assert.throws(()=>shouldPublishV8VirtualPnL({previous:r,next:backwards}),
+ /V8_PNL_PUBLICATION_CLOCK_REGRESSION/);
 console.log("PASS EUR technical virtual PnL: audited closed/open distinction, historical marks, gain/loss, no strategy credit");
