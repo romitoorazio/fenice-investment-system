@@ -11,6 +11,9 @@ import {replayV8Days} from "./run-v8-technical-evidence.mjs";
 import {replayExecutionLabLedger} from "./run-paper-execution-lab.mjs";
 import {replayShadowExits} from "./run-v8-shadow-exits.mjs";
 import {reportV8VirtualPnL} from "./report-v8-virtual-pnl.mjs";
+import {replayWorldForwardResearchLedger} from "../lib/trading/one-global-forward-research.mjs";
+import {auditOneGlobalStrategyLedger} from "../lib/trading/one-global-strategy-ledger-audit.mjs";
+import {assessOneGlobalStrategyAuthority} from "./run-one-global-strategy-paper.mjs";
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const isNumber=v=>Number.isFinite(Number(v));
 const upper=v=>String(v||"").toUpperCase();
@@ -52,7 +55,8 @@ function checkB2DeclaredDays(days,approval,nowMs){
   return {count,valid:true};
 }
 export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledger,b2Days,
-  v8Status,worldLedger,v8Approval,v8Days,v8Samples,v8Exits,legacyRetirement,nowIso}){
+  v8Status,worldLedger,v8Approval,v8Days,v8Samples,v8Exits,legacyRetirement,
+  forwardResearchLedger,strategyLedger,globalSourceHealth,strategyAuthority=null,nowIso}){
   const inspectedAt=nowIso??new Date().toISOString();
   const nowMs=isoTime(inspectedAt);
   if(nowMs===null)throw Error("ONE_GLOBAL_CERTIFICATION_CLOCK_INVALID");
@@ -168,26 +172,65 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     &&(v8Status?.status!=="READY_FOR_INDEPENDENT_TECHNICAL_REVIEW"||elapsedMinimumsMet);
   const v8TechnicalReviewEligible=v8ApprovalCurrent&&statusCountersConsistent
     &&elapsedMinimumsMet;
+  // Replay every existing, independent evidence chain before reporting its
+  // stage as healthy. Green research sources are NOT executable PAPER rights.
+  const forwardResearch=forwardResearchLedger
+    ?replayWorldForwardResearchLedger(forwardResearchLedger):null;
+  const strategy=auditOneGlobalStrategyLedger({ledger:strategyLedger,nowIso:inspectedAt});
+  if(strategyLedger!==undefined&&!strategy.valid)
+    throw Error("ONE_GLOBAL_STRATEGY_LEDGER_CHAIN_INVALID_"+strategy.reason);
+  const buyDecisions=(committee?.allDecisions||[]).filter(x=>x?.decision==="COMPRA");
+  if(!Array.isArray(committee?.allDecisions)||!Number.isSafeInteger(committee?.buyCandidateCount)
+    ||buyDecisions.length!==committee.buyCandidateCount)
+    throw Error("ONE_GLOBAL_COMMITTEE_BUY_COUNT_INCONSISTENT");
+  const sourceResearchFresh=freshEvidence(globalSourceHealth?.generatedAt,nowMs,DAY);
+  const sourceResearchGreen=sourceResearchFresh&&globalSourceHealth?.gate==="GREEN";
+  const strategicApproval=assessOneGlobalStrategyAuthority(strategyAuthority,inspectedAt);
+  const worldStrategyReady=Object.values(worldLedger.venues||{})
+    .filter(v=>v?.paperEligible===true).length;
+  const forwardLatest=forwardResearchLedger?.events?.at(-1)?.recordedAt??null;
   const b2DayAudit=checkB2DeclaredDays(b2Days,approval,nowMs);
   const trustedB2Days=b2DayAudit.count;
   const b2Start=isoTime(approval?.effectiveFrom);
   const b2ElapsedCalendarDays=b2Start===null?0:Math.max(0,Math.floor((nowMs-b2Start)/DAY));
+  const archivedB2Warnings=[
+    ...(!b2ApprovalCurrent?["B2_ARCHIVE_APPROVAL_EXPIRED_OR_UNSAFE"]:[]),
+    ...(retirementValid?["B2_AUTOMATIC_WRITER_RETIRED_AND_HISTORY_ONLY"]
+      :["B2_RETIREMENT_NOT_VERIFIED"]),
+    ...(!b2DayAudit.valid?["B2_ARCHIVE_DAY_EVIDENCE_INVALID"]:[]),
+    ...(b2Replay.fills<Number(approval?.targetPaperFills??10)
+      ?["B2_ARCHIVE_FILLS_BELOW_HISTORICAL_TARGET"]:[]),
+    ...(trustedB2Days<Number(approval?.minEvidenceDays??25)
+      ?["B2_ARCHIVE_DAYS_BELOW_HISTORICAL_TARGET"]:[]),
+    ...(b2ElapsedCalendarDays<Number(approval?.minCalendarDays??30)
+      ?["B2_ARCHIVE_CALENDAR_WINDOW_NOT_MATURE"]:[]),
+  ];
+  // Active chain requirements are exclusively the existing V8 technical
+  // campaign and independently authorized ONE GLOBAL strategy. Never
+  // re-activate retired B2 or give its missing history a new certification role.
   const certificationBlockers=[
+    ...(!sourceResearchGreen?["GLOBAL_RESEARCH_SOURCE_GATE_NOT_VERIFIED"]:[]),
+    ...(!forwardResearch?["WORLD_FORWARD_RESEARCH_HASH_CHAIN_NOT_PRESENT"]:[]),
     ...(!coverageFresh?["PAPER_QUOTES_NOT_FRESH_IN_COMMITTED_SNAPSHOT"]:[]),
     ...(!committeeFresh?["COMMITTEE_SNAPSHOT_TOO_OLD"]:[]),
-    ...(!b2ApprovalCurrent?["B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"]:[]),
-    ...(retirementValid?["B2_AUTOMATIC_WRITER_RETIRED_AND_HISTORY_ONLY"]
-       :["B2_ACTIVE_WRITER_NOT_PROVEN"]),
-    ...(!b2DayAudit.valid?["B2_DAILY_STATUS_IDENTITY_OR_TIME_INVALID"]:[]),
     ...(!(Number(committee?.buyCandidateCount)>0)?["COMMITTEE_NO_COMPRA_SIGNAL"]:[]),
-    ...(b2Replay.fills<Number(approval?.targetPaperFills??10)?["B2_STRATEGY_FILLS_BELOW_APPROVED_TARGET"]:[]),
-    ...(trustedB2Days<Number(approval?.minEvidenceDays??25)?["B2_PROSPECTIVE_DAYS_BELOW_APPROVED_TARGET"]:[]),
-    ...(b2ElapsedCalendarDays<Number(approval?.minCalendarDays??30)?["B2_CALENDAR_WINDOW_NOT_MATURE"]:[]),
+    ...(committee?.executionGate!=="PRONTO_CON_CONFERMA"
+      ?["COMMITTEE_EXECUTION_GATE_NOT_READY"]:[]),
+    ...(!retirementValid?["LEGACY_RETIREMENT_POLICY_NOT_VERIFIED"]:[]),
+    ...(!strategicApproval?["ONE_GLOBAL_STRATEGY_APPROVAL_MISSING"]:[]),
+    ...(worldStrategyReady===0?["WORLD_STRATEGY_EXECUTABLE_VENUES_0"]:[]),
+    ...(!strategy.journalPresent?["ONE_GLOBAL_STRATEGY_LEDGER_NOT_PRESENT"]:[]),
+    ...(strategy.closedVirtualRoundTrips===0?["ONE_GLOBAL_CLOSED_STRATEGY_TRADES_0"]:[]),
+    ...(!strategy.hasIndependentlyAuthenticatedExecutionReceipts
+      ?["INDEPENDENT_STRATEGY_EXECUTION_RECEIPTS_MISSING"]:[]),
     ...(!v8ApprovalCurrent?["V8_TECHNICAL_APPROVAL_EXPIRED_OR_UNSAFE"]:[]),
     ...(!statusCountersConsistent?["V8_CACHED_STATUS_DISAGREES_WITH_SIGNED_EVIDENCE"]:[]),
-    ...(v8TrustedDays<Number(v8Approval?.minEvidenceDays??25)?["V8_SIGNED_VALID_DAYS_INSUFFICIENT"]:[]),
-    ...(v8TrustedSamples<Number(v8Approval?.minTechnicalSamples??10)?["V8_PROSPECTIVE_SAMPLES_INSUFFICIENT"]:[]),
-    ...(v8ElapsedCalendarDays<Number(v8Approval?.minCalendarDays??30)?["V8_MINIMUM_CALENDAR_TIME_NOT_ELAPSED"]:[]),
+    ...(v8TrustedDays<Number(v8Approval?.minEvidenceDays??25)
+      ?["V8_SIGNED_VALID_DAYS_INSUFFICIENT"]:[]),
+    ...(v8TrustedSamples<Number(v8Approval?.minTechnicalSamples??10)
+      ?["V8_PROSPECTIVE_SAMPLES_INSUFFICIENT"]:[]),
+    ...(v8ElapsedCalendarDays<Number(v8Approval?.minCalendarDays??30)
+      ?["V8_MINIMUM_CALENDAR_TIME_NOT_ELAPSED"]:[]),
     "STRATEGY_PHASE9_INDEPENDENT_CLOSED_TRADES_UNCERTIFIED",
   ];
   return {
@@ -224,6 +267,48 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
     world:{venues,eligibleVenues:venues.filter(x=>x.paperEligible).length,
       certifiedWorldPaperFills:worldLedger.summary?.certifiedPaperFills??0},
     candidates,blockers,
+    chainOfEvidence:{
+      sourceResearch:{asOf:globalSourceHealth?.generatedAt??null,
+        reportedGate:globalSourceHealth?.gate??"UNKNOWN",
+        freshWithin24Hours:sourceResearchFresh,
+        researchGateGreen:sourceResearchGreen,executableRightsEstablished:false},
+      worldwideRadar:{asOf:terminal.generatedAt,assetCount:(terminal.assets||[]).length,
+        researchOnly:true},
+      forwardResearch:{asOf:forwardLatest,hashChainVerified:forwardResearch?.valid===true,
+        barObservations:forwardResearch?.observations??0,
+        researchSetups:forwardResearch?.setups??0,
+        paperExecutionEligible:false,phase9Credit:0},
+      committee:{asOf:committee.generatedAt,sourceGate:committee.sourceGate,
+        executionGate:committee.executionGate,reportedBuyCount:committee.buyCandidateCount,
+        recalculatedBuyCount:buyDecisions.length,freshWithin24Hours:committeeFresh,
+        dataQuality:committee.dataQuality??null},
+      executableQuotes:{lastCommittedAt:coverage.generatedAt,
+        snapshotFreshForPaper:coverageFresh,
+        // Historic eligibility is never a live order quote entitlement.
+        lastSnapshotEligibleSymbols:coverage.paperEligibleSymbols??null,
+        currentWorldStrategyEntitlementsVerified:false},
+      worldStrategyVenue:{
+        tracked:Object.keys(worldLedger.venues||{}).length,
+        independentlyEligible:worldStrategyReady,
+        globalResearchIsNotPaperPermission:true},
+      prospectiveStrategyPaper:{
+        approvedWithSeparateProspectiveOwnerAuthority:strategicApproval,
+        journalStatus:strategy.status,ledgerHash:strategy.lastLedgerHash??null,
+        virtualBuys:strategy.virtualBuys,virtualSells:strategy.virtualSells,
+        closedVirtualRoundTrips:strategy.closedVirtualRoundTrips,
+        realizedNetEuro:strategy.realizedNetEuro,
+        certifiedForwardTrades:strategy.forwardStrategyCertificationCredit,
+        independentlyAuthenticatedReceipts:strategy.hasIndependentlyAuthenticatedExecutionReceipts},
+      v8EngineeringSeparate:{signedValidDays:v8TrustedDays,
+        signedVirtualSamples:v8TrustedSamples,
+        closedTechnicalExits:technicalAccounting?.closedTechnicalRoundtrips??0,
+        scope:"TECHNICAL_ONLY",strategyCredit:0},
+      phase9:{certifiedClosedTrades:0,certificationGranted:false,
+        directBrokerOrdersAllowed:false},
+      retiredB2:{archived:retirementValid,readOnly:true,
+        historicalWarnings:archivedB2Warnings,
+        historicBuyProbes:b2Replay.fills},
+    },
     certification:{
       ready:false,scope:"PROSPECTIVE_STRATEGY_PAPER_CERTIFICATION_NOT_YET_MET",
       evaluatedAt:inspectedAt,
@@ -266,6 +351,7 @@ export function evaluatePaperCycle({committee,terminal,coverage,approval,b2Ledge
       noPaperOrdersAuthorizedByReport:true,
       liveTradingAllowed:false,brokerConnectivityAllowed:false,
       blockers:certificationBlockers,
+      retiredLegacyDiagnostics:archivedB2Warnings,
     },
     operations:{
       activePaperEngine:"V8_TECHNICAL_PAPER",
@@ -292,7 +378,10 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     v8Days:"paper-v8-technical-days.json",
     v8Samples:"paper-v8-technical-samples.json",
     v8Exits:"paper-v8-shadow-exits.json",
-    legacyRetirement:"one-global-legacy-retirement.json"};
+    legacyRetirement:"one-global-legacy-retirement.json",
+    forwardResearchLedger:"one-global-forward-research-ledger.json",
+    strategyLedger:"one-global-strategy-paper-ledger.json",
+    globalSourceHealth:"global-source-health.json"};
   const inputs=Object.fromEntries(await Promise.all(Object.entries(keys).map(async ([key,file])=>[key,await load(file)])));
   const report=evaluatePaperCycle(inputs);
   console.log(JSON.stringify(report,null,2));
