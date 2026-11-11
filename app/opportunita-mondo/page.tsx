@@ -11,11 +11,51 @@ import globalSeeds from "@/data/world-paper-v7-research-seeds.json";
 import worldEod from "@/data/world-v7-eod-research.json";
 import worldLedger from "@/data/world-v7-validation-ledger.json";
 import {auditOneGlobalCommitteeWorldCoverage} from "@/lib/intelligence/one-global-committee-world-coverage.mjs";
+import forwardResearch from "@/data/one-global-forward-research-ledger.json";
+import {buildOneGlobalPublicTacticalView} from "@/lib/ui/one-global-world-radar.mjs";
 
+export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export const revalidate=0;
 function serverRequestTime(){return Date.now()}
-export default function GlobalOpportunitiesPage(){
+
+/**
+ * Fetch current GitHub main snapshots SERVER-SIDE, never broker endpoints.
+ * A response is accepted only after the research-only radar policy and the
+ * forward ledger's SHA256 hash chain validate. If the site was last deployed
+ * before the latest World Terminal run, source labels distinguish embedded
+ * snapshots from current main. Never emit the source OHLC/close in HTML.
+ */
+async function readLatestWorldTacticalEvidence(){
+  const nowIso=new Date(serverRequestTime()).toISOString();
+  try {
+    const files=["terminal-intelligence.json","one-global-forward-research-ledger.json"];
+    const payloads=await Promise.all(files.map(async name=>{
+      const url="https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/"+name;
+      const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(3500)});
+      if(!response.ok)throw Error("WORLD_RADAR_SOURCE_HTTP_"+response.status);
+      const declared=Number(response.headers.get("content-length"));
+      if(Number.isFinite(declared)&&declared>3_000_000)throw Error("WORLD_RADAR_SOURCE_TOO_LARGE");
+      const raw=await response.text();
+      if(raw.length>3_000_000)throw Error("WORLD_RADAR_SOURCE_TOO_LARGE");
+      return JSON.parse(raw) as unknown;
+    }));
+    const radar=buildOneGlobalPublicTacticalView({
+      terminal:payloads[0],ledger:payloads[1],nowIso,
+    });
+    return {radar,source:"Ultimo GitHub main (verificato)"};
+  }catch {
+    try{
+      const radar=buildOneGlobalPublicTacticalView({
+        terminal,ledger:forwardResearch,nowIso,
+      });
+      return {radar,source:"Snapshot incluso nel sito; aggiornamento GitHub non raggiungibile"};
+    }catch{return {radar:null,source:"Dati non verificabili: radar sospeso"};}
+  }
+}
+export default async function GlobalOpportunitiesPage(){
+  const latest=await readLatestWorldTacticalEvidence();
+  const radar=latest.radar;
   const report=evaluateGlobalOpportunityAudit(committee,master,terminal,reference,universe,serverRequestTime());
   const q=report.dataQuality;
   const international=buildInternationalResearchQueue(master,fundamentals,terminal,committee,reference,serverRequestTime());
@@ -55,6 +95,83 @@ export default function GlobalOpportunitiesPage(){
         ].map(([label,value])=><div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs text-slate-400">{label}</p><p className="mt-2 text-2xl font-black">{value}</p>
         </div>)}
+      </section>
+      <section className="space-y-4 rounded-2xl border border-emerald-300/25 bg-slate-900 p-5" aria-label="Radar mondiale opportunità tecniche di ricerca">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-300">Radar ONE GLOBAL · opportunità da studiare</p>
+            <h2 className="mt-2 text-xl font-black">Titoli da osservare a breve — tutte le Borse</h2>
+            <p className="mt-2 max-w-3xl text-sm text-slate-300">
+              Segnali tecnici osservati su candele giornaliere già raccolte. Il punteggio misura
+              una <strong>priorità di ricerca</strong>, non la probabilità di guadagno né un ordine COMPRA.
+              Nessun mercato, incluso quello USA, riceve una priorità automatica.
+            </p>
+          </div>
+          <span className="rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-bold text-amber-200">Ricerca · nessun acquisto autorizzato</span>
+        </div>
+        <p className="text-xs text-slate-400" aria-label="Fonte e data del radar">
+          Fonte: {latest.source}. Snapshot mondiale: {radar?.terminalAsOf??"non verificato"}.
+          Solo dati storici giornalieri, non prezzi in tempo reale.
+        </p>
+        {radar?<>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              ["Strumenti valutati",radar.screenSize],
+              ["Titoli tecnicamente esaminabili",radar.researchEligible],
+              ["Momentum da approfondire",radar.momentumCount],
+              ["Osservazioni prospettiche",radar.forwardObservations],
+            ].map(([label,value])=><div key={label} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="mt-1 text-xl font-bold">{value}</p>
+            </div>)}
+          </div>
+          {radar.stale?<p className="rounded-lg border border-amber-400/25 p-3 text-sm text-amber-200">
+            Le candele disponibili non sono abbastanza recenti: nessun candidato tecnico viene mostrato come attuale.
+          </p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {radar.watchlist.map((item:{
+              key:string;venueMic:string|null;region:string;symbol:string;name:string;
+              shortScore:number;shortAttention:string;mediumAttention:string;
+              mediumScore:number;evidence:string[];historicalBarBucketAt:string;
+            },index:number)=><article key={item.key}
+              className="rounded-xl border border-white/10 bg-black/25 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-slate-400">#{index+1} · {item.venueMic??"Mercato da verificare"} · {item.region}</p>
+                  <h3 className="mt-1 text-base font-bold">{item.symbol}</h3>
+                  <p className="text-xs text-slate-400">{item.name}</p>
+                </div>
+                <span className="rounded-lg border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">
+                  {item.shortScore}/100
+                </span>
+              </div>
+              <div className="mt-3 space-y-1 text-xs">
+                <p className="text-emerald-200">2–10 sedute: {item.shortAttention}</p>
+                <p className="text-sky-200">2–8 settimane: {item.mediumAttention} · {item.mediumScore}/100</p>
+              </div>
+              <p className="mt-3 text-xs text-slate-300">{item.evidence.length?item.evidence.join(" · "):"Nessuna conferma favorevole sufficiente"}</p>
+              <p className="mt-2 text-xs text-slate-500">Candela storica: {item.historicalBarBucketAt} · Prezzo eseguibile non verificato</p>
+              <p className="mt-1 text-xs text-amber-200">Non è un segnale COMPRA; PAPER e Directa bloccati</p>
+            </article>)}
+          </div>}
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
+            <h3 className="font-bold">Risultati osservati dopo i segnali, non guadagni di trading</h3>
+            <p className="mt-2 text-slate-300">
+              {radar.forwardSignals} segnali prospettici registrati · {radar.forwardObservations} candele osservate.
+              Dopo almeno due <strong>nuove osservazioni effettive</strong> sul medesimo titolo:
+              {" "}{radar.measuredPositive} variazioni positive,
+              {" "}{radar.measuredNegative} negative,
+              {" "}{radar.measuredUnchanged} invariate
+              su {radar.measuredAfterTwoNewDailySnapshots} misurazioni completate.
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              I giorni di Borsa non osservati non vengono inventati. Questi conteggi non sono
+              operazioni, rendimenti netti in euro, previsioni o prove di strategia PAPER certificata.
+              Ultima osservazione registrata: {radar.lastForwardObservationAt??"nessuna"}.
+            </p>
+          </div>
+        </>:<p className="rounded-lg border border-amber-400/25 p-3 text-sm text-amber-200">
+          Non posso verificare le evidenze o l&apos;integrità del registro: nessun radar viene presentato.
+        </p>}
       </section>
       <section className="space-y-4 rounded-2xl border border-sky-300/25 bg-slate-900 p-5" aria-label="Copertura mondiale del comitato FENICE">
         <h2 className="text-xl font-black">Copertura reale del comitato: borse mondiali</h2>

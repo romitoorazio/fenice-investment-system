@@ -1,0 +1,58 @@
+/** Public server-only ONE GLOBAL projection types; no executable prices or orders. */
+export type WorldRadarResearchRow = {
+  key:string;
+  symbol:string;
+  name:string;
+  venueMic:string|null;
+  region:string;
+  historicalBarBucketAt:string;
+  shortScore:number;
+  mediumScore:number;
+  shortAttention:string;
+  mediumAttention:string;
+  shortAttentionCode:string;
+  mediumAttentionCode:string;
+  evidence:string[];
+  dataType:"HISTORICAL_DAILY_CANDLE_RESEARCH_ONLY";
+  isBuySignal:false;
+  expectedProfitEuro:null;
+  forecastReturnPercent:null;
+  lastTradedPrice:null;
+  brokerOrderAllowed:false;
+  paperEligible:false;
+};
+export type WorldRadarResearchView = {
+  mode:"ONE_GLOBAL_PUBLIC_TACTICAL_RESEARCH_ONLY";
+  generatedAt:string;
+  terminalAsOf:string|null;
+  lastForwardObservationAt:string|null;
+  stale:boolean;
+  screenSize:number;
+  researchEligible:number;
+  watchlist:WorldRadarResearchRow[];
+  momentumCount:number;
+  trendCount:number;
+  forwardObservations:number;
+  forwardSignals:number;
+  measuredAfterTwoNewDailySnapshots:number;
+  measuredPositive:number;
+  measuredNegative:number;
+  measuredUnchanged:number;
+  scope:string;
+  policy:{
+    researchOnly:true;
+    usesHistoricalDailyCandles:true;
+    noLiveMarketPricePublished:true;
+    notInvestmentRecommendation:true;
+    noWinProbabilityOrFutureReturnForecast:true;
+    phase9Credit:0;
+    paperExecutionAllowed:false;
+    liveTradingAllowed:false;
+    brokerConnectivityAllowed:false;
+  };
+};
+export declare function buildOneGlobalPublicTacticalView(args:{
+  terminal:unknown;
+  ledger:unknown;
+  nowIso:string;
+}):WorldRadarResearchView;
