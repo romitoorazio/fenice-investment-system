@@ -30,7 +30,10 @@ assert(milan.blockers.includes("NO_COMPLETE_DAILY_HISTORY"));
 assert(milan.blockers.includes("PROVIDER_ACCESS_OBSERVATION_OLDER_THAN_24H"));
 assert(xetra.blockers.includes("PROVIDER_CATALOGUE_INDICATES_PAID_TIER"));
 assert.equal(xetra.providerDiagnostic.requiredPlanAdvertised,"Grow");
-assert.equal(xetra.researchDays,13);
+assert.equal(xetra.researchDays,Number(baseline.globalLedger.venues.XETR.researchDays),
+  "World venue research days must agree with the authentic input ledger, never a hardcoded frozen count");
+assert(xetra.researchDays>=13,
+  "Real previously validated regional history must not be deleted to satisfy the test");
 assert.equal(xetra.dailyResearch.provisionalMapping,true);
 assert.equal(xetra.dailyResearch.executionEligible,false);
 assert(tokyo.blockers.includes("EXACT_TRADING_SEGMENT_NOT_PROVEN"));
