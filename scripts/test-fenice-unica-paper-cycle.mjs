@@ -162,7 +162,9 @@ const expiredB2=structuredClone(inputs);
 expiredB2.approval.expiresAt="2026-11-10T18:00:00.000Z";
 const expiredReport=evaluatePaperCycle(expiredB2);
 assert.equal(expiredReport.certification.b2ApprovalCurrent,false);
-assert(expiredReport.certification.blockers.includes("B2_APPROVAL_MISSING_EXPIRED_OR_UNSAFE"));
+assert(!expiredReport.certification.blockers.some(x=>x.startsWith("B2_")));
+assert(expiredReport.certification.retiredLegacyDiagnostics.includes(
+  "B2_ARCHIVE_APPROVAL_EXPIRED_OR_UNSAFE"));
 assert(expiredReport.candidates.every(x=>x.preliminaryEligible===false));
 const duplicatedB2=structuredClone(inputs);
 duplicatedB2.b2Days.days.push(structuredClone(duplicatedB2.b2Days.days.at(-1)));
