@@ -19,10 +19,25 @@ for(const asset of terminal.assets){
 const actualLegacy=JSON.parse(readFileSync(
   new URL("../data/one-global-forward-research-ledger.json",import.meta.url),"utf8"));
 const historicReport=summarizeWorldForwardResearchLedger(actualLegacy);
-assert.equal(historicReport.legacyCompletionUnverifiedSetups,historicReport.setups,
-  "Immutable pre-gate research setups must not acquire retrospective close certification");
+// Baseline is intentionally no longer all-legacy: new, truly post-session
+// observations are being appended to main. Verify the source-linked split
+// instead of freezing the number of legacy observations forever.
+const currentBarEvents=actualLegacy.events.filter(x=>x.kind==="BAR_OBSERVATION");
+const currentSetups=actualLegacy.events.filter(x=>x.kind==="TACTICAL_RESEARCH_SETUP");
+const byHash=new Map(currentBarEvents.map(x=>[x.sha256,x]));
+const actualGatedSetups=currentSetups.filter(x=>
+  byHash.get(x.observationHash)?.candleCompletionPolicy===
+  "EXCHANGE_LOCAL_DAY_ELAPSED_OR_PROVIDER_REGULAR_SESSION_END_PLUS_20M").length;
+assert.equal(historicReport.setups,currentSetups.length);
+assert.equal(historicReport.completionGatedResearchSetups,actualGatedSetups,
+  "Only source-linked post-session captures can count as completion-gated research");
+assert.equal(historicReport.legacyCompletionUnverifiedSetups,
+  currentSetups.length-actualGatedSetups,
+  "New verified research observations must never rehabilitate legacy intraday entries");
+assert(historicReport.legacyCompletionUnverifiedSetups>=1,
+  "Test fixture must retain genuine older pre-gate evidence for regression coverage");
 assert.equal(historicReport.shortOutcomesMeasured,0,
-  "Previously collected intraday bars are never rehabilitated as measured EOD gains");
+  "Real later-bar outcomes must require two subsequent correctly captured post-session buckets");
 
 const at=new Date(Date.parse(terminal.generatedAt)+60_000).toISOString();
 const blank=newWorldForwardResearchLedger();
