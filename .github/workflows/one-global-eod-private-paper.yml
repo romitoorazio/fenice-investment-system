@@ -11,6 +11,8 @@ on:
       - "scripts/report-one-global-eod-paper-readiness.mjs"
       - "scripts/test-one-global-eod-paper.mjs"
       - "scripts/test-one-global-eod-readiness.mjs"
+      - "scripts/assess-one-global-eod-open-preflight.mjs"
+      - "scripts/test-one-global-eod-open-preflight.mjs"
       - ".github/workflows/one-global-eod-private-paper.yml"
       - "docs/FENICE_ONE_GLOBAL_EOD_PAPER.md"
   push:
@@ -21,6 +23,8 @@ on:
       - "scripts/report-one-global-eod-paper-readiness.mjs"
       - "scripts/test-one-global-eod-paper.mjs"
       - "scripts/test-one-global-eod-readiness.mjs"
+      - "scripts/assess-one-global-eod-open-preflight.mjs"
+      - "scripts/test-one-global-eod-open-preflight.mjs"
       - ".github/workflows/one-global-eod-private-paper.yml"
   schedule:
     # After Europe/US close and following existing worldwide EOD research.
@@ -51,6 +55,8 @@ jobs:
         run: node scripts/test-one-global-eod-paper.mjs
       - name: Test safe worldwide metadata and private path guards
         run: node scripts/test-one-global-eod-readiness.mjs
+      - name: Verify all worldwide market windows and no-trade gates
+        run: node scripts/test-one-global-eod-open-preflight.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -71,6 +77,10 @@ jobs:
         run: |
           node scripts/test-one-global-eod-paper.mjs
           node scripts/test-one-global-eod-readiness.mjs
+      - name: Assess today's exchange-local opening windows, NEVER market proof
+        run: |
+          node scripts/test-one-global-eod-open-preflight.mjs
+          node scripts/assess-one-global-eod-open-preflight.mjs
       - name: Classify source blockers without raw quotes or contracts
         env:
           OUT: ${{ runner.temp }}/fenice-eod-readiness.json
