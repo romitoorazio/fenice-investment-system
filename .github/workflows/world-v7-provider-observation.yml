@@ -1,6 +1,12 @@
 name: Fenice World V7 Real Provider Diagnostic
 
 on:
+  # Diagnose access at 09:37 Rome on CET and CEST dates respectively.
+  # The local-time guard skips the wrong DST cron and any delayed runner.
+  # This is source-access metadata, never evidence of an OPEN exchange.
+  schedule:
+    - cron: "37 7 * * 1-5"
+    - cron: "37 8 * * 1-5"
   workflow_dispatch:
     inputs:
       venue:
@@ -15,6 +21,8 @@ on:
       - "lib/market/world-v7-provider-probe.mjs"
       - "scripts/probe-world-v7-market-data.mjs"
       - "scripts/test-world-v7-provider-probe.mjs"
+      - "scripts/check-world-europe-provider-window.mjs"
+      - "scripts/test-world-europe-provider-window.mjs"
       - ".github/workflows/world-v7-provider-observation.yml"
       - "app/paper-mondo/page.tsx"
   push:
@@ -40,13 +48,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: node scripts/test-world-v7-provider-probe.mjs
+      - run: |
+          node scripts/test-world-v7-provider-probe.mjs
+          node scripts/test-world-europe-provider-window.mjs
 
   observation:
-    # Targeted diagnostics remain available on demand. Scheduled collection uses the global flow.
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    # Daily bounded access diagnostics for BOTH European pilot MICs, or an
+    # explicitly requested single manual venue. Never asserts exchange open.
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     permissions:
       contents: write
     env:
@@ -59,38 +70,69 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Offline source and market clock regression
-        run: node scripts/test-world-v7-provider-probe.mjs
-      - name: Exact venue selection
-        id: venue
+      - name: Offline source and European opening window regression
+        run: |
+          node scripts/test-world-v7-provider-probe.mjs
+          node scripts/test-world-europe-provider-window.mjs
+      - name: Guard scheduled CET/CEST opening diagnostics
+        if: github.event_name == 'schedule'
+        id: window
+        env:
+          FENICE_SCHEDULE_CRON: ${{ github.event.schedule }}
+        run: node scripts/check-world-europe-provider-window.mjs
+      - name: Select pilot venues without exceeding daily free-credit budget
+        id: selection
+        if: github.event_name == 'workflow_dispatch' || steps.window.outputs.allowed == 'true'
         shell: bash
         env:
           CHOICE: ${{ inputs.venue }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          case "$CHOICE" in XTKS|XMIL|XETR) ;; *) exit 1 ;; esac
-          echo "mic=$CHOICE" >> "$GITHUB_OUTPUT"
-      - name: Actual bounded provider check (maximum 3 credits, no retries)
-        env:
-          MIC: ${{ steps.venue.outputs.mic }}
-          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
-        run: node scripts/probe-world-v7-market-data.mjs --probe --venue="$MIC" --output="$RESULT_FILE"
-      - name: Validate no price, entitlement or LIVE claim is published
-        env:
-          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
-        run: |
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const v=JSON.parse(fs.readFileSync(process.env.RESULT_FILE));
-            if(v.paperReady!==false || v.liveTradingAllowed!==false ||
-               v.brokerConnectivityAllowed!==false || v.quote?.paperEligible===true ||
-               v.privatePricePublished!==false || v.quoteFamiliesApproved!==0 ||
-               Object.hasOwn(v.quote,"price")) process.exit(1);
-          '
-      - name: Merge sanitized venue status safely into main
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            case "$CHOICE" in XMIL|XETR|XTKS) mics="$CHOICE";; *) exit 1;; esac
+          else
+            mics="XMIL XETR"
+          fi
+          echo "mics=$mics" >> "$GITHUB_OUTPUT"
+      - name: Bound two read-only market access checks to six API requests
+        if: steps.selection.outputs.mics != ''
         shell: bash
         env:
-          RESULT_FILE: ${{ runner.temp }}/world-v7-observation.json
+          MICS: ${{ steps.selection.outputs.mics }}
+        run: |
+          set -euo pipefail
+          for MIC in $MICS; do
+            case "$MIC" in XMIL|XETR|XTKS) ;; *) exit 1;; esac
+            export MIC
+            export RESULT_FILE="$RUNNER_TEMP/world-v7-observation-$MIC.json"
+            node scripts/probe-world-v7-market-data.mjs --probe --venue="$MIC" --output="$RESULT_FILE"
+            # Manual run: 3 requests. Scheduled run: 6 total, below Basic 8/min.
+            sleep 2
+          done
+      - name: Verify neither price nor entitlement nor LIVE claim can be published
+        if: steps.selection.outputs.mics != ''
+        env:
+          MICS: ${{ steps.selection.outputs.mics }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          for (const mic of process.env.MICS.split(" ")) {
+            if (!["XMIL","XETR","XTKS"].includes(mic)) process.exit(1);
+            const v=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/world-v7-observation-"+mic+".json"));
+            if (v.venue!==mic || v.paperReady!==false || v.liveTradingAllowed!==false ||
+                v.brokerConnectivityAllowed!==false || v.quote?.paperEligible!==false ||
+                v.privatePricePublished!==false || v.quoteFamiliesApproved!==0 ||
+                v.requestedApiCreditsMax>3 ||
+                Object.hasOwn(v.quote,"price")) process.exit(1);
+          }
+          console.log("Europe provider access only; no quoted price, approved rights, PAPER or LIVE.");
+          NODE
+      - name: Merge both sanitized European venue statuses atomically
+        if: steps.selection.outputs.mics != ''
+        shell: bash
+        env:
+          MICS: ${{ steps.selection.outputs.mics }}
         run: |
           set -euo pipefail
           git config user.name "fenice-world-v7-observer"
@@ -102,30 +144,47 @@ jobs:
           import fs from "node:fs";
           const file="data/world-v7-provider-observation.json";
           const old=JSON.parse(fs.readFileSync(file,"utf8"));
-          const incoming=JSON.parse(fs.readFileSync(process.env.RESULT_FILE,"utf8"));
-          if(!["XTKS","XMIL","XETR"].includes(incoming.venue) ||
-             incoming.paperReady!==false || incoming.liveTradingAllowed!==false ||
-             incoming.privatePricePublished!==false || incoming.brokerConnectivityAllowed!==false ||
-             !old.records || typeof old.records!=="object" || Array.isArray(old.records)) throw Error("UNSAFE_OBSERVATION");
-          const merged={schemaVersion:1,generatedAt:incoming.recordedAt,
+          if (old.mode!=="PROVIDER_ACCESS_DIAGNOSTIC_ONLY" ||
+              old.paperReady!==false || old.liveTradingAllowed!==false ||
+              old.brokerConnectivityAllowed!==false ||
+              !old.records || typeof old.records!=="object" || Array.isArray(old.records))
+            throw Error("UNSAFE_PREVIOUS_PROVIDER_OBSERVATION");
+          const records={...old.records};
+          const incomingTimes=[];
+          for (const mic of process.env.MICS.split(" ")) {
+            if (!["XMIL","XETR","XTKS"].includes(mic)) throw Error("INVALID_VENUE");
+            const v=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/world-v7-observation-"+mic+".json"));
+            if (v.venue!==mic || v.paperReady!==false || v.liveTradingAllowed!==false ||
+                v.brokerConnectivityAllowed!==false || v.privatePricePublished!==false ||
+                v.quote?.paperEligible!==false || v.quoteFamiliesApproved!==0 ||
+                v.requestedApiCreditsMax>3 || Object.hasOwn(v.quote,"price") ||
+                !Number.isFinite(Date.parse(v.recordedAt)))
+              throw Error("UNSAFE_INCOMING_PROVIDER_OBSERVATION");
+            records[mic]=v;
+            incomingTimes.push(v.recordedAt);
+          }
+          const generatedAt=incomingTimes.sort().at(-1);
+          const merged={schemaVersion:1,generatedAt,
             mode:"PROVIDER_ACCESS_DIAGNOSTIC_ONLY",
             note:"One-provider access diagnostics are not sufficient for PAPER and do not grant quote rights.",
-            records:{...old.records,[incoming.venue]:incoming},
-            paperReady:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+            records,paperReady:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
           fs.writeFileSync(file,JSON.stringify(merged,null,2)+"\n");
           NODE
             git add -- data/world-v7-provider-observation.json
             if git diff --cached --quiet; then exit 0; fi
-            git commit -m "data(world-v7): record sanitised exchange evidence"
+            git commit -m "data(world-v7): refresh sanitized Milan and Xetra access diagnostics"
             if git push origin HEAD:main; then exit 0; fi
             sleep "$attempt"
           done
           exit 1
-      - name: Retain bounded proof artifact
+      - name: Record missed or wrong-DST opening diagnostic without inventing proof
+        if: github.event_name == 'schedule' && steps.window.outputs.allowed != 'true'
+        run: echo "::warning::European provider diagnostic skipped because the scheduled opening window was not verified. No market or PAPER proof."
+      - name: Retain bounded sanitized access proof artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: world-v7-provider-proof
-          path: ${{ runner.temp }}/world-v7-observation.json
+          path: ${{ runner.temp }}/world-v7-observation-*.json
           retention-days: 7
           if-no-files-found: ignore
