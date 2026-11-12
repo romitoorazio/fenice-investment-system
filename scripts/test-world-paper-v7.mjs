@@ -182,6 +182,28 @@ assert.equal(masqueraded.summary.filledPaperOrders,0,
 assert.equal(masqueraded.summary.independentlyVerifiedListings,0);
 assert(masqueraded.listings.some(x=>x.reasons.includes("TWO_ENTITLED_INDEPENDENT_REALTIME_QUOTES_REQUIRED")));
 
+for (const [description, alias] of [
+  ["case-masked family", "PROVIDER-ONE"],
+  ["leading-space family", " provider-two"],
+  ["trailing-space family", "provider-two "],
+  ["Unicode lookalike family", "provider-twо"],
+]) {
+  const aliasSources=registry.sources.map(entry =>
+    entry.sourceFamily==="provider-two"
+      ?{...entry,sourceFamily:alias}:entry);
+  const aliasQuotes=tokyoInput.quotes.map(quote =>
+    quote.sourceFamily==="provider-two"
+      ?{...quote,sourceFamily:alias}:quote);
+  const denied=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
+    entitlements:{...registry,sources:aliasSources},quotes:aliasQuotes});
+  assert.equal(denied.summary.filledPaperOrders,0,description);
+  assert.equal(denied.summary.independentlyVerifiedListings,0,description);
+  assert(denied.listings.some(x=>
+    x.reasons.includes("TWO_ENTITLED_INDEPENDENT_REALTIME_QUOTES_REQUIRED")),
+    description+" must not manufacture a second provider family");
+}
+
+
 const oneFamily=runWorldPaperV7({...tokyoInput,paperRunAuthorized:true,
   quotes:tokyoInput.quotes.filter(x=>x.sourceFamily==="provider-one")});
 assert.equal(oneFamily.summary.filledPaperOrders,0);
