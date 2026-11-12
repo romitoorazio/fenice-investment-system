@@ -92,6 +92,34 @@ assert.equal(s1.strategyCertified,false);
 assert.equal(s1.phase9Credit,0);
 const settlementFail=(changes,why)=>assert.throws(()=>
   settleOneGlobalEodSignal({...settleInput,...changes}),/EOD_PAPER_/,why);
+// A stored research SIGNAL may remain hash-valid, but a late intraday
+// decision must never be settled as a previous-close -> next-session EOD fill.
+const afterNextOpen="2026-11-12T14:36:22.791Z";
+const latePilot=recordOneGlobalEodSignal({
+  previousLedger:newOneGlobalEodPaperLedger(),nowIso:afterNextOpen,
+  signal:signal(afterNextOpen,{
+    signalId:"fenice-eod-late-window-test",
+    referenceSessionDate:"2026-11-11",
+    referenceCloseAt:"2026-11-11T16:30:00.000Z",
+    referencePublishedAt:"2026-11-11T17:00:00.000Z",
+  }),
+});
+assert.equal(replayOneGlobalEodPaperLedger(latePilot.ledger).valid,true);
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...settleInput,previousLedger:latePilot.ledger,
+  signalHash:latePilot.signalHash,
+}),/EOD_PAPER_SIGNAL_OUTSIDE_PROSPECTIVE_EOD_WINDOW/,
+ "an intraday next-session decision cannot be converted to future EOD PAPER");
+assert.throws(()=>recordOneGlobalEodSignal({
+  previousLedger:newOneGlobalEodPaperLedger(),nowIso:afterNextOpen,
+  signal:signal(afterNextOpen,{
+    signalId:"fenice-eod-before-close-test",
+    referenceSessionDate:"2026-11-12",
+    referenceCloseAt:"2026-11-12T16:30:00.000Z",
+    referencePublishedAt:"2026-11-12T17:00:00.000Z",
+  }),
+}),/EOD_PAPER_SIGNAL_INVALID_OR_LOOKAHEAD/,
+ "same-day before-reference-close pilot must remain rejected");
 settlementFail({authority:null},"unapproved source data must not lead to fills");
 settlementFail({authority:{...authority,liveTradingAllowed:true}},"LIVE never authorized");
 settlementFail({marketEvidence:evidence(10,12)},"divergent close must be refused");
