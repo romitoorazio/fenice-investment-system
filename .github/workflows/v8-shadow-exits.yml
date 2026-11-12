@@ -223,7 +223,7 @@ jobs:
             &&r.strategyPaperTradeCertified===false
             &&r.liveTradingAllowed===false
             &&r.brokerConnectivityAllowed===false;
-          appendFileSync(process.env.GITHUB_OUTPUT,'new_admissible_day='+admissible+'\\n');
+          appendFileSync(process.env.GITHUB_OUTPUT,'new_admissible_day='+admissible+'\n');
           console.log('V8_LAB_UPSTREAM_PROOF_ADMITTED='+admissible);
           NODE
       - name: Archive source-safe, no-credit V8 session diagnostic
