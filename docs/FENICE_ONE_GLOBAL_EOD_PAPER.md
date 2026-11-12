@@ -51,3 +51,20 @@ I test offline usano fixture sintetiche dichiarate: dimostrano l'aritmetica e il
 Con CBA (Australia) e BAMI (Italia) nello stesso registro EOD privato, **due processi che leggono simultaneamente il saldo non devono mai sovrascrivere l'evento dell'altro**. `--commit` usa ora `lib/trading/one-global-eod-private-store.mjs`: acquisizione esclusiva di un file `.lock`, replay dell'ultimo registro letto **sotto il lock**, confronto integrale del journal con lo snapshot iniziale (compare-and-swap), esattamente **un solo evento prospettico** e scrittura temporanea privata `0600` sincronizzata prima del rename. Se l'ultimo hash o il registro sono cambiati, il processo si ferma con `EOD_PRIVATE_LEDGER_STALE_RELOAD_AND_RECHECK`: **non** ricalcola o inventa un fill e **non** cancella quello già registrato. Il responsabile dovrà rileggere il ledger privato, riconvalidare la prova e ripetere l'operazione. Un lock già presente produce `EOD_PRIVATE_LEDGER_LOCK_BUSY`; nessuna rimozione automatica dei lock obsoleti, che richiedono controllo umano.
 
 Il test offline `node scripts/test-one-global-eod-private-store.mjs` prova precisamente la collisione tra due segnali PAPER, il rifiuto di scritture stale, la possibilità di registrare entrambi dopo il reload, i permessi privati e il blocco dell'ordine reale. Questa protezione **non** dimostra indipendenza dei provider né autorizza la registrazione di fill in assenza delle due ricevute e dei diritti d'uso.
+
+## Primo controllo ufficiale AUD/EUR per CBA (BCE)
+
+La prima simulazione australiana richiede un cambio AUD→EUR: il flusso ufficiale gratuito BCE `EXR.D.AUD.EUR.SP00.A` pubblica **AUD per 1 EUR**. La conversione corretta è `rateToEuro = 1 / unitsPerEuro`. Il parser `lib/market/one-global-ecb-aud.mjs` esige la serie esatta, data/valuta/denominatore, tasso positivo e anteriore alla seduta ASX, nessun duplicato e una finestra di ammissione conservativa dopo le 16:10 ora di Francoforte se la rilevazione è dello stesso giorno. L'ora registrata rappresenta **la prima osservazione del nostro fetch**, non l'ora ufficiale di pubblicazione del singolo fix. Il calcolo resta riferimento statistico e non è un prezzo FX negoziabile.
+
+Il motore `lib/trading/one-global-eod-paper.mjs` conserva ora in ogni eventuale FILL in valuta estera **sia il tasso BCE originale sia l'inverso usato per il controvalore EUR**, e rifiuta un tentativo di scambiare AUD/EUR con EUR/AUD, serie di un'altra valuta o dati futuri. I registri senza FILL, inclusi i due segnali privati CBA/BAMI del 12 novembre, rimangono validi.
+
+Verifica isolata:
+`node scripts/test-one-global-ecb-aud.mjs`
+`node scripts/test-one-global-eod-paper.mjs`
+
+Fonte ufficiale: https://data-api.ecb.europa.eu/service/data/EXR/D.AUD.EUR.SP00.A?format=csvdata
+
+Collettore locale con output **privato**, solo se disponibili dati veri dalla BCE (creazione senza sovrascrittura):
+`node scripts/collect-one-global-ecb-aud.mjs --session=2026-11-13 --output=/percorso/privato/ECB_AUD_20261113.json`
+
+Senza `--output`, il programma stampa soltanto un risultato sanitario senza cambio numerico. Il workflow EOD effettua il controllo libero di chiavi alla prima integrazione su main e in schedulazione, ma non salva quotazioni di titoli e non certifica operazioni. Il tasso BCE **da solo non sblocca un acquisto PAPER CBA**: occorrono sempre due chiusure indipendenti della seduta successiva, licenze e condizioni d'uso verificabili e l'approvazione PAPER privata, senza Directa.
