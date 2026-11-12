@@ -74,3 +74,38 @@ Per la prima simulazione CBA, il file BCE privato può essere usato direttamente
 ### Diagnosi del primo accesso BCE e resilienza ufficiale
 
 Durante il controllo reale del 12 novembre 2026, il servizio SDMX BCE non ha fornito un dato convalidato entro il timeout: il report segnava `ECB_AUD_REFERENCE_NOT_VALIDATED`. Il collector prova ora, **solo se SDMX fallisce**, anche il feed XML storico ufficiale BCE https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml. Questo è **lo stesso editore BCE, non una seconda fonte indipendente**. Il lettore controlla formato del file, data, tasso AUD, duplicazioni, entità XML indesiderate e finestra di disponibilità; conserva l'hash SHA-256 del contenuto HTTP effettivamente ricevuto e non pubblica alcun cambio numerico nei log GitHub. Se anche l'XML non è disponibile, la contabilizzazione CBA resta bloccata senza ricorrere a quotazioni sintetiche o a un cambio presunto.
+
+## Audit mirato della finestra temporale CBA e Banco BPM
+
+Il 12 novembre, prima dei due settlement del giorno successivo, e stato aggiunto un controllo
+**separato e di sola lettura** per gli orari regolari XMIL (09:00–17:40 ora Roma)
+e XASX (10:00–16:10 ora Sydney). Confronta:
+- data della barra di riferimento e sua effettiva data locale;
+- ordine temporale close → pubblicazione → registrazione;
+- decisione successiva alla chiusura del riferimento;
+- decisione **anteriore alla prima apertura ordinaria successiva** (settimane e fusi orari inclusi).
+
+Su CBA, la prova pubblica del 12 novembre rispetta *provvisoriamente* tale finestra
+(15:14 UTC del 12 novembre, cioe 01:14 del 13 novembre a Sydney;
+la prima apertura ordinaria successiva e alle 10:00).
+La prova della seduta reale, dei due prezzi indipendenti e delle licenze rimane assente.
+
+Su Banco BPM, l'ora privata riferita per la decisione del 12 novembre
+alle 15:36 italiane e **intraday**. Una decisione ancorata alla chiusura del
+12 novembre sarebbe prematura; se ancorata all'11 novembre, sarebbe successiva
+alla riapertura ordinaria del 12 novembre. Pertanto **non autorizzare**
+il settlement Banco BPM per il solo fatto che il 13 novembre il close sia disponibile;
+occorre prima auditare il record privato originale e stabilire se la regola temporale
+o il tipo di strategia richiedano una nuova decisione prospettica (mai retrodatare).
+
+Il controllo e conservativo ma non certifica il calendario festivo, l'effettiva apertura
+di una seduta, i diritti della fonte, il close, il consenso privato o un fill. Non modifica
+o invalida retroattivamente il ledger: aggiunge un controllo diagnostico per evitare di
+trasformare un segnale di ricerca in una prova PAPER non ammissibile.
+
+Esecuzione pubblica solo CBA: `node scripts/audit-one-global-eod-pilot-time.mjs`.
+Esecuzione con journal originale **fuori GitHub**:
+`node scripts/audit-one-global-eod-pilot-time.mjs --ledger=/percorso/privato/eod-ledger.json`.
+Il comando non mostra prezzi, ricevute o hash privati, non scrive sul journal
+e non collega mai Directa. Regressione:
+`node scripts/test-one-global-eod-pilot-time-audit.mjs`.
