@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {
   selectEcbAudReference,summarizeEcbAudReference,
 } from "../lib/market/one-global-ecb-aud.mjs";
@@ -75,5 +76,13 @@ assert.throws(()=>select("garbage"),/EOD_AUD_FX_CSV_SIZE_INVALID/);
 assert.throws(()=>select(csv,"not-a-date"),/EOD_AUD_FX_SESSION_OR_FETCH_TIME_INVALID/);
 assert.throws(()=>select(csv,"2026-11-13","invalid-time"),
   /EOD_AUD_FX_SESSION_OR_FETCH_TIME_INVALID/);
+
+const runner=readFileSync(new URL("./run-one-global-eod-private.mjs",import.meta.url),"utf8");
+assert.match(runner,/--fx=\/private\/ECB_AUD\.json/,
+  "First CBA PAPER settlement must allow a separately fetched private ECB file");
+assert.match(runner,/if\(fxPath&&event\.fxEvidence\)/,
+  "Never select ambiguously between two private FX proofs");
+assert.match(runner,/fxEvidence:fxPath\?parse\(fxPath\)/,
+  "Private source must flow into strict paper FX validation");
 
 console.log("PASS CBA official ECB AUD/EUR reference: exact series, 1/rate conversion, prior ASX day, no executable FX/stock quote, zero PAPER certification");
