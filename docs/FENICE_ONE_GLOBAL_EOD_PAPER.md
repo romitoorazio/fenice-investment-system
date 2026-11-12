@@ -68,3 +68,5 @@ Collettore locale con output **privato**, solo se disponibili dati veri dalla BC
 `node scripts/collect-one-global-ecb-aud.mjs --session=2026-11-13 --output=/percorso/privato/ECB_AUD_20261113.json`
 
 Senza `--output`, il programma stampa soltanto un risultato sanitario senza cambio numerico. Il workflow EOD effettua il controllo libero di chiavi alla prima integrazione su main e in schedulazione, ma non salva quotazioni di titoli e non certifica operazioni. Il tasso BCE **da solo non sblocca un acquisto PAPER CBA**: occorrono sempre due chiusure indipendenti della seduta successiva, licenze e condizioni d'uso verificabili e l'approvazione PAPER privata, senza Directa.
+
+Per la prima simulazione CBA, il file BCE privato può essere usato direttamente dal runner con il parametro `--fx=/percorso/privato/ECB_AUD_20261113.json` **insieme a** `--event`, `--ledger`, `--authority` e, solo quando tutte le prove indipendenti di prezzo sono ammesse, `--commit`. Il runner rifiuta intenzionalmente input FX duplicati (`--fx` e `event.fxEvidence` contemporaneamente). Non copia mai la prova BCE dentro GitHub; su BAMI EUR il tasso è fisso 1.
