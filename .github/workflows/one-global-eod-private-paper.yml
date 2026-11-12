@@ -13,6 +13,9 @@ on:
       - "scripts/test-one-global-eod-readiness.mjs"
       - "lib/trading/one-global-eod-private-store.mjs"
       - "scripts/test-one-global-eod-private-store.mjs"
+      - "lib/market/one-global-ecb-aud.mjs"
+      - "scripts/test-one-global-ecb-aud.mjs"
+      - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
@@ -29,6 +32,9 @@ on:
       - "scripts/test-one-global-eod-readiness.mjs"
       - "lib/trading/one-global-eod-private-store.mjs"
       - "scripts/test-one-global-eod-private-store.mjs"
+      - "lib/market/one-global-ecb-aud.mjs"
+      - "scripts/test-one-global-ecb-aud.mjs"
+      - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
@@ -69,11 +75,15 @@ jobs:
         run: node scripts/test-one-global-first-paper-signal.mjs
       - name: Ensure simultaneous private PAPER fills never overwrite each other
         run: node scripts/test-one-global-eod-private-store.mjs
+      - name: Verify official ECB AUD per EUR conversion and source protections
+        run: node scripts/test-one-global-ecb-aud.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
   safe-diagnostic-only:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Main merges can immediately probe the free ECB reference with no key,
+    # but MUST NOT import or publish any licensed equity source.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -91,10 +101,13 @@ jobs:
           node scripts/test-one-global-eod-readiness.mjs
           node scripts/test-one-global-eod-private-store.mjs
           node scripts/test-one-global-first-paper-signal.mjs
+          node scripts/test-one-global-ecb-aud.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
           node scripts/assess-one-global-eod-open-preflight.mjs
+      - name: Check official ECB AUD reference for the next ASX settlement (no prices published)
+        run: node scripts/collect-one-global-ecb-aud.mjs
       - name: Classify source blockers without raw quotes or contracts
         env:
           OUT: ${{ runner.temp }}/fenice-eod-readiness.json

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {selectEcbAudReference} from "../lib/market/one-global-ecb-aud.mjs";
 import {
   newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,
   settleOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
@@ -187,4 +188,81 @@ assert.throws(()=>recordOneGlobalEodSignal({
   previousLedger:start,nowIso:atSignal,
   signal:signal(atSignal,{maxNotionalEuro:250})}),
  /EOD_PAPER_SIGNAL_INVALID_OR_LOOKAHEAD/);
+
+// Synthetic ASX/AUD fixture proves that the *first* Australian PAPER trade
+// cannot use AUD-per-EUR instead of its mathematical inverse. This is NOT a
+// real CBA order, source contract, licensed quote or Phase 9 proof.
+const asxSignalAt="2026-11-12T14:14:00.000Z";
+const asxStart=recordOneGlobalEodSignal({
+  previousLedger:newOneGlobalEodPaperLedger(),nowIso:asxSignalAt,
+  signal:{
+    signalId:"asx-test-only-momentum-001",key:"XASX:TEST",mic:"XASX",
+    side:"BUY",currency:"AUD",decisionAt:asxSignalAt,
+    referenceSessionDate:"2026-11-12",
+    referenceCloseAt:"2026-11-12T05:10:00.000Z",
+    referencePublishedAt:"2026-11-12T05:40:00.000Z",
+    sourceSnapshotHash:i(41),maxNotionalEuro:50,
+    strategyReason:"UPTREND_CONFIRMATION",
+  },
+});
+const simulatedEcbCsv=[
+  "KEY,FREQ,CURRENCY,CURRENCY_DENOM,EXR_TYPE,EXR_SUFFIX,TIME_PERIOD,OBS_VALUE,OBS_STATUS",
+  "EXR.D.AUD.EUR.SP00.A,D,AUD,EUR,SP00,A,2026-11-11,1.6100,A",
+  "EXR.D.AUD.EUR.SP00.A,D,AUD,EUR,SP00,A,2026-11-12,1.6400,A",
+].join("\n")+"\n";
+const asxFx=selectEcbAudReference({
+  csv:simulatedEcbCsv,sessionDate:"2026-11-13",
+  observedAt:"2026-11-12T16:10:00.000Z",
+});
+const asxEvidence={
+  sessionDate:"2026-11-13",
+  sessionOpenedAt:"2026-11-12T23:00:00.000Z",
+  sessionClosedAt:"2026-11-13T05:10:00.000Z",
+  providerReceipts:["alpha-one","beta-two"].map((family,j)=>({
+    providerId:family,sourceFamily:family,key:"XASX:TEST",mic:"XASX",
+    currency:"AUD",sessionDate:"2026-11-13",
+    close:j===0?171.76:171.78,
+    publishedAt:j===0?"2026-11-13T05:20:00.000Z":"2026-11-13T05:22:00.000Z",
+    payloadSha256:i(j+51),simulatedOrSynthetic:false,
+  })),
+};
+const asxRights=["alpha-one","beta-two"].map((providerId,j)=>({
+  providerId,mic:"XASX",currency:"AUD",evidenceSha256:i(j+61),
+  usageScope:"PRIVATE_PERSONAL_PAPER_SIMULATION",
+  reviewedByOwner:true,automatedUseAllowed:true,
+  validUntil:"2027-01-01T00:00:00.000Z",
+}));
+const asxInput={
+  previousLedger:asxStart.ledger,signalHash:asxStart.signalHash,
+  marketEvidence:asxEvidence,nowIso:"2026-11-13T06:10:00.000Z",
+  ownerReviewedRights:asxRights,authority,fxEvidence:asxFx,
+};
+const asxBuy=settleOneGlobalEodSignal(asxInput);
+assert.equal(asxBuy.accounting.virtualBuys,1);
+assert.equal(asxBuy.ledger.events.at(-1).currency,"AUD");
+assert.equal(asxBuy.ledger.events.at(-1).fxUnitCurrency,"AUD");
+assert.equal(asxBuy.ledger.events.at(-1).fxSeries,"EXR.D.AUD.EUR.SP00.A");
+assert.equal(asxBuy.ledger.events.at(-1).fxUnitsPerEuro,1.64);
+assert.equal(asxBuy.ledger.events.at(-1).fxRateToEuro,1/1.64);
+assert.equal(asxBuy.ledger.events.at(-1).fxReferenceDate,"2026-11-12");
+assert(asxBuy.accounting.cashEuro<950);
+assert(asxBuy.accounting.cashEuro>940);
+assert(asxBuy.ledger.positions["XASX:TEST"].quantity>0);
+assert.equal(asxBuy.accounting.certifiedClosedTrades,0);
+assert.equal(asxBuy.accounting.phase9Credit,0);
+assert.equal(asxBuy.accounting.brokerConnectivityAllowed,false);
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,fxEvidence:{...asxFx,rateToEuro:1.64},
+}),/EOD_PAPER_EOD_FX_REFERENCE_MISSING_OR_FUTURE/,
+  "AUD/EUR inversion must fail even if the FX metadata claims ECB provenance");
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,fxEvidence:{...asxFx,currency:"USD"},
+}),/EOD_PAPER_EOD_FX_REFERENCE_MISSING_OR_FUTURE/);
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,fxEvidence:{...asxFx,series:"EXR.D.USD.EUR.SP00.A"},
+}),/EOD_PAPER_EOD_FX_REFERENCE_MISSING_OR_FUTURE/);
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,fxEvidence:{...asxFx,unitsPerEuro:0},
+}),/EOD_PAPER_EOD_FX_REFERENCE_MISSING_OR_FUTURE/);
+
 console.log("PASS ONE GLOBAL forward EOD private: signals -> next CLOSE+impact BUY -> EXIT EUR; 2 independent receipts, owner rights, no lookahead, hashed ledger, risk, zero Phase9/Directa LIVE");
