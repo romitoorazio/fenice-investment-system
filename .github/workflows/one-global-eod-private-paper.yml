@@ -22,6 +22,9 @@ on:
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
+      - "lib/trading/one-global-eod-pilot-time-audit.mjs"
+      - "scripts/audit-one-global-eod-pilot-time.mjs"
+      - "scripts/test-one-global-eod-pilot-time-audit.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
@@ -46,6 +49,9 @@ on:
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
+      - "lib/trading/one-global-eod-pilot-time-audit.mjs"
+      - "scripts/audit-one-global-eod-pilot-time.mjs"
+      - "scripts/test-one-global-eod-pilot-time-audit.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
@@ -83,6 +89,10 @@ jobs:
         run: node scripts/test-one-global-eod-open-preflight.mjs
       - name: Verify the first CBA prospective signal hash and no fills
         run: node scripts/test-one-global-first-paper-signal.mjs
+      - name: Validate CBA and XMIL prospective EOD pilot signal timing safeguards
+        run: |
+          node scripts/test-one-global-eod-pilot-time-audit.mjs
+          node scripts/audit-one-global-eod-pilot-time.mjs
       - name: Ensure simultaneous private PAPER fills never overwrite each other
         run: node scripts/test-one-global-eod-private-store.mjs
       - name: Verify official ECB AUD per EUR conversion and source protections
@@ -113,6 +123,8 @@ jobs:
           node scripts/test-one-global-eod-readiness.mjs
           node scripts/test-one-global-eod-private-store.mjs
           node scripts/test-one-global-first-paper-signal.mjs
+          node scripts/test-one-global-eod-pilot-time-audit.mjs
+          node scripts/audit-one-global-eod-pilot-time.mjs
           node scripts/test-one-global-ecb-aud.mjs
           node scripts/test-one-global-free-world-file.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
