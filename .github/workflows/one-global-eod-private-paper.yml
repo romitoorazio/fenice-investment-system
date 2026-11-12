@@ -11,6 +11,8 @@ on:
       - "scripts/report-one-global-eod-paper-readiness.mjs"
       - "scripts/test-one-global-eod-paper.mjs"
       - "scripts/test-one-global-eod-readiness.mjs"
+      - "scripts/test-one-global-first-paper-signal.mjs"
+      - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
       - ".github/workflows/one-global-eod-private-paper.yml"
@@ -23,6 +25,8 @@ on:
       - "scripts/report-one-global-eod-paper-readiness.mjs"
       - "scripts/test-one-global-eod-paper.mjs"
       - "scripts/test-one-global-eod-readiness.mjs"
+      - "scripts/test-one-global-first-paper-signal.mjs"
+      - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
       - ".github/workflows/one-global-eod-private-paper.yml"
@@ -57,6 +61,8 @@ jobs:
         run: node scripts/test-one-global-eod-readiness.mjs
       - name: Verify all worldwide market windows and no-trade gates
         run: node scripts/test-one-global-eod-open-preflight.mjs
+      - name: Verify the first CBA prospective signal hash and no fills
+        run: node scripts/test-one-global-first-paper-signal.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -77,6 +83,7 @@ jobs:
         run: |
           node scripts/test-one-global-eod-paper.mjs
           node scripts/test-one-global-eod-readiness.mjs
+          node scripts/test-one-global-first-paper-signal.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
