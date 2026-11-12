@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 9: controllo operativo forward
 
-**Aggiornato:** 2026-11-11T15:12:38.856Z · **PAPER certificato: NO** · **Ordini Directa: 0**
+**Aggiornato:** 2026-11-12T15:59:24.884Z · **PAPER certificato: NO** · **Ordini Directa: 0**
 
 ## Risultati forward (non storici)
 - Operazioni virtuali chiuse: 0, positive: 0, negative: 0, pari: 0
@@ -8,10 +8,10 @@
 - Profit factor: non significativo
 
 ## Posizioni virtuali aperte
-- Aperte: 0; valorizzate su prezzi giornalieri conclusi: 0; non valorizzabili: 0
-- Liquidità virtuale: €1000,00
-- Equity virtuale indicativa (commissione ipotetica di chiusura compresa): €1000,00
-- Risultato virtuale totale indicativo: €0,00
+- Aperte: 3; valorizzate su prezzi giornalieri conclusi: 0; non valorizzabili: 3
+- Liquidità virtuale: €700,00
+- Equity virtuale indicativa (commissione ipotetica di chiusura compresa): N/D
+- Risultato virtuale totale indicativo: N/D
 
 ## Progressi verso la certificazione
 - Chiusure forward: 0/10
@@ -21,10 +21,11 @@
 
 ## Requisiti mancanti
 - FORWARD_RESULTS_SAMPLE_NOT_MATURE
+- SOME_OPEN_POSITIONS_NOT_MARKABLE
 - NO_TWO_INDEPENDENT_EXECUTABLE_PRICE_SOURCES
 
 ## Integrità e protezione
-- Ledger forward SHA-256: GENESIS
+- Ledger forward SHA-256: 95e4667fe51511f2c9ea553eb9ba8138a7dbbd95129cb6cd1e3212d7eac750ec
 - Stato rischio: ACTIVE
 - Nessun ordine Directa.
 
