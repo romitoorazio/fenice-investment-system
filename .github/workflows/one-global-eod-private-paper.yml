@@ -81,7 +81,9 @@ jobs:
         run: node scripts/scan-repository-secrets.mjs
 
   safe-diagnostic-only:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Main merges can immediately probe the free ECB reference with no key,
+    # but MUST NOT import or publish any licensed equity source.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
