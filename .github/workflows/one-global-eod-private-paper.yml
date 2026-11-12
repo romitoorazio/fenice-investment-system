@@ -15,6 +15,11 @@ on:
       - "scripts/test-one-global-eod-private-store.mjs"
       - "lib/market/one-global-ecb-aud.mjs"
       - "scripts/test-one-global-ecb-aud.mjs"
+      - "lib/market/one-global-free-world-file.mjs"
+      - "scripts/import-one-global-free-world-file.mjs"
+      - "scripts/fetch-one-global-euronext-free-zip.mjs"
+      - "scripts/test-one-global-free-world-file.mjs"
+      - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
@@ -34,6 +39,11 @@ on:
       - "scripts/test-one-global-eod-private-store.mjs"
       - "lib/market/one-global-ecb-aud.mjs"
       - "scripts/test-one-global-ecb-aud.mjs"
+      - "lib/market/one-global-free-world-file.mjs"
+      - "scripts/import-one-global-free-world-file.mjs"
+      - "scripts/fetch-one-global-euronext-free-zip.mjs"
+      - "scripts/test-one-global-free-world-file.mjs"
+      - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
@@ -77,6 +87,8 @@ jobs:
         run: node scripts/test-one-global-eod-private-store.mjs
       - name: Verify official ECB AUD per EUR conversion and source protections
         run: node scripts/test-one-global-ecb-aud.mjs
+      - name: Validate free global CSV/ZIP intake without broker, PAPER or source licensing escalation
+        run: node scripts/test-one-global-free-world-file.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -102,6 +114,7 @@ jobs:
           node scripts/test-one-global-eod-private-store.mjs
           node scripts/test-one-global-first-paper-signal.mjs
           node scripts/test-one-global-ecb-aud.mjs
+          node scripts/test-one-global-free-world-file.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
