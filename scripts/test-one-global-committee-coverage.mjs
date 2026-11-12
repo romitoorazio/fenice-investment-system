@@ -37,7 +37,13 @@ assert.equal(r.summary.alreadyInCommitteeButStillNeedsResearch,
 assert(r.summary.alreadyInCommitteeButStillNeedsResearch>0,
   "The original research queue excluded still-incomplete Committee coverage");
 assert.equal(r.summary.issuerReleasePairOnFile,3);
-assert.equal(r.summary.issuerReleaseFollowUpsDue,0);
+// Enel's documented review date is 2026-11-12. A daily audit must keep
+// working both before and after this calendar rollover; a due review is
+// research-only and never means a refreshed release was obtained.
+const enelReviewDate="2026-11-12T00:00:00.000Z";
+const dueAtAudit=Date.parse(nowIso)>=Date.parse(enelReviewDate);
+assert.equal(r.summary.issuerReleaseFollowUpsDue,Number(dueAtAudit));
+assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").interimReleaseFollowUpDue,dueAtAudit);
 assert.equal(new Set(r.researchQueue.map(x=>x.key)).size,r.researchQueue.length);
 assert(r.researchQueue.every(x=>!x.tradeSignal&&!x.executionAuthorized&&x.expectedProfit===null
   &&x.committeeBuyEligibleFromThisEvidence===false&&x.sourceFactsNotAuditedIFRS===true));
@@ -70,6 +76,9 @@ for(const key of ["XMIL:ENEL","XETR:SIE","XPAR:MC"]){
 }
 assert.equal(r.rows.find(x=>x.key==="XTKS:7203").pinnedIssuerAnnualAndInterimResearchAvailable,false);
 assert(r.rows.find(x=>x.key==="XTKS:7203").researchTasks.includes("FIND_PRIMARY_ISSUER_FINANCIALS"));
+const beforeEnelInterimDue=run({nowIso:"2026-11-11T23:59:59.000Z"});
+assert.equal(beforeEnelInterimDue.summary.issuerReleaseFollowUpsDue,0);
+assert.equal(beforeEnelInterimDue.rows.find(x=>x.key==="XMIL:ENEL").interimReleaseFollowUpDue,false);
 const afterEnelInterimDue=run({nowIso:"2026-11-12T00:00:01.000Z"});
 assert.equal(afterEnelInterimDue.rows.find(x=>x.key==="XMIL:ENEL").interimReleaseFollowUpDue,true);
 assert(afterEnelInterimDue.researchQueue.find(x=>x.key==="XMIL:ENEL").researchTasks.includes(
