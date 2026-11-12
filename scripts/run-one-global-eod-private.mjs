@@ -26,13 +26,14 @@ const args=Object.fromEntries(process.argv.slice(2).filter(x=>x.startsWith("--")
   .map(x=>{const j=x.indexOf("=");return [x.slice(2,j),x.slice(j+1)];}));
 const commit=process.argv.includes("--commit");
 if(process.argv.includes("--help")){
-  console.log("Usage: node scripts/run-one-global-eod-private.mjs --event=/private/event.json --ledger=/private/eod-ledger.json [--authority=/private/consent.json] [--commit]");
+  console.log("Usage: node scripts/run-one-global-eod-private.mjs --event=/private/event.json --ledger=/private/eod-ledger.json [--authority=/private/consent.json] [--fx=/private/ECB_AUD.json] [--commit]");
   console.log("Default is DRY-RUN. --commit modifies ONLY the named private ledger, never GitHub or Directa.");
   process.exit(0);
 }
 const eventPath=privateFile(args.event);
 const ledgerPath=privateFile(args.ledger);
 const authorityPath=privateFile(args.authority,false);
+const fxPath=privateFile(args.fx,false);
 const parse=path=>{
   const bytes=readFileSync(path);
   if(!bytes.length||bytes.length>1500000)throw Error("EOD_PRIVATE_INPUT_TOO_LARGE_OR_EMPTY");
@@ -49,12 +50,16 @@ if(event?.kind==="SIGNAL"){
   });
 }else if(event?.kind==="SETTLE"){
   if(!authorityPath)throw Error("EOD_PRIVATE_OWNER_APPROVAL_FILE_REQUIRED");
+  if(fxPath&&event.fxEvidence)
+    throw Error("EOD_MULTIPLE_CONFLICTING_PRIVATE_FX_INPUTS");
   evaluated=settleOneGlobalEodSignal({
     previousLedger:previous,nowIso,
     signalHash:event.signalHash,
     marketEvidence:event.marketEvidence,
     ownerReviewedRights:event.ownerReviewedRights,
-    fxEvidence:event.fxEvidence||null,
+    // On CBA, accept the official ECB source file fetched to PRIVATE disk.
+    // The engine still independently checks series, currency and reciprocal.
+    fxEvidence:fxPath?parse(fxPath):(event.fxEvidence||null),
     authority:parse(authorityPath),
   });
 }else throw Error("EOD_UNSUPPORTED_PRIVATE_EVENT_KIND");
