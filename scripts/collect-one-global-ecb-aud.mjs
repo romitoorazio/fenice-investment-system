@@ -7,7 +7,7 @@ import {realpathSync,existsSync,writeFileSync} from "node:fs";
 import {dirname,resolve,isAbsolute,sep} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  selectEcbAudReference,summarizeEcbAudReference,
+  selectEcbAudReference,selectEcbAudXmlReference,summarizeEcbAudReference,
 } from "../lib/market/one-global-ecb-aud.mjs";
 
 const BASE="https://data-api.ecb.europa.eu/service/data/EXR/D.AUD.EUR.SP00.A";
@@ -35,34 +35,54 @@ url.searchParams.set("format","csvdata");
 url.searchParams.set("startPeriod",from);
 url.searchParams.set("endPeriod",previous);
 let status="ECB_AUD_REFERENCE_UNAVAILABLE";
+let evidence=null;
+// Official ECB SDMX endpoint first. If the host times out, try only the
+// ECB's OWN 90-day reference XML, never a third-party proxy or invented rate.
 try{
   const r=await fetch(url,{method:"GET",redirect:"error",
-    headers:{Accept:"text/csv"},signal:AbortSignal.timeout(12000)});
+    headers:{Accept:"text/csv"},signal:AbortSignal.timeout(10000)});
   if(!r.ok||!(/csv|text\/plain/i).test(r.headers.get("content-type")||""))
     throw Error("ECB_HTTP_OR_CONTENT_TYPE_UNUSABLE");
-  const raw=await r.text();
-  const evidence=selectEcbAudReference({csv:raw,sessionDate,observedAt:new Date().toISOString()});
+  evidence=selectEcbAudReference({
+    csv:await r.text(),sessionDate,observedAt:new Date().toISOString(),
+  });
+}catch{ /* No evidence is admitted on malformed/unavailable ECB SDMX. */ }
+if(!evidence){
+  try{
+    const xmlUrl="https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml";
+    const r=await fetch(xmlUrl,{method:"GET",redirect:"error",
+      headers:{Accept:"application/xml"},signal:AbortSignal.timeout(12000)});
+    if(!r.ok||!(/xml|text\/plain/i).test(r.headers.get("content-type")||""))
+      throw Error("ECB_XML_HTTP_OR_CONTENT_TYPE_UNUSABLE");
+    evidence=selectEcbAudXmlReference({
+      xml:await r.text(),sessionDate,observedAt:new Date().toISOString(),
+    });
+  }catch{ /* No rate is fabricated when both official feeds are blocked. */ }
+}
+if(evidence){
   status=summarizeEcbAudReference(evidence).status;
   if(args.output){
-    if(!isAbsolute(args.output))throw Error("EOD_AUD_ABSOLUTE_PRIVATE_OUTPUT_REQUIRED");
-    const parent=realpathSync(dirname(args.output));
-    const resolved=existsSync(args.output)?realpathSync(args.output):resolve(args.output);
-    if(resolved===ROOT||resolved.startsWith(ROOT+sep)
-      ||parent===ROOT||parent.startsWith(ROOT+sep))
-      throw Error("EOD_AUD_PRIVATE_OUTPUT_MUST_STAY_OUTSIDE_REPOSITORY");
-    // Never overwrite a previous fetched proof, even if the reference changes.
-    writeFileSync(resolved,JSON.stringify(evidence,null,2)+"\n",{
-      encoding:"utf8",mode:0o600,flag:"wx",
-    });
+    try{
+      if(!isAbsolute(args.output))
+        throw Error("EOD_AUD_ABSOLUTE_PRIVATE_OUTPUT_REQUIRED");
+      const parent=realpathSync(dirname(args.output));
+      const resolved=existsSync(args.output)?realpathSync(args.output):resolve(args.output);
+      if(resolved===ROOT||resolved.startsWith(ROOT+sep)
+        ||parent===ROOT||parent.startsWith(ROOT+sep))
+        throw Error("EOD_AUD_PRIVATE_OUTPUT_MUST_STAY_OUTSIDE_REPOSITORY");
+      // Preserve the actual official payload SHA, no overwrites, private 0600.
+      writeFileSync(resolved,JSON.stringify(evidence,null,2)+"\n",{
+        encoding:"utf8",mode:0o600,flag:"wx",
+      });
+    }catch{
+      status="ECB_AUD_PRIVATE_OUTPUT_NOT_COMMITTED";
+    }
   }
-}catch{
-  // Network/source failure or unsafe target is a BLOCKER, never a substitute
-  // with a constant ECB rate, an invented previous day or a broker quote.
-  status="ECB_AUD_REFERENCE_NOT_VALIDATED";
-}
+}else status="ECB_AUD_REFERENCE_NOT_VALIDATED";
 console.log(JSON.stringify({
   source:"ECB",series:"EXR.D.AUD.EUR.SP00.A",
   targetASXSessionDate:sessionDate,status,
+  sourceFormat:evidence?.sourceFormat??null,
   referenceOnly:true,noExecutableFxPrice:true,
   equityCloseReceiptsVerified:0,phase9Credit:0,
   brokerConnectivityAllowed:false,liveTradingAllowed:false,
