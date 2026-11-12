@@ -402,6 +402,12 @@ assert.match(workflow, /ref: main/);
 const runner = await readFile(path.join(root, "scripts/run-market-data-validation-lab.mjs"), "utf8");
 assert.match(runner, /LAB_PAPER_ISOLATION_FAILURE/);
 assert.match(runner, /LAB_REQUIRES_UNCHANGED_ACTIVE_PAPER_BASELINE/);
+assert.match(runner, /inspectLegacyRetirement\(\)/,
+  "after original V6 expires, read-only validation must verify the signed retirement manifest");
+assert.match(runner, /archivedV6RetirementVerified/,
+  "diagnostic report must disclose that original V6 baseline no longer matches");
+assert.match(runner, /retiredCampaignGrantsPaperRights: false/,
+  "archived campaign must never grant new PAPER execution permissions");
 assert.match(runner, /market-data-validation-lab\.json/);
 const rejectedCli = spawnSync(process.execPath, [path.join(root, "scripts/run-market-data-validation-lab.mjs"), "--output=data/latest-snapshot.json"], { encoding: "utf8" });
 assert.notEqual(rejectedCli.status, 0, "output path cannot be redirected to V6 inputs");
