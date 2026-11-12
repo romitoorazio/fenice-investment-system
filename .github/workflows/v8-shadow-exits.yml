@@ -58,14 +58,22 @@ jobs:
         run: node scripts/scan-repository-secrets.mjs
 
   observe-virtual-only:
-    needs: [regression]
+    # The frozen lab can complete green from regression alone while its
+    # actual market observation job is SKIPPED. Do not start an extra virtual
+    # cycle unless a new integrity-checked V8 day was persisted by that run.
+    # Standalone schedule/manual observation remains independently available.
+    needs: [regression, diagnose-upstream-proof]
     if: >-
+      always() &&
+      needs.regression.result == 'success' &&
       github.event_name != 'pull_request' &&
       github.ref == 'refs/heads/main' &&
       (github.event_name != 'workflow_run' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository))
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        needs.diagnose-upstream-proof.result == 'success' &&
+        needs.diagnose-upstream-proof.outputs.new_admissible_day == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     concurrency:
@@ -152,6 +160,8 @@ jobs:
           exit 1
 
   diagnose-upstream-proof:
+    outputs:
+      new_admissible_day: ${{ steps.upstream_proof.outputs.new_admissible_day }}
     # Existing unpinned V8 supplement observes the lab completion as a
     # first-class event. Pinned V8 lab workflow and signed inputs are unchanged.
     # A successful upstream job is not proof when the session or providers skip.
@@ -199,6 +209,23 @@ jobs:
             --jobs=diagnostic/jobs.json \
             --log=diagnostic/upstream.log \
             --output=diagnostic/report.json
+      - name: Gate downstream virtual accounting to an actual persisted V8 day
+        id: upstream_proof
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const r=JSON.parse(readFileSync('diagnostic/report.json','utf8'));
+          const admissible=r.status==='ADMISSIBLE_V8_TECHNICAL_DAY'
+            &&r.newAdmissibleTechnicalDay===true
+            &&r.v8DayRecordedByThisRun===true
+            &&r.certificationScope==='V8_TECHNICAL_ONLY'
+            &&r.certificationCredit===0
+            &&r.strategyPaperTradeCertified===false
+            &&r.liveTradingAllowed===false
+            &&r.brokerConnectivityAllowed===false;
+          appendFileSync(process.env.GITHUB_OUTPUT,'new_admissible_day='+admissible+'\n');
+          console.log('V8_LAB_UPSTREAM_PROOF_ADMITTED='+admissible);
+          NODE
       - name: Archive source-safe, no-credit V8 session diagnostic
         if: always()
         uses: actions/upload-artifact@v4

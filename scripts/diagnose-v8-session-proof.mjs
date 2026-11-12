@@ -39,13 +39,24 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   if (!Array.isArray(jobs) || !Array.isArray(days?.records) || !Array.isArray(samples?.events))
     throw Error("V8_DIAGNOSTIC_INPUT_INVALID");
   const date = run.run_started_at.slice(0,10);
-  const observe = jobs.find(x => x.name === "observe") || null;
   const inRun = record => {
     const at = isoMs(record?.observedAt);
     return at !== null && at >= started - 30000 && at <= ended + 120000;
   };
   const todays = days.records.find(x => x.date === date);
   const thisRunProof = days.records.find(x => x.date === date && inRun(x));
+  const observe = jobs.find(x => x.name === "observe") || null;
+  const acceptedSteps = [
+    "Collect genuine, independent quote and FX evidence",
+    "Record V8 verified day or precise fail-closed diagnostic",
+    "Persist independent V8 and lab evidence even when V8 reports BLOCKED",
+  ];
+  // A coincidentally persisted day during the run window is NOT proof that
+  // this lab wrote it: a regression-only workflow can finish green with its
+  // observer skipped. Require all real acquisition/persistence steps too.
+  const proofAttributable = !!thisRunProof && run.conclusion === "success"
+    && observe?.conclusion === "success"
+    && acceptedSteps.every(name => stepResult(observe,name) === "success");
   const todaySamples = samples.events.filter(x => x.occurredAt?.slice(0,10) === date).length;
   const marketMatches = [...String(log).matchAll(/Fenice PAPER market session:\s*(OPEN|CLOSED|UNKNOWN)/g)];
   const marketState = marketMatches.length ? marketMatches.at(-1)[1] : "NOT_OBSERVED";
@@ -54,7 +65,8 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
     version:1, runId:run.id, runUrl:run.html_url, observedDateUTC:date,
     workflowConclusion:run.conclusion, marketStateInJobLog:marketState,
     sourceClues:clues, v8DayAlreadyRecorded:!!todays,
-    v8DayRecordedByThisRun:!!thisRunProof, recordedTechnicalSamplesToday:todaySamples,
+    v8DayObservedWithinRunWindow:!!thisRunProof,
+    v8DayRecordedByThisRun:proofAttributable, recordedTechnicalSamplesToday:todaySamples,
     certificationScope:"V8_TECHNICAL_ONLY", strategyPaperTradeCertified:false,
     certificationCredit:0, liveTradingAllowed:false, brokerConnectivityAllowed:false,
   };
@@ -64,7 +76,7 @@ export function diagnoseV8ProofRun({ run, jobs, days, samples, status, integrity
   });
   if (integrityValid !== true)
     return result("EVIDENCE_INTEGRITY_FAILED","HASH_CHAIN_REPLAY","V8 day or sample ledger replay failed");
-  if (thisRunProof)
+  if (proofAttributable)
     return result("ADMISSIBLE_V8_TECHNICAL_DAY","LEDGER_PERSISTED",
       "Prospective date-matched signed technical day exists inside actual run window");
   if (todays)

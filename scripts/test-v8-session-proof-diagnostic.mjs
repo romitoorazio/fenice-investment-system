@@ -41,8 +41,29 @@ assert.equal(classify({integrityValid:false}).status,"EVIDENCE_INTEGRITY_FAILED"
 assert.equal(classify({run:{...run,conclusion:"failure"},jobs:[{name:"observe",
   conclusion:"failure",steps:[{name:"Fake provider fail",conclusion:"failure"}]}]})
   .stage,"Fake provider fail");
-assert.equal(classify({days:{records:[{date:"2026-11-11",
-  observedAt:"2026-11-11T13:09:00.000Z"}]}}).status,"ADMISSIBLE_V8_TECHNICAL_DAY");
+const dateMatchedDay={records:[{date:"2026-11-11",
+  observedAt:"2026-11-11T13:09:00.000Z"}]};
+const fullSuccess={name:"observe",conclusion:"success",
+  steps:steps("success","success","success","success")};
+const admissible=classify({days:dateMatchedDay,jobs:[fullSuccess]});
+assert.equal(admissible.status,"ADMISSIBLE_V8_TECHNICAL_DAY");
+assert.equal(admissible.v8DayRecordedByThisRun,true);
+const skippedObserver=classify({days:dateMatchedDay,
+  jobs:[{name:"observe",conclusion:"skipped",steps:[]}]});
+assert.equal(skippedObserver.newAdmissibleTechnicalDay,false,
+  "A coincidental day in a regression-only run window is never attributed to skipped observer");
+assert.equal(skippedObserver.v8DayRecordedByThisRun,false);
+assert.equal(skippedObserver.status,"ALREADY_ADMITTED_TODAY");
+const noQuoteCollection=classify({days:dateMatchedDay});
+assert.equal(noQuoteCollection.newAdmissibleTechnicalDay,false);
+assert.equal(noQuoteCollection.v8DayRecordedByThisRun,false);
+const failedUpstream=classify({run:{...run,conclusion:"failure"},
+  jobs:[fullSuccess],days:dateMatchedDay});
+assert.equal(failedUpstream.newAdmissibleTechnicalDay,false);
+const skippedPersistence=classify({days:dateMatchedDay,
+  jobs:[{name:"observe",conclusion:"success",steps:steps("success","success","success","skipped")}]});
+assert.equal(skippedPersistence.newAdmissibleTechnicalDay,false);
+
 assert.equal(classify({days:{records:[{date:"2026-11-11",
   observedAt:"2026-11-11T12:11:00.000Z"}]}}).status,"ALREADY_ADMITTED_TODAY");
 assert.equal(classify({samples:{events:[{occurredAt:"2026-11-11T13:09:00.000Z"}]}})
@@ -55,6 +76,22 @@ assert.match(workflow,/workflows:\s*\["Fenice Independent PAPER Execution Lab"\]
 assert.match(workflow,/diagnose-v8-session-proof\.mjs/);
 assert.match(workflow,/name: fenice-v8-session-proof-diagnostic/);
 assert.match(workflow,/actions: read/);
+
+assert.match(workflow,/needs: \[regression, diagnose-upstream-proof\]/,
+  "virtual exit execution must require upstream lab proof classified by a separate read-only job");
+assert.match(workflow,/needs\.diagnose-upstream-proof\.outputs\.new_admissible_day == 'true'/,
+  "a green regression-only PAPER lab can never start a downstream virtual writer");
+assert.match(workflow,/needs\.regression\.result == 'success'/,
+  "regression must still pass for standalone scheduled/manual shadow cycles");
+assert.match(workflow,/always\(\)/,
+  "scheduled/manual virtual checks must not be suppressed by skipped upstream diagnostics");
+assert.match(workflow,/new_admissible_day: \$\{\{ steps\.upstream_proof\.outputs\.new_admissible_day \}\}/,
+  "upstream proof must be passed explicitly through authenticated job output");
+assert.match(workflow,/r\.status==='ADMISSIBLE_V8_TECHNICAL_DAY'/,
+  "only an actually persisted V8 technical day may unlock lab-triggered shadow computation");
+assert.match(workflow,/r\.certificationCredit===0/,
+  "V8 evidence must never be promoted into live or strategy certification");
+
 assert.match(readFileSync(new URL("./diagnose-v8-session-proof.mjs",import.meta.url),"utf8"),/GITHUB_STEP_SUMMARY/);
 const approval=JSON.parse(readFileSync(new URL("../data/paper-v8-technical-approval.json",import.meta.url),"utf8"));
 assert(!Object.keys(approval.coreFileBlobs).includes(".github/workflows/v8-shadow-exits.yml"));
