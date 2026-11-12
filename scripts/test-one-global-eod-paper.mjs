@@ -37,10 +37,10 @@ const evidence=(priceA=10,priceB=10.002,opts={})=>({
   sessionClosedAt:"2026-11-13T16:30:00.000Z",
   providerReceipts:[
     {providerId:"alpha-one",sourceFamily:"alpha-one",key:"XMIL:ENEL",mic:"XMIL",
-      currency:"EUR",close:priceA,publishedAt:"2026-11-13T16:38:00.000Z",
+      currency:"EUR",sessionDate:"2026-11-13",close:priceA,publishedAt:"2026-11-13T16:38:00.000Z",
       payloadSha256:i(4),simulatedOrSynthetic:false},
     {providerId:"beta-two",sourceFamily:"beta-two",key:"XMIL:ENEL",mic:"XMIL",
-      currency:"EUR",close:priceB,publishedAt:"2026-11-13T16:41:00.000Z",
+      currency:"EUR",sessionDate:"2026-11-13",close:priceB,publishedAt:"2026-11-13T16:41:00.000Z",
       payloadSha256:i(5),simulatedOrSynthetic:false},
   ],...opts,
 });
@@ -153,7 +153,7 @@ const sellEvidence=evidence(10.501,10.502,{
   sessionClosedAt:"2026-11-16T16:30:00.000Z",
   providerReceipts:evidence(10.501,10.502).providerReceipts.map(q=>({
     ...q,close:q.providerId==="alpha-one"?10.501:10.502,
-    publishedAt:"2026-11-16T16:40:00.000Z",
+    sessionDate:"2026-11-16",publishedAt:"2026-11-16T16:40:00.000Z",
   })),
 });
 const sell=settleOneGlobalEodSignal({
