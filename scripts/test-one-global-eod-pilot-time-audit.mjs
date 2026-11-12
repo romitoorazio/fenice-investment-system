@@ -10,7 +10,7 @@ assert.equal(cba.status,"PROVISIONAL_PROSPECTIVE_WINDOW_OK");
 assert.equal(cba.recordedExchangeLocalDate,"2026-11-13");
 assert.equal(cba.recordedExchangeLocalClock,"01:14");
 assert.equal(cba.firstNextNormalWeekday,"2026-11-13");
-assert.equal(cba.regularOpenLocal,"10:00");
+assert.equal(cba.regularOpenLocal,"09:59");
 assert.equal(cba.paperFillEligible,false);
 assert.equal(cba.independentSessionProof,false);
 assert.equal(cba.phase9Credit,0);
