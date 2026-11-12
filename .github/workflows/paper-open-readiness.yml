@@ -204,9 +204,16 @@ jobs:
             data/execution-market-evidence.json
             data/execution-market-coverage.json
 
-      - name: Confirm refused recovery without provider refresh or opening proof
+      # A refused Foundation recovery used to finish green after uploading a
+      # report. That green conclusion triggered the independent V8 PAPER lab
+      # even though no admissible exchange-opening observation existed.
+      # Keep artifact upload above; then fail this workflow to propagate the
+      # accurate no-proof outcome to downstream workflow_run consumers.
+      - name: Reject refused Foundation recovery without PAPER opening proof
         if: always() && github.event_name == 'workflow_run' && steps.schedule_guard.outcome == 'failure'
-        run: echo "::notice::Foundation recovery not in approved New York early-session window or missing trusted provenance; no market-data calls or opening proof."
+        run: |
+          echo "::error::Foundation recovery was outside the approved early US session or had untrusted provenance. No PAPER opening proof or usable quotes were collected."
+          exit 1
 
       - name: Reject missed scheduled market-open window
         if: always() && github.event_name == 'schedule' && steps.schedule_guard.outcome == 'failure'
