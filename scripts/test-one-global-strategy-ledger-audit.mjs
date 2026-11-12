@@ -80,6 +80,37 @@ const fakeSources=structuredClone(exit.paperLedger);
 fakeSources.events[0].evidenceFamilies=["alpha","alpha"];rehash(fakeSources);
 assert.equal(audit({ledger:fakeSources,nowIso:nextAt}).reason,"UNATTRIBUTED_VIRTUAL_SOURCE_LABELS",
   "Self-hash cannot turn correlated source labels into independent receipts");
+
+for (const [label, families] of [
+  ["case-only duplicate",["alpha","ALPHA"]],
+  ["leading-space duplicate",["alpha"," alpha"]],
+  ["trailing-space duplicate",["alpha","alpha "]],
+  ["case-and-whitespace duplicate",["alpha"," ALPHA "]],
+  ["duplicate hidden among three",["alpha","beta","BETA"]],
+  ["repeated third family",["alpha","beta","beta"]],
+  ["blank family",["alpha","   "]],
+  ["embedded whitespace",["alpha","beta provider"]],
+  ["control character",["alpha","beta\\n"]],
+  ["Unicode lookalike",["alpha","betа"]],
+  ["excessive family count",Array.from({length:9},(_,i)=>"provider-"+i)],
+]) {
+  const forged=structuredClone(exit.paperLedger);
+  forged.events[0].evidenceFamilies=families;
+  rehash(forged);
+  const verdict=audit({ledger:forged,nowIso:nextAt});
+  assert.equal(verdict.valid,false,label);
+  assert.equal(verdict.reason,"UNATTRIBUTED_VIRTUAL_SOURCE_LABELS",label);
+  assert.equal(verdict.forwardStrategyCertificationCredit,0,label);
+}
+const mixedCaseDistinct=structuredClone(exit.paperLedger);
+mixedCaseDistinct.events[0].evidenceFamilies=["Alpha","BETA"];
+rehash(mixedCaseDistinct);
+const normalized=audit({ledger:mixedCaseDistinct,nowIso:nextAt});
+assert.equal(normalized.valid,true,"distinct provider identifiers may use presentation case");
+assert.deepEqual(normalized.observedVirtualSourceFamilies,["alpha","beta"]);
+assert.equal(normalized.hasIndependentlyAuthenticatedExecutionReceipts,false);
+assert.equal(normalized.forwardStrategyCertificationCredit,0);
+
 const fakeStrategy=structuredClone(exit.paperLedger);
 fakeStrategy.events[0].intentId="external-paper-buy";rehash(fakeStrategy);
 assert.equal(audit({ledger:fakeStrategy,nowIso:nextAt}).reason,"NON_STRATEGY_OR_LIVE_EVENT");
