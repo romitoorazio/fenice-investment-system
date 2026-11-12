@@ -3,7 +3,7 @@
  * No broker or licensed equities data; no keys; no FX rate exposed to public
  * logs. Use --output=/absolute/private/file.json ONLY for local private use.
  */
-import {readFileSync,realpathSync,existsSync,writeFileSync} from "node:fs";
+import {realpathSync,existsSync,writeFileSync} from "node:fs";
 import {dirname,resolve,isAbsolute,sep} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
