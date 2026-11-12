@@ -5,7 +5,7 @@ import {join,resolve} from "node:path";
 import {spawnSync} from "node:child_process";
 import {
  FREE_WORLD_FILE_MARKETS,EURONEXT_FREE_MICS,parseWorldDelimited,
- readFreeWorldEodCsv,readEuronextTradeCsv,unzipSingleFreeWorldCsv,
+ readFreeWorldEodCsv,readEuronextTradeCsv,unzipSingleFreeWorldCsv,euronextDelayedEquitiesZipUrl,
 } from "../lib/market/one-global-free-world-file.mjs";
 const base={mic:"XMIL",symbol:"BAMI",currency:"EUR",sessionDate:"2026-11-13",
   providerId:"public-eod-test",sourceUrl:"https://example.org/daily.csv"};
@@ -25,6 +25,9 @@ assert(FREE_WORLD_FILE_MARKETS.XTKS&&FREE_WORLD_FILE_MARKETS.XASX
   &&FREE_WORLD_FILE_MARKETS.XHKG&&FREE_WORLD_FILE_MARKETS.XNYS
   &&FREE_WORLD_FILE_MARKETS.XNSE&&FREE_WORLD_FILE_MARKETS.XJSE);
 assert(EURONEXT_FREE_MICS.includes("XMIL"));
+assert.equal(euronextDelayedEquitiesZipUrl("XMIL"),
+ "https://marketdata.euronext.com/data-reporting-service/trades-file/download/EQUITIES/PREVIOUS_TRADING_DAY/MIL");
+assert.throws(()=>euronextDelayedEquitiesZipUrl("XASX"),/FREE_WORLD_FILE_/);
 assert.equal(parseWorldDelimited("Symbol;Company\nBAMI;\"Banco, BPM\"\n",";")[1][1],"Banco, BPM");
 assert.throws(()=>parseWorldDelimited("a,b\n\"oops,2\n"),/UNCLOSED_CSV_QUOTE/);
 const bad=(csv,metadata=base)=>assert.throws(()=>readFreeWorldEodCsv({csv,metadata}),/FREE_WORLD_FILE_/);
