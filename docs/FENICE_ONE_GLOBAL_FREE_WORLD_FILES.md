@@ -17,6 +17,14 @@ Official free publisher surfaces:
 
 The parser supports other ISO MIC codes for research, without claiming source certification.
 
+## Optional official Euronext fetch (seven venues, free delayed trade ZIP)
+
+The repository now includes an explicit, bounded download of the PREVIOUS_TRADING_DAY equities file from the official marketdata.euronext.com domain, no key and no broker:
+
+    node scripts/fetch-one-global-euronext-free-zip.mjs --mic=XMIL --output=/private/euronext-milan.zip --commit
+
+The fetch fails closed on redirect, HTTP error, unexpected content, oversize or invalid ZIP/CSV schema. It NEVER uploads market data to GitHub. Its URL pattern reflects the provider download UI and may change; successful end-to-end access has not been proven on an authorized host. Respect publisher usage/distribution terms. The resulting ZIP is fed to the private research import command below. This is NOT an official closing auction datafeed and it is not an automatic job with private storage provisioned.
+
 ## Local import; data stays private
 
 Take downloaded files from the publisher and keep them outside the public GitHub repository. A ZIP must contain exactly one CSV member (header/CRC/size checks); for other ZIPs extract the relevant CSV yourself after verifying its content.
@@ -33,7 +41,7 @@ Without --commit: dry-run and metadata-only status. With --commit: new private f
 
 ## Proof boundary
 
-- This intake does not fetch automatically or create paid accounts. It reads existing local CSV/ZIP files.
+- Only an optional explicit Euronext ZIP fetch has been added. Other markets use existing local CSV/ZIP files. No automatic daily pipeline, private hosting or paid accounts are created.
 - Euronext delayed trading reports: tradePrintCount only. Never infer the certified closing auction from last print or from an arbitrary transaction.
 - Generic EOD CSV: referenceCloseLocal only for research; venueAndSymbolIndependentlyCertified=false, providerRightsIndependentlyCertified=false, verifiedOfficialClose=false, paperEligible=false, independentProviderReceipts=0.
 - Merely labeling a source as official in a command does not authenticate the data or give trading/data rights.
