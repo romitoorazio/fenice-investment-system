@@ -2,19 +2,9 @@ name: Fenice PAPER V6 Campaign Observer
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      # Canonical daily validation is the source of truth for campaign days.
-      # Probe-only listening missed ordinary days with no qualifying signal.
-      - Fenice Paper Validation
-      - Fenice PAPER Validation Probe Cycle
-    types:
-      - completed
-  schedule:
-    # Read-only every calendar day. The original campaign matures Sunday
-    # 2026-10-25T15:40:35Z; a weekdays-only cron would miss that deadline.
-    # 21:15 UTC remains safely after cash close in both US DST regimes.
-    - cron: "15 21 * * *"
+  # Legacy V6 retired on 10 November 2026. Do not schedule or subscribe the
+  # expired campaign to unrelated actions; retain explicit manual forensic
+  # review with its real kill-switch alerts and original report intact.
   pull_request:
     branches:
       - main
@@ -39,28 +29,42 @@ permissions:
 
 concurrency:
   group: fenice-paper-v6-campaign-observer-${{ github.ref }}
-  # A Sunday checkpoint or successful canonical completion must never cancel
-  # another observer mid-audit. Read-only overlap is safer than losing evidence.
+  # Manual forensic checks and code regressions must not cancel one another.
   cancel-in-progress: false
 
 jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout inspected revision without write credentials
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate historical maturity and archive isolation policy
+        run: |
+          node scripts/test-paper-v6-campaign-runway.mjs
+          node scripts/test-paper-v6-observer-integrity.mjs
+          node scripts/test-paper-v6-observer-orchestration.mjs
+          node scripts/test-one-global-legacy-retirement.mjs
+          node scripts/scan-repository-secrets.mjs
+
   observe:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository &&
-       (github.event.workflow_run.name == 'Fenice Paper Validation' ||
-        github.event.workflow_run.name == 'Fenice PAPER Validation Probe Cycle') &&
-       (github.event.workflow_run.event == 'schedule' ||
-        github.event.workflow_run.event == 'workflow_dispatch'))
+    # A manual historical audit may still fail on a real V6 kill switch:
+    # never turn that historical red alert into a green certified PAPER day.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout inspected revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+          ref: main
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -73,7 +77,7 @@ jobs:
       - name: Verify certified safe-day counts and expired queue quarantine
         run: node scripts/test-paper-v6-observer-integrity.mjs
 
-      - name: Verify exact 30-day maturity checkpoint and trusted event provenance
+      - name: Verify exact 30-day historical maturity and manual-only archive policy
         run: node scripts/test-paper-v6-observer-orchestration.mjs
 
       - name: Report PAPER V6 campaign and certification maturity
