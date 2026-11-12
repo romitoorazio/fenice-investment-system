@@ -3,10 +3,10 @@
  * ledger writes. --commit is explicit and only changes a private file outside
  * the Git repository. The wall clock is taken here (not from event JSON).
  */
-import {existsSync,realpathSync,readFileSync,writeFileSync,mkdirSync,renameSync,unlinkSync} from "node:fs";
+import {existsSync,realpathSync,readFileSync} from "node:fs";
 import {resolve,dirname,isAbsolute,sep} from "node:path";
 import {fileURLToPath} from "node:url";
-import {randomUUID} from "node:crypto";
+import {commitOneGlobalPrivateEodLedger} from "../lib/trading/one-global-eod-private-store.mjs";
 import {
   newOneGlobalEodPaperLedger,replayOneGlobalEodPaperLedger,
   recordOneGlobalEodSignal,settleOneGlobalEodSignal,summarizeOneGlobalEodPaper,
@@ -62,14 +62,11 @@ const ledger=evaluated.ledger;
 replayOneGlobalEodPaperLedger(ledger);
 const report=summarizeOneGlobalEodPaper(ledger);
 if(commit){
-  const tmp=ledgerPath+"."+randomUUID()+".tmp";
-  try{
-    writeFileSync(tmp,JSON.stringify(ledger,null,2)+"\n",{mode:0o600,flag:"wx"});
-    renameSync(tmp,ledgerPath);
-  }catch(error){
-    try{unlinkSync(tmp)}catch{}
-    throw error;
-  }
+  // CBA and BAMI may settle in separate processes. Never overwrite a
+  // concurrent PAPER fill simply because an older snapshot was read first.
+  commitOneGlobalPrivateEodLedger({
+    ledgerPath,expectedLedger:previous,nextLedger:ledger,
+  });
 }
 console.log(JSON.stringify({
   mode:"ONE_GLOBAL_EOD_PRIVATE_PAPER",
