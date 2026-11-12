@@ -40,27 +40,34 @@ assert.equal(runway.postExpiryObservationAllowed,true);
 assert.equal(runway.campaignMaturityRequiresActiveApproval,false);
 assert.equal(runway.approvalScope,"NEW_PAPER_PROBES_ONLY");
 
-// Observer must run after the exact Sunday milestone, even if GitHub skips
-// the weekend PAPER job. No new PAPER attempts are authorized by the observer.
-assert.match(workflow,/- cron: "15 21 \* \* \*"/);
-assert.doesNotMatch(workflow,/- cron: "15 21 \* \* 1-5"/);
-assert.match(workflow,/workflow_run:\n\s+workflows:\n[\s\S]*?-\s+Fenice Paper Validation\n[\s\S]*?-\s+Fenice PAPER Validation Probe Cycle\n[\s\S]*?types:\n\s+-\s+completed/);
+// The original 30-day Sunday checkpoint is in the past. V6 expired,
+// the WRITERS have been retired, and the historical kill switch must stay
+// observable only by a deliberate manual forensic run. No automatic fanout.
+assert.match(workflow, /^  workflow_dispatch:/m,
+  "manual forensic observer must remain available");
+assert.doesNotMatch(workflow, /^  schedule:/m,
+  "retired V6 observer must not run every day and generate obsolete failures");
+assert.doesNotMatch(workflow, /^  workflow_run:/m,
+  "retired V6 must not subscribe to old canonical/probe completions");
 const observe=workflow.split("\n  observe:\n")[1]?.split("\n    runs-on:")[0]||"";
 assert.ok(observe);
-assert.match(observe,/github\.event\.workflow_run\.conclusion == 'success'/);
-assert.match(observe,/github\.event\.workflow_run\.head_branch == 'main'/);
-assert.match(observe,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
-assert.match(observe,/github\.event\.workflow_run\.name == 'Fenice Paper Validation'/);
-assert.match(observe,/github\.event\.workflow_run\.name == 'Fenice PAPER Validation Probe Cycle'/);
-assert.match(observe,/github\.event\.workflow_run\.event == 'schedule'/);
-assert.match(observe,/github\.event\.workflow_run\.event == 'workflow_dispatch'/);
+assert.match(observe, /if: github\.event_name == 'workflow_dispatch'/);
+const regression=workflow.split("\n  regression:\n")[1]?.split("\n  observe:\n")[0]||"";
+assert.ok(regression);
+assert.match(regression, /github\.event_name == 'pull_request' \|\| github\.event_name == 'push'/);
+assert.match(regression, /node scripts\/test-one-global-legacy-retirement\.mjs/);
+assert.match(regression, /node scripts\/test-paper-v6-observer-integrity\.mjs/);
+assert.doesNotMatch(regression, /node scripts\/report-paper-v6-progress\.mjs/,
+  "routine PR/push regression must never re-evaluate an archived V6 alert");
+assert.match(workflow, /ref: main\n\s+persist-credentials: false/,
+  "manual archived forensic audit must run trusted main without persisted credentials");
 assert.match(workflow,/permissions:\n\s+contents: read/);
 assert.match(workflow,/cancel-in-progress: false/);
-assert.match(workflow,/ref: \$\{\{ github\.event_name == 'workflow_run' && 'main' \|\| github\.sha \}\}/);
+
 assert.match(workflow,/run: node scripts\/report-paper-v6-progress\.mjs/);
 assert.match(workflow,/run: node scripts\/test-paper-v6-observer-integrity\.mjs/);
 assert.match(workflow,/run: node scripts\/test-paper-v6-observer-orchestration\.mjs/);
 assert.match(workflow,/run: \|\n\s+test -z "\$\(git status --porcelain\)"/);
 assert.match(workflow,/retention-days: 35/);
 
-console.log("FENICE V6 observation after original approval expiry: PASS; Sunday 30-day milestone observed without new probes or LIVE privileges.");
+console.log("FENICE retired V6 observer: manual-only forensic audit, no automatic dispatch, immutable history and LIVE lock PASS.");
