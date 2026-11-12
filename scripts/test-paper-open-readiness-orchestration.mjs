@@ -93,8 +93,26 @@ assert.match(workflow, /cancel-in-progress: false/,
   "Foundation cannot cancel a scheduled opening audit");
 assert.match(workflow, /ref:.*github\.event_name == 'workflow_run' && 'main' \|\| github\.sha/,
   "workflow_run must checkout trusted main rather than the upstream event sha");
-assert.match(workflow, /if: always\(\) && github\.event_name == 'workflow_run' && steps\.schedule_guard\.outcome == 'failure'/,
-  "untrusted or late Foundation recovery must be documented but must not pretend it checked the opening");
+// schedule_guard deliberately continues on error to upload its evidence,
+// but failed Foundation recovery must finish RED. Otherwise a no-proof
+// readiness run cascades as "success" into the frozen V8 execution lab.
+const recoveryFinal = workflow.slice(
+  workflow.indexOf("- name: Reject refused Foundation recovery without PAPER opening proof"),
+  workflow.indexOf("- name: Reject missed scheduled market-open window"),
+);
+assert.match(recoveryFinal,
+  /if: always\(\) && github\.event_name == 'workflow_run' && steps\.schedule_guard\.outcome == 'failure'/,
+  "Refused Foundation recovery must be handled even if prior audit failed");
+assert.match(recoveryFinal, /exit 1/,
+  "Invalid recovery must terminate red, not green with skipped quote requests");
+assert(workflow.indexOf("- name: Upload readiness evidence")
+  < workflow.indexOf("- name: Reject refused Foundation recovery"),
+  "Keep scheduler/no-quote artifacts before explicit refusal");
+const labWorkflow=await readFile(path.join(root,".github/workflows/paper-execution-lab.yml"),"utf8");
+assert.match(labWorkflow,
+  /github\.event\.workflow_run\.conclusion == 'success'/,
+  "V8 lab must refuse an invalid readiness recovery's downstream observe");
+
 
 assert.match(workflow, /if: always\(\) && github\.event_name == 'schedule' && steps\.schedule_guard\.outcome == 'failure'[\s\S]*?exit 1/, "late market-open checks must never finish green");
 
