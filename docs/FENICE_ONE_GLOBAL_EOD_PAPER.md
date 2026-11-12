@@ -79,7 +79,7 @@ Durante il controllo reale del 12 novembre 2026, il servizio SDMX BCE non ha for
 
 Il 12 novembre, prima dei due settlement del giorno successivo, e stato aggiunto un controllo
 **separato e di sola lettura** per gli orari regolari XMIL (09:00–17:40 ora Roma)
-e XASX (10:00–16:10 ora Sydney). Confronta:
+e XASX (asta apertura dalle 09:59, asta chiusura fino alle 16:11 ora Sydney). Confronta:
 - data della barra di riferimento e sua effettiva data locale;
 - ordine temporale close → pubblicazione → registrazione;
 - decisione successiva alla chiusura del riferimento;
