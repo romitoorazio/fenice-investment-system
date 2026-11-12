@@ -1,0 +1,99 @@
+name: Fenice ONE GLOBAL Forward EOD Private PAPER
+
+# Isolated EOD pilot: never changes V8, B2/V6, Phase 9 or Directa.
+# GitHub Actions never imports private prices, contracts or owner consent.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/trading/one-global-eod-paper.mjs"
+      - "scripts/run-one-global-eod-private.mjs"
+      - "scripts/report-one-global-eod-paper-readiness.mjs"
+      - "scripts/test-one-global-eod-paper.mjs"
+      - "scripts/test-one-global-eod-readiness.mjs"
+      - ".github/workflows/one-global-eod-private-paper.yml"
+      - "docs/FENICE_ONE_GLOBAL_EOD_PAPER.md"
+  push:
+    branches: [main]
+    paths:
+      - "lib/trading/one-global-eod-paper.mjs"
+      - "scripts/run-one-global-eod-private.mjs"
+      - "scripts/report-one-global-eod-paper-readiness.mjs"
+      - "scripts/test-one-global-eod-paper.mjs"
+      - "scripts/test-one-global-eod-readiness.mjs"
+      - ".github/workflows/one-global-eod-private-paper.yml"
+  schedule:
+    # After Europe/US close and following existing worldwide EOD research.
+    - cron: "15 0 * * 2-6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-one-global-eod-public-readiness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Test prospective EOD signals and private simulation accounting
+        run: node scripts/test-one-global-eod-paper.mjs
+      - name: Test safe worldwide metadata and private path guards
+        run: node scripts/test-one-global-eod-readiness.mjs
+      - name: Scan for accidentally committed credentials
+        run: node scripts/scan-repository-secrets.mjs
+
+  safe-diagnostic-only:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout trusted main without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check EOD private-paper safety before publishing metadata
+        run: |
+          node scripts/test-one-global-eod-paper.mjs
+          node scripts/test-one-global-eod-readiness.mjs
+      - name: Classify source blockers without raw quotes or contracts
+        env:
+          OUT: ${{ runner.temp }}/fenice-eod-readiness.json
+        run: |
+          node scripts/report-one-global-eod-paper-readiness.mjs --output="$OUT"
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const p=JSON.parse(fs.readFileSync(process.env.OUT,"utf8"));
+          if(p.liveTradingAllowed!==false||p.brokerConnectivityAllowed!==false||
+            p.certifiedForwardTrades!==0||p.phase9Credit!==0||
+            p.autoPaperExecutionEnabled!==false||
+            p.privatePricesStoredInPublicRepository!==false||
+            p.privateLedger?.phase9Credit!==0||
+            p.observation?.some(x=>x.virtualFillsCertified!==0)||
+            Object.hasOwn(p,"rawClose")||Object.hasOwn(p,"price"))
+            throw Error("UNSAFE_EOD_METADATA_PUBLICATION");
+          console.log("Metadata only. Private EOD PAPER awaits owner and market-data rights approval.");
+          NODE
+      - name: Retain safe metadata report, never private market evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-one-global-eod-readiness
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/fenice-eod-readiness.json
