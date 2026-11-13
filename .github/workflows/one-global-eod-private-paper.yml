@@ -22,6 +22,9 @@ on:
       - "lib/market/one-global-first-paper-dual-eod.mjs"
       - "scripts/collect-one-global-first-paper-dual-eod.mjs"
       - "scripts/test-one-global-first-paper-dual-eod.mjs"
+      - "lib/trading/one-global-observed-paper.mjs"
+      - "scripts/run-one-global-observed-paper.mjs"
+      - "scripts/test-one-global-observed-paper.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -53,6 +56,9 @@ on:
       - "lib/market/one-global-first-paper-dual-eod.mjs"
       - "scripts/collect-one-global-first-paper-dual-eod.mjs"
       - "scripts/test-one-global-first-paper-dual-eod.mjs"
+      - "lib/trading/one-global-observed-paper.mjs"
+      - "scripts/run-one-global-observed-paper.mjs"
+      - "scripts/test-one-global-observed-paper.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -112,6 +118,7 @@ jobs:
         run: |
           node scripts/test-one-global-free-world-file.mjs
           node scripts/test-one-global-first-paper-dual-eod.mjs
+          node scripts/test-one-global-observed-paper.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -142,6 +149,7 @@ jobs:
           node scripts/test-one-global-ecb-aud.mjs
           node scripts/test-one-global-free-world-file.mjs
           node scripts/test-one-global-first-paper-dual-eod.mjs
+          node scripts/test-one-global-observed-paper.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
