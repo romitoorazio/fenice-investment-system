@@ -154,3 +154,13 @@ La pagina pubblica `https://www.borsaitaliana.it/borsa/azioni/listino-ufficiale.
 - pubblica soltanto lo stato `TWO_PUBLISHERS_CONCORDANT_RESEARCH_ONLY`, `REFERENCE_SESSION_OR_YAHOO_BAR_MISSING`, `PRICE_DIVERGENCE_DIAGNOSTIC_ONLY` o l'errore esplicito della fonte, più data e hash della pagina; **non** pubblica prezzi, HTML o documenti dei provider.
 
 Questa verifica è **diagnostica**, non una ricevuta PAPER: due siti non provano che vi siano due upstream indipendenti o diritti di utilizzo per la simulazione automatica. I termini Euronext indicano gratuito l'uso interno dei dati ritardati (https://www.euronext.com/en/data/real-time-data/pricing-specs-agreements/market-data-pricing-policies), ma occorre controllare le condizioni applicabili alla specifica pagina/servizio e al non-display. Il provider Yahoo rimane research-only. Mancano ancora consenso privato, doppia prova ammissibile, verifica del ledger e un segnale cronologicamente valido. Nessuna operazione sul broker.
+
+## Ripristino guidato del segnale privato Banco BPM intraday
+
+La correzione `CANCEL` conservativa è disponibile nel motore e il runner locale ora permette, **senza copiare l'hash originale**, una ricerca del solo segnale pendente `XMIL:BAMI` nel ledger privato autentico:
+
+`node scripts/run-one-global-eod-private.mjs --cancel-invalid-bami --ledger=/percorso/privato/eod-ledger.json`
+
+È **dry-run**: effettua replay crittografico e tenta di calcolare esattamente un evento append-only `CANCEL`, ma non scrive alcun file. Se manca il ledger privato, non esiste un BAMI pendente, sono presenti più candidati, il segnale è temporalmente valido oppure l'evento non rispetta l'audit EOD, il comando fallisce e non crea un nuovo segnale.
+
+Soltanto dopo aver ispezionato il risultato del dry-run e il file privato originale, lo stesso comando con `--commit` può scrivere **un solo evento**, con lock, compare-and-swap e rename privato; non tocca il ledger pubblico, non annulla CBA, non elimina eventi e non modifica saldo, posizioni o Directa. Il tool rifiuta di combinare questa modalità con un evento, un consenso o un FX esterni. Resta impossibile eseguire il comando dal solo GitHub pubblico: il proprietario deve avere accesso al suo ledger privato sul computer autorizzato. Nessun BUY PAPER viene creato dall'annullamento.
