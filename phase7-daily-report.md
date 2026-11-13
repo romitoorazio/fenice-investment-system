@@ -1,15 +1,16 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-12T15:59:24.884Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-13T15:24:32.831Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
 
 | Posizione | Borsa | Strumento | Punteggio | Stato |
 |---:|---|---|---:|---|
-| 1 | XTKS | XTKS:7203 | 12.7618 | Virtuale aperta |
-| 2 | XNSE | XNSE:RELIANCE | 6.4208 | Virtuale aperta |
-| 3 | XETR | XETR:SAP | 1.3293 | Da osservare |
+| 1 | XNSE | XNSE:RELIANCE | 6.3115 | Virtuale aperta |
+| 2 | XTKS | XTKS:7203 | 1.7980 | Virtuale aperta |
+| 3 | XNYS | XNYS:JPM | 1.2517 | Da osservare |
+| 4 | XETR | XETR:SAP | 0.7952 | Da osservare |
 
 ## Portafoglio forward (simulazione non certificata)
 - Posizioni aperte: **3**; chiuse: **0**
@@ -19,7 +20,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 - Rischio: **ACTIVE**; nuove posizioni virtuali: sottoposte ai limiti
 
 ## Backtest distinto dal forward
-- Risultato storico: **−€10,70** (non va sommato al forward)
+- Risultato storico: **−€1,81** (non va sommato al forward)
 
 ## Trasparenza
 - Fonte: Yahoo Finance pubblico non attestato; cambi BCE indicativi
@@ -27,7 +28,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 - Prezzi non eseguibili; nessun fill PAPER certificato e nessun ordine Directa
 
 ## Avvisi
-- WAIT_NEXT_POST_SIGNAL_SETTLED_BAR
+- WAITING_FOR_FIVE_LATER_SETTLED_SESSIONS
 
 ## Registri originali
 - [Registro forward](phase5-forward-ledger.json)
