@@ -73,7 +73,7 @@ const historicalInputs=[];
 for(const venue of venues){
   if(!network){
     let observation={venue,ticker:EOD_PILOTS[venue].ticker,region:EOD_PILOTS[venue].region,
-      status:networkRequested?"ALPHA_VANTAGE_KEY_UNAVAILABLE":"NETWORK_NOT_AUTHORIZED",
+      status:key&&!networkRequested?"NETWORK_NOT_AUTHORIZED":"ALPHA_VANTAGE_KEY_UNAVAILABLE",
       researchSignal:"NO_SIGNAL",paperFillCount:0,licensedPaperSource:false,
       liveTradingAllowed:false,rawPricePublished:false};
     if(venue==="XMIL"&&networkRequested){
