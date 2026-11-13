@@ -54,8 +54,25 @@ assert.equal(EOD_PILOTS.XMIL.isin,"IT0005218380");
 assert.equal(EOD_PILOTS.XMIL.mic,"XMIL");
 assert.equal(EOD_PILOTS.XMIL.alphaDirectResearchCandidate,"BAMI.MIL");
 const wrongIssuer={...payload,"Meta Data":{"2. Symbol":"ENEL.MIL"}};
-assert.equal(evaluateEodResearch("XMIL",target,wrongIssuer,now).status,"RETURNED_SYMBOL_MISMATCH",
+const rejectedIssuer=evaluateEodResearch("XMIL",target,wrongIssuer,now);
+assert.equal(rejectedIssuer.status,"RETURNED_SYMBOL_MISMATCH",
  "Enel bars cannot ever be re-labeled as Banco BPM");
+assert.equal(rejectedIssuer.providerReportedSymbol,"ENEL.MIL");
+assert.equal(rejectedIssuer.providerIdentityMismatchKind,"DIFFERENT_TICKER");
+assert.equal(rejectedIssuer.paperFillCount,0);
+assert.equal(rejectedIssuer.providerSymbolConfirmed,false);
+const aliasReport=evaluateEodResearch("XMIL",target,{
+  ...payload,"Meta Data":{"2. Symbol":"BAMI.MI"},
+},now);
+assert.equal(aliasReport.status,"RETURNED_SYMBOL_MISMATCH");
+assert.equal(aliasReport.providerIdentityMismatchKind,"SAME_TICKER_DIFFERENT_SYMBOL");
+assert.equal(aliasReport.providerReportedSymbol,"BAMI.MI");
+assert.equal(aliasReport.paperFillCount,0);
+const invalidMeta=evaluateEodResearch("XMIL",target,{
+  ...payload,"Meta Data":{"2. Symbol":"<script>alert(1)</script>"},
+},now);
+assert.equal(invalidMeta.providerReportedSymbol,null);
+assert.equal(invalidMeta.providerIdentityMismatchKind,"UNAVAILABLE_OR_INVALID_METADATA");
 assert.equal(evaluateEodResearch("XMIL",target,{
   ...payload,"Meta Data":{"2. Symbol":" BAMI.MIL "},
 },now).status,"COMPLETE_EOD_RESEARCH",
