@@ -26,13 +26,17 @@ function privateFile(arg,required=true){
 const args=Object.fromEntries(process.argv.slice(2).filter(x=>x.startsWith("--")&&x.includes("="))
   .map(x=>{const j=x.indexOf("=");return [x.slice(2,j),x.slice(j+1)];}));
 const commit=process.argv.includes("--commit");
+const recoverInvalidBami=process.argv.includes("--cancel-invalid-bami");
 if(process.argv.includes("--help")){
   console.log("Usage: node scripts/run-one-global-eod-private.mjs --event=/private/event.json --ledger=/private/eod-ledger.json [--authority=/private/consent.json] [--fx=/private/ECB_AUD.json] [--commit]");
   console.log("Use kind=CANCEL with a pending signalHash only for a rejected XMIL/XASX prospective window.");
+  console.log("Safe private BAMI recovery: --cancel-invalid-bami --ledger=/private/eod-ledger.json [--commit]; no event/hash required.");
   console.log("Default is DRY-RUN. --commit modifies ONLY the named private ledger, never GitHub or Directa.");
   process.exit(0);
 }
-const eventPath=privateFile(args.event);
+if(recoverInvalidBami&&(args.event||args.authority||args.fx))
+  throw Error("EOD_BAMI_CANCEL_CANNOT_COMBINE_WITH_EVENT_OR_AUTHORITY");
+const eventPath=recoverInvalidBami?null:privateFile(args.event);
 const ledgerPath=privateFile(args.ledger);
 const authorityPath=privateFile(args.authority,false);
 const fxPath=privateFile(args.fx,false);
@@ -42,8 +46,15 @@ const parse=path=>{
   return JSON.parse(bytes.toString("utf8"));
 };
 const previous=existsSync(ledgerPath)?parse(ledgerPath):newOneGlobalEodPaperLedger();
-replayOneGlobalEodPaperLedger(previous);
-const event=parse(eventPath),nowIso=new Date().toISOString();
+const previousState=replayOneGlobalEodPaperLedger(previous);
+const recoverableBami=previous.events.filter(e=>e.kind==="SIGNAL"&&e.key==="XMIL:BAMI"
+  &&previousState.pendingSignals.includes(e.key));
+if(recoverInvalidBami&&recoverableBami.length!==1)
+  throw Error("EOD_BAMI_MUST_HAVE_EXACTLY_ONE_PENDING_SIGNAL");
+const event=recoverInvalidBami
+  ?{kind:"CANCEL",signalHash:recoverableBami[0].hash}
+  :parse(eventPath);
+const nowIso=new Date().toISOString();
 let evaluated;
 if(event?.kind==="SIGNAL"){
   evaluated=recordOneGlobalEodSignal({
@@ -81,7 +92,8 @@ if(commit){
 }
 console.log(JSON.stringify({
   mode:"ONE_GLOBAL_EOD_PRIVATE_PAPER",
-  action:event.kind,committedToPrivateDisk:commit,
+  action:event.kind,autoDetectedInvalidBami:recoverInvalidBami,
+  committedToPrivateDisk:commit,
   newJournalEvents:ledger.events.length-previous.events.length,
   virtualBuys:report.virtualBuys,virtualSells:report.virtualSells,
   closedVirtualRoundTrips:report.closedVirtualRoundTrips,
