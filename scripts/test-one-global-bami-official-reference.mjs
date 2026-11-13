@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseBamiOfficialReferencePage as parse,fetchBamiOfficialReference,
- BAMI_OFFICIAL_PAGE} from "../lib/market/one-global-bami-official-reference.mjs";
+ BAMI_OFFICIAL_PAGE,compareBamiOfficialReferenceToYahoo as compare} from "../lib/market/one-global-bami-official-reference.mjs";
 const at="2026-11-13T12:00:00.000Z";
 const page=(date="12/11/26",price="14,67",isin="IT0005218380",ticker="BAMI")=>
   `<!DOCTYPE html><html><body><h1>Banco Bpm</h1>
@@ -54,6 +54,19 @@ assert.equal(fake.privateClose,14.67);
 const blocked=await fetchBamiOfficialReference({nowIso:at,httpFetch:async()=>{throw Error("blocked")}});
 assert.equal(blocked.public.status,"OFFICIAL_PAGE_NETWORK_UNAVAILABLE");
 assert.equal(blocked.privateClose,null);
+const compared=compare(good,[{date:"2026-11-12",close:14.66}]);
+assert.equal(compared.status,"TWO_PUBLISHERS_CONCORDANT_RESEARCH_ONLY");
+assert.equal(compared.independentPriceReceiptsAdmitted,0);
+assert.equal(compared.marketDataRightsCertified,false);
+assert.equal(compared.officialCloseCertifiedForPaper,false);
+assert(!JSON.stringify(compared).includes("14.66"));
+assert(!JSON.stringify(compared).includes("14.67"));
+assert.equal(compare(good,[{date:"2026-11-11",close:14.66}]).status,
+ "REFERENCE_SESSION_OR_YAHOO_BAR_MISSING");
+assert.equal(compare(good,[{date:"2026-11-12",close:12.6}]).status,
+ "PRICE_DIVERGENCE_DIAGNOSTIC_ONLY");
+assert.equal(compare(blocked,[{date:"2026-11-12",close:14.66}]).status,
+ "OFFICIAL_REFERENCE_NOT_READY");
 const runner=readFileSync("scripts/run-world-v7-eod-research.mjs","utf8");
 assert.match(runner,/fetchBamiOfficialReference/);
 assert.match(runner,/bamiOfficialCloseCrosscheck/);
