@@ -14,10 +14,13 @@ export function buildWorldEodPaperReadiness({eod,nowIso}){
     eod?.mode!=="WORLD_V7_EOD_RESEARCH_ONLY"||
     eod?.liveTradingAllowed!==false||eod?.realtimePaperEligible!==false)
     throw Error("EOD_READINESS_SOURCE_INVALID");
+  const ageHours=(date-generated)/3600000;
+  const researchStale=ageHours>24;
   const rows=venues.map(mic=>{
     const x=eod.records?.[mic],status=nonBlank(x?.status)?x.status:"NO_SOURCE_DATA";
     const blockers=[];
     if(!allowedStatuses.has(status))blockers.push("NO_USABLE_COMPLETED_DAILY_RESEARCH");
+    if(researchStale)blockers.push("EOD_RESEARCH_SNAPSHOT_STALE");
     if(x?.providerSymbolConfirmed!==true)blockers.push("EXACT_PROVIDER_SYMBOL_MAPPING_UNCONFIRMED");
     if(x?.exactMicCertified!==true)blockers.push("EXACT_EXCHANGE_MIC_UNVERIFIED");
     if(x?.licensedPaperSource!==true)blockers.push("PERSONAL_PAPER_DATA_RIGHTS_UNVERIFIED");
@@ -25,13 +28,13 @@ export function buildWorldEodPaperReadiness({eod,nowIso}){
     blockers.push("EXPLICIT_PRIVATE_EOD_SIMULATION_APPROVAL_REQUIRED");
     return {mic,status,lastCompleteBarDate:x?.lastCompleteBarDate||null,
       providerSymbolMatched:x?.providerSymbolConfirmed===true,
-      blockers,availableAsResearchOnly:allowedStatuses.has(status),
+      blockers,availableAsResearchOnly:allowedStatuses.has(status)&&!researchStale,
       virtualFillsCertified:0,phase9Credit:0};
   });
   return {version:1,generatedAt:nowIso,
     mode:"ONE_GLOBAL_EOD_PRIVATE_PAPER_READINESS_ONLY",
     inputResearchGeneratedAt:eod.generatedAt,
-    inputResearchAgeHours:Math.round((date-generated)/3600000*100)/100,
+    inputResearchAgeHours:Math.round(ageHours*100)/100,
     observation:rows,venuesSupportedByPrivateEngine:[
       "XMIL","XETR","XPAR","XLON","XSWX","XTKS","XHKG","XASX","XNYS","XNAS","XJSE","XSES"],
     initialVirtualCapitalEuro:1000,maxPositionEuro:50,
