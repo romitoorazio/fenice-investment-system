@@ -9,7 +9,8 @@ import {fileURLToPath} from "node:url";
 import {commitOneGlobalPrivateEodLedger} from "../lib/trading/one-global-eod-private-store.mjs";
 import {
   newOneGlobalEodPaperLedger,replayOneGlobalEodPaperLedger,
-  recordOneGlobalEodSignal,settleOneGlobalEodSignal,summarizeOneGlobalEodPaper,
+  recordOneGlobalEodSignal,settleOneGlobalEodSignal,cancelOneGlobalEodInvalidSignal,
+  summarizeOneGlobalEodPaper,
 } from "../lib/trading/one-global-eod-paper.mjs";
 
 const ROOT=realpathSync(resolve(dirname(fileURLToPath(import.meta.url)),".."));
@@ -27,6 +28,7 @@ const args=Object.fromEntries(process.argv.slice(2).filter(x=>x.startsWith("--")
 const commit=process.argv.includes("--commit");
 if(process.argv.includes("--help")){
   console.log("Usage: node scripts/run-one-global-eod-private.mjs --event=/private/event.json --ledger=/private/eod-ledger.json [--authority=/private/consent.json] [--fx=/private/ECB_AUD.json] [--commit]");
+  console.log("Use kind=CANCEL with a pending signalHash only for a rejected XMIL/XASX prospective window.");
   console.log("Default is DRY-RUN. --commit modifies ONLY the named private ledger, never GitHub or Directa.");
   process.exit(0);
 }
@@ -47,6 +49,10 @@ if(event?.kind==="SIGNAL"){
   evaluated=recordOneGlobalEodSignal({
     previousLedger:previous,nowIso,
     signal:{...event.signal,decisionAt:nowIso},
+  });
+}else if(event?.kind==="CANCEL"){
+  evaluated=cancelOneGlobalEodInvalidSignal({
+    previousLedger:previous,nowIso,signalHash:event.signalHash,
   });
 }else if(event?.kind==="SETTLE"){
   if(!authorityPath)throw Error("EOD_PRIVATE_OWNER_APPROVAL_FILE_REQUIRED");
