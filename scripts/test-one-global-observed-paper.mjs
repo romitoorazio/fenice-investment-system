@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {newOneGlobalObservedPaperLedger,recordOneGlobalObservedPaper,replayOneGlobalObservedPaper} from '../lib/trading/one-global-observed-paper.mjs';
+import {newOneGlobalEodPaperLedger,replayOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const now='2026-11-13T20:35:00.000Z';
 const reference={seq:1,prevHash:'GENESIS',kind:'SIGNAL',recordedAt:'2026-11-12T14:14:42.985Z',signalId:'synthetic-cba-reference',key:'XASX:CBA',mic:'XASX',side:'BUY',currency:'AUD',decisionAt:'2026-11-12T14:14:42.985Z',referenceSessionDate:'2026-11-12',referenceCloseAt:'2026-11-12T05:11:00.000Z',referencePublishedAt:'2026-11-12T11:15:38.865Z',sourceSnapshotHash:'a'.repeat(64),maxNotionalEuro:50,strategyReason:'UPTREND_CONFIRMATION',researchSignalOnly:true,sourceRightsIndependentlyCertified:false,phase9Credit:0,liveTradingAllowed:false,brokerConnectivityAllowed:false};
 const signal={...reference,hash:digest(reference)};
-const original={version:1,mode:'ONE_GLOBAL_FORWARD_EOD_PRIVATE_PAPER_V1',capitalEuro:1000,cashEuro:1000,positions:{},events:[signal],lastHash:signal.hash,phase9Credit:0,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+const original={...newOneGlobalEodPaperLedger(),events:[signal],lastHash:signal.hash};
+assert.equal(replayOneGlobalEodPaperLedger(original).valid,true);
 const price=160,fx=1.6,unit=price/fx*1.0005,units=Math.floor((49/unit+1e-12)*1e6)/1e6,gross=Math.round((units*unit+Number.EPSILON)*10000)/10000;
 const practice={schemaVersion:1,kind:'HYPOTHETICAL_PAPER_PRACTICE_ENTRY',classification:'PAPER_ESERCIZIO_NON_CERTIFICATO',createdAt:'2026-11-13T19:09:17.515Z',linkToOriginalSignal:{key:'XASX:CBA',signalHash:signal.hash,signalRecordedAt:signal.recordedAt,sourceLedgerLastHash:signal.hash},referenceSessionDate:'2026-11-12',executionSessionDate:'2026-11-13',method:'NEXT_COMPLETED_SESSION_CLOSE_PLUS_5BPS_HYPOTHETICAL',researchQuote:{priceAUD:price,source:'Test fixture, not a publisher receipt',url:'https://markets.ft.markitdigital.com/data/equities/tearsheet/historical?s=CBA%3AASX',observedAt:'2026-11-13T19:08:12.110Z',sourceMode:'MANUALLY_REVIEWED_PUBLIC_DISPLAY_RESEARCH_ONLY',independentProviderReceiptsValidated:false,providerRightsApprovedForAutomatedNonDisplay:false},ecbReference:{audPerEur:fx,eurPerAud:1/fx,date:'2026-11-12',series:'EXR.D.AUD.EUR.SP00.A',sourceUrl:'https://www.ecb.europa.eu/',nonTradingReference:true},hypotheticalAccounting:{initialCashEuro:1000,virtualNotionalEuro:gross,virtualShares:units,unitPriceWith5bpsEuro:unit,feesEuro:1,remainingVirtualCashEuro:Math.round((1000-gross-1+Number.EPSILON)*10000)/10000},limitations:{officialEodEngineFill:false,certifiedTrades:0,realBrokerFill:false,liveTradingAllowed:false,brokerConnectivityAllowed:false,independentDataLicenseValidated:false}};
 const signed=x=>({...x,sha256:digest(x)});
@@ -30,7 +32,18 @@ expectReject({practiceEntry:signed({...practice,researchQuote:{...practice.resea
 expectReject({practiceEntry:signed({...practice,ecbReference:{...practice.ecbReference,audPerEur:8}})},/FX_OBSERVATION_INVALID/);
 expectReject({practiceEntry:signed({...practice,researchQuote:{...practice.researchQuote,url:'http://wrong.test'}})},/SOURCE_PROVENANCE_UNEXPECTED/);
 expectReject({nowIso:'2026-11-12T12:00:00.000Z'},/PRACTICE_CHANGED_OR_INVALID/);
-expectReject({originalLedger:{...original,lastHash:'0'.repeat(64)}},/ORIGINAL_LAST_HASH_MISMATCH/);
+expectReject({originalLedger:{...original,lastHash:'0'.repeat(64)}},/LEDGER_REPLAY_ACCOUNT_MISMATCH|ORIGINAL_LAST_HASH_MISMATCH/);
+// Regression: a self-consistent hash chain is not proof that a source EOD
+// SIGNAL respected the strict risk contract. The earlier lightweight source
+// audit accepted this forged oversized SIGNAL and checked only hashes.
+const forgedSignalBody={...reference,maxNotionalEuro:500};
+const forgedSignal={...forgedSignalBody,hash:digest(forgedSignalBody)};
+const forgedOriginal={...newOneGlobalEodPaperLedger(),
+  events:[forgedSignal],lastHash:forgedSignal.hash};
+assert.throws(()=>recordOneGlobalObservedPaper({
+  originalLedger:forgedOriginal,practiceEntry:entry,nowIso:now
+}),/EOD_PAPER_SIGNAL_INVALID_OR_LOOKAHEAD/,
+  "strict source validation must precede observed-paper practice verification");
 const changed=structuredClone(ledger);changed.events[0].grossEuro=0.001;
 assert.throws(()=>replayOneGlobalObservedPaper(changed),/LEDGER_EVENT_INVALID/);
 const changedCash=structuredClone(ledger);changedCash.cashEuro=1000;
