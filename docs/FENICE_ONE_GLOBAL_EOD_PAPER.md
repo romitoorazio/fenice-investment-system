@@ -253,3 +253,51 @@ seduta realmente conclusa e prima della successiva apertura, poi
 registrare il FILL solo con `run-one-global-eod-private.mjs` e un
 consenso specifico valido. L'intervento NON altera V6, V8, B2, Fase 9
 né le autorizzazioni Directa.
+
+
+## Collegamento operativo dal doppio EOD al segnale PAPER rigoroso (13/11/2026)
+
+In precedenza il collettore Alpha Vantage/EODHD produceva soltanto una diagnosi
+research-only: non lasciava un nuovo evento nel journal EOD originale.
+Ora il **collegamento append-only** può creare un vero evento prospettico
+\`SIGNAL\` nel *registro privato del motore rigoroso* a partire dall'osservazione
+EOD di una seduta USA **già completata**, sempre senza comprare né simulare un
+FILL retroattivo.
+
+Regole verificabili:
+- solo AAPL/MSFT/TSLA (Nasdaq), con rapporto privato del collettore doppio;
+- l'osservazione di entrambe le API deve essere coerente (massimo 0,5%);
+- SMA5 maggiore di SMA20 di oltre lo 0,5% e non decrescente;
+- decisione registrata con **l'orologio vero del processo**, nello stesso
+  giorno locale di New York, dopo le 16:20 e al massimo tre ore dopo l'osservazione;
+- chiusura di riferimento alle 16:00 di New York, convertita in UTC in modo
+  compatibile con ora legale e ora solare;
+- i vincoli di origine dati restano \`sourceRightsIndependentlyCertified=false\`
+  e \`researchSignalOnly=true\`, senza anticipare l'approvazione del Comitato;
+- usa \`recordOneGlobalEodSignal\` del motore originale, che rigioca
+  l'intero registro prima/dopo, rifiuta doppioni e limita il nozionale a €50;
+- l'eventuale \`--commit\` utilizza il writer privato con lock esclusivo,
+  confronto-e-scrittura, rename atomico, e non scrive su GitHub.
+
+Esempio, in un ambiente **privato** che ha già le chiavi configurate
+(senza inventare, cambiare o pubblicare credenziali):
+
+\`\`\`bash
+node scripts/collect-one-global-first-paper-dual-eod.mjs --symbol=AAPL --session=2026-11-13 --output=/private/aapl-close.json --commit
+node scripts/run-one-global-postclose-signal.mjs --report=/private/aapl-close.json --ledger=/private/eod-ledger.json
+node scripts/run-one-global-postclose-signal.mjs --report=/private/aapl-close.json --ledger=/private/eod-ledger.json --commit
+\`\`\`
+
+Senza \`--commit\` il secondo comando è un dry-run e non modifica nulla.
+Un nuovo \`SIGNAL\` non è un ordine né un FILL. La sua ammissibilità al
+prossimo settlement dipende dal prezzo della **seduta successiva**, da due
+fonti con upstream autenticati, diritti verificati, calendario di scambio e
+consenso PAPER specifico. È vietato convertire il report di ricerca
+della stessa sessione direttamente in \`SETTLE\`.
+
+Questi controlli sono testati dalla suite
+\`node scripts/test-one-global-postclose-signal.mjs\`. Il test usa solo
+fixture sintetiche marcate come tali. **Non viene ancora fornito un collector
+in esecuzione sul PC privato**, né un segnale reale nuovo viene inventato in CI.
+Il monitor ChatGPT delle 23:30 non sostituisce da solo un processo locale
+autorizzato con dati e ledger originali.
