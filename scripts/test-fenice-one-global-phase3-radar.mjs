@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {buildPhase3GlobalRadar} from "../lib/global/phase3-global-radar.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const mk=(mic,instrumentId,momentum5dPct,stopDistancePct)=>({mic,instrumentId,momentum5dPct,momentum20dPct:3,volatility20dPct:2,spreadPct:.1,lastPrice:20,fxToEur:1,observedAt:nowIso,synthetic:true,stopDistancePct});
+const radar=buildPhase3GlobalRadar({candidates:[mk("XMIL","XMIL:TEST",5,10),mk("XTKS","XTKS:7203",7,10),mk("XETR","XETR:SAP",4,0)],capitalEur:1000,estimatedRoundTripFeesEur:2,nowIso});
+assert.equal(radar.opportunities.length,3);
+assert.equal(radar.opportunities[0].mic,"XTKS");
+assert.equal(radar.opportunities[0].referenceQuantity,4);
+assert.equal(radar.opportunities[0].plannedLossAtStopEur,10);
+assert.equal(radar.opportunities[2].reason,"STOP_DISTANCE_REQUIRED");
+assert.equal(radar.opportunities[2].referenceQuantity,0);
+assert.equal(radar.liveTradingAllowed,false);assert.equal(radar.paperFillAuthorized,false);
+assert(radar.opportunities.every(x=>x.executable===false));
+const changed=buildPhase3GlobalRadar({candidates:[mk("XMIL","XMIL:TEST",5,10)],capitalEur:2000,estimatedRoundTripFeesEur:2,nowIso});
+assert.equal(changed.opportunities[0].referenceQuantity,9);
+console.log("FENICE phase 3 global radar integration: PASS");

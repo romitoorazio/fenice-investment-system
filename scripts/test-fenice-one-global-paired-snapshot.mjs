@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {snapshotDigest,verifyPairedEvidenceSnapshot} from "../lib/global/paired-evidence-snapshot.mjs";
+const nowIso="2026-11-10T10:00:30Z";
+const fx={generatedAt:"2026-11-10T10:00:00Z",liveTradingAllowed:false,ratesToEuro:{USD:{rate:0.9}}};
+const quotes={generatedAt:"2026-11-10T10:00:01Z",policy:{liveTradingAllowed:false},observations:[]};
+const manifest={version:1,runId:"test-run",publishedAt:"2026-11-10T10:00:02Z",fxSha256:snapshotDigest(fx),quotesSha256:snapshotDigest(quotes)};
+const check=(overrides={})=>verifyPairedEvidenceSnapshot({fx,quotes,manifest,nowIso,...overrides});
+assert.equal(check().accepted,true);
+assert.equal(check({manifest:null}).reason,"SNAPSHOT_INCOMPLETE");
+assert.equal(check({quotes:{...quotes,observations:[{symbol:"CHANGED"}]}}).reason,"SNAPSHOT_DIGEST_MISMATCH");
+assert.equal(check({fx:{...fx,ratesToEuro:{USD:{rate:0.8}}}}).reason,"SNAPSHOT_DIGEST_MISMATCH");
+assert.equal(check({manifest:{...manifest,publishedAt:"2026-11-10T09:59:00Z"}}).reason,"SNAPSHOT_PREMATURE_PUBLICATION");
+assert.equal(check({nowIso:"2026-11-10T10:04:00Z"}).reason,"SNAPSHOT_STALE");
+assert.equal(check({manifest:{...manifest,publishedAt:"2026-11-10T10:01:00Z"}}).reason,"SNAPSHOT_FUTURE_TIMESTAMP");
+assert.equal(check({fx:{...fx,liveTradingAllowed:true},manifest:{...manifest,fxSha256:snapshotDigest({...fx,liveTradingAllowed:true})}}).reason,"SNAPSHOT_LIVE_FORBIDDEN");
+console.log("Paired snapshot fail-closed contracts: PASS (synthetic fixtures only)");

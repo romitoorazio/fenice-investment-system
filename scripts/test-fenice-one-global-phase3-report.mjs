@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {generatePhase3GlobalResearchReport} from "../lib/global/phase3-research-report.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const mk=(mic,instrumentId,momentum5dPct)=>({mic,instrumentId,momentum5dPct,momentum20dPct:3,volatility20dPct:2,spreadPct:.1,lastPrice:20,fxToEur:1,observedAt:nowIso,synthetic:true,stopDistancePct:10});
+const observations=[mk("XTKS","XTKS:7203",8),mk("XMIL","XMIL:TEST",7),mk("XETR","XETR:SAP",6),mk("XNYS","XNYS:TEST",5),{...mk("XMIL","XMIL:BAD",1),observedAt:"2026-11-01T10:00:00Z"}];
+const r=generatePhase3GlobalResearchReport({observations,capitalEur:1000,maxPortfolioAllocationPct:20,maxPortfolioRiskPct:2,estimatedRoundTripFeesEur:2,nowIso});
+assert.equal(r.acceptedObservations,4);
+assert.equal(r.rejectedObservations.length,1);
+assert.deepEqual(Object.keys(r.coverage).sort(),["XETR","XMIL","XNYS","XTKS"]);
+assert.equal(r.portfolio.selected.length,2);
+assert.equal(r.portfolio.plannedPortfolioLossAtStopEur,20);
+assert.equal(r.ordersGenerated,0);assert.equal(r.liveTradingAllowed,false);assert.equal(r.realPaperCertified,false);
+console.log("FENICE phase 3 global research report: PASS");

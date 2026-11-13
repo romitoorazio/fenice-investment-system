@@ -1,0 +1,188 @@
+name: Fenice ONE GLOBAL Contract Tests
+on:
+  push:
+    branches: [architecture/fenice-one-global-v1, fix/one-global-integration-safety-reconcile-20261107, main]
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "lib/trading/paper-quote-probe-priority.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  pull_request:
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "lib/trading/paper-quote-probe-priority.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  workflow_dispatch:
+  # GitHub executes scheduled workflows only from the default branch.
+  # Once merged, this read-only check will run every five minutes (best effort).
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: fenice-one-global-contracts-${{ github.event_name }}-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Repository secret scan (same gate as Production CI)
+        run: node scripts/scan-repository-secrets.mjs
+      - run: node scripts/test-fenice-one-global-registry.mjs
+      - run: node scripts/test-fenice-one-global-world-hints.mjs
+      - run: node scripts/test-fenice-one-global-instrument.mjs
+      - run: node scripts/test-fenice-one-global-calendar.mjs
+      - run: node scripts/test-fenice-one-global-ledger.mjs
+      - run: node scripts/test-fenice-one-global-accounting.mjs
+      - run: node scripts/test-fenice-one-global-durable-ledger.mjs
+      - run: node scripts/test-fenice-one-global-durable-shadow.mjs
+      - name: Phase 5 virtual ledger integrity and deduplication
+        run: node scripts/test-fenice-one-global-phase5-ledger.mjs
+      - name: Phase 5 forward research virtual state machine
+        run: node scripts/test-fenice-one-global-phase5-forward.mjs
+      - name: Phase 6 virtual risk limits
+        run: node scripts/test-fenice-one-global-phase6-risk.mjs
+      - name: Phase 7 world operational daily brief
+        run: node scripts/test-fenice-one-global-phase7-brief.mjs
+      - name: Phase 8 evidence audit and certification gate
+        run: node scripts/test-fenice-one-global-phase8-evidence-audit.mjs
+      - name: Phase 9 operational forward validation and mark-to-market
+        run: node scripts/test-fenice-one-global-phase9-operational.mjs
+      - name: Phase 9 independent daily close provider cross-check (not executable)
+        run: node scripts/test-fenice-one-global-phase9-independent-eod.mjs
+      - name: Phase 5 isolated virtual portfolio and currency safety
+        run: node scripts/test-fenice-one-global-phase5-portfolio.mjs
+      - name: Phase 4 source-linked daily market closes
+        run: node scripts/run-fenice-one-global-phase4-quote-snapshot.mjs
+      - name: Phase 4 historical walk-forward positive and negative results
+        run: node scripts/test-fenice-one-global-phase4-walkforward.mjs
+      - name: Phase 4 research evidence sufficiency
+        run: node scripts/test-fenice-one-global-phase4-evidence.mjs
+      - name: Phase 4 frozen signal end-to-end evaluation
+        run: node scripts/test-fenice-one-global-phase4-evaluation.mjs
+      - name: Phase 4 matured forward performance summary
+        run: node scripts/test-fenice-one-global-phase4-summary.mjs
+      - name: Phase 4 journal file persistence and tamper test
+        run: node scripts/test-fenice-one-global-phase4-journal-file.mjs
+      - name: Phase 4 append-only research journal
+        run: node scripts/test-fenice-one-global-phase4-journal.mjs
+      - name: Phase 4 forward research outcomes
+        run: node scripts/test-fenice-one-global-phase4-forward.mjs
+      - name: Phase 3 public history research watchlist
+        run: node scripts/test-fenice-one-global-phase3-unattested-watchlist.mjs
+      - name: Phase 3 public chart fetch provenance boundary
+        run: node scripts/test-fenice-one-global-phase3-yahoo-fetch.mjs
+      - name: Phase 3 historical sourced closes to radar
+        run: node scripts/test-fenice-one-global-phase3-history.mjs
+      - name: Phase 3 global research report
+        run: node scripts/test-fenice-one-global-phase3-report.mjs
+      - name: Phase 3 sourced research ingestion to global portfolio
+        run: node scripts/test-fenice-one-global-phase3-ingestion.mjs
+      - name: Phase 3 global portfolio allocation and risk limits
+        run: node scripts/test-fenice-one-global-phase3-portfolio.mjs
+      - name: Phase 3 global radar integration
+        run: node scripts/test-fenice-one-global-phase3-radar.mjs
+      - name: Phase 3 virtual position sizing and fee reserve
+        run: node scripts/test-fenice-one-global-phase3-position-sizing.mjs
+      - name: Phase 3 global research ranking and risk safety
+        run: node scripts/test-fenice-one-global-phase3-ranker.mjs
+      - name: Phase 2 synthetic-only end-to-end closure proof
+        run: node scripts/test-fenice-one-global-phase2-synthetic-closure.mjs > fenice-phase2-synthetic-closure.json
+      - run: node scripts/test-fenice-one-global-pipeline.mjs
+      - run: node scripts/test-fenice-one-global-fx.mjs
+      - run: node scripts/test-fenice-one-global-ecb-fx.mjs
+      - run: node scripts/test-fenice-one-global-evidence-bundle.mjs
+      - run: node scripts/test-fenice-one-global-paired-snapshot.mjs
+      - run: node scripts/test-fenice-one-global-paired-store.mjs
+      - run: node scripts/test-fenice-one-global-paired-diagnosis.mjs
+      - run: node scripts/test-fenice-one-global-paired-paper-gate.mjs
+      - run: node scripts/test-fenice-one-global-paired-shadow-runner.mjs
+      - run: node scripts/test-fenice-one-global-quote-provider.mjs
+      - run: node scripts/test-fenice-one-global-twelve-data-source.mjs
+      - run: node scripts/test-fenice-one-global-provider-probe.mjs
+      - run: node scripts/test-fenice-one-global-readiness-audit.mjs
+      - name: V6 Twelve Data operational safety and bottleneck regression
+        run: |
+          node scripts/test-paper-bottleneck-causes.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { validateFxTimestamp } from './lib/trading/paper-fx-timestamp.mjs';
+          import { prioritizeMissingSecondSource } from './lib/trading/paper-quote-probe-priority.mjs';
+          const now = Date.parse('2026-11-07T12:00:00Z');
+          assert.equal(validateFxTimestamp(now / 1000 + 60, now).reason, 'FUTURE_TIMESTAMP');
+          assert.equal(validateFxTimestamp(now / 1000 - 180, now).reason, 'STALE_TIMESTAMP');
+          const candidates = [{ symbol: 'AAA' }, { symbol: 'BBB' }];
+          const observations = [{ symbol: 'BBB', sourceFamily: 'alpaca', eligibility: 'PAPER', observedAt: new Date(now).toISOString() }];
+          assert.equal(prioritizeMissingSecondSource(candidates, observations, now)[0].symbol, 'BBB');
+          const operational = readFileSync('scripts/refresh-twelve-data-batch-evidence-enhanced.mjs', 'utf8');
+          assert.match(operational, /validateFxTimestamp\s*\(/, 'Operational FX refresh must invoke future-time guard');
+          assert.match(operational, /prioritizeMissingSecondSource\s*\(/, 'Operational refresh must prioritize independent quote quorum');
+          // Keep the V6 frozen blobs byte-for-byte unchanged, not just a green alias.
+          const { execFileSync } = await import('node:child_process');
+          const frozenBlobs = {
+            'package.json': 'a34ec63743d745ec1e4b6d566e3a5e2eb74ec7fd',
+            'scripts/refresh-twelve-data-batch-evidence.mjs': 'f3d6cfed10da17bddba70b5f74097b092eb9d57d',
+          };
+          for (const [file, expected] of Object.entries(frozenBlobs)) {
+            const actual = execFileSync('git', ['hash-object', file], { encoding: 'utf8' }).trim();
+            assert.equal(actual, expected, `V6 frozen blob drift: ${file}`);
+          }
+          // Assert the improved runner is actually invoked by a workflow, not merely present.
+          const smokeWorkflow = readFileSync('.github/workflows/fenice-one-global-twelve-data-enhanced-smoke.yml', 'utf8');
+          assert.ok(smokeWorkflow.includes('node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs'), 'Enhanced runner must be invoked in isolated smoke');
+          assert.match(smokeWorkflow, /contents: read/, 'Enhanced smoke must remain read-only');
+          const validationWorkflow = readFileSync('.github/workflows/paper-validation.yml', 'utf8');
+          assert.match(validationWorkflow, /run:\s*node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence\.mjs/, 'Frozen V6 workflow must retain its historical command');
+          // The enhanced implementation is staged, not operational: the frozen V6 workflow
+          // checks out main and cannot be redirected without a reviewed migration.
+          console.log('Enhanced Twelve Data candidate tested; production activation remains blocked pending reviewed non-frozen integration');
+          console.log('V6 operational Twelve Data safety and bottleneck regression: PASS');
+          NODE
+      - name: Collect real public worldwide historical data (unattested research only)
+        if: always()
+        continue-on-error: true
+        run: node scripts/run-fenice-one-global-phase3-public-research.mjs
+      - name: Upload phase 3 real-source research diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-phase3-public-world-research
+          path: artifacts/phase3/world-research-watchlist.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload phase 4 immutable research signal snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-phase4-signal-snapshot
+          path: artifacts/phase4/signal-snapshot.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload synthetic-only phase 2 closure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-phase2-synthetic-closure
+          path: fenice-phase2-synthetic-closure.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Generate read-only A-Z readiness diagnostics
+        if: always()
+        run: node scripts/audit-fenice-one-global-readiness.mjs > fenice-one-global-readiness.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fenice-one-global-readiness
+          path: fenice-one-global-readiness.json
+          retention-days: 14

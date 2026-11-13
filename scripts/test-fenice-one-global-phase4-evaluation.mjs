@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {appendPhase4Signals} from "../lib/global/phase4-signal-journal.mjs";
+import {buildPhase4ResearchEvaluation} from "../lib/global/phase4-evaluation.mjs";
+const closes=Array.from({length:24},(_,i)=>({observedAt:new Date(Date.parse("2026-10-01T12:00:00Z")+i*86400000).toISOString(),close:100+i}));
+const observedAt=closes[20].observedAt,nowIso=closes.at(-1).observedAt;
+const signal={mic:"XTKS",instrumentId:"XTKS:7203",observedAt,score:2,dataVerified:false,executable:false};
+const frozen=appendPhase4Signals({candidates:[signal],capturedAt:observedAt});
+const histories=[{mic:"XTKS",instrumentId:"XTKS:7203",synthetic:false,provenanceVerified:false,closes}];
+const result=buildPhase4ResearchEvaluation({journal:frozen.journal,histories,nowIso,horizons:[2,5]});
+assert.equal(result.journalEntries,1);assert.equal(result.forward.outcomes.length,1);
+assert.equal(result.summary.stats[0].observed,1);assert.equal(result.summary.stats[0].wins,1);
+assert.equal(result.summary.stats[1].pending,1);assert.equal(result.summary.stats[1].observed,0);
+assert.equal(result.ordersGenerated,0);assert.equal(result.liveTradingAllowed,false);
+assert.throws(()=>buildPhase4ResearchEvaluation({journal:[{...frozen.journal[0],hash:"bad"}],histories,nowIso}),/INTEGRITY_FAILURE/);
+const retrospective=appendPhase4Signals({candidates:[signal],capturedAt:nowIso});
+assert.throws(()=>buildPhase4ResearchEvaluation({journal:retrospective.journal,histories,nowIso,horizons:[2]}),/PHASE4_LOOKAHEAD_DETECTED/);
+console.log("FENICE phase 4 end-to-end frozen research evaluation and no-lookahead: PASS");
