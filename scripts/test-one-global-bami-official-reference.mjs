@@ -70,7 +70,8 @@ assert.equal(compare(blocked,[{date:"2026-11-12",close:14.66}]).status,
 const runner=readFileSync("scripts/run-world-v7-eod-research.mjs","utf8");
 assert.match(runner,/fetchBamiOfficialReference/);
 assert.match(runner,/bamiOfficialCloseCrosscheck/);
-assert.match(runner,/referenceSessionDate===yahooBami\.at\(-1\)\.date/);
+const comparer=readFileSync("lib/market/one-global-bami-official-reference.mjs","utf8");
+assert.match(comparer,/last\.date!==source\.referenceSessionDate/, "session matching must remain inside the official/Yahoo comparator");
 const workflow=readFileSync(".github/workflows/world-v7-eod-research.yml","utf8");
 assert.match(workflow,/test-one-global-bami-official-reference\.mjs/);
 console.log("PASS BAMI official source: exact identity, date, read-only bounded fetch, no raw public price, fail closed.");
