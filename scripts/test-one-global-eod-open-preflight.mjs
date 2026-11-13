@@ -32,7 +32,12 @@ for(const item of r.venues){
 }
 const madrid=r.venues.find(x=>x.mic==="XMIL");
 assert.equal(madrid.exchangeLocalTime,"14:50");
-assert.equal(madrid.sourceStatus,"RETURNED_SYMBOL_MISMATCH");
+// A successful Yahoo EOD research fallback can improve the Milan research
+// status, but cannot remove exchange, rights or independent-price gates.
+assert.equal(madrid.sourceStatus,eod.records.XMIL.status);
+assert(["RETURNED_SYMBOL_MISMATCH","TENTATIVE_COMPLETED_DAILY_RESEARCH","COMPLETE_EOD_RESEARCH"].includes(madrid.sourceStatus));
+assert(madrid.blockers.includes("EOD_DATA_USAGE_RIGHTS_NOT_CERTIFIED"));
+assert(madrid.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
 assert(madrid.blockers.includes("EXACT_MIC_AND_PROVIDER_SYMBOL_NOT_CERTIFIED"));
 const tokyo=r.venues.find(x=>x.mic==="XTKS");
 assert.equal(tokyo.regularWindowExpected,false);
