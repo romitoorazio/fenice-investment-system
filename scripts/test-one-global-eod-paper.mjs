@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import {selectEcbAudReference} from "../lib/market/one-global-ecb-aud.mjs";
 import {
   newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,
-  settleOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
+  settleOneGlobalEodSignal,cancelOneGlobalEodInvalidSignal,
+  replayOneGlobalEodPaperLedger,
   summarizeOneGlobalEodPaper,validPrivateEodAuthority,
 } from "../lib/trading/one-global-eod-paper.mjs";
 
@@ -292,5 +293,67 @@ assert.throws(()=>settleOneGlobalEodSignal({
 assert.throws(()=>settleOneGlobalEodSignal({
   ...asxInput,fxEvidence:{...asxFx,unitsPerEuro:0},
 }),/EOD_PAPER_EOD_FX_REFERENCE_MISSING_OR_FUTURE/);
+
+
+// Regression: the original 12 Nov Banco BPM pilot at 15:36 Milan time is
+// invalid for next-session EOD, but an uncancellable pending record would
+// permanently starve a new prospective signal for XMIL:BAMI.
+const bamiLateAt="2026-11-12T14:36:22.791Z";
+const bamiLate=recordOneGlobalEodSignal({
+  previousLedger:newOneGlobalEodPaperLedger(),nowIso:bamiLateAt,
+  signal:signal(bamiLateAt,{
+    signalId:"bami-intraday-pilot-20261112",
+    key:"XMIL:BAMI",referenceSessionDate:"2026-11-11",
+    referenceCloseAt:"2026-11-11T16:30:00.000Z",
+    referencePublishedAt:"2026-11-11T17:00:00.000Z",
+  }),
+});
+assert.deepEqual(replayOneGlobalEodPaperLedger(bamiLate.ledger).pendingSignals,["XMIL:BAMI"]);
+const bamiCancelAt="2026-11-13T10:55:00.000Z";
+const canceledBami=cancelOneGlobalEodInvalidSignal({
+  previousLedger:bamiLate.ledger,nowIso:bamiCancelAt,signalHash:bamiLate.signalHash,
+});
+assert.equal(canceledBami.ledger.events.length,2);
+assert.equal(canceledBami.ledger.events.at(-1).kind,"CANCEL");
+assert.equal(canceledBami.ledger.events.at(-1).reason,"INVALID_PROSPECTIVE_EOD_WINDOW");
+assert.equal(canceledBami.ledger.cashEuro,1000);
+assert.equal(canceledBami.ledger.lastHash!==bamiLate.ledger.lastHash,true);
+assert.deepEqual(canceledBami.pendingSignals,[]);
+assert.equal(canceledBami.phase9Credit,0);
+assert.equal(canceledBami.liveTradingAllowed,false);
+assert.equal(bamiLate.ledger.events.length,1);
+assert.throws(()=>cancelOneGlobalEodInvalidSignal({
+  previousLedger:canceledBami.ledger,nowIso:"2026-11-13T10:56:00.000Z",
+  signalHash:bamiLate.signalHash,
+}),/EOD_PAPER_INVALID_WINDOW_CANCELLATION_NOT_ALLOWED/);
+assert.throws(()=>cancelOneGlobalEodInvalidSignal({
+  previousLedger:decision.ledger,nowIso:atFill,signalHash:decision.signalHash,
+}),/EOD_PAPER_INVALID_WINDOW_CANCELLATION_NOT_ALLOWED/,
+"valid pending signals are never silently canceled");
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...settleInput,previousLedger:canceledBami.ledger,
+  signalHash:bamiLate.signalHash,
+  marketEvidence:evidence(10,10.001,{
+    providerReceipts:evidence().providerReceipts.map(q=>({...q,key:"XMIL:BAMI"})),
+  }),
+}),/EOD_PAPER_SIGNAL_NOT_OPEN/,
+"canceled signal cannot later be used to create a fake fill");
+const bamiFridayAt="2026-11-13T18:10:00.000Z";
+const bamiFriday=recordOneGlobalEodSignal({
+  previousLedger:canceledBami.ledger,nowIso:bamiFridayAt,
+  signal:signal(bamiFridayAt,{
+    signalId:"bami-postclose-friday-20261113",
+    key:"XMIL:BAMI",referenceSessionDate:"2026-11-13",
+    referenceCloseAt:"2026-11-13T16:30:00.000Z",
+    referencePublishedAt:"2026-11-13T17:00:00.000Z",
+  }),
+});
+assert.deepEqual(replayOneGlobalEodPaperLedger(bamiFriday.ledger).pendingSignals,["XMIL:BAMI"]);
+assert.equal(bamiFriday.ledger.events.length,3);
+assert.equal(bamiFriday.ledger.cashEuro,1000);
+const corruptedCancellation=structuredClone(canceledBami.ledger);
+corruptedCancellation.events[1].reason="OPERATOR_OVERRIDE";
+assert.throws(()=>replayOneGlobalEodPaperLedger(corruptedCancellation),
+/EOD_PAPER_LEDGER_HASH_OR_CLOCK_INVALID/);
 
 console.log("PASS ONE GLOBAL forward EOD private: signals -> next CLOSE+impact BUY -> EXIT EUR; 2 independent receipts, owner rights, no lookahead, hashed ledger, risk, zero Phase9/Directa LIVE");
