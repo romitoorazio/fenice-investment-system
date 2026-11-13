@@ -47,12 +47,15 @@ const parse=path=>{
 };
 const previous=existsSync(ledgerPath)?parse(ledgerPath):newOneGlobalEodPaperLedger();
 const previousState=replayOneGlobalEodPaperLedger(previous);
-const recoverableBami=previous.events.filter(e=>e.kind==="SIGNAL"&&e.key==="XMIL:BAMI"
-  &&previousState.pendingSignals.includes(e.key));
-if(recoverInvalidBami&&recoverableBami.length!==1)
-  throw Error("EOD_BAMI_MUST_HAVE_EXACTLY_ONE_PENDING_SIGNAL");
+// The public replay reports pending KEYS; the latest historical SIGNAL
+// for this key is the current open candidate when that key is pending.
+const pendingBami=previousState.pendingSignals.includes("XMIL:BAMI")
+  ?previous.events.filter(e=>e.kind==="SIGNAL"&&e.key==="XMIL:BAMI").at(-1)
+  :null;
+if(recoverInvalidBami&&!pendingBami)
+  throw Error("EOD_BAMI_NO_PENDING_PRIVATE_SIGNAL");
 const event=recoverInvalidBami
-  ?{kind:"CANCEL",signalHash:recoverableBami[0].hash}
+  ?{kind:"CANCEL",signalHash:pendingBami.hash}
   :parse(eventPath);
 const nowIso=new Date().toISOString();
 let evaluated;
