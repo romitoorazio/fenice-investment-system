@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {buildFirstPaperFreeEodEvidence as build} from '../lib/market/one-global-first-paper-dual-eod.mjs';
+const now='2026-11-13T23:00:00.000Z',date='2026-11-13';
+const bars={};let n=0;
+for(let d=13;d>=1;d--){const key='2026-11-'+String(d).padStart(2,'0');bars[key]={'4. close':String(180-n++)};}
+for(let d=31;d>=20;d--){const key='2026-10-'+d;bars[key]={'4. close':String(180-n++)};}
+const mkAlpha=(sym='AAPL',alter={})=>Buffer.from(JSON.stringify({'Meta Data':{'2. Symbol':sym},'Time Series (Daily)':{...bars,...alter}}));
+const mkEod=(close=180)=>Buffer.from(JSON.stringify([{date,close,volume:200000}]));
+const inp={alphaRaw:mkAlpha(),eodhdRaw:mkEod(),symbol:'AAPL',sessionDate:date,observedAt:now};
+const r=build(inp);
+assert.equal(r.key,'XNAS:AAPL');
+assert.equal(r.sources.length,2);
+assert.equal(r.closeDifferencePct,0);
+assert.equal(r.paperSettlementEligible,false);
+assert.equal(r.phase9Credit,0);
+assert.equal(r.certifiedVirtualFills,0);
+assert.equal(r.liveTradingAllowed,false);
+assert.equal(r.brokerConnectivityAllowed,false);
+assert.equal(r.researchIndicator,'UPTREND_RESEARCH_ONLY');
+assert.match(r.sources[0].payloadSha256,/^[a-f0-9]{64}$/);
+const bad=(delta,regex)=>assert.throws(()=>build({...inp,...delta}),regex);
+bad({symbol:'CBA'},/IDENTITY_OR_TIME_INVALID/);
+bad({sessionDate:'2026-11-14'},/WEEKEND_SESSION|STALE_OR_FUTURE_SESSION/);
+bad({observedAt:'2026-11-13T20:00:00.000Z'},/EXCHANGE_NOT_CLOSED/);
+bad({observedAt:'2026-11-12T20:00:00.000Z'},/STALE_OR_FUTURE_SESSION/);
+bad({eodhdRaw:mkEod(200)},/INDEPENDENT_QUOTES_DIVERGE/);
+bad({alphaRaw:mkAlpha('MSFT')},/ALPHA_SYMBOL_OR_SCHEMA_MISMATCH/);
+bad({alphaRaw:mkAlpha('AAPL',{[date]:{'4. close':'0'}})},/ALPHA_COMPLETED_CLOSE_MISSING/);
+bad({alphaRaw:Buffer.from(JSON.stringify({Note:'rate limit'}))},/PROVIDER_ERROR_OR_LIMIT/);
+bad({eodhdRaw:Buffer.from('not json')},/SOURCE_JSON_INVALID|RAW_SOURCE_BYTES_REQUIRED/);
+bad({eodhdRaw:Buffer.from(JSON.stringify([{date,close:180},{date,close:180}]))},/EODHD_ROWS_INVALID/);
+bad({eodhdRaw:Buffer.from(JSON.stringify([{date:'2026-11-12',close:180}]))},/EODHD_COMPLETED_CLOSE_MISSING/);
+console.log('PASS: dual API EOD intake, research-only blockers, stale/future/provider errors, zero broker/P9.');
