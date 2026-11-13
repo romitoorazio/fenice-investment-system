@@ -25,6 +25,9 @@ on:
       - "lib/trading/one-global-observed-paper.mjs"
       - "scripts/run-one-global-observed-paper.mjs"
       - "scripts/test-one-global-observed-paper.mjs"
+      - "lib/trading/one-global-prospective-dual-eod-bridge.mjs"
+      - "scripts/run-one-global-postclose-signal.mjs"
+      - "scripts/test-one-global-postclose-signal.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -59,6 +62,9 @@ on:
       - "lib/trading/one-global-observed-paper.mjs"
       - "scripts/run-one-global-observed-paper.mjs"
       - "scripts/test-one-global-observed-paper.mjs"
+      - "lib/trading/one-global-prospective-dual-eod-bridge.mjs"
+      - "scripts/run-one-global-postclose-signal.mjs"
+      - "scripts/test-one-global-postclose-signal.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -119,6 +125,7 @@ jobs:
           node scripts/test-one-global-free-world-file.mjs
           node scripts/test-one-global-first-paper-dual-eod.mjs
           node scripts/test-one-global-observed-paper.mjs
+          node scripts/test-one-global-postclose-signal.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -150,6 +157,7 @@ jobs:
           node scripts/test-one-global-free-world-file.mjs
           node scripts/test-one-global-first-paper-dual-eod.mjs
           node scripts/test-one-global-observed-paper.mjs
+          node scripts/test-one-global-postclose-signal.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
