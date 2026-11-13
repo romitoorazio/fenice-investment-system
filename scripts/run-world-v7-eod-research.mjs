@@ -4,6 +4,7 @@ import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyB
 import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
 import { fetchEcbJpyEurDailyHistory } from "../lib/market/world-v7-ecb-daily-fx.mjs";
 import {evaluateYahooBamiEodResearch} from "../lib/market/world-v7-yahoo-eod-research.mjs";
+import {fetchBamiOfficialReference,compareBamiOfficialReferenceToYahoo} from "../lib/market/one-global-bami-official-reference.mjs";
 
 const options = Object.fromEntries(process.argv.slice(2).filter(s=>s.startsWith("--")&&s.includes("=")).map(s=>s.slice(2).split(/=(.*)/s).slice(0,2)));
 const venues=options.venue && options.venue!=="ALL" ? [options.venue] : ["XTKS","XMIL","XETR"];
@@ -116,6 +117,20 @@ for(const venue of venues){
   }
   observations.push(result);
 }
+// One official Italian venue page is queried once per authorized network run.
+// Public metadata never includes its reference close, HTML, or Yahoo bars.
+let bamiOfficialCloseCrosscheck={
+ mode:"BAMI_OFFICIAL_YAHOO_CROSSCHECK_RESEARCH_ONLY",
+ status:"NETWORK_NOT_AUTHORIZED",sourceFamiliesCompared:0,
+ independentPriceReceiptsAdmitted:0,marketDataRightsCertified:false,
+ officialCloseCertifiedForPaper:false,virtualPaperFillEligible:false,
+ liveTradingAllowed:false,privatePricePublished:false,
+};
+if(networkRequested){
+ const official=await fetchBamiOfficialReference({nowIso:new Date().toISOString()});
+ const yahooBami=historicalInputs.find(h=>h.venue==="XMIL"&&h.provider==="yahoo-finance");
+ bamiOfficialCloseCrosscheck=compareBamiOfficialReferenceToYahoo(official,yahooBami?.bars);
+}
 // ECB daily JPY-per-EUR reference: use only historical fixing dates strictly
 // before each signal session. This is not a realtime or executable FX quote.
 let fxHistory={source:"ECB",status:"NOT_NEEDED_OR_NO_VALID_TOKYO_HISTORY",observations:0,
@@ -143,12 +158,12 @@ const report={
   simulatedOrders:0,liveTradingAllowed:false,brokerConnectivityAllowed:false,modifiesV6:false,
   regions:{asiaPacific:observations.filter(x=>x.region==="asia-pacific").length,
     europe:observations.filter(x=>x.region==="europe").length},
-  observations,historicalReplay,fxHistory,
+  observations,historicalReplay,fxHistory,bamiOfficialCloseCrosscheck,
 };
 mkdirSync(path.dirname(outfile),{recursive:true});
 writeFileSync(outfile,JSON.stringify(report,null,2)+"\n",{mode:0o600});
 const consoleReport={generatedAt:report.generatedAt,mode:report.mode,requestsUsed:calls,network,
-  yahooChartRequestsUsed,
+  yahooChartRequestsUsed,bamiOfficialCrosscheckStatus:bamiOfficialCloseCrosscheck.status,
   data:observations.map(x=>({venue:x.venue,provider:x.provider??"none",
     status:x.status,date:x.lastCompleteBarDate??null,
     signal:x.researchSignal??"NO_SIGNAL",fill:x.paperFillCount})),
