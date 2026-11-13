@@ -206,3 +206,50 @@ di close dopo tale segnale. Pertanto è sempre
 un evento SETTLE del journal principale. La scrittura reale resta
 protetta dal motore `run-one-global-eod-private.mjs`: nessun valore
 sintetico, nessuna retrodatazione e nessuna deroga all'audit.
+
+
+## Registro PAPER osservato di esercizio, senza certificazione (13 novembre 2026)
+
+Per poter **registrare contabilmente** una simulazione personale basata su un
+prezzo storicamente osservato, mantenendo intatto il ledger EOD rigoroso, è
+disponibile il modulo `lib/trading/one-global-observed-paper.mjs` e il comando
+`scripts/run-one-global-observed-paper.mjs`.
+
+Il primo caso è **CBA Australia**: segnale forward del 12 novembre, osservazione
+manuale del close 13 novembre, cambio BCE 12 novembre, quantità frazionaria,
+commissione e saldo in EUR. Si accettano solo il record sorgente firmato SHA-256
+e il relativo registro originale la cui catena hash è coerente. Il programma
+rifiuta alterazioni, duplicati dello stesso segnale, finestre temporali errate,
+dimensione posizione oltre 50 euro, incongruenze FX e consenso non valido.
+
+Il registro in output mantiene `kind: FILL` ma distingue esplicitamente
+`executionClassification: OBSERVED_CLOSE_PERSONAL_PAPER_UNCERTIFIED`,
+`strictPaperFills: 0`, `certifiedTrades: 0`, `phase9Credit: 0`.
+È **contabilità virtuale per ricerca personale, non un ordine sul broker,
+non un'asta eseguibile, non un FILL del motore rigoroso**. La quotazione della
+pagina consultata non costituisce una ricevuta API autentificata o una licenza
+di uso automatizzato: il percorso non viene mai promosso automaticamente.
+
+Esecuzione sul disco privato esterno al repository:
+```bash
+node scripts/run-one-global-observed-paper.mjs \
+ --original=/private/strict-ledger.json \
+ --practice=/private/sourced-practice.json \
+ --consent=/private/owner-consent.json \
+ --output=/private/observed-paper.json --commit
+```
+
+Senza `--commit` effettua solo dry-run. Con `--commit` crea un file nuovo
+privato con permessi restrittivi, senza sovrascrivere il journal rigoroso.
+Il test `node scripts/test-one-global-observed-paper.mjs` è indipendente:
+usa fixture dichiaratamente sintetiche e prova replay, antifrode,
+idempotenza e isolamento Directa. Le fixture non vengono considerate
+esecuzioni di mercato.
+
+**Percorso verso il primo FILL rigoroso:** tenere questo registro osservato
+separato; completare le condizioni delle due fonti originali indipendenti
+utilizzabili per simulazione privata, registrare un nuovo segnale dopo una
+seduta realmente conclusa e prima della successiva apertura, poi
+registrare il FILL solo con `run-one-global-eod-private.mjs` e un
+consenso specifico valido. L'intervento NON altera V6, V8, B2, Fase 9
+né le autorizzazioni Directa.
