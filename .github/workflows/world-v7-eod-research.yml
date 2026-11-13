@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - "lib/market/world-v7-eod-research.mjs"
+      - "lib/market/world-v7-yahoo-eod-research.mjs"
+      - "scripts/test-world-v7-yahoo-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-daily-historical-replay.mjs"
@@ -17,6 +19,8 @@ on:
     branches: [main]
     paths:
       - "lib/market/world-v7-eod-research.mjs"
+      - "lib/market/world-v7-yahoo-eod-research.mjs"
+      - "scripts/test-world-v7-yahoo-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-daily-historical-replay.mjs"
@@ -49,6 +53,7 @@ jobs:
       - name: Prove closed bars and non-lookahead accounting
         run: |
           node scripts/test-world-v7-eod-research.mjs
+          node scripts/test-world-v7-yahoo-eod-research.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
           node scripts/test-world-v7-ecb-daily-fx.mjs
 
@@ -70,6 +75,7 @@ jobs:
           node-version: 24
       - run: |
           node scripts/test-world-v7-eod-research.mjs
+          node scripts/test-world-v7-yahoo-eod-research.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
           node scripts/test-world-v7-ecb-daily-fx.mjs
       - name: Probe three global EOD research venues within 6 API calls
@@ -85,7 +91,8 @@ jobs:
             const x=JSON.parse(fs.readFileSync(process.env.RESULT,"utf8"));
             if(x.liveTradingAllowed!==false || x.realtimePaperEligible!==false ||
                x.brokerConnectivityAllowed!==false || x.simulatedOrders!==0 ||
-               x.requestsUsed>6 || x.observations?.length!==3 ||
+               x.requestsUsed>6 || x.yahooChartRequestsUsed>2 ||
+               x.observations?.length!==3 ||
                x.observations.some(o=>o.paperFillCount!==0 && o.paperFillCount!==undefined) ||
                x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))) ||
                x.historicalReplay?.forwardVerifiedPaperFills!==0 || x.historicalReplay?.liveTradingAllowed!==false ||
