@@ -25,6 +25,7 @@ on:
       - "lib/trading/one-global-eod-pilot-time-audit.mjs"
       - "scripts/audit-one-global-eod-pilot-time.mjs"
       - "scripts/test-one-global-eod-pilot-time-audit.mjs"
+      - "scripts/test-one-global-eod-private-auto-cancel.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
@@ -52,6 +53,7 @@ on:
       - "lib/trading/one-global-eod-pilot-time-audit.mjs"
       - "scripts/audit-one-global-eod-pilot-time.mjs"
       - "scripts/test-one-global-eod-pilot-time-audit.mjs"
+      - "scripts/test-one-global-eod-private-auto-cancel.mjs"
       - "data/one-global-first-paper-cba-signal-witness.json"
       - "scripts/assess-one-global-eod-open-preflight.mjs"
       - "scripts/test-one-global-eod-open-preflight.mjs"
@@ -84,7 +86,9 @@ jobs:
       - name: Test prospective EOD signals and private simulation accounting
         run: node scripts/test-one-global-eod-paper.mjs
       - name: Test safe worldwide metadata and private path guards
-        run: node scripts/test-one-global-eod-readiness.mjs
+        run: |
+          node scripts/test-one-global-eod-readiness.mjs
+          node scripts/test-one-global-eod-private-auto-cancel.mjs
       - name: Verify all worldwide market windows and no-trade gates
         run: node scripts/test-one-global-eod-open-preflight.mjs
       - name: Verify the first CBA prospective signal hash and no fills
@@ -92,6 +96,7 @@ jobs:
       - name: Validate CBA and XMIL prospective EOD pilot signal timing safeguards
         run: |
           node scripts/test-one-global-eod-pilot-time-audit.mjs
+          node scripts/test-one-global-eod-private-auto-cancel.mjs
           node scripts/audit-one-global-eod-pilot-time.mjs
       - name: Ensure simultaneous private PAPER fills never overwrite each other
         run: node scripts/test-one-global-eod-private-store.mjs
@@ -124,6 +129,7 @@ jobs:
           node scripts/test-one-global-eod-private-store.mjs
           node scripts/test-one-global-first-paper-signal.mjs
           node scripts/test-one-global-eod-pilot-time-audit.mjs
+          node scripts/test-one-global-eod-private-auto-cancel.mjs
           node scripts/audit-one-global-eod-pilot-time.mjs
           node scripts/test-one-global-ecb-aud.mjs
           node scripts/test-one-global-free-world-file.mjs
