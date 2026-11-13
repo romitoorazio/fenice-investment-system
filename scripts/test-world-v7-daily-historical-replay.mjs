@@ -11,7 +11,7 @@ const bars=(base=10)=>days.map((date,i)=>{
   const p=base+(i<27?i*.35:27*.35-(i-27)*.55);
   return {date,open:p,high:p+.5,low:p-.5,close:p+.1,volume:20000};
 });
-const italy=()=>({venue:"XMIL",ticker:"ENEL",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars()});
+const italy=()=>({venue:"XMIL",ticker:"BAMI",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars()});
 const germany=()=>({venue:"XETR",ticker:"DTE",currency:"EUR",region:"europe",provider:"alpha-vantage",bars:bars(160)});
 const japan=()=>({venue:"XTKS",ticker:"7203",currency:"JPY",region:"asia-pacific",provider:"j-quants",
   bars:bars(2500),fxRates:days.map(date=>({date,rateToEuro:.006}))});

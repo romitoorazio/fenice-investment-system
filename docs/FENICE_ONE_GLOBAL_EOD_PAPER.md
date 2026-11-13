@@ -124,3 +124,11 @@ Procedura privata, senza inserire ledger o dati sensibili nel repository:
 4. Il nuovo segnale BAMI deve essere generato **dopo un close davvero pubblicato**, con un nuovo ID, una prova fonte valida e decisione anteriore all'apertura della seduta successiva. Un eventuale segnale dopo la chiusura di venerdì 13 potrebbe essere valutato sulla seduta di lunedì 16, **non** conteggiato come fill venerdì. Non creare segnali fittizi nel registro reale.
 
 Questa riparazione risolve soltanto il deadlock della coda dei segnali. Non importa licenze, ricevute indipendenti o approvazione privata; non abilita un PAPER CERTIFICATO né Directa. La regressione `scripts/test-one-global-eod-paper.mjs` include annullamento non ripetibile, saldo immutato, divieto di annullare un segnale valido e riapertura prospettica BAMI.
+
+## EOD Milano: riallineamento del pilot a Banco BPM (13 novembre 2026)
+
+La diagnosi del 13/11 ha trovato che il pilot di ricerca XMIL interrogava **ENEL**, mentre il primo segnale privato sospeso e l'obiettivo operativo si riferiscono a **BANCO BPM / BAMI**, ISIN **IT0005218380**, Euronext Milan (fonte identità: https://www.borsaitaliana.it/borsa/azioni/scheda/IT0005218380-MTAA.html?lang=it). Il pilot XMIL ora usa `BAMI` invece di `ENEL`; Tokyo e Xetra non cambiano, rimangono al massimo sei richieste Alpha Vantage per l'esecuzione standard. ENEL rimane disponibile negli altri componenti di ricerca/strumenti; non si eliminano dati storici.
+
+La stringa `BAMI.MIL` è una **candidata Alpha Vantage non certificata**: `SYMBOL_SEARCH` deve sempre confermare unicità di emittente/regione/valuta e `TIME_SERIES_DAILY` deve restituire metadati coerenti. Senza conferma, le barre restano al massimo ricerca provvisoria, mai prezzo di esecuzione. Una risposta di Enel o di un altro emittente non può passare come BAMI, e non si stampano OHLC o credenziali nei log pubblici.
+
+Il workflow EOD su `main` può raccogliere metadati nuovi dopo l'integrazione; qualsiasi barra giornaliera della seduta corrente è esclusa fino al giorno locale successivo. L'osservazione EOD, anche se riuscita, **non** sblocca da sola il PAPER privato: rimangono necessari il record originale, la finestra prospettica corretta, due ricevute di close indipendenti e i diritti d'uso verificati dal proprietario. Nessuna modifica a Directa, Fase 9, V6, B2, V8 o ai registri privati.
