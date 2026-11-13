@@ -7,6 +7,8 @@ on:
     paths:
       - "lib/market/world-v7-eod-research.mjs"
       - "lib/market/world-v7-yahoo-eod-research.mjs"
+      - "lib/market/one-global-bami-official-reference.mjs"
+      - "scripts/test-one-global-bami-official-reference.mjs"
       - "scripts/test-world-v7-yahoo-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
@@ -20,6 +22,8 @@ on:
     paths:
       - "lib/market/world-v7-eod-research.mjs"
       - "lib/market/world-v7-yahoo-eod-research.mjs"
+      - "lib/market/one-global-bami-official-reference.mjs"
+      - "scripts/test-one-global-bami-official-reference.mjs"
       - "scripts/test-world-v7-yahoo-eod-research.mjs"
       - "scripts/run-world-v7-eod-research.mjs"
       - "scripts/test-world-v7-eod-research.mjs"
@@ -54,6 +58,7 @@ jobs:
         run: |
           node scripts/test-world-v7-eod-research.mjs
           node scripts/test-world-v7-yahoo-eod-research.mjs
+          node scripts/test-one-global-bami-official-reference.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
           node scripts/test-world-v7-ecb-daily-fx.mjs
 
@@ -76,6 +81,7 @@ jobs:
       - run: |
           node scripts/test-world-v7-eod-research.mjs
           node scripts/test-world-v7-yahoo-eod-research.mjs
+          node scripts/test-one-global-bami-official-reference.mjs
           node scripts/test-world-v7-daily-historical-replay.mjs
           node scripts/test-world-v7-ecb-daily-fx.mjs
       - name: Probe three global EOD research venues within 6 API calls
@@ -92,6 +98,12 @@ jobs:
             if(x.liveTradingAllowed!==false || x.realtimePaperEligible!==false ||
                x.brokerConnectivityAllowed!==false || x.simulatedOrders!==0 ||
                x.requestsUsed>6 || x.yahooChartRequestsUsed>2 ||
+               !x.bamiOfficialCloseCrosscheck ||
+               x.bamiOfficialCloseCrosscheck.virtualPaperFillEligible!==false ||
+               x.bamiOfficialCloseCrosscheck.marketDataRightsCertified!==false ||
+               x.bamiOfficialCloseCrosscheck.independentPriceReceiptsAdmitted!==0 ||
+               x.bamiOfficialCloseCrosscheck.privatePricePublished!==false ||
+               Object.keys(x.bamiOfficialCloseCrosscheck).some(k=>["price","close","ohlc","value","html","rawPayload"].includes(k)) ||
                x.observations?.length!==3 ||
                x.observations.some(o=>o.paperFillCount!==0 && o.paperFillCount!==undefined) ||
                x.observations.some(o=>Object.keys(o).some(k=>["close","open","high","low","price","volume","ohlc"].includes(k))) ||
@@ -137,7 +149,9 @@ jobs:
           const output={version:1,generatedAt:incoming.generatedAt,
             mode:"WORLD_V7_EOD_RESEARCH_ONLY",
             note:"Derived trend from completed historical bars. No raw OHLC, broker orders or certified PAPER fills.",
-            records,historicalReplay:replay,fxHistory:incoming.fxHistory,realProviderQueried:incoming.realProviderQueried,
+            records,historicalReplay:replay,fxHistory:incoming.fxHistory,
+            bamiOfficialCloseCrosscheck:incoming.bamiOfficialCloseCrosscheck,
+            realProviderQueried:incoming.realProviderQueried,
             dataRights:incoming.dataRights,requestsUsed:incoming.requestsUsed,
             realtimePaperEligible:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
           fs.writeFileSync(file,JSON.stringify(output,null,2)+"\n");
