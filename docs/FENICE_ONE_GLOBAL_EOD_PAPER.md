@@ -164,3 +164,45 @@ La correzione `CANCEL` conservativa è disponibile nel motore e il runner locale
 È **dry-run**: effettua replay crittografico e tenta di calcolare esattamente un evento append-only `CANCEL`, ma non scrive alcun file. Se manca il ledger privato, non esiste un BAMI pendente, sono presenti più candidati, il segnale è temporalmente valido oppure l'evento non rispetta l'audit EOD, il comando fallisce e non crea un nuovo segnale.
 
 Soltanto dopo aver ispezionato il risultato del dry-run e il file privato originale, lo stesso comando con `--commit` può scrivere **un solo evento**, con lock, compare-and-swap e rename privato; non tocca il ledger pubblico, non annulla CBA, non elimina eventi e non modifica saldo, posizioni o Directa. Il tool rifiuta di combinare questa modalità con un evento, un consenso o un FX esterni. Resta impossibile eseguire il comando dal solo GitHub pubblico: il proprietario deve avere accesso al suo ledger privato sul computer autorizzato. Nessun BUY PAPER viene creato dall'annullamento.
+
+## Primo PAPER: secondo percorso EOD gratuito USA (sperimentale, 13 novembre 2026)
+
+Per non bloccare tutta FENICE su CBA/ASX e Banco BPM è stato aggiunto un
+intake **privato di ricerca**, per soli AAPL/MSFT/TSLA (XNAS), usando due
+API documentate e separate: Alpha Vantage `TIME_SERIES_DAILY` ed EODHD EOD.
+EODHD prevede una chiave demo pubblica per questi simboli e una Free tier
+da 20 chiamate/giorno per valutazione; Alpha Vantage ha limiti gratuiti
+propri. Non è garantito che una delle due abbia aggiornato il close al momento
+della richiesta. **La presenza di due fornitori non certifica che gli upstream
+siano indipendenti, né conferisce automaticamente i diritti di simulazione
+non-display.**
+
+Il comando locale, dopo la chiusura della seduta americana, è:
+
+```bash
+ALPHA_VANTAGE_API_KEY=<chiave_gia_configurata> node scripts/collect-one-global-first-paper-dual-eod.mjs --symbol=AAPL --session=YYYY-MM-DD --output=/percorso/privato/eod-aapl.json --commit
+```
+
+Su Windows passare la chiave tramite variabile d'ambiente già presente,
+senza scriverla nel comando o su GitHub. Se l'utente ha una propria
+`EODHD_API_TOKEN` può passarla tramite ambiente; in sua assenza si usa
+soltanto `demo` per i tre simboli elencati. Mai salvare token in
+`data/`, log, artifact, PR o issue. L'output resta sul disco privato,
+con permessi `0600` dove disponibili e file *create-only*.
+Senza `--commit` non viene scritto nulla.
+
+Sono verificati: risposta JSON, data/sessione USA completata, simbolo, due
+prezzi positivi entro 0,5%, limite temporale, duplicati e hash SHA-256
+delle risposte effettive. Le medie mobili 5/20 sono solo indicatori
+di ricerca. Test: `node scripts/test-one-global-first-paper-dual-eod.mjs`.
+
+**Confine obbligatorio:** questo report non contiene approvazione dei
+diritti dei provider, calendario di negoziazione indipendente, verifica
+dell'identità degli upstream, consenso specifico al nuovo FILL,
+record SIGNAL decisione prima dell'apertura successiva o prova futura
+di close dopo tale segnale. Pertanto è sempre
+`paperSettlementEligible:false`, `certifiedVirtualFills:0`,
+`phase9Credit:0` e Directa disabilitata. Non viene convertito da solo in
+un evento SETTLE del journal principale. La scrittura reale resta
+protetta dal motore `run-one-global-eod-private.mjs`: nessun valore
+sintetico, nessuna retrodatazione e nessuna deroga all'audit.
