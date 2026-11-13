@@ -19,6 +19,9 @@ on:
       - "scripts/import-one-global-free-world-file.mjs"
       - "scripts/fetch-one-global-euronext-free-zip.mjs"
       - "scripts/test-one-global-free-world-file.mjs"
+      - "lib/market/one-global-first-paper-dual-eod.mjs"
+      - "scripts/collect-one-global-first-paper-dual-eod.mjs"
+      - "scripts/test-one-global-first-paper-dual-eod.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -47,6 +50,9 @@ on:
       - "scripts/import-one-global-free-world-file.mjs"
       - "scripts/fetch-one-global-euronext-free-zip.mjs"
       - "scripts/test-one-global-free-world-file.mjs"
+      - "lib/market/one-global-first-paper-dual-eod.mjs"
+      - "scripts/collect-one-global-first-paper-dual-eod.mjs"
+      - "scripts/test-one-global-first-paper-dual-eod.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -103,7 +109,9 @@ jobs:
       - name: Verify official ECB AUD per EUR conversion and source protections
         run: node scripts/test-one-global-ecb-aud.mjs
       - name: Validate free global CSV/ZIP intake without broker, PAPER or source licensing escalation
-        run: node scripts/test-one-global-free-world-file.mjs
+        run: |
+          node scripts/test-one-global-free-world-file.mjs
+          node scripts/test-one-global-first-paper-dual-eod.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -133,6 +141,7 @@ jobs:
           node scripts/audit-one-global-eod-pilot-time.mjs
           node scripts/test-one-global-ecb-aud.mjs
           node scripts/test-one-global-free-world-file.mjs
+          node scripts/test-one-global-first-paper-dual-eod.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
