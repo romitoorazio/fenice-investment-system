@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { identifyAlphaListing, evaluateEodResearch, EOD_PILOTS, tentativeAlphaDailyCandidate } from "../lib/market/world-v7-eod-research.mjs";
 const now="2026-10-19T20:30:00.000Z";
-const sym={XMIL:"ENEL.MIL",XETR:"DTE.DEX",XTKS:"7203.TYO"};
+const sym={XMIL:"BAMI.MIL",XETR:"DTE.DEX",XTKS:"7203.TYO"};
 const match=(mic)=>({bestMatches:[{
   "1. symbol":sym[mic],"3. type":"Equity","4. region":EOD_PILOTS[mic].country,
   "8. currency":EOD_PILOTS[mic].currency,
@@ -46,7 +46,20 @@ for(let day=Date.parse("2026-09-01T00:00:00Z");day<=Date.parse("2026-10-16T00:00
   recent[d.toISOString().slice(0,10)]={"1. open":String(close-0.1),"2. high":String(close+0.3),
     "3. low":String(close-0.3),"4. close":String(close),"5. volume":"10000"};
 }
-const payload={"Meta Data":{"2. Symbol":"ENEL.MIL"},"Time Series (Daily)":recent};
+const payload={"Meta Data":{"2. Symbol":"BAMI.MIL"},"Time Series (Daily)":recent};
+// Banco BPM is the active first XMIL PAPER research pilot; this must not
+// silently regress to ENEL while the private BAMI signal awaits evidence.
+assert.equal(EOD_PILOTS.XMIL.ticker,"BAMI");
+assert.equal(EOD_PILOTS.XMIL.isin,"IT0005218380");
+assert.equal(EOD_PILOTS.XMIL.mic,"XMIL");
+assert.equal(EOD_PILOTS.XMIL.alphaDirectResearchCandidate,"BAMI.MIL");
+const wrongIssuer={...payload,"Meta Data":{"2. Symbol":"ENEL.MIL"}};
+assert.equal(evaluateEodResearch("XMIL",target,wrongIssuer,now).status,"RETURNED_SYMBOL_MISMATCH",
+ "Enel bars cannot ever be re-labeled as Banco BPM");
+assert.equal(evaluateEodResearch("XMIL",target,{
+  ...payload,"Meta Data":{"2. Symbol":" BAMI.MIL "},
+},now).status,"COMPLETE_EOD_RESEARCH",
+ "provider metadata surrounding whitespace is not a different issuer");
 const tested=evaluateEodResearch("XMIL",target,payload,now);
 assert.equal(tested.status,"COMPLETE_EOD_RESEARCH");
 assert.equal(tested.lastCompleteBarDate,"2026-10-16");
