@@ -35,6 +35,18 @@ const forged=buildWorldEodPaperReadiness({eod:temporary,nowIso:now});
 assert.equal(forged.observation[0].blockers.includes("SECOND_INDEPENDENT_COMPLETED_CLOSE_MISSING"),true);
 assert.equal(forged.observation[0].blockers.includes("EXPLICIT_PRIVATE_EOD_SIMULATION_APPROVAL_REQUIRED"),true);
 assert.equal(forged.observation[0].virtualFillsCertified,0);
+assert.equal(forged.observation[0].availableAsResearchOnly,true,
+  "fresh completed research remains usable for research, never PAPER fills");
+const expired=buildWorldEodPaperReadiness({
+  eod:temporary,
+  nowIso:new Date(Date.parse(eod.generatedAt)+25*60*60*1000).toISOString(),
+});
+assert(expired.observation.every(row=>row.blockers.includes("EOD_RESEARCH_SNAPSHOT_STALE")),
+  "every venue must report a source snapshot older than 24 hours");
+assert.equal(expired.observation[0].availableAsResearchOnly,false,
+  "even a completed, apparently licensed row cannot remain available when the source snapshot is stale");
+assert.equal(expired.certifiedForwardTrades,0);
+assert.equal(expired.liveTradingAllowed,false);
 assert.equal(JSON.stringify(forged).includes("5432.123"),false);
 assert.throws(()=>buildWorldEodPaperReadiness({
   eod:{...eod,liveTradingAllowed:true},nowIso:now
