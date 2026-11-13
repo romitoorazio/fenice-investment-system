@@ -109,3 +109,18 @@ Esecuzione con journal originale **fuori GitHub**:
 Il comando non mostra prezzi, ricevute o hash privati, non scrive sul journal
 e non collega mai Directa. Regressione:
 `node scripts/test-one-global-eod-pilot-time-audit.mjs`.
+
+## Sblocco sicuro del segnale BAMI intraday non ammissibile (13 novembre 2026)
+
+Il segnale XMIL:BAMI registrato giovedì 12 novembre alle 15:36 italiane è stato creato durante la seduta: non può essere reinterpretato come decisione dopo la chiusura del 12, né come ingresso successivo alla chiusura dell'11 (la seduta del 12 era già iniziata). Un settlement venerdì 13 sarebbe retroattivo e deve restare bloccato.
+
+Il precedente registro privato non prevedeva l'evento di chiusura di un segnale pendente non ammissibile, impedendo un nuovo segnale valido sullo stesso titolo. Ora il comando `kind=CANCEL` produce **soltanto** un evento append-only, con hash concatenato e motivo fisso `INVALID_PROSPECTIVE_EOD_WINDOW`, a condizione che l'audit del record privato originale XMIL/XASX ne dimostri l'irregolarità temporale. Non può annullare segnali validi, non richiede prezzi e non cambia cassa, posizioni, storia o permessi di trading.
+
+Procedura privata, senza inserire ledger o dati sensibili nel repository:
+
+1. `node scripts/audit-one-global-eod-pilot-time.mjs --ledger=/percorso/privato/eod-ledger.json` per verificare la vera registrazione BAMI. Senza file privato il sistema **non assume** che esista.
+2. Se il segnale originale è pendente e fuori finestra, preparare fuori GitHub un evento JSON `{"kind":"CANCEL","signalHash":"<hash-originale-privato>"}`. Il solo hash deve essere copiato localmente dal proprio registro autentico.
+3. Eseguire inizialmente `node scripts/run-one-global-eod-private.mjs --event=/percorso/privato/cancel-event.json --ledger=/percorso/privato/eod-ledger.json` (DRY-RUN). Solo se l'esito è corretto ripetere con `--commit`: scrittura CAS con lock e audit completo, un solo nuovo evento.
+4. Il nuovo segnale BAMI deve essere generato **dopo un close davvero pubblicato**, con un nuovo ID, una prova fonte valida e decisione anteriore all'apertura della seduta successiva. Un eventuale segnale dopo la chiusura di venerdì 13 potrebbe essere valutato sulla seduta di lunedì 16, **non** conteggiato come fill venerdì. Non creare segnali fittizi nel registro reale.
+
+Questa riparazione risolve soltanto il deadlock della coda dei segnali. Non importa licenze, ricevute indipendenti o approvazione privata; non abilita un PAPER CERTIFICATO né Directa. La regressione `scripts/test-one-global-eod-paper.mjs` include annullamento non ripetibile, saldo immutato, divieto di annullare un segnale valido e riapertura prospettica BAMI.
