@@ -2,10 +2,14 @@ name: Fenice ONE GLOBAL Forward EOD Private PAPER
 
 # Isolated EOD pilot: never changes V8, B2/V6, Phase 9 or Directa.
 # GitHub Actions never imports private prices, contracts or owner consent.
+# The fixed OIDC job may ask Vercel to collect and append a research SIGNAL.
 on:
   pull_request:
     branches: [main]
     paths:
+      - ".ops/vercel-deploy-request.json"
+      - ".github/workflows/vercel-deploy.yml"
+      - "lib/ui/github-production-checks.mjs"
       - "lib/trading/one-global-eod-paper.mjs"
       - "scripts/run-one-global-eod-private.mjs"
       - "scripts/report-one-global-eod-paper-readiness.mjs"
@@ -37,6 +41,14 @@ on:
       - "scripts/run-one-global-cloud-eod-research.mjs"
       - "scripts/test-one-global-cloud-eod-research.mjs"
       - "lib/trading/one-global-cloud-private-ledger.mjs"
+      - "lib/trading/one-global-cloud-prospective-cycle.mjs"
+      - "lib/trading/one-global-cloud-workflow-auth.mjs"
+      - "lib/market/one-global-cloud-dual-eod-fetch.mjs"
+      - "app/api/paper/one-global-private-signal-cycle/route.js"
+      - "scripts/invoke-one-global-cloud-signal-cycle.mjs"
+      - "scripts/test-one-global-cloud-prospective-cycle.mjs"
+      - "scripts/test-one-global-cloud-workflow-auth.mjs"
+      - "scripts/test-one-global-cloud-dual-eod-fetch.mjs"
       - "scripts/test-one-global-cloud-private-ledger.mjs"
       - "lib/trading/one-global-vercel-private-blob-store.mjs"
       - "scripts/test-one-global-vercel-private-blob-store.mjs"
@@ -69,6 +81,9 @@ on:
   push:
     branches: [main]
     paths:
+      - ".ops/vercel-deploy-request.json"
+      - ".github/workflows/vercel-deploy.yml"
+      - "lib/ui/github-production-checks.mjs"
       - "lib/trading/one-global-eod-paper.mjs"
       - "scripts/run-one-global-eod-private.mjs"
       - "scripts/report-one-global-eod-paper-readiness.mjs"
@@ -100,6 +115,14 @@ on:
       - "scripts/run-one-global-cloud-eod-research.mjs"
       - "scripts/test-one-global-cloud-eod-research.mjs"
       - "lib/trading/one-global-cloud-private-ledger.mjs"
+      - "lib/trading/one-global-cloud-prospective-cycle.mjs"
+      - "lib/trading/one-global-cloud-workflow-auth.mjs"
+      - "lib/market/one-global-cloud-dual-eod-fetch.mjs"
+      - "app/api/paper/one-global-private-signal-cycle/route.js"
+      - "scripts/invoke-one-global-cloud-signal-cycle.mjs"
+      - "scripts/test-one-global-cloud-prospective-cycle.mjs"
+      - "scripts/test-one-global-cloud-workflow-auth.mjs"
+      - "scripts/test-one-global-cloud-dual-eod-fetch.mjs"
       - "scripts/test-one-global-cloud-private-ledger.mjs"
       - "lib/trading/one-global-vercel-private-blob-store.mjs"
       - "scripts/test-one-global-vercel-private-blob-store.mjs"
@@ -136,6 +159,10 @@ on:
     - cron: "45 20 * * 1-5"
     - cron: "45 21 * * 1-5"
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Fenice Production Deploy"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -146,6 +173,7 @@ concurrency:
 
 jobs:
   regression:
+    name: one-global-eod-regression
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
@@ -191,8 +219,32 @@ jobs:
           node scripts/test-one-global-cloud-private-recovery.mjs
           node scripts/test-one-global-private-signal-expiry.mjs
           node scripts/test-one-global-asx-cba-dual-eod-research.mjs
+          node scripts/test-one-global-cloud-prospective-cycle.mjs
+          node scripts/test-one-global-cloud-workflow-auth.mjs
+          node scripts/test-one-global-cloud-dual-eod-fetch.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
+
+  cloud-original-private-signal-cycle:
+    # Only this job gets a short-lived GitHub identity. Vendor keys and the
+    # owner session stay in Vercel; PRs never acquire a journal-write identity.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout trusted main without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify original private journal and run the bounded Vercel SIGNAL cycle
+        run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-asx-cba-next-session:
     # Real keyed CBA 13 Nov EOD admission check. On trusted main only; PRs

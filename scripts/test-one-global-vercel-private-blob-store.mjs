@@ -15,6 +15,7 @@ const api={
   assert.equal(path,PATH);
   assert.equal(options.access,'private');
   assert.equal(options.token,'TEST_ONLY_BLOB_TOKEN');
+  assert.equal(options.useCache,false,'original journal reads must bypass stale CDN entries');
   return {statusCode:200,blob:{etag,size:Buffer.byteLength(body)},stream:streamed(body)};
  },
  async put(path,next,options){
@@ -166,3 +167,31 @@ await assert.rejects(
 );
 assert.equal(created,2,'provider must enforce create-only conflict');
 console.log('PASS Vercel private Blob mock: original journal, legacy token + OIDC scopes, CAS ifMatch, duplicate, missing original and precondition failures; NO actual store provisioned.');
+
+// An environment OIDC token must never be pinned across awaits or rotations.
+const originalEnv=process.env.VERCEL_OIDC_TOKEN;
+try{
+ process.env.VERCEL_OIDC_TOKEN='SYNTHETIC_FIRST_ENV_OIDC';let reads=0;
+ const rotating=await createVercelPrivateEodBlobStore({token:'',storeId:'store_FENICE_DEMO',sdk:{
+  async get(path,opts){assert.equal(opts.oidcToken,undefined,'SDK must resolve a fresh token each operation');
+   assert.equal(opts.useCache,false);reads++;return null;},async put(){}
+ }});
+ await rotating.read();process.env.VERCEL_OIDC_TOKEN='SYNTHETIC_ROTATED_ENV_OIDC';
+ await rotating.read();assert.equal(reads,2);
+}finally{
+ if(originalEnv===undefined)delete process.env.VERCEL_OIDC_TOKEN;else process.env.VERCEL_OIDC_TOKEN=originalEnv;
+}
+let archivedBody,archivedPath;
+const archiveStore=await createVercelPrivateEodBlobStore({token:'',storeId:'store_FENICE_DEMO',sdk:{
+ async put(path,body,opts){
+  assert.equal(opts.access,'private');assert.equal(opts.allowOverwrite,false);
+  assert.equal(opts.addRandomSuffix,false);assert.equal(opts.ifMatch,undefined);
+  archivedBody=body;archivedPath=path;return {etag:'"archive"'};
+ },
+ async get(path,opts){assert.equal(path,archivedPath);assert.equal(opts.useCache,false);
+  return {statusCode:200,blob:{etag:'"archive"'},stream:streamed(archivedBody)};}
+}});
+assert.deepEqual(await archiveStore.createResearchObservation({hash:'a'.repeat(64),body:'{"synthetic":true}'}),{created:true});
+assert.equal(archivedPath,'fenice/one-global/private-eod/observations/'+'a'.repeat(64)+'.json');
+await assert.rejects(archiveStore.createResearchObservation({hash:'../path',body:'x'}),/PRIVATE_OBSERVATION_INVALID/);
+console.log('PASS Blob evidence: rotating SDK-managed OIDC, origin reads, immutable private observations and exact readback.');

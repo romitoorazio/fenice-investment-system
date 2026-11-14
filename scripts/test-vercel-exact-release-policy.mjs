@@ -26,6 +26,10 @@ assert.ok(workflow.includes('select(.state == "READY" and .meta.githubCommitSha 
 assert.ok(workflow.includes('steps.duplicate.outputs.deploy == \'true\''), "Skip duplicates downstream");
 assert.ok(workflow.includes('Missing GitHub Actions secret VERCEL_TOKEN'), "Fail closed if missing token");
 assert.ok(workflow.includes("unexpected Vercel project"), "Strict target identity expected");
+assert.ok(workflow.includes('.cleanupOriginalEodRecoveryEnv == true'), 'Obsolete input removal needs explicit scoped release request');
+assert.ok(workflow.includes('node scripts/cleanup-one-global-recovery-env.mjs'));
+assert.ok(workflow.indexOf('node scripts/cleanup-one-global-recovery-env.mjs')
+  <workflow.indexOf('Create exact Fenice production deployment'), 'Remove obsolete input before the new env snapshot');
 assert.ok(workflow.includes('Deployment entered terminal failure state'), "Runtime build failure remains fatal");
 assert.ok(workflow.includes("Production alias did not move to expected deployment"), "Don't falsely claim production success");
 assert.ok(workflow.includes("VERCEL_PROJECT_ID: prj_KuTRkfN5G5cSMkqOaH5xlEV1K5By"));
@@ -46,12 +50,13 @@ assert.match(workflow, /for attempt in \$\(seq 1 24\)/, "guarded release must wa
 assert.match(workflow, /sleep 20/, "CI wait must be bounded");
 assert.match(workflow, /node scripts\/release-checks-failed\.mjs/, "failed required CI checks stop the wait");
 assert.match(workflow, /authorized=false/, "timeout must fail closed");
-// CI verifier requires all eight required checks for the exact deployed SHA;
+// CI verifier requires every required check for the exact deployed SHA;
 // path-filtered safety workflows must also run when a guarded release is requested.
 for (const path of [
   ".github/workflows/directa-service-continuity.yml",
   ".github/workflows/paper-owner-continuity-advisory.yml",
   ".github/workflows/global-market-session-safety.yml",
+  ".github/workflows/one-global-eod-private-paper.yml",
 ]) {
   const source = await readFile(new URL("../" + path, import.meta.url), "utf8");
   const pushPaths = source.split("  push:")[1]?.split("\n  workflow_dispatch:")[0];
