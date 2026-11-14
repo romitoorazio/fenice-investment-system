@@ -301,3 +301,78 @@ fixture sintetiche marcate come tali. **Non viene ancora fornito un collector
 in esecuzione sul PC privato**, né un segnale reale nuovo viene inventato in CI.
 Il monitor ChatGPT delle 23:30 non sostituisce da solo un processo locale
 autorizzato con dati e ledger originali.
+
+
+## Autopilot locale privato — prima catena prospettica senza comandi ripetuti (14 novembre 2026)
+
+È stato aggiunto `scripts/run-one-global-private-eod-autopilot.mjs`, che riutilizza **solo**
+le funzioni preesistenti di acquisizione dual EOD, il bridge research `SIGNAL` e
+il writer atomico originale, senza creare un altro motore di trading o versione.
+Un'unica esecuzione può consultare al massimo AAPL, MSFT e TSLA, fermandosi al
+**primo** segnale di ricerca valido. Il risultato non è mai un ordine reale o
+un FILL PAPER. Si parte dai segnali prospettici per costruire una storia vera,
+non si retrodata nessun evento.
+
+**Prerequisiti realmente necessari:**
+- Esecuzione **sul PC dell'utente o su un ambiente privato autenticato**, mai
+  nel workflow GitHub pubblico. Node.js 22, repository FENICE esistente e
+  `ALPHA_VANTAGE_API_KEY` già disponibile nell'ambiente dell'utente.
+  Non aggiungere token al codice o al task di schedulazione.
+- Il percorso `--ledger` deve riferirsi al **journal EOD originale esistente,
+  verificabile e FUORI dal repository**, non a un registro nuovo o ricreato.
+  Un file mancante, corrotto o un collegamento simbolico sono rifiutati.
+- Il task può essere avviato alle **23:30 ora italiana** dal lunedì al venerdì
+  sul PC autorizzato: la logica interna ricalcola sempre il giorno e l'orario
+  di **New York**, accettando solo 16:35–18:55 ET. I cambi dell'ora legale
+  Italia/USA, i giorni festivi, le chiusure e i ritardi dei provider non vengono
+  confusi con prove di mercato realmente aperto: la risposta dei provider
+  deve superare comunque la validazione del motore.
+
+Comando di ispezione senza modificare il registro:
+```powershell
+node scripts/run-one-global-private-eod-autopilot.mjs --ledger="C:\PERCORSO_PRIVATO\eod-ledger.json"
+```
+
+Dopo aver identificato il **vero** percorso del registro originale, se si
+desidera abilitare solo la scrittura del nuovo `SIGNAL` virtuale:
+```powershell
+node scripts/run-one-global-private-eod-autopilot.mjs --ledger="C:\PERCORSO_PRIVATO\eod-ledger.json" --commit
+```
+
+Per esecuzione ripetuta senza nuovi comandi manuali, programmare il secondo
+comando nel **Task Scheduler di Windows** sotto il proprio utente, nei giorni
+feriali alle 23:30 con directory di lavoro del repository, e verificare che
+le credenziali già esistenti siano disponibili alla sessione del task.
+**Il task non è stato installato automaticamente sul PC** dal repository né
+dalla chat: senza accesso a quel computer non si possono verificare il ledger
+privato e l'ambiente delle chiavi, né dichiarare un segnale reale creato.
+
+**Funzionamento fail-closed:** journal rigiocato integralmente PRIMA delle
+richieste; simboli duplicati o con `SIGNAL` pendente/same-day esclusi; data
+NYSE calcolata dall'orologio, mai passata da una fixture o dalla riga di
+comando; al massimo tre simboli e un solo segnale; acquisizione in cartella
+temporanea privata eliminata in dry-run; con `--commit` report conservato
+SOLO accanto al journal privato, in modalità create-only; primo passaggio del
+bridge in dry-run e poi scrittura protetta CAS/lock, con replay e controllo
+orario ripetuti. Gli errori vengono riferiti solo con codici riconoscibili,
+senza prezzi, segreti, URL completi o payload dei fornitori. Alla mancanza
+della chiave non viene toccato alcun journal.
+
+Il primo `SIGNAL` è **research-only**: `paperFillsCreated=0`,
+`certifiedTrades=0`, `phase9Credit=0`, Directa e LIVE rimangono
+disabilitati. Per il passo successivo, un `SETTLE` richiede il close
+**di una seduta successiva** pubblicato da fonti indipendenti ammissibili,
+verifica degli effettivi diritti d'uso, calendario ufficiale, consenso
+specifico PAPER privato e valutazione EUR. Non usare EODHD demo o due
+editori come prova automatica di indipendenza degli upstream.
+
+Conferme documentali sulle licenze **non equivalenti all'approvazione del
+singolo utilizzo**: EODHD autorizza l'uso personale per paper trading e
+pipeline automatizzate private, anche con dati gratuiti ove accessibili
+(https://eodhd.com/help/personal-use,
+https://eodhd.com/help/ai-tools,
+https://eodhd.com/help/plans).
+Alpha Vantage consente l'uso personale non commerciale entro i suoi limiti
+(https://www.alphavantage.co/terms_of_service/).
+Sono vietate pubblicazione o redistribuzione dei dati originali sul repository
+pubblico o in artifact accessibili a terzi.
