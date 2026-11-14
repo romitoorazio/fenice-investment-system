@@ -89,3 +89,11 @@ const route=readFileSync(new URL('../app/api/paper/one-global-private-inputs/rou
 assert.match(route,/verifyFeniceOwnerSession/);assert.match(route,/feniceSameOrigin/);assert.match(route,/pinOneGlobalRecoveredOriginalStore/);
 assert.doesNotMatch(route,/settleOneGlobalEodSignal|newOneGlobalEodPaperLedger|createFeniceOwnerSession/);
 console.log('PASS private input intake: exact original bytes, genuine-schema consent only, private archive/readback, create-only+ETag updates, prior documents preserved, idempotency/lost responses, no journal mutation/FILL, owner/production/CSRF/body gates and redaction. All fixtures SYNTHETIC.');
+
+for(const message of ['CLOUD_BLOB_PRIVATE_OBSERVATION_READBACK_FAILED','CLOUD_BLOB_PRIVATE_OBSERVATION_NOT_CONFIRMED']){
+  const result=await http(req(),{...opts,storageFactory:async()=>{throw Error(message);}});
+  assert.equal((await result.json()).state,message);
+}
+const archiveFailure=memory();archiveFailure.createResearchObservation=async()=>{throw Error('sensitive upstream exception');};
+await assert.rejects(put({storage:archiveFailure,input:request(),nowIso:now}),/^Error: PRIVATE_INPUT_ORIGINAL_DOCUMENT_ARCHIVE_UNAVAILABLE$/);
+assert.equal(archiveFailure.writes,0);

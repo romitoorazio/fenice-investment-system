@@ -48,7 +48,7 @@ export default function OneGlobalPrivateInputPanel(){
         setNote("Originali collegati e riletti nel deposito privato. L’importazione non crea operazioni PAPER.");
       }else{
         setNote(result.state.includes("RELOAD")?"I documenti sono cambiati. Lo stato è stato riletto: verifica prima di ripetere.":
-          "Importazione non confermata. "+blockerText(result.state));
+          "Importazione non confermata. "+blockerText(result.state)+" Codice: "+result.state);
         await refresh();
       }
     }catch{setNote("Importazione non confermata. Ricontrolla lo stato prima di ripetere.");}
