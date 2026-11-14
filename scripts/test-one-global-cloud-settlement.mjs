@@ -177,3 +177,23 @@ const combined=await runOneGlobalCloudPaperCycle({storage:noContext,clock:()=>no
 assert.equal(combined.settlementState,'SETTLEMENT_BLOCKED');assert.equal(combined.virtualFillCount,0);assert.equal(research,0);
 assert.equal(combined.originalEventsPreserved,true);assert.equal(combined.liveTradingAllowed,false);
 console.log('PASS cloud settlement: original documents/consent/rights/upstreams/session gates, real-interface raw receipts, third-provider fallback, ECB AUD/USD/JPY, archive before CAS, immutable prefix, duplicates, conflict/lost-response/readback/revocation fail closed. All inputs SYNTHETIC; no real FILL claimed.');
+// Complete strict settlement through the new SIP adapter, with SYNTHETIC
+// original rights/provenance/session proofs. Real source access does not grant these.
+{
+ const f=fixture({mic:'XNAS',currency:'USD',symbol:'AAPL',providers:['alpha-vantage','alpaca-sip']});
+ f.context.markets[0].sources.forEach(s=>{s.symbol='AAPL';});
+ const storage=memory(f);
+ const fetcher=async(url,init)=>{
+  const u=new URL(url);assert.equal(init.redirect,'error');
+  if(u.hostname==='www.ecb.europa.eu')return new Response(xml(),{headers:{'Content-Type':'application/xml'}});
+  if(u.hostname==='www.alphavantage.co')return Response.json({'Meta Data':{'2. Symbol':'AAPL'},'Time Series (Daily)':{[sessionDate]:{'4. close':'10'}}});
+  assert.equal(u.origin,'https://data.alpaca.markets');assert.equal(u.searchParams.get('feed'),'sip');
+  return Response.json({symbol:'AAPL',next_page_token:null,bars:[{t:'2026-11-13T05:00:00Z',o:10,h:11,l:9,c:10,v:100,n:10}]});
+ };
+ const report=await run({storage,clock:()=> '2026-11-14T20:00:00.000Z',fetcher,
+  collect:args=>collectOneGlobalSettlementPair({...args,env:{...env,APCA_API_KEY_ID:'SYNTHETIC_SIP_KEY',APCA_API_SECRET_KEY:'SYNTHETIC_SIP_SECRET'}})});
+ assert.equal(report.paperFillsCreated,1);assert.equal(storage.writes,1);assert.equal(report.virtualFillCount,1);
+ assert.equal(report.ownerPaperAuthorityValidated,true);assert.equal(report.sourceRightsEvidenceValidated,true);
+ assert.equal(storage.ledger.events.at(-1).kind,'FILL');assert.equal(storage.archives.length,1);
+}
+console.log('PASS SYNTHETIC full Alpha + Alpaca SIP strict settlement: original gates, raw reparse, official-interface ECB, archive, one CAS append. No real journal/network.');
