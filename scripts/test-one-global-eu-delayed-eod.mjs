@@ -14,7 +14,7 @@ import {
 } from '../lib/market/one-global-eu-delayed-eod.mjs';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
   settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
-import {runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
+import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
 
 // Every value in this file is synthetic. The test validates the strict parser
 // and official-interface contract; it does not claim a real market observation.
@@ -108,22 +108,46 @@ assert.throws(()=>settleOneGlobalEodSignal({previousLedger:euSignal.ledger,nowIs
   /EU_VENUE_INDEPENDENCE_OR_PRICE_SEMANTICS_INVALID/);
 
 const discoveryUrl='https://cdn.cboe.com/data/europe/equities/delayed_data/eqt_trade_CEUX/0123456789/minute/eqt_trade_CEUX_20261113_1629.csv';
-const discovery=Buffer.from('<html><a href="'+discoveryUrl+'">minute</a></html>');
-assert.equal(discoverOneGlobalCboeCeuxMinute({html:discovery,sessionDate}),discoveryUrl);
-assert.throws(()=>discoverOneGlobalCboeCeuxMinute({html:Buffer.from(discovery+' '+discoveryUrl.replace('0123456789','abcdef0123')),sessionDate}),
+const discovery=Buffer.from(JSON.stringify({daily:[],minute:[{filename:'eqt_trade_CEUX_20261113_1629.csv',serveUrl:discoveryUrl}]}));
+assert.equal(discoverOneGlobalCboeCeuxMinute({apiRaw:discovery,sessionDate}),discoveryUrl);
+const ambiguous=Buffer.from(JSON.stringify({daily:[],minute:[
+  {filename:'eqt_trade_CEUX_20261113_1629.csv',serveUrl:discoveryUrl},
+  {filename:'eqt_trade_CEUX_20261113_1629.csv',serveUrl:discoveryUrl.replace('0123456789','abcdef0123')},
+]}));
+assert.throws(()=>discoverOneGlobalCboeCeuxMinute({apiRaw:ambiguous,sessionDate}),
   /CBOE_EXACT_MINUTE_LINK_MISSING_OR_AMBIGUOUS/);
 
 const calls=[];
 const fetcher=async(url,init)=>{
-  calls.push(url);assert.equal(init.redirect,'error');assert.equal(init.cache,'no-store');
-  if(url.includes('marketdata.euronext.com'))return new Response(zip);
-  if(url==='https://www.cboe.com/markets/eu/equities/transparency-data/')return new Response(discovery);
-  if(url===discoveryUrl)return new Response(cboe);
+  const href=String(url);calls.push(href);assert.equal(init.redirect,'error');assert.equal(init.cache,'no-store');
+  if(href.includes('marketdata.euronext.com'))return new Response(zip);
+  if(href.startsWith('https://www-api.cboe.com/europe/equities/transparency_data/get_file_map?')){
+    const u=new URL(href);assert.deepEqual(Object.fromEntries(u.searchParams),
+      {category:'equities',venue:'dxe',trade_type:'trade',date:sessionDate});return new Response(discovery);
+  }
+  if(href===discoveryUrl)return new Response(cboe);
   throw Error('unexpected synthetic URL');
 };
 assert.equal((await fetchOneGlobalEuronextMilanFile({fetcher})).raw.equals(zip),true);
 assert.equal((await fetchOneGlobalCboeCeuxFile({sessionDate,fetcher})).raw.equals(cboe),true);
 assert.equal(calls.length,3);
+
+let accessArtifacts=0,accessObservations=0,accessContexts=0;
+const accessStore={
+  async createSourceArtifact({hash,body,contentType}){assert.equal(createHash('sha256').update(body).digest('hex'),hash);
+    assert(['application/zip','text/csv','application/json'].includes(contentType));accessArtifacts++;return {created:true,verified:true};},
+  async createResearchObservation({hash,body}){const value=JSON.parse(body);assert.equal(value.kind,'ONE_GLOBAL_PRIVATE_EU_SOURCE_ACCESS_OBSERVATION');
+    assert.match(hash,/^[a-f0-9]{64}$/);accessObservations++;return {created:true};},
+};
+const access=await inspectOneGlobalEuSourceAccess({storage:accessStore,clock:()=>'2026-11-14T17:15:00.000Z',fetcher,
+  ensureEvidenceContext:async input=>{assert.equal(input.rawEvidence.sessionDate,sessionDate);accessContexts++;return {changed:true};}});
+assert.equal(access.state,'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED');assert.equal(access.sourcePairsReceived,1);
+assert.equal(access.rawArtifactsVerified,true);assert.equal(access.rightsEvidenceConnected,true);
+assert.equal(accessArtifacts,3);assert.equal(accessObservations,1);assert.equal(accessContexts,1);
+const blockedAccess=await inspectOneGlobalEuSourceAccess({storage:accessStore,clock:()=>'2026-11-14T17:15:00.000Z',
+  fetcher:async()=>{throw Error('synthetic network failure');}});
+assert.equal(blockedAccess.state,'EU_SOURCE_ACCESS_NOT_CONFIRMED');
+assert.equal(blockedAccess.blocker,'EU_DELAYED_EOD_TRANSPORT_UNAVAILABLE');
 
 const damaged=Buffer.from(zip);damaged[60]^=1;
 assert.throws(()=>extractOneGlobalEuronextCsv(damaged),/EU_DELAYED_EOD_ZIP_(?:INFLATE_INVALID|INTEGRITY_MISMATCH)/);
@@ -148,7 +172,7 @@ function memory(ledger=existing){
   return {privateAccess:true,durable:true,atomicCompareAndSwap:true,
     async read(){return body===null?null:{body,etag};},
     async createSourceArtifact({hash,body:raw,contentType}){assert.equal(createHash('sha256').update(raw).digest('hex'),hash);
-      assert(['application/zip','text/csv','text/html'].includes(contentType));artifacts++;return {created:true,verified:true};},
+      assert(['application/zip','text/csv','application/json'].includes(contentType));artifacts++;return {created:true,verified:true};},
     async createResearchObservation({hash,body:observation}){const parsed=JSON.parse(observation);
       assert.equal(createHash('sha256').update(JSON.stringify(parsed.report)).digest('hex'),hash);observations++;return {created:true};},
     async compareAndSwap(input){assert.equal(input.expectedEtag,etag);body=input.body;etag='"eu-2"';writes++;return {committed:true,etag};},
@@ -174,4 +198,4 @@ const weekend=await runOneGlobalCloudEuProspectiveCycle({storage:weekendStore,cl
 assert.equal(weekend.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');assert.equal(weekendStore.artifacts,0);assert.equal(weekendStore.writes,0);
 await assert.rejects(runOneGlobalCloudEuProspectiveCycle({storage:memory(null),clock:()=>cycleNow,fetcher,ensureEvidenceContext}),/ORIGINAL_JOURNAL_REQUIRED/);
 
-console.log('PASS EU delayed EOD: strict bounded ZIP/CSV, MTAA closing auction, independent CEUX pre-close trade, exact semantics, official discovery, corruption/ambiguity/venue/condition rejection. SYNTHETIC fixtures only; no FILL claimed.');
+console.log('PASS EU delayed EOD: strict bounded ZIP/CSV, MTAA closing auction, independent CEUX pre-close trade, exact semantics, official API discovery, corruption/ambiguity/venue/condition rejection. SYNTHETIC fixtures only; no FILL claimed.');
