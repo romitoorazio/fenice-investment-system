@@ -33,6 +33,9 @@ on:
       - "scripts/test-one-global-private-eod-autopilot.mjs"
       - "scripts/install-private-eod-autopilot.ps1"
       - "scripts/test-private-eod-autopilot-installer.mjs"
+      - "lib/trading/one-global-cloud-eod-research.mjs"
+      - "scripts/run-one-global-cloud-eod-research.mjs"
+      - "scripts/test-one-global-cloud-eod-research.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -75,6 +78,9 @@ on:
       - "scripts/test-one-global-private-eod-autopilot.mjs"
       - "scripts/install-private-eod-autopilot.ps1"
       - "scripts/test-private-eod-autopilot-installer.mjs"
+      - "lib/trading/one-global-cloud-eod-research.mjs"
+      - "scripts/run-one-global-cloud-eod-research.mjs"
+      - "scripts/test-one-global-cloud-eod-research.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -89,6 +95,10 @@ on:
   schedule:
     # After Europe/US close and following existing worldwide EOD research.
     - cron: "15 0 * * 2-6"
+    # 16:45 New York throughout EST/EDT without using the owner's PC.
+    # The in-process NY clock rejects the unwanted UTC slot.
+    - cron: "45 20 * * 1-5"
+    - cron: "45 21 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -138,8 +148,51 @@ jobs:
           node scripts/test-one-global-postclose-signal.mjs
           node scripts/test-one-global-private-eod-autopilot.mjs
           node scripts/test-private-eod-autopilot-installer.mjs
+          node scripts/test-one-global-cloud-eod-research.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
+
+  cloud-dual-eod-research:
+    # Secrets are accessible only on trusted default-branch schedule or manual
+    # dispatch; never on pull requests, no publisher payloads leave this runner.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout trusted main without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Perform genuine two-provider postclose research without private writes
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          EODHD_API_TOKEN: ${{ secrets.EODHD_API_TOKEN }}
+          SAFE_REPORT: ${{ runner.temp }}/fenice-cloud-eod-readiness.json
+        run: |
+          node scripts/run-one-global-cloud-eod-research.mjs --output="$SAFE_REPORT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const x=JSON.parse(fs.readFileSync(process.env.SAFE_REPORT,'utf8'));
+          if(x.liveTradingAllowed!==false||x.brokerConnectivityAllowed!==false
+            ||x.originalPrivateJournalConnected!==false
+            ||x.originalPrivateJournalChanged!==false
+            ||x.paperFillsCreated!==0||x.certifiedTrades!==0
+            ||x.phase9Credit!==0||x.providerUpstreamsIndependentlyCertified!==false)
+            throw Error('CLOUD_EOD_UNSAFE_ADMISSION_METADATA');
+          console.log('Real EOD research diagnostic only. No canonical PAPER SIGNAL/FILL.');
+          NODE
+      - name: Upload sanitized status only, never vendor payloads
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-cloud-eod-provider-gate
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/fenice-cloud-eod-readiness.json
 
   safe-diagnostic-only:
     # Main merges can immediately probe the free ECB reference with no key,
@@ -172,6 +225,7 @@ jobs:
           node scripts/test-one-global-postclose-signal.mjs
           node scripts/test-one-global-private-eod-autopilot.mjs
           node scripts/test-private-eod-autopilot-installer.mjs
+          node scripts/test-one-global-cloud-eod-research.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
