@@ -648,3 +648,68 @@ temporanea deve essere eliminata dopo il recupero confermato.
 La prossima vera simulazione PAPER non deriva automaticamente
 dal recupero: servono chiusure effettive successive al segnale,
 ricevute indipendenti, diritti d'uso e consenso applicabile.
+
+
+### Fonte CBA 13/11 accertata, e controllo autonomo di due API in cloud (14/11/2026)
+
+Il journal originale Vercel Blob `PRIVATE` è stato importato e replayato:
+`ORIGINAL_JOURNAL_VALID_PRIVATE`, **3 eventi** (CBA SIGNAL, BAMI SIGNAL,
+BAMI CANCEL), **1 pendente XASX:CBA**, **0 BUY/SELL virtuali**. La
+variabile temporanea `FENICE_ONE_GLOBAL_EOD_RECOVERY_JSON` in Vercel è
+stata **sostituita con un valore inerte** il 14/11; resta da eliminare
+la variabile con il comando/dashboard Vercel e creare un deployment
+successivo per evitare di riutilizzare le variabili del vecchio
+deployment. Non dichiarare che il nome della variabile è già sparito.
+
+La chiusura pubblica storica della **prima seduta regolare successiva** al
+segnale CBA del 12/11 è il **13 novembre 2026**. FT, Motley Fool Australia
+e Investing riportano 170,87 AUD; EODData arrotonda a 170,9 AUD.
+Fonti di sola verifica pubblica:
+- https://markets.ft.markitdigital.com/data/equities/tearsheet/historical?s=CBA%3AASX
+- https://www.fool.com.au/tickers/asx-cba/
+- https://www.investing.com/equities/commonwealth-bank-of-australia-historical-data
+
+Tali pagine **non sono ricevute originali di publisher indipendenti,
+non documentano i tempi di pubblicazione delle API, le licenze per uso
+automatizzato né il cambio BCE**. Non usarle come payload per creare
+`FILL`.
+
+Il ramo cloud aggiunge un job nell'esistente workflow
+`.github/workflows/one-global-eod-private-paper.yml`, con
+`scripts/probe-one-global-asx-cba-eod.mjs` e parser
+`lib/market/one-global-asx-cba-dual-eod-research.mjs`:
+- sul push sicuro a `main` e nelle schedule già esistenti, prova
+  `Alpha Vantage TIME_SERIES_DAILY` con simbolo `CBA.AX` e
+  `EODHD /api/eod/CBA.AU` con **chiavi effettive preesistenti**
+  (`ALPHA_VANTAGE_API_KEY` e `EODHD_API_TOKEN`);
+- il token EODHD `demo` **non** è una credenziale per CBA: viene
+  rifiutato senza richiedere un piano o cambiare chiavi; non è garantito
+  che ogni piano gratuito dia un close verificabile;
+- confronta data **2026-11-13** esatta, simbolo Alpha Vantage,
+  close positivi e differenza completa tra due prezzi max 0,5%;
+- non acquisisce, stampa o conserva payload, prezzi, hash o tokens
+  nel repository; la diagnostica pubblica contiene solo nomi di stati
+  sanitizzati e `FILL=0`;
+- non usa dati del 16/11 come se fossero la prima seduta successiva.
+  Dopo le **05:10 UTC del 15/11/2026** non avvia più acquisizione
+  del vecchio segnale (48 ore dalla chiusura ordinaria del 13/11),
+  per non trasformare un fatto storico in una simulazione prospettica.
+
+Il motore rigoroso su XASX/XMIL verifica ora anche
+`e.sessionDate===firstNextNormalWeekday`, oltre ai vincoli già
+presenti, durante il replay completo: una seduta successiva più
+distante non può essere spacciata per `NEXT_COMPLETED_SESSION_CLOSE`.
+Le eccezioni di calendario (feste, sospensioni, riaperture) non
+sono attestate automaticamente e richiedono un percorso distinto
+con fonte ufficiale, mai un'estensione silenziosa della scadenza.
+Il FIX è testato con una fixture che tenta il lunedì 16 al posto
+del venerdì 13 e deve essere rifiutata.
+
+Anche se entrambe le API rispondessero con dati reali confrontabili,
+`publisherPublicationTimesProven=false`,
+`independentFeedProven=false`,
+`dataRightsIndependentlyReviewed=false` e `FILL=0`
+finché non ci siano ricevute originali, documentazione e consenso
+effettivamente validati per il **singolo** record. FENICE resta
+mondiale: questo è solo il controllo mirato al segnale privato
+**australiano**, non una limitazione a Nasdaq né una nuova versione.
