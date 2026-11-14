@@ -474,3 +474,55 @@ seduta successiva. La diagnostica continua nel frattempo senza PC.
 GitHub Actions e Vercel restano l'architettura mondiale già esistente:
 questo collegamento di ricerca USA è il **pilota di ammissione dei dati**,
 non una riduzione della copertura futura dei PAPER a Nasdaq.
+
+
+### Contratto di scrittura del journal EOD originale nello storage privato (14 novembre 2026)
+
+Il modulo `lib/trading/one-global-cloud-private-ledger.mjs` rende pronto il
+confine del motore PAPER per uno storage **autenticato, privato, persistente
+e con ETag compare-and-swap atomico**. Il modulo è indipendente dal vendor:
+una volta collegato un backend privato reale, il writer accetta una sola
+mutazione append-only, esegue il replay del journal completo prima e
+dopo e rifiuta i conflitti. Un backend pubblico, un semplice filesystem
+temporaneo di GitHub Actions o un cache senza CAS sono sempre rifiutati.
+
+**Il codice non ha ancora una connessione storage attiva:** Vercel ha
+rifiutato la creazione dello store Blob privato con `403 forbidden`, e
+nel progetto non risulta configurato `BLOB_READ_WRITE_TOKEN`. Non esiste
+alcun consenso valido o autorizzazione a migrare implicitamente il registro:
+quando lo storage verrà collegato bisognerà importare il journal EOD
+originale, non inizializzare `GENESIS` in sostituzione dei vecchi eventi.
+
+Prima di ogni scrittura il contratto richiede:
+- lettura del journal originale autentico completo e controllo di tutti
+  gli hash, vincoli economici e finestre temporali del motore rigoroso;
+- esattamente **un** nuovo evento valido, conservando byte-logicamente
+  gli eventi precedenti e lo stesso `lastHash` come `prevHash`;
+- salvataggio atomico con ETag di partenza, senza sovrascrivere un writer
+  concorrente e senza dichiarare successo se lo storage non conferma
+  l'operazione;
+- esclusione di LIVE, Directa, Phase 9, autorizzazioni e scorciatoie
+  automatiche sui diritti d'uso.
+
+I test della suite `test-one-global-cloud-private-ledger.mjs`
+simulano in memoria un archivio privato, casi di stato mancante,
+corruzione, doppioni, due eventi insieme, storage pubblico e
+concorrenza. Sono **test sintetici offline**, non una prova di
+persistenza su Vercel. Nessun FILL vero, prezzo o chiave è creato.
+
+
+L'implementazione dello storage è pronta anche come adattatore nativo
+`lib/trading/one-global-vercel-private-blob-store.mjs`:
+usa il token privato server-side `BLOB_READ_WRITE_TOKEN`, `get()` con
+`access:'private'` e `put()` con `ifMatch` e
+`allowOverwrite:true`. Se una sessione concorrente ha modificato il
+documento, il commit è rifiutato e non ritentato ciecamente.
+Il nome del blob è stabile:
+`fenice/one-global/private-eod/original-ledger.json`.
+
+**Nessun nuovo segreto è stato inventato o creato; nessuno storage è
+stato collegato in produzione.** L'adattatore non autorizza il
+bootstrap del journal: occorre importare l'originale storico privato,
+verificare la licenza e il consenso PAPER prima di attivare una route
+o un cron in produzione. Una volta autorizzati questi prerequisiti,
+il contratto CAS è già testato senza chiamate di rete.
