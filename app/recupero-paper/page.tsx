@@ -71,7 +71,7 @@ export default function FeniceRecoverPage(){
               <p>Registro verificato. Eventi: {status.journalEventCount}. Segnali pendenti: {status.pendingSignalCount}. BUY virtuali: {status.virtualBuyCount??0}. SELL virtuali: {status.virtualSellCount??0}.</p>:null}
             {status?.state==="ORIGINAL_JOURNAL_NOT_MIGRATED"?
               <div>
-                <p>Il Blob privato è raggiungibile ma vuoto. Premi una sola volta per recuperare **il registro originale** verificato, senza sovrascrivere dati.</p>
+                <p>Il Blob privato è raggiungibile ma vuoto. Premi una sola volta per recuperare il registro originale verificato, senza sovrascrivere dati.</p>
                 <button disabled={submitting} type="button" onClick={()=>void restore()}
                   style={{background:"#111",color:"#fff",padding:"14px 20px",borderRadius:8,cursor:"pointer"}}>
                   {submitting?"Verifica e importazione in corso...":"Recupera journal originale 13/11"}
