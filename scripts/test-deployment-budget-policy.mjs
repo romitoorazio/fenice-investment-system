@@ -97,6 +97,7 @@ const checkNames=[
   "quality","protect-paper-core","paper-evidence-state",
   "terminal-research-safety","continuity-safety",
   "global-market-session-safety","no-auto-renewal","offline-contract",
+  "one-global-eod-regression",
 ];
 const checkedAt=new Date(Date.now()-60_000).toISOString();
 const sampleChecks=(sha=realSha)=>({
@@ -127,7 +128,7 @@ const stale=sampleChecks();
 stale.check_runs[0].completed_at=new Date(Date.now()+86400000).toISOString();
 assert.equal(verify(stale),"authorized=false","future check timestamp cannot qualify");
 const rerun=sampleChecks();
-rerun.total_count=9;
+rerun.total_count=checkNames.length+1;
 rerun.check_runs.push({...rerun.check_runs[0],id:999,conclusion:"failure",
   completed_at:new Date(Date.now()-20000).toISOString()});
 assert.equal(verify(rerun),"authorized=false","new failed CI rerun invalidates old success");

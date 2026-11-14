@@ -6,6 +6,8 @@ on:
       - ".github/workflows/vercel-deploy.yml"
       - "vercel.json"
       - "scripts/test-vercel-exact-release-policy.mjs"
+      - "scripts/cleanup-one-global-recovery-env.mjs"
+      - "scripts/test-cleanup-one-global-recovery-env.mjs"
       - ".github/workflows/controlled-release-guard.yml"
   push:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - ".github/workflows/vercel-deploy.yml"
       - "vercel.json"
       - "scripts/test-vercel-exact-release-policy.mjs"
+      - "scripts/cleanup-one-global-recovery-env.mjs"
+      - "scripts/test-cleanup-one-global-recovery-env.mjs"
       - ".github/workflows/controlled-release-guard.yml"
 permissions:
   contents: read
@@ -26,4 +30,6 @@ jobs:
         with:
           node-version: "22"
       - name: Verify Vercel exact SHA, bounded release and PAPER isolation
-        run: node scripts/test-vercel-exact-release-policy.mjs
+        run: |
+          node scripts/test-vercel-exact-release-policy.mjs
+          node scripts/test-cleanup-one-global-recovery-env.mjs

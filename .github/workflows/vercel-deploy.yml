@@ -134,6 +134,15 @@ jobs:
             exit 1
           fi
 
+      - name: Remove only the explicitly requested obsolete original recovery input
+        if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true' && github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if jq -e '.cleanupOriginalEodRecoveryEnv == true' .ops/vercel-deploy-request.json > /dev/null; then
+            node scripts/cleanup-one-global-recovery-env.mjs
+          fi
+
       - name: Skip duplicate production deployment for an already READY commit
         if: steps.request.outputs.execute == 'true' && steps.ci_guard.outputs.authorized == 'true'
         id: duplicate

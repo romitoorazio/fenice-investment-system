@@ -813,7 +813,49 @@ tracciabile l'originale. Sblocca l'identificativo CBA per un eventuale
 **nuovo** segnale realmente prospettico, il quale richiederà un'altra
 seduta di riferimento e non potrà riutilizzare la vecchia data.
 
-Il codice non registra automaticamente segnali o FILL dai workflow di
-ricerca. Il lavoro sulle fonti e sull'effettivo writer prospettico
-del journal privato resta separato; le esecuzioni GitHub `success`
-non attestano di per sé una decisione PAPER registrata.
+Il ritiro CBA resta esclusivamente manuale. Il percorso cloud aggiunto
+qui sotto può registrare nuovi segnali di ricerca; non registra FILL.
+
+### Collegamento cloud al journal originale (14/11/2026)
+
+L'esistente workflow ONE GLOBAL richiama ora il runtime Vercel alle finestre
+EOD già programmate e dopo un rilascio di produzione riuscito. Non richiede
+il PC del proprietario. L'identità GitHub è temporanea: firma RSA verificata
+con le chiavi ufficiali, audience dell'esatto endpoint, repository e ID
+immutabili, branch `main`, nome del workflow ed eventi consentiti. Le PR non
+ricevono questa identità; nessuna chiave proprietario/provider viene copiata
+da Vercel a GitHub.
+
+`POST /api/paper/one-global-private-signal-cycle` accetta esclusivamente il
+comando fisso `RESEARCH_SIGNAL_CYCLE`, mai prezzi, journal o consensi inviati
+dal client. Ogni lettura verifica replay e prefisso esatto dei tre eventi
+originali recuperati. Fuori finestra restituisce soltanto stato autenticato,
+senza chiamare provider e senza scrivere. Non ritira automaticamente CBA.
+
+Nella finestra valida, il **pilota tecnico già esistente AAPL/MSFT/TSLA**
+usa Alpha Vantage ed EODHD, confronta le risposte autentiche e applica il
+bridge prospettico esistente. Questo non limita il radar mondiale né abilita
+un FILL rigoroso USA: indipendenza dei feed e diritti restano non attestati.
+Il massimo è un solo nuovo SIGNAL di ricerca per seduta, con limiti invariati.
+
+Prima del SIGNAL, le risposte grezze sono conservate come oggetto immutabile
+nello **stesso Blob privato già collegato**, sotto
+`fenice/one-global/private-eod/observations/<hash-report>.json`.
+Non viene creato un altro store, database o ledger. Dopo il readback della
+prova, il writer originale rilegge il journal e aggiunge un singolo evento
+con CAS/ETag e replay completo. Conflitti, prove mancanti o finestra scaduta
+bloccano la scrittura senza ritentativi ciechi. Prezzi, risposte e hash non
+compaiono nei log/artifact pubblici.
+
+L'adattatore lascia all'SDK la rotazione OIDC per ogni operazione e legge
+con `useCache:false`. Il rilascio protetto può rimuovere **solo** la variabile
+di recupero temporanea già ispezionata, se la richiesta operatore contiene
+`cleanupOriginalEodRecoveryEnv:true`, prima del nuovo snapshot di ambiente.
+L'assenza viene riverificata, senza decifrare valori o toccare lo storico.
+
+Fonti tecniche: [GitHub OIDC](https://docs.github.com/en/actions/reference/security/oidc),
+[letture private consistenti Vercel](https://vercel.com/changelog/vercel-blob-now-supports-consistent-reads-on-private-storage).
+I test offline usano soltanto journal, quotazioni e chiavi RSA sintetici.
+Una CI verde non prova che le API di mercato abbiano restituito prezzi
+ammissibili: il primo FILL resta subordinato a ricevute della seduta successiva,
+diritti d'uso, indipendenza e autorità privata verificati dal motore originale.
