@@ -124,6 +124,17 @@ assert.throws(()=>recordOneGlobalEodSignal({
 settlementFail({authority:null},"unapproved source data must not lead to fills");
 settlementFail({authority:{...authority,liveTradingAllowed:true}},"LIVE never authorized");
 settlementFail({marketEvidence:evidence(10,12)},"divergent close must be refused");
+// Two genuine closes 0.747% apart used to PASS the old per-source-midpoint
+// calculation (each provider looked only 0.373% away from the mean).
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...settleInput,marketEvidence:evidence(10,10.075),
+}),/EOD_PAPER_INDEPENDENT_CLOSE_DIVERGENCE/,
+  "pairwise divergence greater than 0.5% must be refused");
+const withinHalfPercent=settleOneGlobalEodSignal({
+  ...settleInput,marketEvidence:evidence(10,10.049),
+});
+assert.equal(withinHalfPercent.accounting.virtualBuys,1,
+  "genuine provider closes within 0.5% must retain a viable PAPER simulation path");
 settlementFail({marketEvidence:evidence(10,10.001,{
   sessionDate:"2026-11-12"})},"same-session close can never fill");
 settlementFail({marketEvidence:evidence(10,10.001,{
