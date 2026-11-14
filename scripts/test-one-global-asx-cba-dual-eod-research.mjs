@@ -3,7 +3,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-import {assessOneGlobalAsxCbaDualEod as assess} from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
+import {assessOneGlobalAsxCbaDualEod as assess,assessOneGlobalAsxCbaAlphaEod as assessAlpha} from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
 
 const alpha=JSON.stringify({
  'Meta Data':{'2. Symbol':'CBA.AX'},
@@ -12,6 +12,20 @@ const alpha=JSON.stringify({
   '2026-11-12':{'4. close':'171.80'},
  }});
 const eodhd=JSON.stringify([{date:'2026-11-13',open:170.1,close:171.2}]);
+const alphaOnly=assessAlpha({alphaRaw:alpha});
+assert.equal(alphaOnly.alphaPublisherResponseParsed,true);
+assert.equal(alphaOnly.alphaExactNextSessionClose,true);
+assert.equal(alphaOnly.secondIndependentPublisherReceived,false);
+assert.equal(alphaOnly.dataRightsIndependentlyReviewed,false);
+assert.equal(alphaOnly.virtualPaperFillsCreated,0);
+assert.equal(alphaOnly.canonicalEventCommitted,false);
+assert.equal(alphaOnly.brokerConnectivityAllowed,false);
+assert.equal(alphaOnly.result,'ALPHA_CBA_NEXT_SESSION_ROW_VALID_EODHD_KEY_REQUIRED');
+assert.doesNotMatch(JSON.stringify(alphaOnly),/171\.00|payloadSha256|apikey/);
+assert.throws(()=>assessAlpha({alphaRaw:alpha.replace('CBA.AX','MSFT')}),
+  /ALPHA_SYMBOL_IDENTITY_UNVERIFIED/);
+assert.throws(()=>assessAlpha({alphaRaw:'{"Note":"No data"}'}),
+  /ALPHA_SYMBOL_IDENTITY_UNVERIFIED/);
 const result=assess({alphaRaw:alpha,eodhdRaw:eodhd});
 assert.equal(result.symbol,'XASX:CBA');
 assert.equal(result.comparedSessionDate,'2026-11-13');
