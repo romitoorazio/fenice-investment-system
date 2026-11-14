@@ -211,3 +211,23 @@ assert.equal(await contextStore.readSettlementContext(),null);
 assert.equal((await contextStore.readSettlementContext()).body,'{"synthetic":"original context"}');
 await assert.rejects(contextStore.readSettlementContext(),/PRIVATE_CONTEXT_TOO_LARGE/);
 console.log('PASS Blob settlement context: fixed private path, consistent read, missing originals preserved, bounded size and no generated authority.');
+
+// Reproduce production: control-plane PUT and origin GET use distinct opaque
+// identifiers. Confirmation depends on exact bytes; CAS retains the GET ETag.
+for(const corrupt of [false,true]){
+  let stored;
+  const differing=await createVercelPrivateEodBlobStore({token:'',storeId:'store_SYNTHETIC',sdk:{
+    async put(path,body,options){assert.equal(options.access,'private');stored=body;return {etag:'control-plane-version'};},
+    async get(path,options){assert.equal(options.useCache,false);return {statusCode:200,blob:{etag:'"http-representation"'},stream:streamed(corrupt?stored+'CORRUPTED':stored)};}
+  }});
+  const archive=()=>differing.createResearchObservation({hash:'c'.repeat(64),body:'{"synthetic":"original bytes"}'});
+  const context=()=>differing.writeSettlementContext({expectedEtag:null,body:'{"kind":"synthetic-original-context"}'});
+  if(corrupt){
+    await assert.rejects(archive(),/PRIVATE_OBSERVATION_READBACK_BODY_MISMATCH/);
+    await assert.rejects(context(),/PRIVATE_CONTEXT_READBACK_BODY_MISMATCH/);
+  }else{
+    assert.equal((await archive()).created,true);
+    assert.equal((await context()).etag,'"http-representation"');
+  }
+}
+console.log('PASS distinct PUT/GET ETags: exact origin bytes required, corruption rejected, HTTP ETag retained for CAS.');

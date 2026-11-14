@@ -97,3 +97,26 @@ for(const message of ['CLOUD_BLOB_PRIVATE_OBSERVATION_READBACK_FAILED','CLOUD_BL
 const archiveFailure=memory();archiveFailure.createResearchObservation=async()=>{throw Error('sensitive upstream exception');};
 await assert.rejects(put({storage:archiveFailure,input:request(),nowIso:now}),/^Error: PRIVATE_INPUT_ORIGINAL_DOCUMENT_ARCHIVE_UNAVAILABLE$/);
 assert.equal(archiveFailure.writes,0);
+// Full owner HTTP -> SDK adapter -> private origin readback with the transport
+// ETag variants implicated by the production archive readback failure.
+// Every document here is SYNTHETIC.
+const objects=new Map([['fenice/one-global/private-eod/original-ledger.json',{body:before,etag:'"journal-origin"'}]]);
+let journalWrites=0,originVersion=0;
+const transport=await createVercelPrivateEodBlobStore({token:'',storeId:'store_SYNTHETIC',sdk:{
+  async get(path,options){assert.equal(options.useCache,false);const x=objects.get(path);
+    return x?{statusCode:200,blob:{etag:x.etag},stream:new Response(x.body).body}:null;},
+  async put(path,body,options){if(path.endsWith('original-ledger.json'))journalWrites++;
+    const old=objects.get(path);if(old){assert.equal(options.allowOverwrite,true);assert.equal(options.ifMatch,old.etag);}
+    else assert.equal(options.allowOverwrite,false);
+    objects.set(path,{body,etag:'"origin-'+(++originVersion)+'"'});return {etag:'control-'+originVersion};}
+}});
+const ownerOpts={...opts,storageFactory:async()=>transport};
+const actualResponse=await http(req(),ownerOpts),actualResult=await actualResponse.json();
+assert.equal(actualResponse.status,200);assert.equal(actualResult.originalConsentValid,true);
+assert.equal(actualResult.originalBytesArchived,true);assert.equal(actualResult.originalDocumentCount,1);
+assert.equal(actualResult.paperFillsCreated,0);assert.equal(journalWrites,0);
+const reread=await http(new Request('https://fenice.test/api/paper/one-global-private-inputs'),ownerOpts);
+const rereadResult=await reread.json();assert.equal(rereadResult.originalConsentValid,true);
+assert.equal(rereadResult.contextEtag,actualResult.contextEtag);
+assert.equal(objects.get('fenice/one-global/private-eod/original-ledger.json').body,before);
+console.log('PASS full HTTP original intake with distinct control-plane/origin ETags: archive/context reread verified, original journal unchanged.');
