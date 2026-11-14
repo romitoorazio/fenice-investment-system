@@ -102,3 +102,29 @@ esecuzione, stato dei gate e blocchi esatti. Una CI verde non dimostra un
 FILL. La prova operativa è il readback autenticato del journal originale.
 `certifiedTrades=0`, `phase9Credit=0`, `brokerConnectivityAllowed=false` e
 `liveTradingAllowed=false` restano invariati anche dopo un FILL virtuale.
+
+## Importazione protetta da telefono
+
+La pagina proprietario `/recupero-paper` permette ora di caricare un JSON
+originale direttamente dal telefono. La route `/api/paper/one-global-private-inputs`
+richiede la sessione proprietario già esistente; le scritture richiedono anche
+la stessa origine e il runtime di produzione. Nessuna chiave viene creata,
+letta dal browser o modificata per questo flusso.
+
+Il tipo **Consenso PAPER originale** accetta il file già approvato, conserva
+esattamente i byte (spazi e newline compresi) e costruisce soltanto il contenitore
+privato con `markets:[]` e `sessions:[]`. Non genera diritti, indipendenza delle
+fonti, attestazioni di seduta o nuove date di approvazione. Un consenso valido
+da solo resta insufficiente per il settlement.
+
+Il tipo **Pacchetto completo** accetta il contesto documentato sopra e preserva
+tutti i documenti originali già presenti. Ogni caricamento archivia prima il file
+originale nello stesso Blob privato, scrive solo `settlement-inputs.json` con
+creazione esclusiva o ETag CAS e rilegge il risultato. Un conflitto o una risposta
+persa impone di ricontrollare lo stato. Caricare di nuovo lo stesso consenso
+non elimina le prove dei provider già collegate.
+
+L'importazione non chiama il settlement, non scrive il journal e non acquisisce
+quotazioni. Il ciclo cloud preesistente riesamina successivamente le prove con
+il motore rigoroso. Limiti: file massimo 500 kB, JSON UTF-8, originali verificati
+tramite SHA-256. Il contenuto non compare nei log o nelle risposte pubbliche.
