@@ -376,3 +376,38 @@ Alpha Vantage consente l'uso personale non commerciale entro i suoi limiti
 (https://www.alphavantage.co/terms_of_service/).
 Sono vietate pubblicazione o redistribuzione dei dati originali sul repository
 pubblico o in artifact accessibili a terzi.
+
+
+### Attivazione pianificata su Windows — non ancora installata dal repository
+
+Per evitare impostazioni manuali del Task Scheduler è disponibile lo script
+`scripts/install-private-eod-autopilot.ps1`. È deliberatamente **opt-in**:
+non crea attività in GitHub, non cambia chiavi, non modifica il journal,
+non attiva Directa e non esegue operazioni finanziarie.
+
+Verifica preliminare di PowerShell, senza installazione:
+```powershell
+.\scripts\install-private-eod-autopilot.ps1 -LedgerPath "C:\PERCORSO_PRIVATO\eod-ledger.json" -CommitSignals -WhatIf
+```
+
+Attivazione *sul PC dell'utente*, dopo aver identificato il journal originale:
+```powershell
+.\scripts\install-private-eod-autopilot.ps1 -LedgerPath "C:\PERCORSO_PRIVATO\eod-ledger.json" -CommitSignals
+```
+
+Con `-CommitSignals` il task potrà scrivere **solo SIGNAL PAPER di ricerca**
+dopo doppio EOD valido e il controllo dell'originale, mai `FILL`, ordini
+broker, autorizzazioni o certificazioni. Senza tale opzione, il task
+eseguirà solo **dry-run**, anche se viene richiamato ogni giorno.
+Lo script richiede account Windows attuale, Node 22+, fuso orario di Roma,
+journal privato già esistente, chiave Alpha Vantage **già presente in
+ambiente utente/sistema persistente**, e assenza del task omonimo: se un
+prerequisito manca fallisce senza creare task, modificare variabili o
+sovrascrivere una schedulazione precedente.
+
+Il task usa le 23:30 locali di lunedì-venerdì, non richiede password in chiaro
+e parte solo quando l'utente Windows è connesso. Se parte in ritardo per
+spegnimento del PC, FENICE ricontrolla l'orario di New York e impedisce
+segnali retroattivi. **La CI verifica soltanto il contratto statico dello
+script PowerShell su Linux; non simula una vera registrazione del task Windows.**
+Non dichiarare l'automazione attiva fino a conferma sul PC.
