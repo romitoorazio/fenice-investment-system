@@ -89,7 +89,8 @@ async function readVendor(url){
   const contentType=response.headers.get('content-type')||'';
   if(!/json|text\/plain/i.test(contentType))throw Error('ASX_CBA_VENDOR_UNEXPECTED_CONTENT_TYPE');
   const buf=Buffer.from(await response.arrayBuffer());
-  if(buf.length<10||buf.length>2_000_000)throw Error('ASX_CBA_VENDOR_RESPONSE_SIZE');
+  if(buf.length<10)throw Error('ASX_CBA_VENDOR_EMPTY_OR_TOO_SHORT');
+  if(buf.length>2_000_000)throw Error('ASX_CBA_VENDOR_RESPONSE_TOO_LARGE');
   return buf;
 }
 try{
