@@ -34,7 +34,7 @@ export default function FeniceRecoverPage(){
     }catch{setStatus({state:"CLOUD_CONNECTION_UNAVAILABLE"});}
     finally{setLoading(false);}
   }
-  useEffect(()=>{void reload();},[]);
+  useEffect(()=>{queueMicrotask(()=>{void reload();});},[]);
   async function restore(){
     if(!authenticated||status?.state!=="ORIGINAL_JOURNAL_NOT_MIGRATED"||submitting)return;
     setSubmitting(true);setNote("");
@@ -83,7 +83,7 @@ export default function FeniceRecoverPage(){
               </button></p>
           </section>}
       {note?<p role="status">{note}</p>:null}
-      <p style={{fontSize:13,opacity:.75}}>L'operazione conserva gli eventi originali. Nessuna quotazione o credenziale è resa pubblica. Il recupero non certifica operazioni né autorizza Directa.</p>
+      <p style={{fontSize:13,opacity:.75}}>L&apos;operazione conserva gli eventi originali. Nessuna quotazione o credenziale è resa pubblica. Il recupero non certifica operazioni né autorizza Directa.</p>
     </main>
   );
 }
