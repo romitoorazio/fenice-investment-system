@@ -195,3 +195,19 @@ assert.deepEqual(await archiveStore.createResearchObservation({hash:'a'.repeat(6
 assert.equal(archivedPath,'fenice/one-global/private-eod/observations/'+'a'.repeat(64)+'.json');
 await assert.rejects(archiveStore.createResearchObservation({hash:'../path',body:'x'}),/PRIVATE_OBSERVATION_INVALID/);
 console.log('PASS Blob evidence: rotating SDK-managed OIDC, origin reads, immutable private observations and exact readback.');
+
+let contextReads=0;
+const contextStore=await createVercelPrivateEodBlobStore({token:'',storeId:'store_FENICE_DEMO',sdk:{
+ async get(path,opts){
+  assert.equal(path,'fenice/one-global/private-eod/settlement-inputs.json');
+  assert.equal(opts.access,'private');assert.equal(opts.useCache,false);
+  assert.equal(opts.storeId,'store_FENICE_DEMO');contextReads++;
+  if(contextReads===1)return null;
+  if(contextReads===3)return {statusCode:200,blob:{etag:'"context"',size:500001},stream:streamed('{}')};
+  return {statusCode:200,blob:{etag:'"context"'},stream:streamed('{"synthetic":"original context"}')};
+ },async put(){throw Error('context read must never write or generate approval');}
+}});
+assert.equal(await contextStore.readSettlementContext(),null);
+assert.equal((await contextStore.readSettlementContext()).body,'{"synthetic":"original context"}');
+await assert.rejects(contextStore.readSettlementContext(),/PRIVATE_CONTEXT_TOO_LARGE/);
+console.log('PASS Blob settlement context: fixed private path, consistent read, missing originals preserved, bounded size and no generated authority.');

@@ -1,7 +1,8 @@
 /** Fixed trusted workflow only. Never accepts journals, source data, consent or orders. */
 import {authorizeOneGlobalCloudWorkflow} from '../../../../lib/trading/one-global-cloud-workflow-auth.mjs';
 import {createVercelPrivateEodBlobStore} from '../../../../lib/trading/one-global-vercel-private-blob-store.mjs';
-import {pinOneGlobalRecoveredOriginalStore,runOneGlobalCloudProspectiveCycle} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
+import {pinOneGlobalRecoveredOriginalStore} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
+import {runOneGlobalCloudPaperCycle} from '../../../../lib/trading/one-global-cloud-paper-cycle.mjs';
 import {fetchOneGlobalCloudDualEod} from '../../../../lib/market/one-global-cloud-dual-eod-fetch.mjs';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -26,10 +27,15 @@ export async function POST(request){
     if(!input||Object.keys(input).length!==1||input.action!=='RESEARCH_SIGNAL_CYCLE')
       return json('CYCLE_REQUEST_INVALID',400);
     const storage=pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore());
-    const report=await runOneGlobalCloudProspectiveCycle({storage,collect:fetchOneGlobalCloudDualEod});
-    return Response.json(report,{headers});
+    const report=await runOneGlobalCloudPaperCycle({storage,collect:fetchOneGlobalCloudDualEod});
+    return Response.json({...report,providerConfiguration:{
+      alphaVantageKeyPresent:Boolean(process.env.ALPHA_VANTAGE_API_KEY),
+      eodhdPersonalKeyPresent:Boolean(process.env.EODHD_API_TOKEN),
+      twelveDataKeyPresent:Boolean(process.env.TWELVE_DATA_API_KEY||process.env.TWELVEDATA_API_KEY),
+    }},{headers});
   }catch{
     // Error bodies and hashes from providers/Blob never enter response/logs.
-    return json('PRIVATE_CYCLE_BLOCKED_RECHECK_ORIGINAL',409);
+    return Response.json({state:'PRIVATE_CYCLE_BLOCKED_RECHECK_ORIGINAL',paperFillsCreated:null,
+      certifiedTrades:0,phase9Credit:0,brokerConnectivityAllowed:false,liveTradingAllowed:false},{status:409,headers});
   }
 }
