@@ -411,3 +411,66 @@ spegnimento del PC, FENICE ricontrolla l'orario di New York e impedisce
 segnali retroattivi. **La CI verifica soltanto il contratto statico dello
 script PowerShell su Linux; non simula una vera registrazione del task Windows.**
 Non dichiarare l'automazione attiva fino a conferma sul PC.
+
+
+## Cloud EOD REALI senza PC — verifica dei provider e del segnale (14 novembre 2026)
+
+**FENICE non richiede il PC acceso.** Il repository esegue già workflow
+mondiali, analisi, diagnostica e ricerche EOD su GitHub Actions e ospita la UI
+su Vercel. L'installatore Windows aggiunto in precedenza è FACOLTATIVO,
+non il percorso cloud consigliato, e non viene attivato dal workflow.
+
+Per avvicinare il primo evento PAPER basato su dati **davvero acquisiti**,
+il workflow esistente `.github/workflows/one-global-eod-private-paper.yml`
+ora include `cloud-dual-eod-research`. È programmato nei feriali alle
+20:45 e 21:45 UTC: il controllo dell'**ora reale a New York** seleziona
+la finestra di post-chiusura corretta in EST/EDT e rifiuta le esecuzioni
+fuori finestra. I ritardi di GitHub Scheduler NON possono produrre
+segnali retroattivi. L'altro cron diagnostico delle 00:15 UTC rimane.
+
+Questa attività:
+1. utilizza la chiave Alpha Vantage **già presente nei GitHub Actions
+   secrets**, con EODHD demo o la chiave EODHD se disponibile; non
+   richiede nuove API e non tocca i secret;
+2. raccoglie al massimo tre simboli Nasdaq dimostrativi (AAPL/MSFT/TSLA)
+   e confronta due risposte EOD reali con il collettore già testato;
+3. applica il **medesimo controllo temporale e di trend prospettico**
+   dell'originale ONE GLOBAL, senza convertire due editori in upstream
+   indipendenti per dichiarazione;
+4. esegue la verifica del potenziale `SIGNAL` **in memoria**, esclusivamente
+   per diagnosi; senza journal privato persistente un `SIGNAL` non è
+   davvero registrato e un `FILL` non è creato;
+5. distrugge i report originali nel file system temporaneo del runner e
+   pubblica per 14 giorni **solo un artifact di diagnostica sanitizzato**:
+   finestra NY, stato del provider, eventuale risultato del gate, errori
+   generici, zero prezzi, zero hash/payload e zero chiavi.
+
+L'esecutore e la diagnostica sono autonomi nel cloud, non nel PC. È
+fondamentale distinguere:
+- `REAL_DUAL_EOD_SIGNAL_GATES_PASSED_PRIVATE_STORE_NOT_CONNECTED` =
+  due prezzi EOD reali hanno superato la fase di ricerca, **ma non esiste
+  ancora un segnale persistito nel journal privato**;
+- `REAL_PROVIDER_PAIR_FETCH_OR_CLOSE_REJECTED` = una o entrambe le API
+  non hanno fornito una prova con data/close ammessi;
+- `EXISTING_ALPHA_VANTAGE_GITHUB_SECRET_MISSING` = manca la chiave
+  nel contesto GitHub effettivo;
+- altri codici di ammissione spiegano trend, mismatch, orario, sessione
+  e casi non compatibili. Ogni output è esclusivamente diagnostico.
+
+**Blocco reale verso il FILL rigoroso:** il progetto Vercel è attivo,
+ma il tentativo di creare lo storage Blob **privato** nel progetto il
+14/11/2026 è stato respinto con risposta `403 forbidden`. Non è
+stata creata una destinazione alternativa pubblica né modificata la
+visibilità di dati/licenze. Senza uno storage privato persistente
+accessibile in sola modalità autorizzata, la migrazione/riapertura
+dell'**originale** ledger EOD e il consenso PAPER reale verificabile,
+il cloud non può ancora certificare o scrivere un `FILL`. Non
+autoinizializzare un nuovo ledger al posto dell'originale, non fingere
+un'autorizzazione e non pubblicare chiusure licenziate. Una volta
+autorizzato lo storage privato e verificate le condizioni dei publisher,
+completare l'adapter con commit atomico/versionato e le prove della
+seduta successiva. La diagnostica continua nel frattempo senza PC.
+
+GitHub Actions e Vercel restano l'architettura mondiale già esistente:
+questo collegamento di ricerca USA è il **pilota di ammissione dei dati**,
+non una riduzione della copertura futura dei PAPER a Nasdaq.
