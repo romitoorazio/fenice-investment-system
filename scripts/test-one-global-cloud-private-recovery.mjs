@@ -55,7 +55,7 @@ await assert.rejects(
 );
 await assert.rejects(
  recover({storage:storage(),seedJson:'{"bad":true}',...options}),
- /EOD_PAPER_LEDGER_SCHEMA_OR_SAFETY_INVALID/
+ /CLOUD_PRIVATE_RECOVERY_PRIVATE_ORIGINAL_SEED_INVALID/
 );
 await assert.rejects(
  recover({storage:{...storage(),privateAccess:false},seedJson,...options}),
