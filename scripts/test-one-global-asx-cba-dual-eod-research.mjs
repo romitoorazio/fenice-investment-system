@@ -3,8 +3,23 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-import {assessOneGlobalAsxCbaDualEod as assess,assessOneGlobalAsxCbaAlphaEod as assessAlpha} from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
+import {assessOneGlobalAsxCbaDualEod as assess,assessOneGlobalAsxCbaAlphaEod as assessAlpha,classifyOneGlobalCbaVendorFailure as classify} from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
 
+const safeStatus=[
+ ['ASX_CBA_VENDOR_AUTH_OR_PLAN_DENIED','ASX_CBA_VENDOR_AUTH_OR_PLAN_DENIED'],
+ ['ASX_CBA_VENDOR_RATE_LIMIT','ASX_CBA_VENDOR_RATE_LIMIT'],
+ ['ASX_CBA_VENDOR_SYMBOL_OR_PATH_NOT_FOUND','ASX_CBA_VENDOR_SYMBOL_OR_PATH_NOT_FOUND'],
+ ['ASX_CBA_VENDOR_REMOTE_5XX','ASX_CBA_VENDOR_REMOTE_5XX'],
+ ['ASX_CBA_VENDOR_UNEXPECTED_CONTENT_TYPE','ASX_CBA_VENDOR_UNEXPECTED_CONTENT_TYPE'],
+ ['ASX_CBA_RESEARCH_ALPHA_SYMBOL_IDENTITY_UNVERIFIED','ASX_CBA_RESEARCH_ALPHA_SYMBOL_IDENTITY_UNVERIFIED'],
+];
+for(const [input,expected] of safeStatus)assert.equal(classify(new Error(input)),expected);
+assert.equal(classify(new Error('https://alphavantage.co/query?apikey=SUPERSECRET')),
+ 'ASX_CBA_VENDOR_NETWORK_OR_UNKNOWN');
+assert.equal(classify({name:'TimeoutError',message:'URL_WITH_SECRET'}),
+ 'ASX_CBA_VENDOR_TIMEOUT');
+assert.equal(classify(new Error('ASX_CBA_VENDOR_RATE_LIMIT;apikey=SUPERSECRET')),
+ 'ASX_CBA_VENDOR_NETWORK_OR_UNKNOWN');
 const alpha=JSON.stringify({
  'Meta Data':{'2. Symbol':'CBA.AX'},
  'Time Series (Daily)':{
