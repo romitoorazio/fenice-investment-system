@@ -63,6 +63,7 @@ try{
  assert.equal(result.certifiedTrades,0);
  assert.equal(result.liveTradingAllowed,false);
  assert.equal(result.originalPrivateJournalChanged,false);
+ assert.equal(result.dualProviderCollectorAttempts,0,'no API key means no cloud provider call');
  assert.doesNotMatch(p.stdout,/payloadSha256|providerReceipts|unitPrice|rawClose/);
  const second=spawnSync(process.execPath,[script,'--output='+destination],{
    env:{...process.env,ALPHA_VANTAGE_API_KEY:''},encoding:'utf8',timeout:10000});
