@@ -526,3 +526,35 @@ bootstrap del journal: occorre importare l'originale storico privato,
 verificare la licenza e il consenso PAPER prima di attivare una route
 o un cron in produzione. Una volta autorizzati questi prerequisiti,
 il contratto CAS è già testato senza chiamate di rete.
+
+### Storage privato creato e collegato con OIDC (14 novembre 2026, verifica effettiva)
+
+Il proprietario ha creato lo store **`fenice-investment-system-blob`**,
+con accesso **Private**, regione `IAD1` e occupazione iniziale `0 B`.
+Le variabili di progetto Vercel (senza leggerne mai i valori) ora includono
+`BLOB_STORE_ID` e `BLOB_WEBHOOK_PUBLIC_KEY` nei target
+`production` e `preview`. Questo conferma la connessione del nuovo
+store al progetto. L'assenza di `BLOB_READ_WRITE_TOKEN` è **normale**
+per i nuovi collegamenti che usano l'autenticazione **OIDC**: il token
+Vercel è temporaneo, fornito automaticamente alla Function in esecuzione
+nel progetto. Non creare o copiare credenziali permanenti per ovviare.
+
+L'adattatore `one-global-vercel-private-blob-store.mjs` usa
+`BLOB_STORE_ID` e le credenziali OIDC gestite dall'SDK quando
+disponibili, preservando il vecchio token **solo** come fallback per
+connessioni legacy. La scrittura rimane condizionata al vero
+`ifMatch` / ETag server-side, mai a una simulazione di lock.
+
+**Stato ancora aperto, da non confondere con lo store creato:**
+nessun ledger originale privato è stato importato (lo store è vuoto),
+nessun endpoint/job Vercel server-side protetto è ancora collegato al
+writer, la correttezza e i diritti delle ricevute di mercato successive
+non sono attestati e nessun nuovo FILL rigoroso è presente. GitHub
+Actions non deve presupporre di possedere l'OIDC emesso per le
+Functions Vercel. Il codice su GitHub non si aggiorna in produzione
+finché non passa il processo di deploy controllato. Il problema
+storico `403` relativo alla creazione dello store è superato dal
+proprietario; **non è una prova di accesso del writer in produzione**.
+
+Fonti: https://vercel.com/changelog/vercel-blob-now-supports-oidc-authentication
+e https://vercel.com/docs/vercel-blob/private-storage.
