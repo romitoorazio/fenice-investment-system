@@ -36,3 +36,9 @@ assert.doesNotMatch(JSON.stringify(qualified),/SECRET|rawClose|rawBody|PRIVATE/)
 for(const delta of [{rightsApproved:true},{independenceCertified:true},{paperFillsCreated:1},{alpacaState:'secret key'},
   {originalDocumentsArchived:3},{originalDocumentsConnected:'SECRET'},{twoDailyRowsReceived:false}])
   assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...delta}}),/NOT_VERIFIED/);
+
+const connected=publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,
+ originalDocumentConnectionState:'ORIGINAL_DOCUMENTS_CONNECTED',candidateContextBytes:12345}});
+assert.equal(connected.sourceAccessCheck.originalDocumentConnectionState,'ORIGINAL_DOCUMENTS_CONNECTED');
+for(const fields of [{originalDocumentConnectionState:'private exception = SECRET'},{candidateContextBytes:-1},{candidateContextBytes:'SECRET'}])
+ assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...fields}}),/NOT_VERIFIED/);
