@@ -28,6 +28,9 @@ on:
       - "lib/trading/one-global-prospective-dual-eod-bridge.mjs"
       - "scripts/run-one-global-postclose-signal.mjs"
       - "scripts/test-one-global-postclose-signal.mjs"
+      - "lib/trading/one-global-private-eod-autopilot.mjs"
+      - "scripts/run-one-global-private-eod-autopilot.mjs"
+      - "scripts/test-one-global-private-eod-autopilot.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -65,6 +68,9 @@ on:
       - "lib/trading/one-global-prospective-dual-eod-bridge.mjs"
       - "scripts/run-one-global-postclose-signal.mjs"
       - "scripts/test-one-global-postclose-signal.mjs"
+      - "lib/trading/one-global-private-eod-autopilot.mjs"
+      - "scripts/run-one-global-private-eod-autopilot.mjs"
+      - "scripts/test-one-global-private-eod-autopilot.mjs"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -126,6 +132,7 @@ jobs:
           node scripts/test-one-global-first-paper-dual-eod.mjs
           node scripts/test-one-global-observed-paper.mjs
           node scripts/test-one-global-postclose-signal.mjs
+          node scripts/test-one-global-private-eod-autopilot.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -158,6 +165,7 @@ jobs:
           node scripts/test-one-global-first-paper-dual-eod.mjs
           node scripts/test-one-global-observed-paper.mjs
           node scripts/test-one-global-postclose-signal.mjs
+          node scripts/test-one-global-private-eod-autopilot.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
