@@ -51,3 +51,20 @@ assert.doesNotMatch(JSON.stringify(reviewed),/bodyBase64|reviewer|technicalRevie
 for(const fields of [{technicalReviewsConnected:3},{technicalReviewsConnected:1,alphaDocumentReview:'SECRET',alpacaDocumentReview:'ACCOUNT_SCOPE_UNRESOLVED'},
  {technicalReviewsConnected:2,alphaDocumentReview:'PRIVATE_SCOPE_TEXT_SUPPORTED',alpacaDocumentReview:'APPROVED_FOR_DOCUMENTED_SCOPE'}])
  assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...fields}}),/NOT_VERIFIED/);
+
+const euSourceAccessCheck={state:'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED',sessionDate:'2026-11-13',
+ sourcePairsReceived:2,sourcePairsAgree:2,uptrendCandidates:2,rawArtifactsVerified:true,rightsEvidenceConnected:true,
+ paperFillsCreated:0,certifiedTrades:0,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+const euQualified=publicReport({...fixture,euSourceAccessCheck,
+ sourceOutcomes:[{providerId:'euronext-mifir',state:'EXACT_DAILY_ROW_RECEIVED'},
+  {providerId:'cboe-eu-mifir',state:'EXACT_DAILY_ROW_RECEIVED'}]});
+assert.equal(euQualified.euSourceAccessCheck.rightsEvidenceConnected,true);
+assert.deepEqual(euQualified.sourceOutcomes.map(x=>x.providerId),['euronext-mifir','cboe-eu-mifir']);
+assert.doesNotMatch(JSON.stringify(euQualified),/rawArtifactsSha|payloadSha|price/);
+const euBlocked=publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,
+ state:'EU_SOURCE_ACCESS_NOT_CONFIRMED',sourcePairsReceived:0,sourcePairsAgree:0,uptrendCandidates:0,
+ rawArtifactsVerified:false,rightsEvidenceConnected:false,blocker:'EU_DELAYED_EOD_CBOE_DISCOVERY_JSON_INVALID'}});
+assert.equal(euBlocked.euSourceAccessCheck.blocker,'EU_DELAYED_EOD_CBOE_DISCOVERY_JSON_INVALID');
+for(const delta of [{sourcePairsReceived:3},{sourcePairsAgree:2,sourcePairsReceived:1},{rightsEvidenceConnected:'SECRET'},
+ {blocker:'private URL = SECRET'},{state:'EU_FAKE_PASS'}])
+ assert.throws(()=>publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,...delta}}),/NOT_VERIFIED/);
