@@ -46,7 +46,7 @@ assert.throws(()=>assess({alphaRaw:alpha,
 assert.throws(()=>assess({alphaRaw:alpha,
  eodhdRaw:JSON.stringify([{date:'2026-11-13',close:171.2,
    symbol:'WRONG.AU'}])}),/ASX_CBA_RESEARCH_EODHD_SYMBOL_RESPONSE_MISMATCH/);
-assert.throws(()=>assess({alphaRaw:'bad json',eodhdRaw:eodhd}),
+assert.throws(()=>assess({alphaRaw:'bad json larger than ten bytes',eodhdRaw:eodhd}),
  /ASX_CBA_RESEARCH_VENDOR_JSON_UNUSABLE/);
 
 const runner=resolve('scripts/probe-one-global-asx-cba-eod.mjs');
