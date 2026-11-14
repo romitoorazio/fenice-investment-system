@@ -128,3 +128,9 @@ L'importazione non chiama il settlement, non scrive il journal e non acquisisce
 quotazioni. Il ciclo cloud preesistente riesamina successivamente le prove con
 il motore rigoroso. Limiti: file massimo 500 kB, JSON UTF-8, originali verificati
 tramite SHA-256. Il contenuto non compare nei log o nelle risposte pubbliche.
+
+L'accesso proprietario è disponibile direttamente nella pagina privata e
+dipende esclusivamente dal codice già configurato, dalla sessione HMAC e dai
+controlli di origine. L'assenza di configurazione dell'IA generativa non deve
+impedire la gestione dei documenti PAPER. Le chiamate generative mantengono
+separatamente tutti i controlli di configurazione, budget e uso manuale.

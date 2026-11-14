@@ -10,7 +10,9 @@ import {
   feniceSessionSetCookie,
   feniceSessionClearCookie,
   feniceSameOrigin,
+  handleFeniceOwnerSessionRequest,
 } from "../lib/ai/fenice-owner-session.ts";
+import {isOwnerAuthorized,generativeAvailability} from "../lib/ai/fenice-generative-research.ts";
 
 const owner = "fenice-unit-test-owner-secret-with-fifty-characters-only";
 const other = "changed-fenice-owner-secret-that-revokes-old-sessions";
@@ -64,8 +66,27 @@ assert.equal(feniceSameOrigin(new Request(sameOrigin.url)), false,
   "origin check should not permit cross-origin or originless cookie POSTs");
 
 const route = readFileSync(new URL("../app/api/analista-generativa/session/route.ts", import.meta.url), "utf-8");
-assert.match(route, /if \(authenticated\)[\s\S]*?Set-Cookie/);
-assert.match(route, /!feniceSameOrigin\(request\)/);
+assert.match(route,/handleFeniceOwnerSessionRequest/);
+assert.doesNotMatch(route,/generativeAvailability|OPENAI_API_KEY|AI_NOT_CONFIGURED/);
+const endpoint="https://fenice-investment-system.vercel.app/api/analista-generativa/session";
+const options={secret:owner,verifyCredential:isOwnerAuthorized,now};
+assert.notEqual(generativeAvailability({FENICE_AI_OWNER_TOKEN:owner}),"READY");
+const login=await handleFeniceOwnerSessionRequest(new Request(endpoint,{method:"POST",
+  headers:{Origin:new URL(endpoint).origin,Authorization:"Bearer "+owner}}),options);
+assert.equal(login.status,200,"owner login must work while generative services are disabled");
+assert.equal((await login.json()).authenticated,true);assert.ok(login.headers.get("set-cookie"));
+const cookie=login.headers.get("set-cookie").split(";")[0];
+const access=await handleFeniceOwnerSessionRequest(new Request(endpoint,{headers:{Cookie:cookie}}),options);
+assert.equal((await access.json()).authenticated,true);assert.ok(access.headers.get("set-cookie"));
+const anonymous=await handleFeniceOwnerSessionRequest(new Request(endpoint),options);
+assert.equal((await anonymous.json()).authenticated,false);assert.equal(anonymous.headers.get("set-cookie"),null);
+const wrong=await handleFeniceOwnerSessionRequest(new Request(endpoint,{method:"POST",headers:{Origin:new URL(endpoint).origin,Authorization:"Bearer "+other}}),options);
+assert.equal(wrong.status,401);
+const csrf=await handleFeniceOwnerSessionRequest(new Request(endpoint,{method:"POST",headers:{Origin:"https://evil.example",Authorization:"Bearer "+owner}}),options);
+assert.equal(csrf.status,403);
+const unavailable=await handleFeniceOwnerSessionRequest(new Request(endpoint,{method:"POST",headers:{Origin:new URL(endpoint).origin}}),{...options,secret:undefined});
+assert.equal(unavailable.status,503);
+assert.doesNotMatch(await wrong.text(),/fenice-unit-test-owner/);
 const generation = readFileSync(new URL("../app/api/analista-generativa/route.ts", import.meta.url), "utf-8");
 assert.match(generation, /verifyFeniceOwnerSession/);
 assert.match(generation, /feniceSameOrigin\(request\)/);

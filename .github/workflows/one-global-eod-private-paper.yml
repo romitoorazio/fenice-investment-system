@@ -15,6 +15,10 @@ on:
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
       - "components/OneGlobalPrivateInputPanel.tsx"
+      - "components/FenicePrivateOwnerLogin.tsx"
+      - "lib/ai/fenice-owner-session.ts"
+      - "app/api/analista-generativa/session/route.ts"
+      - "scripts/test-fenice-owner-session.mjs"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -96,6 +100,10 @@ on:
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
       - "components/OneGlobalPrivateInputPanel.tsx"
+      - "components/FenicePrivateOwnerLogin.tsx"
+      - "lib/ai/fenice-owner-session.ts"
+      - "app/api/analista-generativa/session/route.ts"
+      - "scripts/test-fenice-owner-session.mjs"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -245,6 +253,7 @@ jobs:
           node scripts/test-one-global-cloud-settlement.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
           node scripts/test-one-global-private-input-intake.mjs
+          node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -395,6 +404,7 @@ jobs:
           node scripts/test-one-global-cloud-settlement.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
           node scripts/test-one-global-private-input-intake.mjs
+          node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs

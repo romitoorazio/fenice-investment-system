@@ -2,6 +2,7 @@
 
 import {useEffect,useState} from "react";
 import OneGlobalPrivateInputPanel from "@/components/OneGlobalPrivateInputPanel";
+import FenicePrivateOwnerLogin from "@/components/FenicePrivateOwnerLogin";
 type CbaWindow={state:string;nextRegularSessionDate:string;
   evidenceDeadlineAt:string;ownerManualRetirementAvailable:boolean;};
 type Status={state:string;journalEventCount?:number;pendingSignalCount?:number;
@@ -90,9 +91,7 @@ export default function FeniceRecoverPage(){
       <p>{NO_LIVE}</p>
       {loading?<p>Controllo del collegamento privato...</p>:
         !authenticated?
-          <section><p>Accesso proprietario richiesto. Apri l’analista FENICE e accedi con la sessione proprietario già configurata, poi torna qui.</p>
-            <a href="/analista" style={{textDecoration:"underline"}}>Vai all’analista FENICE</a>
-          </section>:
+          <FenicePrivateOwnerLogin onAuthenticated={reload}/>:
           <section>
             <p><strong>Stato:</strong> {status?.state||"NON_DISPONIBILE"}</p>
             {status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"?
