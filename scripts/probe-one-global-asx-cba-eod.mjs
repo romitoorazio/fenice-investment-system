@@ -7,7 +7,7 @@ import {writeFileSync,realpathSync,statSync} from 'node:fs';
 import {dirname,resolve,isAbsolute,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {
-  assessOneGlobalAsxCbaAlphaEod,assessOneGlobalAsxCbaDualEod,CBA_NEXT_REGULAR_SESSION,
+  classifyOneGlobalCbaVendorFailure,assessOneGlobalAsxCbaAlphaEod,assessOneGlobalAsxCbaDualEod,CBA_NEXT_REGULAR_SESSION,
   CBA_ALPHA_SYMBOL,CBA_EODHD_SYMBOL,
 } from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
 const ROOT=realpathSync(resolve(dirname(fileURLToPath(import.meta.url)),'..'));
@@ -76,11 +76,20 @@ if(url2)url2.search=new URLSearchParams({
 async function readVendor(url){
   const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(12000),
     headers:{Accept:'application/json'}});
-  if(!response.ok||response.url!==url.href)throw Error('UNTRUSTED_RESPONSE');
+  if(!response.ok){
+    const status=response.status;
+    if(status===401||status===403)
+      throw Error('ASX_CBA_VENDOR_AUTH_OR_PLAN_DENIED');
+    if(status===429)throw Error('ASX_CBA_VENDOR_RATE_LIMIT');
+    if(status===404)throw Error('ASX_CBA_VENDOR_SYMBOL_OR_PATH_NOT_FOUND');
+    if(status>=500)throw Error('ASX_CBA_VENDOR_REMOTE_5XX');
+    throw Error('ASX_CBA_VENDOR_HTTP_OTHER');
+  }
+  if(response.url!==url.href)throw Error('ASX_CBA_VENDOR_REDIRECTED');
   const contentType=response.headers.get('content-type')||'';
-  if(!/json|text\/plain/i.test(contentType))throw Error('NOT_JSON');
+  if(!/json|text\/plain/i.test(contentType))throw Error('ASX_CBA_VENDOR_UNEXPECTED_CONTENT_TYPE');
   const buf=Buffer.from(await response.arrayBuffer());
-  if(buf.length<10||buf.length>2_000_000)throw Error('INVALID_RESPONSE_SIZE');
+  if(buf.length<10||buf.length>2_000_000)throw Error('ASX_CBA_VENDOR_RESPONSE_SIZE');
   return buf;
 }
 try{
@@ -108,8 +117,6 @@ try{
   // Never print provider URLs, response bodies or auth tokens.
   // Exact parser refusal codes have a fixed safe prefix and are useful
   // to distinguish an identity mismatch from a provider outage.
-  const reason=String(error?.message??'');
-  const match=/^ASX_CBA_RESEARCH_[A-Z0-9_]{4,100}$/.exec(reason);
-  report.status=match?match[0]:'TWO_KEYED_ASX_VENDOR_CLOSES_NOT_VERIFIED';
+  report.status=classifyOneGlobalCbaVendorFailure(error);
 }
 outputSanitized();
