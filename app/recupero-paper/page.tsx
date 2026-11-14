@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useState} from "react";
+import OneGlobalPrivateInputPanel from "@/components/OneGlobalPrivateInputPanel";
 type CbaWindow={state:string;nextRegularSessionDate:string;
   evidenceDeadlineAt:string;ownerManualRetirementAvailable:boolean;};
 type Status={state:string;journalEventCount?:number;pendingSignalCount?:number;
@@ -124,6 +125,7 @@ export default function FeniceRecoverPage(){
               style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>
                 Ricontrolla stato privato
               </button></p>
+            {status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"?<OneGlobalPrivateInputPanel/>:null}
           </section>}
       {note?<p role="status">{note}</p>:null}
       <p style={{fontSize:13,opacity:.75}}>L&apos;operazione conserva gli eventi originali. Nessuna quotazione o credenziale è resa pubblica. Il recupero non certifica operazioni né autorizza Directa.</p>

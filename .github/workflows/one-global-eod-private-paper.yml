@@ -11,6 +11,10 @@ on:
       - "lib/trading/one-global-cloud-*"
       - "lib/market/one-global-cloud-*"
       - "scripts/test-one-global-cloud-*"
+      - "lib/trading/one-global-private-input-*"
+      - "scripts/test-one-global-private-input-*"
+      - "app/api/paper/one-global-private-inputs/route.js"
+      - "components/OneGlobalPrivateInputPanel.tsx"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -88,6 +92,10 @@ on:
       - "lib/trading/one-global-cloud-*"
       - "lib/market/one-global-cloud-*"
       - "scripts/test-one-global-cloud-*"
+      - "lib/trading/one-global-private-input-*"
+      - "scripts/test-one-global-private-input-*"
+      - "app/api/paper/one-global-private-inputs/route.js"
+      - "components/OneGlobalPrivateInputPanel.tsx"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -236,6 +244,7 @@ jobs:
           node scripts/test-one-global-cloud-dual-eod-fetch.mjs
           node scripts/test-one-global-cloud-settlement.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
+          node scripts/test-one-global-private-input-intake.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -385,6 +394,7 @@ jobs:
           node scripts/test-one-global-asx-cba-dual-eod-research.mjs
           node scripts/test-one-global-cloud-settlement.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
+          node scripts/test-one-global-private-input-intake.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
