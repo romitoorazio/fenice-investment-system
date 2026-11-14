@@ -135,4 +135,34 @@ await assert.rejects(createVercelPrivateEodBlobStore({
  token:'',storeId:'not a store id',sdk:oidcSdk,
 }),/CLOUD_BLOB_PRIVATE_BLOB_AUTH_CONFIGURATION_MISSING/);
 
+// Original-journal migration is allowed once in the PRIVATE store. No
+// overwrite=true and no suffix are allowed under any circumstances.
+let created=0;
+const importSdk={
+ async get(){return null;},
+ async put(path,body,opts){
+  assert.equal(path,PATH);
+  assert.equal(opts.access,'private');
+  assert.equal(opts.allowOverwrite,false);
+  assert.equal(opts.addRandomSuffix,false);
+  assert.equal(opts.storeId,'store_FENICE_DEMO');
+  assert.equal(opts.oidcToken,'TEST_ONLY_OIDC_JWT');
+  assert.equal(opts.ifMatch,undefined);
+  assert.equal(opts.contentType,'application/json');
+  assert.ok(body.includes('ONE_GLOBAL_FORWARD_EOD_PRIVATE_PAPER_V1'));
+  created++;
+  if(created>1)throw Error('BlobAlreadyExistsError');
+  return {etag:'"created1"'};
+ }
+};
+const upload=await createVercelPrivateEodBlobStore({
+ token:'',storeId:'store_FENICE_DEMO',oidcToken:'TEST_ONLY_OIDC_JWT',sdk:importSdk,
+});
+const createdFirst=await upload.createIfAbsent(JSON.stringify(newOneGlobalEodPaperLedger()));
+assert.equal(createdFirst.created,true);
+await assert.rejects(
+ upload.createIfAbsent(JSON.stringify(newOneGlobalEodPaperLedger())),
+ /BlobAlreadyExistsError/
+);
+assert.equal(created,2,'provider must enforce create-only conflict');
 console.log('PASS Vercel private Blob mock: original journal, legacy token + OIDC scopes, CAS ifMatch, duplicate, missing original and precondition failures; NO actual store provisioned.');

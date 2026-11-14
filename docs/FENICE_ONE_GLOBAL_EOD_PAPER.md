@@ -598,3 +598,53 @@ Non può inizializzare `GENESIS`, importare originali, decidere
 mercati, inviare ordini o eseguire il settlement. È necessario
 pubblicare il commit in produzione tramite il **rilascio controllato**
 esistente prima di usarla; una PR integrata su GitHub non basta.
+
+
+### Recupero del journal autentico dalla Libreria privata, senza PC (14/11/2026)
+
+Nella Libreria del proprietario è stato ritrovato il file storico
+`FENICE_ONE_GLOBAL_LEDGER_RECUPERATO_20261113.json`, con **tre eventi
+originali**: segnale CBA, segnale BAMI e successivo annullamento BAMI
+(`INVALID_PROSPECTIVE_EOD_WINDOW`). Il file del 12/11 con due
+segnali ne è un prefisso esatto, così come il primo file CBA è un
+prefisso di quello a due eventi. Le catene SHA-256 degli eventi sono
+state ricontrollate localmente. Non ci sono FILL in quei tre eventi.
+
+La nuova importazione **non è una nuova campagna** e non parte
+da `GENESIS`. Il motore
+`lib/trading/one-global-cloud-private-recovery.mjs` accetta
+esclusivamente il file recuperato, nel server Vercel, tramite la
+variabile riservata `FENICE_ONE_GLOBAL_EOD_RECOVERY_JSON`:
+- rigioca tutto il journal con
+  `replayOneGlobalEodPaperLedger` e verifica tip storico, sequenza,
+  quantità eventi, tipologia, CBA pendente e cancellazione BAMI;
+- richiede Blob privato, durevole, con
+  `createIfAbsent` e rifiuta un oggetto già esistente, **anche se
+  corrotto o incompleto**: nessuna sovrascrittura dello storico;
+- crea l'oggetto con `allowOverwrite:false`, `addRandomSuffix:false`
+  e verifica tramite lettura privata il file appena creato;
+- non copia il file originale dentro GitHub, né in sorgenti
+  Next.js, log pubblici, artifact di Actions o client browser;
+- non esegue né genera FILL, non certifica fonti, non ricarica la
+  vecchia autorizzazione, non chiama Directa.
+
+La pagina `/recupero-paper` mostra al proprietario lo stato del Blob
+e, **solo quando è autenticato con la sessione proprietario FENICE** e
+il Blob originale manca, propone l'azione `Recupera journal originale
+13/11`. Il pulsante emette un `POST` protetto dalla verifica
+same-origin, sessione proprietario e conferma esplicita. Tutto il
+contenuto privato proviene dalla variabile server `sensitive`, mai
+dal browser.
+
+**Non confondere codice integrato con importazione avvenuta.**
+La variabile sensibile deve essere configurata nell'ambiente
+**production** del progetto corretto; dopo un rilascio controllato
+e una vera conferma del proprietario, il Blob deve mostrare
+`ORIGINAL_JOURNAL_VALID_PRIVATE` con tre eventi,
+un CBA pendente e zero BUY/SELL virtuali. Finché non succede,
+il recupero è solo disponibile, non completato. La variabile
+temporanea deve essere eliminata dopo il recupero confermato.
+
+La prossima vera simulazione PAPER non deriva automaticamente
+dal recupero: servono chiusure effettive successive al segnale,
+ricevute indipendenti, diritti d'uso e consenso applicabile.
