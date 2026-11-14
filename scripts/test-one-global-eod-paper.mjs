@@ -3,7 +3,7 @@ import {selectEcbAudReference} from "../lib/market/one-global-ecb-aud.mjs";
 import {
   newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,
   settleOneGlobalEodSignal,cancelOneGlobalEodInvalidSignal,
-  replayOneGlobalEodPaperLedger,
+  expireOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
   summarizeOneGlobalEodPaper,validPrivateEodAuthority,
 } from "../lib/trading/one-global-eod-paper.mjs";
 
@@ -294,6 +294,41 @@ assert.throws(()=>settleOneGlobalEodSignal({
   marketEvidence:asxLaterSession,
 }),/EOD_PAPER_NEXT_REGULAR_SESSION_NOT_PROVEN/,
   "CBA pilot must never take Monday as the retroactive Friday close");
+// Explicit append-only expiration becomes legal ONLY after the ordinary
+// next-session close + 48 hours. It never creates a price or a trade. The
+// CBA pilot reference is Thu 12 Nov -> Fri 13 Nov, 16:11 Sydney (05:11Z).
+assert.throws(()=>expireOneGlobalEodSignal({
+  previousLedger:asxStart.ledger,signalHash:asxStart.signalHash,
+  nowIso:"2026-11-15T05:11:00.000Z",
+}),/EOD_PAPER_EXPIRY_WINDOW_STILL_OPEN/,
+  "do not retire the genuine pending ASX signal before its evidence deadline");
+const expiredAsx=expireOneGlobalEodSignal({
+  previousLedger:asxStart.ledger,signalHash:asxStart.signalHash,
+  nowIso:"2026-11-15T05:11:00.001Z",
+});
+assert.equal(expiredAsx.ledger.events.length,2);
+assert.equal(expiredAsx.ledger.events.at(-1).kind,"EXPIRE");
+assert.equal(expiredAsx.ledger.events.at(-1).targetSessionDate,"2026-11-13");
+assert.equal(expiredAsx.ledger.events.at(-1).evidenceDeadlineAt,"2026-11-15T05:11:00.000Z");
+assert.deepEqual(expiredAsx.pendingSignals,[]);
+assert.equal(expiredAsx.ledger.cashEuro,1000);
+assert.deepEqual(expiredAsx.ledger.positions,{});
+assert.equal(expiredAsx.virtualFillsCreated,0);
+assert.equal(asxStart.ledger.events.length,1);
+assert.equal(replayOneGlobalEodPaperLedger(expiredAsx.ledger).virtualBuys,0);
+assert.throws(()=>expireOneGlobalEodSignal({
+  previousLedger:expiredAsx.ledger,signalHash:asxStart.signalHash,
+  nowIso:"2026-11-15T06:00:00.000Z",
+}),/EOD_PAPER_EXPIRY_SIGNAL_NOT_OPEN/);
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,previousLedger:expiredAsx.ledger,
+  nowIso:"2026-11-15T06:10:00.000Z",
+}),/EOD_PAPER_SIGNAL_NOT_OPEN/,
+  "once expired, even a backdated receipt cannot retroactively fill the signal");
+const alteredExpiry=structuredClone(expiredAsx.ledger);
+alteredExpiry.events[1].reason="OPERATOR_OVERRIDE";
+assert.throws(()=>replayOneGlobalEodPaperLedger(alteredExpiry),
+ /EOD_PAPER_LEDGER_HASH_OR_CLOCK_INVALID/);
 const asxBuy=settleOneGlobalEodSignal(asxInput);
 assert.equal(asxBuy.accounting.virtualBuys,1);
 assert.equal(asxBuy.ledger.events.at(-1).currency,"AUD");

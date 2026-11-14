@@ -757,3 +757,63 @@ Il probe ora classifica in modo sanitizzato: `ASX_CBA_VENDOR_AUTH_OR_PLAN_DENIED
 alfanumerici. **Non** scrivere mai nei log raw error, URL,
 provider payload o chiave, anche nei casi di errore. Nessuna
 certificazione delle fonti né `FILL` deriva da questi stati.
+
+
+### Scadenza rigorosa del CBA PAPER e continuità del journal (14/11/2026)
+
+Il registro ORIGINAL privato è stato recuperato su Vercel Blob, con tre eventi
+immutabili, un segnale `XASX:CBA` pendente e nessun FILL. La prima
+seduta regolare successiva alla decisione del 12 novembre è **venerdì
+13 novembre 2026**. Un prezzo della seduta di lunedì 16 non può essere
+sostituito al prezzo di quella seduta.
+
+Non è sufficiente contare i `pendingSignals`: dopo la scadenza delle
+ricevute la posizione resta *pendente nel journal*, ma non è più
+autorizzabile con il metodo rigoroso
+`NEXT_COMPLETED_SESSION_CLOSE_PLUS_IMPACT`. Il nuovo motore
+`one-global-private-pending-windows.mjs` distingue fra:
+- `withinRegularWindowCount`: l'intervallo regolare di verifica non è
+  ancora scaduto, **senza** certificare sessione, vendor o diritti;
+- `elapsedRegularWindowCount`: la scadenza temporale è trascorsa;
+- `calendarOrWindowNotVerifiedCount`: l'ipotesi di seduta ordinaria
+  o la finestra prospettica non è dimostrata.
+
+Il calendario delle piazze viene trattato **solo come ipotesi regolare**:
+la regola applica l'orario locale e i fusi con DST, mai un calendario
+festivo esterno automaticamente attestato. Sul pilot CBA, già
+identificato da `data/one-global-first-paper-cba-signal-witness.json`,
+il close ordinario 13/11 16:11 Sydney corrisponde a
+**13/11/2026 05:11 UTC**; il limite di 48h è
+**15/11/2026 05:11 UTC** (06:11 ora italiana).
+
+`GET /api/paper/one-global-private-status` ora include un riepilogo
+aggregato delle finestre EOD riservato all'utente autenticato. La pagina
+`/recupero-paper` mostra per CBA lo stato e l'ora italiana della
+scadenza. **Non** propone alcuna azione di scadenza fino al superamento
+effettivo delle 48 ore.
+
+Dopo il superamento del termine, solo su **clic esplicito proprietario**
+il nuovo endpoint `POST /api/paper/one-global-private-expire-cba`
+può aggiungere un evento `EXPIRE`, verificando:
+1. sessione proprietario firmata e stessa origine;
+2. corrispondenza all'esatto `SIGNAL` storico CBA del 12/11
+   (identificativo e hash pubblicamente attestati dal witness);
+3. assenza di un FILL già registrato e termine rigoroso superato
+   secondo il server; nessun `EXPIRE` precoce;
+4. replay del journal originale prima e dopo, e singolo evento
+   append-only con il writer Blob privato CAS/ETag; senza
+   sovrascrittura o ripristino da GENESIS.
+
+L'evento `EXPIRE` non afferma che il mercato sia stato chiuso, che
+i prezzi non esistano o che l'utente abbia perso denaro. Attesta solo
+che il rigoroso intervallo operativo del nostro metodo è scaduto
+**senza un FILL ammissibile registrato**. Non produce BUY/SELL,
+non modifica `cashEuro`, non autorizza trading reale e mantiene
+tracciabile l'originale. Sblocca l'identificativo CBA per un eventuale
+**nuovo** segnale realmente prospettico, il quale richiederà un'altra
+seduta di riferimento e non potrà riutilizzare la vecchia data.
+
+Il codice non registra automaticamente segnali o FILL dai workflow di
+ricerca. Il lavoro sulle fonti e sull'effettivo writer prospettico
+del journal privato resta separato; le esecuzioni GitHub `success`
+non attestano di per sé una decisione PAPER registrata.
