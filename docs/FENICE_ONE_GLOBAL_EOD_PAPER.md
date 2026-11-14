@@ -859,3 +859,10 @@ I test offline usano soltanto journal, quotazioni e chiavi RSA sintetici.
 Una CI verde non prova che le API di mercato abbiano restituito prezzi
 ammissibili: il primo FILL resta subordinato a ricevute della seduta successiva,
 diritti d'uso, indipendenza e autorità privata verificati dal motore originale.
+
+Il vincolo della **prima** seduta ordinaria successiva è ora applicato anche
+dal replay a tutte le dodici borse collegate, inclusi USA, Germania, Giappone,
+Hong Kong e Singapore. Un prezzo di una seduta più tarda viene rifiutato anche
+se i relativi hash sono coerenti. La regola dei feriali è un limite conservativo,
+non una certificazione del calendario: una festività non autorizza a spostare
+automaticamente il FILL. I tre eventi originali non vengono riscritti.

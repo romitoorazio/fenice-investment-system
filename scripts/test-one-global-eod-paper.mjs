@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {selectEcbAudReference} from "../lib/market/one-global-ecb-aud.mjs";
 import {
   newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,
@@ -419,4 +420,61 @@ corruptedCancellation.events[1].reason="OPERATOR_OVERRIDE";
 assert.throws(()=>replayOneGlobalEodPaperLedger(corruptedCancellation),
 /EOD_PAPER_LEDGER_HASH_OR_CLOCK_INVALID/);
 
-console.log("PASS ONE GLOBAL forward EOD private: signals -> next CLOSE+impact BUY -> EXIT EUR; 2 independent receipts, owner rights, no lookahead, hashed ledger, risk, zero Phase9/Directa LIVE");
+// All twelve wired venues must enforce the SAME immediate-next-weekday
+// boundary. These prices, rights and FX records are synthetic fixtures only.
+const venues=[
+  ['XMIL','EUR','08:00','16:40',0],['XETR','EUR','08:00','16:40',0],
+  ['XPAR','EUR','08:00','16:40',0],['XLON','GBP','08:00','16:35',0],
+  ['XSWX','CHF','08:00','16:30',0],['XTKS','JPY','00:00','06:30',0],
+  ['XHKG','HKD','01:30','08:10',0],['XASX','AUD','22:59','05:11',-1],
+  ['XNYS','USD','14:30','21:00',0],['XNAS','USD','14:30','21:00',0],
+  ['XJSE','ZAR','07:00','15:00',0],['XSES','SGD','01:00','09:10',0],
+];
+const shifted=(instant,minutes)=>new Date(Date.parse(instant)+minutes*60000).toISOString();
+for(const [mic,currency,open,close,openDayOffset] of venues){
+  for(const [refDate,targetDate,lateDate] of [
+    ['2026-11-12','2026-11-13','2026-11-16'],
+    ['2026-11-13','2026-11-16','2026-11-17'],
+  ]){
+    const refClose=refDate+'T'+close+':00.000Z';
+    const decisionAt=shifted(refClose,30),key=mic+':FIXTURE';
+    const originalSignal=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedger(),
+      nowIso:decisionAt,signal:{...signal(decisionAt),signalId:'synthetic-next-'+mic.toLowerCase()+'-'+refDate,
+        key,mic,currency,referenceSessionDate:refDate,referenceCloseAt:refClose,
+        referencePublishedAt:shifted(refClose,20)}});
+    const makeEvidence=day=>{
+      const sessionClosedAt=day+'T'+close+':00.000Z';
+      return {sessionDate:day,
+        sessionOpenedAt:shifted(day+'T'+open+':00.000Z',openDayOffset*1440),sessionClosedAt,
+        providerReceipts:evidence().providerReceipts.map(q=>({...q,key,mic,currency,
+          sessionDate:day,publishedAt:shifted(sessionClosedAt,10)}))};
+    };
+    const fxEvidence=currency==='EUR'?null:{rateToEuro:.5,unitsPerEuro:2,
+      source:'ECB_REFERENCE_ONLY',referenceDate:'2026-11-11',
+      publishedAt:'2026-11-11T15:00:00.000Z',currency,series:'EXR.D.'+currency+'.EUR.SP00.A'};
+    const inputFor=day=>({previousLedger:originalSignal.ledger,
+      signalHash:originalSignal.signalHash,nowIso:shifted(day+'T'+close+':00.000Z',30),
+      marketEvidence:makeEvidence(day),authority,fxEvidence,
+      ownerReviewedRights:rights().map(r=>({...r,mic,currency}))});
+    const first=settleOneGlobalEodSignal(inputFor(targetDate));
+    assert.equal(first.accounting.virtualBuys,1,mic+' immediate next session remains viable');
+    assert.deepEqual(first.ledger.events.slice(0,1),originalSignal.ledger.events);
+    assert.equal(first.ledger.liveTradingAllowed,false);
+    assert.throws(()=>settleOneGlobalEodSignal(inputFor(lateDate)),
+      /EOD_PAPER_NEXT_REGULAR_SESSION_NOT_PROVEN/,mic+' cannot replace the target with a later close');
+    // Even a recomputed valid hash and internally matching balances cannot
+    // make a later-session FILL pass replay (not just the writer).
+    const rewritten=structuredClone(first.ledger),fill=rewritten.events.at(-1);
+    const late=makeEvidence(lateDate);
+    Object.assign(fill,{sessionDate:late.sessionDate,sessionOpenedAt:late.sessionOpenedAt,
+      sessionClosedAt:late.sessionClosedAt,providerReceipts:late.providerReceipts,
+      recordedAt:shifted(late.sessionClosedAt,30)});
+    const {hash:oldHash,...body}=fill;
+    assert.match(oldHash,/^[a-f0-9]{64}$/);
+    fill.hash=createHash('sha256').update(JSON.stringify(body)).digest('hex');
+    rewritten.lastHash=fill.hash;
+    assert.throws(()=>replayOneGlobalEodPaperLedger(rewritten),
+      /EOD_PAPER_NEXT_REGULAR_SESSION_NOT_PROVEN/,mic+' rejects rehashed late FILL at replay');
+  }
+}
+console.log("PASS ONE GLOBAL forward EOD: all 12 venues enforce immediate next session in writer and replay; weekend boundaries, original hashes, rights/FX/risk and zero Phase9/Directa LIVE");
