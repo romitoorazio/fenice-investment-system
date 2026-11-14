@@ -38,6 +38,9 @@ on:
       - "scripts/test-one-global-cloud-eod-research.mjs"
       - "lib/trading/one-global-cloud-private-ledger.mjs"
       - "scripts/test-one-global-cloud-private-ledger.mjs"
+      - "lib/trading/one-global-vercel-private-blob-store.mjs"
+      - "scripts/test-one-global-vercel-private-blob-store.mjs"
+      - "package.json"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -85,6 +88,9 @@ on:
       - "scripts/test-one-global-cloud-eod-research.mjs"
       - "lib/trading/one-global-cloud-private-ledger.mjs"
       - "scripts/test-one-global-cloud-private-ledger.mjs"
+      - "lib/trading/one-global-vercel-private-blob-store.mjs"
+      - "scripts/test-one-global-vercel-private-blob-store.mjs"
+      - "package.json"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
       - "scripts/test-one-global-first-paper-signal.mjs"
@@ -154,6 +160,7 @@ jobs:
           node scripts/test-private-eod-autopilot-installer.mjs
           node scripts/test-one-global-cloud-eod-research.mjs
           node scripts/test-one-global-cloud-private-ledger.mjs
+          node scripts/test-one-global-vercel-private-blob-store.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -232,6 +239,7 @@ jobs:
           node scripts/test-private-eod-autopilot-installer.mjs
           node scripts/test-one-global-cloud-eod-research.mjs
           node scripts/test-one-global-cloud-private-ledger.mjs
+          node scripts/test-one-global-vercel-private-blob-store.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
