@@ -47,7 +47,7 @@ const result=await inspect({storage:store,env,fetcher:net.fetcher,clock:()=>now}
 assert.equal(result.state,'TWO_DAILY_ROWS_AGREE_REVIEW_REQUIRED');assert.equal(result.sessionDate,'2026-11-13');
 assert.equal(result.twoDailyRowsReceived,true);assert.equal(result.closesAgree,true);
 assert.equal(result.rawReceiptArchiveConfirmed,true);assert.equal(result.originalDocumentsArchived,2);
-assert.equal(result.originalDocumentsConnected,true);assert.equal(store.context.documents.length,3);
+assert.equal(result.originalDocumentsConnected,true);assert.equal(result.originalDocumentConnectionState,'ORIGINAL_DOCUMENTS_CONNECTED');assert(result.candidateContextBytes>0);assert.equal(store.context.documents.length,3);
 assert.equal(result.rightsApproved,false);assert.equal(result.independenceCertified,false);assert.equal(result.paperFillsCreated,0);
 assert.deepEqual(store.context.authority,authority);assert.deepEqual(store.context.markets,[]);assert.deepEqual(store.context.sessions,[]);
 assert.deepEqual(store.context.documents[0],consentDoc);assert.equal((await store.read()).body,before);
@@ -76,3 +76,9 @@ assert.equal(checked,1);assert.equal(cycle.newSignals,0);assert.equal(cycle.pape
 assert.equal(cycle.ownerPaperAuthorityValidated,true,'an unrelated market-mapping blocker must not hide valid original consent');
 assert.equal(cycle.sourceRightsEvidenceValidated,false);assert.equal(cycle.sourceAccessCheck.state,result.state);
 console.log('PASS source access: real-interface two-source/difference checks, exact private bytes and original PDFs, originals appended by CAS without invented reviews or expiry, old documents/authority/journal preserved, idempotency, consent/access/archive failures, weekend no-backfill wiring. SYNTHETIC fixtures only.');
+
+const conflict=memory();conflict.writeSettlementContext=async()=>{throw Error('SYNTHETIC conflict: never overwrite');};
+const notConnected=await inspect({storage:conflict,env,fetcher:network().fetcher,clock:()=>now});
+assert.equal(notConnected.rawReceiptArchiveConfirmed,true);assert.equal(notConnected.originalDocumentsConnected,false);
+assert.equal(notConnected.originalDocumentConnectionState,'PRIVATE_INPUT_CONTEXT_WRITE_UNCONFIRMED_RELOAD_REQUIRED');
+assert.equal(conflict.context.documents.length,1);assert.equal((await conflict.read()).body,before);

@@ -152,3 +152,12 @@ Primary documentation verified:
 After settlement/research, a weekend trusted cloud invocation may check the exact completed candidate AAPL row on Alpha and SIP, with an explicit EODHD fallback if one fails. The weekday is a candidate date, not calendar proof. It cannot record a historical SIGNAL/FILL. Received raw responses and original PDF bytes are archived privately. Original PDF documents may be appended to the existing private context with the same original-byte/ETag checks; every previous document, authority, session and market mapping is preserved. Documents are explicitly `ORIGINAL_NOT_YET_REVIEWED`; no owner-review flags, rights approval, expiry date or upstream independence are inferred. Missing/rejected originals remain unconfirmed. An existing valid owner consent is required before any probe. Only fixed, validated counts/statuses enter public logs.
 
 Receiving two close rows or saving public terms does not settle CBA or certify two independent upstreams. The existing original-review, precise session, FX, raw evidence and original-ledger CAS gates still apply. New US signals remain prospective and within the existing post-close window; existing global settlement markets are unchanged. A valid consent is reported independently of an unrelated missing market mapping.
+
+
+## Private control-plane version binding
+
+The private content HTTP ETag is not assumed to be the provider's CAS version. Real SDK reads now bind an uncached GET, the SDK control-plane `head()` metadata, and a second uncached GET. Both content reads must have identical representation ETags and exact bytes; metadata size must match. Only the provider metadata ETag is returned for `ifMatch`, including for the original journal. A concurrent change, missing metadata or stale precondition fails closed without a blind retry. Context writes are reread with the same binding before confirmation. Explicitly injected legacy test SDKs retain their existing single-version interface; the real SDK must provide `head()`.
+
+The cloud source report may expose a fixed document-connection result and bounded candidate-context byte count. It never exposes a private ETag, hash, raw document, source price or SDK error text. These fields distinguish a rejected/oversized packet from an unconfirmed conditional write while preserving all original documents and consent.
+
+Reference: https://github.com/vercel/storage/blob/main/packages/blob/CHANGELOG.md — documented control-plane `head().etag` / `ifMatch` contract.
