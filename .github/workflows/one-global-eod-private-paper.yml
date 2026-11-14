@@ -47,6 +47,9 @@ on:
       - "app/api/paper/one-global-private-recover/route.js"
       - "app/recupero-paper/page.tsx"
       - "scripts/test-one-global-cloud-private-recovery.mjs"
+      - "lib/trading/one-global-private-pending-windows.mjs"
+      - "app/api/paper/one-global-private-expire-cba/route.js"
+      - "scripts/test-one-global-private-signal-expiry.mjs"
       - "lib/market/one-global-asx-cba-dual-eod-research.mjs"
       - "scripts/probe-one-global-asx-cba-eod.mjs"
       - "scripts/test-one-global-asx-cba-dual-eod-research.mjs"
@@ -107,6 +110,9 @@ on:
       - "app/api/paper/one-global-private-recover/route.js"
       - "app/recupero-paper/page.tsx"
       - "scripts/test-one-global-cloud-private-recovery.mjs"
+      - "lib/trading/one-global-private-pending-windows.mjs"
+      - "app/api/paper/one-global-private-expire-cba/route.js"
+      - "scripts/test-one-global-private-signal-expiry.mjs"
       - "lib/market/one-global-asx-cba-dual-eod-research.mjs"
       - "scripts/probe-one-global-asx-cba-eod.mjs"
       - "scripts/test-one-global-asx-cba-dual-eod-research.mjs"
@@ -183,6 +189,7 @@ jobs:
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
+          node scripts/test-one-global-private-signal-expiry.mjs
           node scripts/test-one-global-asx-cba-dual-eod-research.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
@@ -308,6 +315,7 @@ jobs:
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
+          node scripts/test-one-global-private-signal-expiry.mjs
           node scripts/test-one-global-asx-cba-dual-eod-research.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
