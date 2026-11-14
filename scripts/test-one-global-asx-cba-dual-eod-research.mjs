@@ -78,6 +78,10 @@ assert.throws(()=>assess({alphaRaw:alpha,
 assert.throws(()=>assess({alphaRaw:'bad json larger than ten bytes',eodhdRaw:eodhd}),
  /ASX_CBA_RESEARCH_VENDOR_JSON_UNUSABLE/);
 
+const runnerText=readFileSync('scripts/probe-one-global-asx-cba-eod.mjs','utf8');
+assert.match(runnerText,/if\(buf\.length<10\)throw Error\('ASX_CBA_VENDOR_EMPTY_OR_TOO_SHORT'\)/);
+assert.match(runnerText,/if\(buf\.length>2_000_000\)throw Error\('ASX_CBA_VENDOR_RESPONSE_TOO_LARGE'\)/);
+assert.doesNotMatch(runnerText,/console\.log\(.*buf|console\.error\(.*response/);
 const runner=resolve('scripts/probe-one-global-asx-cba-eod.mjs');
 assert.match(execFileSync(process.execPath,[runner,'--help'],{encoding:'utf8'}),
  /No prices/);
