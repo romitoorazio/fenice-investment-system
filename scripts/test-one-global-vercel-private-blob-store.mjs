@@ -196,6 +196,26 @@ assert.equal(archivedPath,'fenice/one-global/private-eod/observations/'+'a'.repe
 await assert.rejects(archiveStore.createResearchObservation({hash:'../path',body:'x'}),/PRIVATE_OBSERVATION_INVALID/);
 console.log('PASS Blob evidence: rotating SDK-managed OIDC, origin reads, immutable private observations and exact readback.');
 
+// Large official source files are private, content-addressed and create-only.
+const rawBytes=Buffer.from('SYNTHETIC official-source bytes for immutable binary artifact testing');
+const {createHash}=await import('node:crypto');
+const rawHash=createHash('sha256').update(rawBytes).digest('hex');
+let rawStored=null,rawPuts=0;
+const rawStore=await createVercelPrivateEodBlobStore({token:'',storeId:'store_FENICE_DEMO',sdk:{
+ async put(path,next,opts){assert.equal(path,'fenice/one-global/private-eod/observations/raw/'+rawHash);
+  assert.equal(opts.access,'private');assert.equal(opts.allowOverwrite,false);assert.equal(opts.addRandomSuffix,false);
+  assert.equal(opts.contentType,'text/csv');rawPuts++;if(rawStored)throw Error('BlobAlreadyExistsError');rawStored=Buffer.from(next);return {etag:'"raw"'};},
+ async get(path,opts){assert.equal(opts.useCache,false);return rawStored?{statusCode:200,blob:{etag:'"raw"'},stream:new Response(rawStored).body}:null;}
+}});
+assert.deepEqual(await rawStore.createSourceArtifact({hash:rawHash,body:rawBytes,contentType:'text/csv'}),{created:true,verified:true});
+assert.deepEqual(await rawStore.createSourceArtifact({hash:rawHash,body:rawBytes,contentType:'text/csv'}),{created:false,verified:true});
+assert.equal(rawPuts,2,'second create-only attempt is accepted only after exact private readback');
+await assert.rejects(rawStore.createSourceArtifact({hash:'0'.repeat(64),body:rawBytes,contentType:'text/csv'}),/PRIVATE_SOURCE_ARTIFACT_INVALID/);
+await assert.rejects(rawStore.createSourceArtifact({hash:rawHash,body:rawBytes,contentType:'application/json'}),/PRIVATE_SOURCE_ARTIFACT_INVALID/);
+rawStored=Buffer.from(rawBytes);rawStored[0]^=1;
+await assert.rejects(rawStore.createSourceArtifact({hash:rawHash,body:rawBytes,contentType:'text/csv'}),/PRIVATE_SOURCE_ARTIFACT_READBACK_MISMATCH/);
+console.log('PASS Blob raw source artifacts: private content-addressed create-only bytes, idempotent exact readback and corruption rejection.');
+
 let contextReads=0;
 const contextStore=await createVercelPrivateEodBlobStore({token:'',storeId:'store_FENICE_DEMO',sdk:{
  async get(path,opts){
