@@ -56,6 +56,7 @@ try{
   for(const symbol of plan.symbols){
     const output=join(scratch,'private-'+symbol+'.json');
     let report;
+    status.providerCallsAttempted+=2;
     try{
       // Source body never reaches git, public artifact, or stdout.
       execFileSync(process.execPath,[
@@ -63,7 +64,6 @@ try{
         '--symbol='+symbol,'--session='+plan.sessionDate,
         '--output='+output,'--commit',
       ],{cwd:ROOT,encoding:'utf8',stdio:'pipe',timeout:40000,maxBuffer:150000});
-      status.providerCallsAttempted+=2;
       const bytes=readFileSync(output);
       if(bytes.length<10||bytes.length>1_500_000)
         throw Error('CLOUD_EOD_PRIVATE_REPORT_SIZE');
