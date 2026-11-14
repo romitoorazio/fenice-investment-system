@@ -1,17 +1,23 @@
 "use client";
 
 import {useEffect,useState} from "react";
+type CbaWindow={state:string;nextRegularSessionDate:string;
+  evidenceDeadlineAt:string;ownerManualRetirementAvailable:boolean;};
 type Status={state:string;journalEventCount?:number;pendingSignalCount?:number;
-  virtualBuyCount?:number;virtualSellCount?:number;brokerConnectivityAllowed?:boolean;};
+  virtualBuyCount?:number;virtualSellCount?:number;brokerConnectivityAllowed?:boolean;
+  signalWindows?:{withinRegularWindowCount:number;elapsedRegularWindowCount:number;
+    pendingCbaPilot:CbaWindow|null};};
 const NO_LIVE="Nessun ordine reale: Directa esclusa. Nessun FILL creato dal recupero.";
 const URL="/api/paper/one-global-private-status";
 const RESTORE="/api/paper/one-global-private-recover";
+const EXPIRE="/api/paper/one-global-private-expire-cba";
 
 export default function FeniceRecoverPage(){
   const [authenticated,setAuthenticated]=useState(false);
   const [status,setStatus]=useState<Status|null>(null);
   const [loading,setLoading]=useState(true);
   const [submitting,setSubmitting]=useState(false);
+  const [expiring,setExpiring]=useState(false);
   const [note,setNote]=useState("");
   async function reload(){
     setLoading(true);
@@ -30,7 +36,8 @@ export default function FeniceRecoverPage(){
         journalEventCount:payload?.journalEventCount,
         pendingSignalCount:payload?.pendingSignalCount,
         virtualBuyCount:payload?.virtualBuyCount,
-        virtualSellCount:payload?.virtualSellCount});
+        virtualSellCount:payload?.virtualSellCount,
+        signalWindows:payload?.signalWindows});
     }catch{setStatus({state:"CLOUD_CONNECTION_UNAVAILABLE"});}
     finally{setLoading(false);}
   }
@@ -55,6 +62,26 @@ export default function FeniceRecoverPage(){
     }catch{setNote("Collegamento cloud non disponibile: nessun recupero confermato.");}
     finally{setSubmitting(false);}
   }
+  async function expireCba(){
+    if(!authenticated||!status?.signalWindows?.pendingCbaPilot?.ownerManualRetirementAvailable
+      ||submitting||expiring)return;
+    setExpiring(true);setNote("");
+    try{
+      const response=await fetch(EXPIRE,{
+        method:"POST",credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({confirm:"RETIRE_EXPIRED_CBA_ORIGINAL_PAPER_PILOT"}),
+        cache:"no-store",
+      });
+      const payload=await response.json() as {state?:string};
+      if(response.ok&&payload.state==="ORIGINAL_CBA_RETIRED_APPEND_ONLY"){
+        setNote("Segnale CBA scaduto archiviato con un nuovo evento: i tre originali sono conservati.");
+        await reload();
+      }else setNote("Nessuna modifica al registro: "+(payload.state||"VERIFICA_NON_SUPERATA"));
+    }catch{
+      setNote("Nessuna scadenza confermata: controlla la connessione prima di ripetere.");
+    }finally{setExpiring(false);}
+  }
   return (
     <main style={{maxWidth:740,margin:"0 auto",padding:"32px 20px",lineHeight:1.55}}>
       <h1 style={{fontSize:28,fontWeight:700}}>FENICE · Registro PAPER privato</h1>
@@ -69,6 +96,22 @@ export default function FeniceRecoverPage(){
             <p><strong>Stato:</strong> {status?.state||"NON_DISPONIBILE"}</p>
             {status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"?
               <p>Registro verificato. Eventi: {status.journalEventCount}. Segnali pendenti: {status.pendingSignalCount}. BUY virtuali: {status.virtualBuyCount??0}. SELL virtuali: {status.virtualSellCount??0}.</p>:null}
+            {status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"
+              &&status?.signalWindows?.pendingCbaPilot?
+              <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}}>
+                <h2 style={{fontWeight:600,marginBottom:8}}>CBA Australia · finestra PAPER</h2>
+                <p>Prima seduta ordinaria prevista: {status.signalWindows.pendingCbaPilot.nextRegularSessionDate}.</p>
+                <p>Scadenza tecnica delle ricevute: {new Date(status.signalWindows.pendingCbaPilot.evidenceDeadlineAt).toLocaleString("it-IT",{timeZone:"Europe/Rome"})} (ora italiana).</p>
+                {status.signalWindows.pendingCbaPilot.ownerManualRetirementAvailable?
+                  <>
+                    <p>La finestra di 48 ore è trascorsa. Il segnale resta nello storico, ma non può essere trasformato in un FILL usando prezzi tardivi. Puoi archiviare solo il segnale scaduto con un nuovo evento firmato e conservare il journal originale.</p>
+                    <button type="button" disabled={submitting||expiring} onClick={()=>void expireCba()}
+                      style={{background:"#334155",color:"#fff",padding:"12px 15px",borderRadius:8}}>
+                      {expiring?"Verifico il registro originale...":"Archivia segnale CBA scaduto (senza FILL)"}
+                    </button>
+                  </>:
+                  <p>Il segnale è ancora pendente: prima della scadenza non è possibile archiviarlo per questa ragione. Servono comunque due fonti e le autorizzazioni richieste per un eventuale FILL.</p>}
+              </section>:null}
             {status?.state==="ORIGINAL_JOURNAL_NOT_MIGRATED"?
               <div>
                 <p>Il Blob privato è raggiungibile ma vuoto. Premi una sola volta per recuperare il registro originale verificato, senza sovrascrivere dati.</p>
