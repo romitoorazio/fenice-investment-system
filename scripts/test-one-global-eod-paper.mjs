@@ -277,6 +277,23 @@ const asxInput={
   marketEvidence:asxEvidence,nowIso:"2026-11-13T06:10:00.000Z",
   ownerReviewedRights:asxRights,authority,fxEvidence:asxFx,
 };
+// A late Monday close must never masquerade as Friday's immediately-next
+// ASX completed session. Even correctly dated receipts and a re-hashed journal
+// would violate the original prospective EOD strategy.
+const asxLaterSession={
+  ...asxEvidence,
+  sessionDate:"2026-11-16",
+  sessionOpenedAt:"2026-11-15T23:00:00.000Z",
+  sessionClosedAt:"2026-11-16T05:10:00.000Z",
+  providerReceipts:asxEvidence.providerReceipts.map(q=>({
+    ...q,sessionDate:"2026-11-16",publishedAt:"2026-11-16T05:25:00.000Z",
+  })),
+};
+assert.throws(()=>settleOneGlobalEodSignal({
+  ...asxInput,nowIso:"2026-11-16T06:00:00.000Z",
+  marketEvidence:asxLaterSession,
+}),/EOD_PAPER_NEXT_REGULAR_SESSION_NOT_PROVEN/,
+  "CBA pilot must never take Monday as the retroactive Friday close");
 const asxBuy=settleOneGlobalEodSignal(asxInput);
 assert.equal(asxBuy.accounting.virtualBuys,1);
 assert.equal(asxBuy.ledger.events.at(-1).currency,"AUD");
