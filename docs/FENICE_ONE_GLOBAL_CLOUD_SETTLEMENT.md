@@ -134,3 +134,21 @@ dipende esclusivamente dal codice già configurato, dalla sessione HMAC e dai
 controlli di origine. L'assenza di configurazione dell'IA generativa non deve
 impedire la gestione dei documenti PAPER. Le chiamate generative mantengono
 separatamente tutti i controlli di configurazione, budget e uso manuale.
+
+
+## Existing Alpaca historical SIP source (2026-11-14)
+
+Production already has `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`. The ONE GLOBAL collector now uses these server-side credentials solely for `GET https://data.alpaca.markets/v2/stocks/{symbol}/bars`. It never calls a trading/order/account endpoint and never transmits these credentials to Alpha Vantage, EODHD, Actions logs or the browser.
+
+Requests explicitly select `feed=sip`, `timeframe=1Day`, `adjustment=raw`, exact New York session dates and an `end` at least 16 minutes old. The adapter rejects missing/duplicate/paginated/wrong-date/wrong-symbol/non-USD bars, stale sessions, invalid OHLCV and unsolicited IEX responses. The price is labelled a consolidated daily close, not a certified primary-exchange official auction price. Broker connectivity and LIVE flags stay false. The research path prefers this configured source and retains the explicit EODHD publisher fallback, including EODHD history plus SIP when Alpha is missing or returns a quota/error body, with its actual identity and raw bytes; it never silently substitutes IEX for SIP.
+
+Primary documentation verified:
+- https://docs.alpaca.markets/us/docs/market-data-faq — historical SIP queries without a subscription require `end` at least 15 minutes old; daily aggregation/trade-condition rules.
+- https://docs.alpaca.markets/us/reference/stockbars — raw adjustments, interval boundaries, pagination and symbol mapping.
+- https://files.alpaca.markets/disclosures/library/TermsAndConditions.pdf — original terms; no personal account or plan acceptance is manufactured by the code.
+- https://www.alphavantage.co/terms_of_service/ — original terms.
+- https://eodhd.com/help/personal-use — personal PAPER use and the absence of separate permission letters. This is not an entitlement for every ticker or proof of upstream independence.
+
+After settlement/research, a weekend trusted cloud invocation may check the exact completed candidate AAPL row on Alpha and SIP, with an explicit EODHD fallback if one fails. The weekday is a candidate date, not calendar proof. It cannot record a historical SIGNAL/FILL. Received raw responses and original PDF bytes are archived privately. Original PDF documents may be appended to the existing private context with the same original-byte/ETag checks; every previous document, authority, session and market mapping is preserved. Documents are explicitly `ORIGINAL_NOT_YET_REVIEWED`; no owner-review flags, rights approval, expiry date or upstream independence are inferred. Missing/rejected originals remain unconfirmed. An existing valid owner consent is required before any probe. Only fixed, validated counts/statuses enter public logs.
+
+Receiving two close rows or saving public terms does not settle CBA or certify two independent upstreams. The existing original-review, precise session, FX, raw evidence and original-ledger CAS gates still apply. New US signals remain prospective and within the existing post-close window; existing global settlement markets are unchanged. A valid consent is reported independently of an unrelated missing market mapping.

@@ -24,3 +24,15 @@ assert.equal(publicReport(filled).paperFillsCreated,1,'never force a real confir
 for(const gate of ['ownerPaperAuthorityValidated','sourceRightsEvidenceValidated','upstreamEvidenceValidated',
   'exchangeSessionEvidenceValidated','sourceEvidenceArchived'])assert.throws(()=>publicReport({...filled,[gate]:false}),/NOT_VERIFIED/);
 console.log('PASS cloud public report: exact real totals, positive FILL only with all gates, ambiguous writes rejected, private data stripped.');
+
+const sourceAccessCheck={state:'TWO_DAILY_ROWS_AGREE_REVIEW_REQUIRED',symbol:'AAPL',sessionDate:'2026-11-13',
+  alphaState:'EXACT_DAILY_ROW_RECEIVED',alpacaState:'EXACT_DAILY_ROW_RECEIVED',eodhdState:'NOT_REQUESTED',twoDailyRowsReceived:true,
+  closesAgree:true,rawReceiptArchiveConfirmed:true,originalDocumentsArchived:2,originalDocumentsConnected:true,
+  rightsApproved:false,independenceCertified:false,paperFillsCreated:0,liveTradingAllowed:false};
+const qualified=publicReport({...fixture,providerConfiguration:{...fixture.providerConfiguration,alpacaSipKeyPresent:true},
+ sourceAccessCheck:{...sourceAccessCheck,rawClose:123,rawBody:'SECRET',payloadSha256:'PRIVATE'}});
+assert.equal(qualified.sourceAccessCheck.closesAgree,true);assert.equal(qualified.providerConfiguration.alpacaSipKeyPresent,true);
+assert.doesNotMatch(JSON.stringify(qualified),/SECRET|rawClose|rawBody|PRIVATE/);
+for(const delta of [{rightsApproved:true},{independenceCertified:true},{paperFillsCreated:1},{alpacaState:'secret key'},
+  {originalDocumentsArchived:3},{originalDocumentsConnected:'SECRET'},{twoDailyRowsReceived:false}])
+  assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...delta}}),/NOT_VERIFIED/);

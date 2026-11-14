@@ -4,6 +4,8 @@ import {createVercelPrivateEodBlobStore} from '../../../../lib/trading/one-globa
 import {pinOneGlobalRecoveredOriginalStore} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
 import {runOneGlobalCloudPaperCycle} from '../../../../lib/trading/one-global-cloud-paper-cycle.mjs';
 import {fetchOneGlobalCloudDualEod} from '../../../../lib/market/one-global-cloud-dual-eod-fetch.mjs';
+import {inspectOneGlobalCloudSourceAccess} from '../../../../lib/trading/one-global-cloud-source-access.mjs';
+import {alpacaSipCredentialsPresent} from '../../../../lib/market/one-global-alpaca-sip-eod.mjs';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const revalidate=0;
@@ -27,9 +29,10 @@ export async function POST(request){
     if(!input||Object.keys(input).length!==1||input.action!=='RESEARCH_SIGNAL_CYCLE')
       return json('CYCLE_REQUEST_INVALID',400);
     const storage=pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore());
-    const report=await runOneGlobalCloudPaperCycle({storage,collect:fetchOneGlobalCloudDualEod});
+    const report=await runOneGlobalCloudPaperCycle({storage,collect:fetchOneGlobalCloudDualEod,checkSourceAccess:inspectOneGlobalCloudSourceAccess});
     return Response.json({...report,providerConfiguration:{
       alphaVantageKeyPresent:Boolean(process.env.ALPHA_VANTAGE_API_KEY),
+      alpacaSipKeyPresent:alpacaSipCredentialsPresent(),
       eodhdPersonalKeyPresent:Boolean(process.env.EODHD_API_TOKEN),
       twelveDataKeyPresent:Boolean(process.env.TWELVE_DATA_API_KEY||process.env.TWELVEDATA_API_KEY),
     }},{headers});
