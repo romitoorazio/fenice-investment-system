@@ -713,3 +713,25 @@ finché non ci siano ricevute originali, documentazione e consenso
 effettivamente validati per il **singolo** record. FENICE resta
 mondiale: questo è solo il controllo mirato al segnale privato
 **australiano**, non una limitazione a Nasdaq né una nuova versione.
+
+
+### Diagnostica CBA anche con una sola API configurata (14/11/2026)
+
+La prima esecuzione cloud del confronto Alpha Vantage + EODHD ha prodotto
+`EODHD_PERSONAL_KEY_NOT_CONFIGURED_DEMO_DOES_NOT_INCLUDE_CBA`. Questo
+dimostra che la chiave EODHD personale non è disponibile in GitHub Actions;
+la presenza della chiave Alpha Vantage **non dimostrava ancora** che
+`CBA.AX` fosse ammesso dal provider.
+
+Per distinguere davvero i due blocchi, la stessa diagnostica effettua
+ora un controllo **di sola lettura e senza dati in output** su
+`Alpha Vantage TIME_SERIES_DAILY CBA.AX` anche quando la seconda
+chiave EODHD manca, validando metadata symbol, barra del 13/11 e
+close numerico. Un report positivo è
+`ALPHA_CBA_NEXT_SESSION_ROW_VALID_EODHD_KEY_REQUIRED`; altre
+risposte `ASX_CBA_RESEARCH_...` segnalano un simbolo o una data
+incompatibile, senza pubblicare il contenuto del provider.
+
+Nessuna riga Alpha Vantage isolata è prova indipendente di due editori
+né autorizza un FILL. Non configurare una seconda chiave finta, non
+riciclare `demo` per CBA e non alterare il journal originale.
