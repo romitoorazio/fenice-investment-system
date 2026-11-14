@@ -2,11 +2,15 @@ name: Fenice ONE GLOBAL Forward EOD Private PAPER
 
 # Isolated EOD pilot: never changes V8, B2/V6, Phase 9 or Directa.
 # GitHub Actions never imports private prices, contracts or owner consent.
-# The fixed OIDC job may ask Vercel to collect and append a research SIGNAL.
+# The fixed OIDC job asks Vercel to settle eligible original signals first,
+# then run research. Original private consent and evidence are never invented.
 on:
   pull_request:
     branches: [main]
     paths:
+      - "lib/trading/one-global-cloud-*"
+      - "lib/market/one-global-cloud-*"
+      - "scripts/test-one-global-cloud-*"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -81,6 +85,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "lib/trading/one-global-cloud-*"
+      - "lib/market/one-global-cloud-*"
+      - "scripts/test-one-global-cloud-*"
       - ".ops/vercel-deploy-request.json"
       - ".github/workflows/vercel-deploy.yml"
       - "lib/ui/github-production-checks.mjs"
@@ -154,6 +161,11 @@ on:
   schedule:
     # After Europe/US close and following existing worldwide EOD research.
     - cron: "15 0 * * 2-6"
+    # Australia/Japan, Hong Kong/Singapore, Europe; the strict engine checks
+    # original independently evidenced sessions, never a weekday assumption.
+    - cron: "20 7 * * 1-5"
+    - cron: "35 8 * * 1-5"
+    - cron: "15 17 * * 1-5"
     # 16:45 New York throughout EST/EDT without using the owner's PC.
     # The in-process NY clock rejects the unwanted UTC slot.
     - cron: "45 20 * * 1-5"
@@ -222,6 +234,8 @@ jobs:
           node scripts/test-one-global-cloud-prospective-cycle.mjs
           node scripts/test-one-global-cloud-workflow-auth.mjs
           node scripts/test-one-global-cloud-dual-eod-fetch.mjs
+          node scripts/test-one-global-cloud-settlement.mjs
+          node scripts/test-one-global-cloud-cycle-report.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
@@ -243,14 +257,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-      - name: Verify original private journal and run the bounded Vercel SIGNAL cycle
+      - name: Verify original private journal, settle admissible PAPER and run bounded research
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-asx-cba-next-session:
     # Real keyed CBA 13 Nov EOD admission check. On trusted main only; PRs
     # never see vendor tokens. The runner fails closed after the strict
     # original 48h settlement window, without using Monday as Friday.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -292,7 +306,7 @@ jobs:
   cloud-dual-eod-research:
     # Secrets are accessible only on trusted default-branch schedule or manual
     # dispatch; never on pull requests, no publisher payloads leave this runner.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6')
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -369,6 +383,8 @@ jobs:
           node scripts/test-one-global-cloud-private-recovery.mjs
           node scripts/test-one-global-private-signal-expiry.mjs
           node scripts/test-one-global-asx-cba-dual-eod-research.mjs
+          node scripts/test-one-global-cloud-settlement.mjs
+          node scripts/test-one-global-cloud-cycle-report.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs

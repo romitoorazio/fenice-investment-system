@@ -1,5 +1,6 @@
 /** Trusted Actions runner sends a short-lived identity, never vendor or owner keys. */
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
+import {publicOneGlobalCloudCycleReport} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
     ||process.env.GITHUB_REF!=='refs/heads/main')throw Error('SCOPE');
@@ -17,17 +18,9 @@ try{
       'Content-Type':'application/json'},body:JSON.stringify({action:'RESEARCH_SIGNAL_CYCLE'})});
   const text=await response.text();if(text.length>10000)throw Error('RESPONSE_SIZE');
   const report=JSON.parse(text);
-  if(!response.ok||report.liveTradingAllowed!==false||report.brokerConnectivityAllowed!==false
-    ||report.paperFillsCreated!==0||report.certifiedTrades!==0||report.phase9Credit!==0
-    ||report.originalJournalVerified!==true||report.originalEventsPreserved!==true)
-    throw Error('CYCLE_BLOCKED');
+  if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
-  console.log(JSON.stringify({state:report.state,originalJournalVerified:true,
-    originalEventsPreserved:true,journalEventCount:report.journalEventCount,
-    pendingSignalCount:report.pendingSignalCount,newSignals:report.newSignals,
-    sourcePairsAttempted:report.sourcePairsAttempted,sourceEvidenceArchived:report.sourceEvidenceArchived,
-    paperFillsCreated:0,certifiedTrades:0,phase9Credit:0,
-    brokerConnectivityAllowed:false,liveTradingAllowed:false}));
+  console.log(JSON.stringify(publicOneGlobalCloudCycleReport(report)));
 }catch{
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');process.exitCode=1;
 }
