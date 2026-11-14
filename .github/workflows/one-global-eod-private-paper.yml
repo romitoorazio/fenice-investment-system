@@ -47,6 +47,9 @@ on:
       - "app/api/paper/one-global-private-recover/route.js"
       - "app/recupero-paper/page.tsx"
       - "scripts/test-one-global-cloud-private-recovery.mjs"
+      - "lib/market/one-global-asx-cba-dual-eod-research.mjs"
+      - "scripts/probe-one-global-asx-cba-eod.mjs"
+      - "scripts/test-one-global-asx-cba-dual-eod-research.mjs"
       - "package.json"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
@@ -104,6 +107,9 @@ on:
       - "app/api/paper/one-global-private-recover/route.js"
       - "app/recupero-paper/page.tsx"
       - "scripts/test-one-global-cloud-private-recovery.mjs"
+      - "lib/market/one-global-asx-cba-dual-eod-research.mjs"
+      - "scripts/probe-one-global-asx-cba-eod.mjs"
+      - "scripts/test-one-global-asx-cba-dual-eod-research.mjs"
       - "package.json"
       - "docs/FENICE_ONE_GLOBAL_FREE_WORLD_FILES.md"
       - "scripts/collect-one-global-ecb-aud.mjs"
@@ -177,8 +183,52 @@ jobs:
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
+          node scripts/test-one-global-asx-cba-dual-eod-research.mjs
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
+
+  cloud-asx-cba-next-session:
+    # Real keyed CBA 13 Nov EOD admission check. On trusted main only; PRs
+    # never see vendor tokens. The runner fails closed after the strict
+    # original 48h settlement window, without using Monday as Friday.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact trusted main without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Compare actual CBA AU EOD vendor rows without prices in public logs
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          EODHD_API_TOKEN: ${{ secrets.EODHD_API_TOKEN }}
+          SAFE_REPORT: ${{ runner.temp }}/fenice-cba-next-eod-status.json
+        run: |
+          node scripts/probe-one-global-asx-cba-eod.mjs --output="$SAFE_REPORT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const p=JSON.parse(fs.readFileSync(process.env.SAFE_REPORT,'utf8'));
+          if(p.liveTradingAllowed!==false||p.brokerConnectivityAllowed!==false
+            ||p.virtualPaperFillsCreated!==0||p.certifiedTrades!==0
+            ||p.phase9Credit!==0||p.canonicalEventCommitted!==false
+            ||p.originalPrivateJournalRead!==false
+            ||p.independentFeedProven!==false||p.dataRightsIndependentlyReviewed!==false)
+            throw Error('ASX_CBA_CLOUD_REPORT_UNSAFE');
+          console.log('CBA 13 Nov: keyed research probe only; no paper execution certified.');
+          NODE
+      - name: Retain safe CBA source-admission status, not vendor bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-asx-cba-next-session-source-gate
+          retention-days: 7
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/fenice-cba-next-eod-status.json
 
   cloud-dual-eod-research:
     # Secrets are accessible only on trusted default-branch schedule or manual
@@ -258,6 +308,7 @@ jobs:
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
+          node scripts/test-one-global-asx-cba-dual-eod-research.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
         run: |
           node scripts/test-one-global-eod-open-preflight.mjs
