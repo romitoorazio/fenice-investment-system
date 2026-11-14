@@ -68,10 +68,16 @@ if(!process.env.ALPHA_VANTAGE_API_KEY){
   console.log(JSON.stringify(outcome));process.exit(0);
 }
 const scratch=commit?null:mkdtempSync(join(tmpdir(),'fenice-private-eod-'));
+function reasonOf(error,fallback){
+  // Never emit child stderr or URLs: provider errors can contain credentials.
+  const stderr=Buffer.isBuffer(error?.stderr)?error.stderr.toString('utf8'):String(error?.stderr||'');
+  const code=stderr.match(/\b(?:FIRST_PAPER|EOD_PROSPECTIVE_BRIDGE|EOD_PAPER|EOD_PRIVATE)_([A-Z0-9_]{3,100})\b/);
+  return code?code[0]:fallback;
+}
 try{
   for(const candidate of available){
     const reportPath=join(scratch||dirname(ledgerPath),
-      'fenice-private-eod-'+candidate.sessionDate+'-'+candidate.symbol+'.json');
+      'fenice-private-eod-'+plan.sessionDate+'-'+candidate.symbol+'.json');
     if(!existsSync(reportPath)){
       // Existing collector authenticates exact symbols, compares actual EOD
       // provider responses and creates private 0600 files without overwriting.
@@ -82,8 +88,8 @@ try{
           '--output='+reportPath,'--commit',
         ],{cwd:ROOT,encoding:'utf8',stdio:'pipe',timeout:45000,maxBuffer:100000});
         outcome.probed++;
-      }catch{
-        outcome.outcomes.push({symbol:candidate.symbol,status:'REAL_TWO_PROVIDER_EOD_INTAKE_FAILED'});
+      }catch(error){
+        outcome.outcomes.push({symbol:candidate.symbol,status:reasonOf(error,'REAL_TWO_PROVIDER_EOD_INTAKE_FAILED')});
         continue;
       }
     }
@@ -95,8 +101,8 @@ try{
     try{
       execFileSync(process.execPath,signalArgs,
         {cwd:ROOT,encoding:'utf8',stdio:'pipe',timeout:15000,maxBuffer:100000});
-    }catch{
-      outcome.outcomes.push({symbol:candidate.symbol,status:'PROSPECTIVE_SIGNAL_GATE_REJECTED'});
+    }catch(error){
+      outcome.outcomes.push({symbol:candidate.symbol,status:reasonOf(error,'PROSPECTIVE_SIGNAL_GATE_REJECTED')});
       continue;
     }
     if(commit){
@@ -107,8 +113,8 @@ try{
           {cwd:ROOT,encoding:'utf8',stdio:'pipe',timeout:15000,maxBuffer:100000});
         outcome.signalAppended=true;
         outcome.outcomes.push({symbol:candidate.symbol,status:'PRIVATE_RESEARCH_SIGNAL_COMMITTED_NOT_FILL'});
-      }catch{
-        outcome.outcomes.push({symbol:candidate.symbol,status:'PRIVATE_CAS_WRITER_REJECTED'});
+      }catch(error){
+        outcome.outcomes.push({symbol:candidate.symbol,status:reasonOf(error,'PRIVATE_CAS_WRITER_REJECTED')});
       }
     }else{
       outcome.outcomes.push({symbol:candidate.symbol,status:'DRY_RUN_PROSPECTIVE_SIGNAL_VALID'});
