@@ -7,7 +7,7 @@ import {writeFileSync,realpathSync,statSync} from 'node:fs';
 import {dirname,resolve,isAbsolute,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {
-  assessOneGlobalAsxCbaDualEod,CBA_NEXT_REGULAR_SESSION,
+  assessOneGlobalAsxCbaAlphaEod,assessOneGlobalAsxCbaDualEod,CBA_NEXT_REGULAR_SESSION,
   CBA_ALPHA_SYMBOL,CBA_EODHD_SYMBOL,
 } from '../lib/market/one-global-asx-cba-dual-eod-research.mjs';
 const ROOT=realpathSync(resolve(dirname(fileURLToPath(import.meta.url)),'..'));
@@ -61,17 +61,15 @@ if(typeof alpha!=='string'||!/^[-_A-Za-z0-9]{8,120}$/.test(alpha)){
   report.status='ALPHA_VANTAGE_PRIVATE_KEY_NOT_CONFIGURED';
   outputSanitized();process.exit(0);
 }
-if(typeof eod!=='string'||!/^[-_A-Za-z0-9]{8,150}$/.test(eod)||eod==='demo'){
-  report.status='EODHD_PERSONAL_KEY_NOT_CONFIGURED_DEMO_DOES_NOT_INCLUDE_CBA';
-  outputSanitized();process.exit(0);
-}
+const eodConfigured=typeof eod==='string'
+  &&/^[-_A-Za-z0-9]{8,150}$/.test(eod)&&eod!=='demo';
 const url1=new URL('https://www.alphavantage.co/query');
 url1.search=new URLSearchParams({
   function:'TIME_SERIES_DAILY',symbol:CBA_ALPHA_SYMBOL,
   outputsize:'compact',apikey:alpha,
 });
-const url2=new URL('https://eodhd.com/api/eod/'+CBA_EODHD_SYMBOL);
-url2.search=new URLSearchParams({
+const url2=eodConfigured?new URL('https://eodhd.com/api/eod/'+CBA_EODHD_SYMBOL):null;
+if(url2)url2.search=new URLSearchParams({
   api_token:eod,fmt:'json',from:CBA_NEXT_REGULAR_SESSION,
   to:CBA_NEXT_REGULAR_SESSION,
 });
@@ -86,15 +84,26 @@ async function readVendor(url){
   return buf;
 }
 try{
-  report.providerCalls=2;
-  const [a,b]=await Promise.all([readVendor(url1),readVendor(url2)]);
-  const checked=assessOneGlobalAsxCbaDualEod({
-    alphaRaw:a,eodhdRaw:b,
-  });
-  report.status=checked.result;
-  report.alphaIdentityMatched=checked.alphaIdentityMatched;
-  report.eodhdExactDateMatched=checked.eodhdExactDateMatched;
-  report.dualCloseWithinHalfPercent=checked.dualCloseWithinHalfPercent;
+  if(!eodConfigured){
+    // Single-source verification is genuinely useful but never a PAPER
+    // receipt pair. Do not skip testing Alpha just because EODHD is absent.
+    report.providerCalls=1;
+    const a=await readVendor(url1);
+    const checked=assessOneGlobalAsxCbaAlphaEod({alphaRaw:a});
+    report.status=checked.result;
+    report.alphaIdentityMatched=checked.alphaExactNextSessionClose;
+    report.secondIndependentPublisherReceived=false;
+  }else{
+    report.providerCalls=2;
+    const [a,b]=await Promise.all([readVendor(url1),readVendor(url2)]);
+    const checked=assessOneGlobalAsxCbaDualEod({
+      alphaRaw:a,eodhdRaw:b,
+    });
+    report.status=checked.result;
+    report.alphaIdentityMatched=checked.alphaIdentityMatched;
+    report.eodhdExactDateMatched=checked.eodhdExactDateMatched;
+    report.dualCloseWithinHalfPercent=checked.dualCloseWithinHalfPercent;
+  }
 }catch(error){
   // Never print provider URLs, response bodies or auth tokens.
   // Exact parser refusal codes have a fixed safe prefix and are useful
