@@ -509,3 +509,20 @@ simulano in memoria un archivio privato, casi di stato mancante,
 corruzione, doppioni, due eventi insieme, storage pubblico e
 concorrenza. Sono **test sintetici offline**, non una prova di
 persistenza su Vercel. Nessun FILL vero, prezzo o chiave è creato.
+
+
+L'implementazione dello storage è pronta anche come adattatore nativo
+`lib/trading/one-global-vercel-private-blob-store.mjs`:
+usa il token privato server-side `BLOB_READ_WRITE_TOKEN`, `get()` con
+`access:'private'` e `put()` con `ifMatch` e
+`allowOverwrite:true`. Se una sessione concorrente ha modificato il
+documento, il commit è rifiutato e non ritentato ciecamente.
+Il nome del blob è stabile:
+`fenice/one-global/private-eod/original-ledger.json`.
+
+**Nessun nuovo segreto è stato inventato o creato; nessuno storage è
+stato collegato in produzione.** L'adattatore non autorizza il
+bootstrap del journal: occorre importare l'originale storico privato,
+verificare la licenza e il consenso PAPER prima di attivare una route
+o un cron in produzione. Una volta autorizzati questi prerequisiti,
+il contratto CAS è già testato senza chiamate di rete.
