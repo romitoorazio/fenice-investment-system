@@ -54,3 +54,34 @@ export function feniceSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   return origin !== null && origin === new URL(request.url).origin;
 }
+
+/** Owner authentication is independent of paid/generative service readiness. */
+export async function handleFeniceOwnerSessionRequest(request:Request,{
+  secret,verifyCredential,now=Date.now(),
+}:{secret:string|undefined;verifyCredential:(token:unknown,secret:string|undefined)=>boolean;now?:number}){
+  const headers={"Cache-Control":"private, no-store, max-age=0","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
+  if(request.method==="GET"){
+    const authenticated=verifyFeniceOwnerSession(feniceSessionCookieFromRequest(request),secret,now);
+    const response=Response.json({authenticated,sessionDurationDays:FENICE_AI_SESSION_DAYS,
+      renewsAutomatically:authenticated,brokerOrderAllowed:false},{headers});
+    if(authenticated){
+      const renewed=createFeniceOwnerSession(secret,now);
+      if(renewed)response.headers.set("Set-Cookie",feniceSessionSetCookie(renewed));
+    }
+    return response;
+  }
+  if(!["POST","DELETE"].includes(request.method))return Response.json({error:"METHOD_NOT_ALLOWED"},{status:405,headers});
+  if(!feniceSameOrigin(request))return Response.json({error:"ORIGIN_DENIED"},{status:403,headers});
+  if(request.method==="DELETE"){
+    const response=Response.json({authenticated:false,brokerOrderAllowed:false},{headers});
+    response.headers.set("Set-Cookie",feniceSessionClearCookie());return response;
+  }
+  if(!secret||secret.length<32)return Response.json({error:"OWNER_ACCESS_NOT_CONFIGURED"},{status:503,headers});
+  const auth=request.headers.get("authorization"),token=auth?.startsWith("Bearer ")?auth.slice(7):null;
+  if(!verifyCredential(token,secret))return Response.json({error:"ACCESS_DENIED"},{status:401,headers});
+  const session=createFeniceOwnerSession(secret,now);
+  if(!session)return Response.json({error:"SESSION_NOT_AVAILABLE"},{status:503,headers});
+  const response=Response.json({authenticated:true,sessionDurationDays:FENICE_AI_SESSION_DAYS,
+    renewsAutomatically:true,brokerOrderAllowed:false},{headers});
+  response.headers.set("Set-Cookie",feniceSessionSetCookie(session));return response;
+}
