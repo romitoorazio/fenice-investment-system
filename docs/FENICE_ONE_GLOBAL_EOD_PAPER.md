@@ -558,3 +558,43 @@ proprietario; **non è una prova di accesso del writer in produzione**.
 
 Fonti: https://vercel.com/changelog/vercel-blob-now-supports-oidc-authentication
 e https://vercel.com/docs/vercel-blob/private-storage.
+
+
+### Verifica reale del Blob dal runtime Vercel, solo proprietario (14/11/2026)
+
+Per risolvere la differenza tra **Blob privato creato** e **journal
+originale leggibile nel runtime di produzione**, è disponibile il percorso
+`GET /api/paper/one-global-private-status`, protetto e rigorosamente
+**di sola lettura**. L'app Vercel possiede l'identità OIDC del progetto;
+i job GitHub Actions NON la ricevono automaticamente.
+
+La chiamata usa la credenziale proprietario **già configurata**
+`FENICE_AI_OWNER_TOKEN`, oppure la sessione proprietario firmata
+`__Host-fenice_ai_session` già utilizzata dalla funzione generativa.
+Non vengono create o cambiate credenziali. Se l'utente non è autenticato,
+risponde `401 OWNER_AUTH_REQUIRED`; senza configurazione proprietario
+risponde `503`. La risposta contiene `Cache-Control: private, no-store`
+e il risultato della lettura compare solo nella sessione autenticata.
+
+Stati possibili, senza pubblicare prezzi, chiavi, posizioni o hash:
+- `PRIVATE_STORE_CONNECTION_UNAVAILABLE`: la funzione non ha le
+  credenziali Blob OIDC necessarie oppure l'SDK non è raggiungibile;
+- `ORIGINAL_JOURNAL_NOT_MIGRATED`: store privato raggiungibile,
+  **nessun file storico originale presente**; è lo stato atteso dopo
+  la creazione iniziale dello store vuoto;
+- `ORIGINAL_JOURNAL_REPLAY_INVALID`: il file non supera il replay
+  rigoroso; proibito ripristinarlo sovrascrivendo gli eventi;
+- `ORIGINAL_JOURNAL_VALID_PRIVATE`: il journal originale è presente,
+  valido e controllato, ma FENICE non ha comunque approvazione a
+  creare automaticamente un `FILL` né a classificare i diritti delle
+  fonti come certificati.
+
+Solo nell'ultimo caso la risposta fornisce conteggi aggregati di
+eventi, segnali aperti e BUY/SELL virtuali, mai prezzi, cash, chiavi,
+eventi individuali o timestamp di operazioni.
+
+La funzione non esporta `POST`, `PUT`, `PATCH` o `DELETE`.
+Non può inizializzare `GENESIS`, importare originali, decidere
+mercati, inviare ordini o eseguire il settlement. È necessario
+pubblicare il commit in produzione tramite il **rilascio controllato**
+esistente prima di usarla; una PR integrata su GitHub non basta.
