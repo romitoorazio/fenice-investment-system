@@ -735,3 +735,25 @@ incompatibile, senza pubblicare il contenuto del provider.
 Nessuna riga Alpha Vantage isolata è prova indipendente di due editori
 né autorizza un FILL. Non configurare una seconda chiave finta, non
 riciclare `demo` per CBA e non alterare il journal originale.
+
+
+### Errori trasporto ASX CBA visibili senza segreti (14/11/2026)
+
+L'esecuzione cloud del primo probe Alpha-only ha realmente invocato la rete
+(`providerCalls=1`) ma ha restituito soltanto
+`TWO_KEYED_ASX_VENDOR_CLOSES_NOT_VERIFIED`; **non** ha dimostrato
+una barra valida per il 13/11. Una diagnosi generica non basta a
+distinguere mancanza di diritti dal blocco HTTP o da timeout.
+
+Il probe ora classifica in modo sanitizzato: `ASX_CBA_VENDOR_AUTH_OR_PLAN_DENIED`
+(HTTP 401/403), `ASX_CBA_VENDOR_RATE_LIMIT` (429),
+`ASX_CBA_VENDOR_SYMBOL_OR_PATH_NOT_FOUND` (404),
+`ASX_CBA_VENDOR_REMOTE_5XX` (5xx),
+`ASX_CBA_VENDOR_HTTP_OTHER`, `ASX_CBA_VENDOR_REDIRECTED`,
+`ASX_CBA_VENDOR_UNEXPECTED_CONTENT_TYPE`,
+`ASX_CBA_VENDOR_RESPONSE_SIZE`, `ASX_CBA_VENDOR_TIMEOUT` e
+`ASX_CBA_VENDOR_NETWORK_OR_UNKNOWN`. I codici del parser
+`ASX_CBA_RESEARCH_...` sono ammessi solo se rigorosamente
+alfanumerici. **Non** scrivere mai nei log raw error, URL,
+provider payload o chiave, anche nei casi di errore. Nessuna
+certificazione delle fonti né `FILL` deriva da questi stati.
