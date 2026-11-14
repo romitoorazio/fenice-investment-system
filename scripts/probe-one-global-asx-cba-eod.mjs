@@ -95,8 +95,12 @@ try{
   report.alphaIdentityMatched=checked.alphaIdentityMatched;
   report.eodhdExactDateMatched=checked.eodhdExactDateMatched;
   report.dualCloseWithinHalfPercent=checked.dualCloseWithinHalfPercent;
-}catch{
-  // Failure details may carry raw vendor URL and token. Never log them.
-  report.status='TWO_KEYED_ASX_VENDOR_CLOSES_NOT_VERIFIED';
+}catch(error){
+  // Never print provider URLs, response bodies or auth tokens.
+  // Exact parser refusal codes have a fixed safe prefix and are useful
+  // to distinguish an identity mismatch from a provider outage.
+  const reason=String(error?.message??'');
+  const match=/^ASX_CBA_RESEARCH_[A-Z0-9_]{4,100}$/.exec(reason);
+  report.status=match?match[0]:'TWO_KEYED_ASX_VENDOR_CLOSES_NOT_VERIFIED';
 }
 outputSanitized();
