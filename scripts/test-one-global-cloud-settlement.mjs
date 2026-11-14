@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {oneGlobalReviewSubjectSha256} from '../lib/trading/one-global-technical-review.mjs';
 import {createHash} from 'node:crypto';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
 import {runOneGlobalCloudSettlementCycle as run,collectOneGlobalSettlementPair} from '../lib/trading/one-global-cloud-settlement.mjs';
@@ -197,3 +198,40 @@ console.log('PASS cloud settlement: original documents/consent/rights/upstreams/
  assert.equal(storage.ledger.events.at(-1).kind,'FILL');assert.equal(storage.archives.length,1);
 }
 console.log('PASS SYNTHETIC full Alpha + Alpaca SIP strict settlement: original gates, raw reparse, official-interface ECB, archive, one CAS append. No real journal/network.');
+
+// Delegated review is distinct from owner consent; SYNTHETIC documents only.
+const delegatedFixture=fixture();
+function delegate(subject,scope,evidenceSha256){
+  subject.reviewedByOwner=false;
+  subject.technicalReview={kind:'DELEGATED_PROJECT_TECHNICAL_REVIEW',
+    reviewer:{role:'DELEGATED_PROJECT_OPERATOR',name:'Synthetic Test'},scope,
+    outcome:'APPROVED_FOR_DOCUMENTED_SCOPE',evidenceSha256,
+    authoritySnapshotHash:sha(JSON.stringify(delegatedFixture.context.authority)),
+    reviewedAt:subject.reviewedAt??'2026-11-12T20:01:00.000Z',reviewedCommit:'c'.repeat(40),
+    basis:'SYNTHETIC TEST ONLY: this exact fixture evidence supports this specific scope.',
+    subjectSha256:oneGlobalReviewSubjectSha256(subject)};
+}
+for(const source of delegatedFixture.context.markets[0].sources)delegate(source,'SOURCE_MAPPING',source.independenceEvidenceSha256);
+for(const rights of delegatedFixture.context.markets[0].ownerReviewedRights)delegate(rights,'PROVIDER_USAGE_RIGHTS',rights.evidenceSha256);
+for(const session of delegatedFixture.context.sessions)delegate(session,'EXCHANGE_SESSION',session.evidenceSha256);
+const delegatedStore=memory(delegatedFixture);
+assert.equal((await execute(delegatedStore,delegatedFixture).promise).paperFillsCreated,1);
+assert.equal(replayOneGlobalEodPaperLedger(delegatedStore.ledger).virtualBuys,1);
+assert(delegatedStore.ledger.events.at(-1).ownerReviewedRights.every(x=>x.reviewedByOwner===false));
+for(const mutate of [
+  c=>{c.markets[0].sources[0].symbol='OTHER';},
+  c=>{c.markets[0].ownerReviewedRights[0].technicalReview.authoritySnapshotHash='0'.repeat(64);},
+  c=>{c.markets[0].ownerReviewedRights[0].technicalReview.outcome='ACCOUNT_SCOPE_UNRESOLVED';},
+  c=>{c.sessions[0].sessionClosedAt='2026-11-13T16:41:00.000Z';},
+  c=>{c.markets[0].sources[0].reviewedByOwner=true;},
+]){
+  const c=structuredClone(delegatedFixture.context);mutate(c);
+  const st=memory(delegatedFixture,c),attempt=execute(st,delegatedFixture);
+  assert.equal((await attempt.promise).paperFillsCreated,0);assert.equal(st.writes,0);assert.equal(attempt.net.calls.length,0);
+}
+// Rehashing a modified FILL cannot transplant a review from another consent.
+const transplanted=structuredClone(delegatedStore.ledger),event=transplanted.events.at(-1);
+event.authoritySnapshotHash='d'.repeat(64);
+const unhashed=Object.fromEntries(Object.entries(event).filter(([key])=>key!=='hash'));event.hash=sha(JSON.stringify(unhashed));
+assert.throws(()=>replayOneGlobalEodPaperLedger(transplanted));
+console.log('PASS delegated settlement: synthetic original evidence supports attributed source/rights/session review, strict replay and CAS preserved; edits and consent transplantation fail closed.');

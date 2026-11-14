@@ -48,6 +48,8 @@ assert.equal(result.state,'TWO_DAILY_ROWS_AGREE_REVIEW_REQUIRED');assert.equal(r
 assert.equal(result.twoDailyRowsReceived,true);assert.equal(result.closesAgree,true);
 assert.equal(result.rawReceiptArchiveConfirmed,true);assert.equal(result.originalDocumentsArchived,2);
 assert.equal(result.originalDocumentsConnected,true);assert.equal(result.originalDocumentConnectionState,'ORIGINAL_DOCUMENTS_CONNECTED');assert(result.candidateContextBytes>0);assert.equal(store.context.documents.length,3);
+assert.equal(result.technicalReviewsConnected,0);assert.equal(result.alphaDocumentReview,'UNKNOWN_ORIGINAL_REVISION');
+assert.equal(result.alpacaDocumentReview,'UNKNOWN_ORIGINAL_REVISION');
 assert.equal(result.rightsApproved,false);assert.equal(result.independenceCertified,false);assert.equal(result.paperFillsCreated,0);
 assert.deepEqual(store.context.authority,authority);assert.deepEqual(store.context.markets,[]);assert.deepEqual(store.context.sessions,[]);
 assert.deepEqual(store.context.documents[0],consentDoc);assert.equal((await store.read()).body,before);

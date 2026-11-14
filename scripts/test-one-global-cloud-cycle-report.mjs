@@ -42,3 +42,12 @@ const connected=publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck
 assert.equal(connected.sourceAccessCheck.originalDocumentConnectionState,'ORIGINAL_DOCUMENTS_CONNECTED');
 for(const fields of [{originalDocumentConnectionState:'private exception = SECRET'},{candidateContextBytes:-1},{candidateContextBytes:'SECRET'}])
  assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...fields}}),/NOT_VERIFIED/);
+
+const reviewed=publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,technicalReviewsConnected:2,
+ alphaDocumentReview:'PRIVATE_SCOPE_TEXT_SUPPORTED',alpacaDocumentReview:'ACCOUNT_SCOPE_UNRESOLVED',
+ technicalReviews:[{bodyBase64:'PRIVATE',reviewer:'PRIVATE'}]}});
+assert.equal(reviewed.sourceAccessCheck.technicalReviewsConnected,2);assert.equal(reviewed.sourceAccessCheck.rightsApproved,false);
+assert.doesNotMatch(JSON.stringify(reviewed),/bodyBase64|reviewer|technicalReviews"|PRIVATE"/);
+for(const fields of [{technicalReviewsConnected:3},{technicalReviewsConnected:1,alphaDocumentReview:'SECRET',alpacaDocumentReview:'ACCOUNT_SCOPE_UNRESOLVED'},
+ {technicalReviewsConnected:2,alphaDocumentReview:'PRIVATE_SCOPE_TEXT_SUPPORTED',alpacaDocumentReview:'APPROVED_FOR_DOCUMENTED_SCOPE'}])
+ assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...fields}}),/NOT_VERIFIED/);

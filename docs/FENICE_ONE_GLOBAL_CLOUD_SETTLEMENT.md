@@ -28,8 +28,9 @@ usa una seduta successiva per sostituire quella immediatamente prevista.
 L'adattatore legge solamente
 `fenice/one-global/private-eod/settlement-inputs.json` nello **stesso Blob
 privato** del journal `fenice/one-global/private-eod/original-ledger.json`.
-Questo file non è una variabile di recovery, non è generato dal software e
-non deve essere inserito nel repository pubblico. Se assente, il blocco è
+Questo file non è una variabile di recovery e non deve essere inserito nel
+repository pubblico. Il software può aggiungere originali scaricati e revisioni
+tecniche attribuite, conservando consenso e documenti precedenti. Se assente, il blocco è
 `CLOUD_SETTLEMENT_ORIGINAL_CONTEXT_NOT_CONNECTED`: ciò significa che queste
 prove non sono collegate al ciclo, non che non esistano altrove.
 
@@ -50,9 +51,45 @@ Tipi di documento: `ORIGINAL_OWNER_PAPER_CONSENT`,
 `ORIGINAL_PROVIDER_USAGE_RIGHTS`, `PROVIDER_UPSTREAM_PROVENANCE`,
 `ORIGINAL_EXCHANGE_SESSION`. La presenza di un hash o di una dichiarazione
 booleana **non** costituisce una certificazione indipendente del contenuto
-legale del documento. La revisione del proprietario deve essere autentica;
-non viene prodotta automaticamente, desunta dai nomi dei provider o sostituita
-dall'autorizzazione allo sviluppo. I flag di certificazione restano falsi.
+legale del documento. Le revisioni personali preesistenti restano compatibili.
+Una revisione delegata usa `reviewedByOwner:false` e `technicalReview`, mai
+un'approvazione personale inventata. I flag di certificazione restano falsi.
+
+## Revisione tecnica delegata
+
+Per mapping, diritti e seduta, `technicalReview` registra il ruolo e nome del
+revisore, il commit esaminato, la data effettiva, la motivazione e lo scope
+`SOURCE_MAPPING`, `PROVIDER_USAGE_RIGHTS` o `EXCHANGE_SESSION`. La conclusione
+ammissibile è `APPROVED_FOR_DOCUMENTED_SCOPE`, limitata a prove autentiche.
+La revisione lega lo SHA-256 canonico di tutti i campi del soggetto (escluso
+soltanto `technicalReview`), l'hash del documento originale e lo snapshot del
+consenso originale. Cambi di simbolo, MIC, valuta, scadenza, seduta o consenso
+invalidano la revisione. È un vincolo d'integrità verificabile, non una firma
+crittografica del revisore né una nuova autorizzazione del fornitore.
+
+Il motore e il replay controllano la stessa struttura per i diritti riportati
+nel FILL. Il consenso PAPER originale resta obbligatorio e distinto; nessun
+certificato tecnico lo sostituisce. Tutti i gate originali, incluse ricevute,
+indipendenza, calendario, FX, scadenze, archivio e CAS, restano applicati.
+
+Il controllo cloud archivia separatamente conclusioni della lettura integrale
+dei due PDF pubblici, solo per gli hash esatti revisionati il 14 novembre 2026.
+Non modifica i documenti già collegati. Una versione sconosciuta resta
+`UNKNOWN_ORIGINAL_REVISION`. Le conclusioni attuali **non approvano diritti**:
+
+- Alpha Vantage: `PRIVATE_SCOPE_TEXT_SUPPORTED`; il testo contempla analisi
+  personali non commerciali. Non dimostra da solo l'ammissibilità del singolo
+  dataset/account né l'indipendenza dell'upstream delle chiusure giornaliere.
+- Alpaca: `ACCOUNT_SCOPE_UNRESOLVED`; i termini generali includono un limite
+  geografico. La [FAQ dello storico](https://docs.alpaca.markets/us/docs/market-data-faq)
+  consente SIP oltre 15 minuti, mentre la [pagina Paper Only](https://docs.alpaca.markets/us/docs/paper-trading)
+  limita l'entitlement ai dati IEX. L'accesso tecnico riuscito non è assunto
+  come prova risolutiva del perimetro contrattuale del conto.
+
+Queste conclusioni hanno tipo `DELEGATED_TECHNICAL_REVIEW` nel contenitore
+privato e mantengono `rightsApproved:false`, `independenceCertified:false`.
+Non sono documenti originali del provider e non generano automaticamente
+mapping ammissibili, scadenze di licenza o certificati di approvazione.
 
 ## Ricevute e fonti
 
