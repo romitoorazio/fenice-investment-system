@@ -41,7 +41,7 @@ function writeSafe(report){
 }
 const nowIso=new Date().toISOString();
 const plan=cloudResearchPlan(nowIso);
-const status={...plan,providerCallsAttempted:0,providerResponsesParsed:0,
+const status={...plan,dualProviderCollectorAttempts:0,providerResponsesParsed:0,
   outcomes:[],result:'RESEARCH_ONLY_NO_PAPER_EVENT'};
 if(!plan.withinNewYorkPostcloseWindow){
   status.outcomes=[{status:'NOT_IN_NEW_YORK_AFTER_CLOSE_WINDOW'}];
@@ -56,7 +56,7 @@ try{
   for(const symbol of plan.symbols){
     const output=join(scratch,'private-'+symbol+'.json');
     let report;
-    status.providerCallsAttempted+=2;
+    status.dualProviderCollectorAttempts++;
     try{
       // Source body never reaches git, public artifact, or stdout.
       execFileSync(process.execPath,[
