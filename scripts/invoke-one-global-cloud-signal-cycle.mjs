@@ -1,6 +1,7 @@
 /** Trusted Actions runner sends a short-lived identity, never vendor or owner keys. */
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
-import {publicOneGlobalCloudCycleReport} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {oneGlobalActionsCycleSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {appendFileSync} from 'node:fs';
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
     ||process.env.GITHUB_REF!=='refs/heads/main')throw Error('SCOPE');
@@ -20,7 +21,13 @@ try{
   const report=JSON.parse(text);
   if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
-  console.log(JSON.stringify(publicOneGlobalCloudCycleReport(report)));
+  const visible=oneGlobalActionsCycleSummary(report);
+  console.log(JSON.stringify(visible.report));
+  console.log('ONE_GLOBAL_PAPER_OUTCOME='+visible.status);
+  console.log(visible.annotation);
+  // This summary is attached to the job run, not just buried in raw logs.
+  if(process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY,visible.markdown,{encoding:'utf8'});
 }catch{
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');process.exitCode=1;
 }
