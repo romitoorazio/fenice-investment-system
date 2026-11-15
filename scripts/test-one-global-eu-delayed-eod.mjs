@@ -206,7 +206,7 @@ await assert.rejects(runOneGlobalCloudEuProspectiveCycle({storage:memory(null),c
 assert.equal(CBOE_POLICY_URL,ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.url);
 assert.equal(ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.sha256,
   'f7b94db1c37c79cb9deb63dca855907ff0f30db08ce40bc20f6c093b1a59929a');
-assert.match(CBOE_POLICY_URL,/Cboe_Europe_Data_Policy_August_2026\\.pdf$/);
+assert.match(CBOE_POLICY_URL,/Cboe_Europe_Data_Policy_August_2026\.pdf$/);
 const digest=x=>createHash('sha256').update(x).digest('hex');
 function fixtureDocument(kind,value){
   const raw=Buffer.from(JSON.stringify(value));return {kind,sha256:digest(raw),bodyBase64:raw.toString('base64')};
