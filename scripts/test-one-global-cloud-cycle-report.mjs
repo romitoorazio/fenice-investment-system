@@ -71,6 +71,14 @@ for(const delta of [{sourcePairsReceived:3},{sourcePairsAgree:2,sourcePairsRecei
 
 
 // GitHub Actions must never represent a blocked settlement as a completed FILL.
+// Two independently eligible markets may legitimately request more than
+// three receipts. The public report must remain valid without unbounding probes.
+const multiMarketSafe=publicReport({...fixture,settlementSourceRequests:4});
+assert.equal(multiMarketSafe.settlementSourceRequests,4);
+assert.match(oneGlobalActionsCycleSummary({...fixture,settlementSourceRequests:4}).markdown,
+  /Source requests attempted \\| 4/);
+assert.throws(()=>publicReport({...fixture,settlementSourceRequests:10}),/NOT_VERIFIED/,
+  'Never accept more than three source requests per journal event');
 const annotatedBlock=oneGlobalActionsCycleSummary({...fixture,
   token:'SENSITIVE_TOKEN',rawClose:10.123456,privateOwnerConsent:'PRIVATE'});
 assert.equal(annotatedBlock.status,'PAPER_BLOCKED');
