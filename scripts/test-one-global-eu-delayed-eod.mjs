@@ -3,6 +3,8 @@ import {createHash} from 'node:crypto';
 import {deflateRawSync} from 'node:zlib';
 import {
   buildOneGlobalEuDualVenueReport,
+  CBOE_POLICY_URL,
+  ONE_GLOBAL_EU_RIGHTS_DOCUMENTS,
   discoverOneGlobalCboeCeuxMinute,
   extractOneGlobalEuronextCsv,
   fetchOneGlobalCboeCeuxFile,
@@ -15,6 +17,8 @@ import {
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
   settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
+import {refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
+import {oneGlobalReviewSubjectSha256,validOneGlobalEvidenceReview} from '../lib/trading/one-global-technical-review.mjs';
 
 // Every value in this file is synthetic. The test validates the strict parser
 // and official-interface contract; it does not claim a real market observation.
@@ -197,5 +201,86 @@ const weekend=await runOneGlobalCloudEuProspectiveCycle({storage:weekendStore,cl
   fetcher:async()=>{throw Error('weekend must not fetch');},ensureEvidenceContext});
 assert.equal(weekend.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');assert.equal(weekendStore.artifacts,0);assert.equal(weekendStore.writes,0);
 await assert.rejects(runOneGlobalCloudEuProspectiveCycle({storage:memory(null),clock:()=>cycleNow,fetcher,ensureEvidenceContext}),/ORIGINAL_JOURNAL_REQUIRED/);
+
+// Policy rollover is a precise, document-hash-bound technical review.
+assert.equal(CBOE_POLICY_URL,ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.url);
+assert.equal(ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.sha256,
+  'f7b94db1c37c79cb9deb63dca855907ff0f30db08ce40bc20f6c093b1a59929a');
+assert.match(CBOE_POLICY_URL,/Cboe_Europe_Data_Policy_August_2026\\.pdf$/);
+const digest=x=>createHash('sha256').update(x).digest('hex');
+function fixtureDocument(kind,value){
+  const raw=Buffer.from(JSON.stringify(value));return {kind,sha256:digest(raw),bodyBase64:raw.toString('base64')};
+}
+const authHash='a'.repeat(64), reviewedAt='2026-11-14T23:20:00.000Z',
+  revisionNow='2026-11-15T10:30:00.000Z';
+function fixtureReview(subject,scope,proof){
+  const x={...subject,reviewedByOwner:false,reviewedAt};
+  x.technicalReview={kind:'DELEGATED_PROJECT_TECHNICAL_REVIEW',
+    reviewer:{role:'DELEGATED_PROJECT_OPERATOR',name:'Codex'},scope,
+    outcome:'APPROVED_FOR_DOCUMENTED_SCOPE',evidenceSha256:proof,
+    authoritySnapshotHash:authHash,reviewedAt,
+    reviewedCommit:'4611b2d31fa4a7c45a45cabd5fb531f79a639fc8',
+    basis:'Synthetic historical public document review with exact verified original hash',
+    subjectSha256:oneGlobalReviewSubjectSha256(x)};
+  return x;
+}
+const pIds=['euronext-mifir','cboe-eu-mifir'];
+const provenance=pIds.map(providerId=>fixtureDocument('OFFICIAL_PROVIDER_UPSTREAM_PROVENANCE_CAPTURE',
+  {providerId,proof:'SYNTHETIC_MIC_SEPARATE_VENUE'}));
+const rightCurrentEuronext=fixtureDocument('OFFICIAL_PROVIDER_USAGE_RIGHTS_CAPTURE',
+  {version:1,providerId:pIds[0],usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',
+    originalDocumentSha256:ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.euronext.sha256});
+const rightOldCboe=fixtureDocument('OFFICIAL_PROVIDER_USAGE_RIGHTS_CAPTURE',
+  {version:1,providerId:pIds[1],usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',
+    originalDocumentSha256:'9319ca470aa4cf8fb243b0ae3139f87a7936ea7c2ddf1c0c9e78e8743c2fd228'});
+const rightNewCboe=fixtureDocument('OFFICIAL_PROVIDER_USAGE_RIGHTS_CAPTURE',
+  {version:1,providerId:pIds[1],usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',
+    originalDocumentSha256:ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.sha256});
+const fixtureDocuments=[...provenance,rightCurrentEuronext,rightOldCboe,rightNewCboe];
+const fixtureSources=pIds.map((providerId,i)=>fixtureReview({
+  providerId,key:'XMIL:ENEL',mic:'XMIL',currency:'EUR',symbol:isin,
+  sourceFamily:i?'cboe-ceux-orderbook':'euronext-mtaa-primary',
+  independenceEvidenceSha256:provenance[i].sha256},'SOURCE_MAPPING',provenance[i].sha256));
+const fixtureRights=[rightCurrentEuronext,rightOldCboe].map((doc,i)=>fixtureReview({
+  providerId:pIds[i],mic:'XMIL',currency:'EUR',evidenceSha256:doc.sha256,
+  usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',automatedUseAllowed:true,
+  validUntil:'2026-12-31T23:59:59.000Z'},'PROVIDER_USAGE_RIGHTS',doc.sha256));
+const existingMarket={key:'XMIL:ENEL',mic:'XMIL',currency:'EUR',
+  sources:fixtureSources,ownerReviewedRights:fixtureRights};
+const reviewArgs={existing:existingMarket,instrument:{key:'XMIL:ENEL',isin},
+  documents:fixtureDocuments,euronextRights:rightCurrentEuronext.sha256,
+  cboeRights:rightNewCboe.sha256,authoritySnapshotHash:authHash,nowIso:revisionNow};
+const upgraded=refreshExistingEuRights(reviewArgs);
+assert.equal(upgraded.changed,true);
+assert.deepEqual(existingMarket.ownerReviewedRights,fixtureRights,'Never mutate original review');
+assert.deepEqual(upgraded.market.sources,fixtureSources,'Never rewrite source provenance');
+assert.equal(upgraded.market.ownerReviewedRights[0],fixtureRights[0],
+  'No re-review for unchanged Euronext policy');
+const refreshed=upgraded.market.ownerReviewedRights[1];
+assert.equal(refreshed.reviewedByOwner,false,'Never forge owner approval');
+assert.equal(refreshed.evidenceSha256,rightNewCboe.sha256);
+assert.equal(refreshed.technicalReview.reviewedCommit,
+  'd47aa43e0baa2c61803b75c70393b07601b28012');
+assert.equal(validOneGlobalEvidenceReview({subject:refreshed,scope:'PROVIDER_USAGE_RIGHTS',
+  evidenceSha256:rightNewCboe.sha256,authoritySnapshotHash:authHash,nowIso:revisionNow}),true);
+const stable=refreshExistingEuRights({...reviewArgs,existing:upgraded.market});
+assert.equal(stable.changed,false,'Idempotent repeated policy review');
+assert.equal(stable.market,upgraded.market);
+assert.throws(()=>refreshExistingEuRights({...reviewArgs,
+  documents:fixtureDocuments.filter(d=>d.sha256!==rightNewCboe.sha256)}),
+  /CURRENT_POLICY_REVIEW_REQUIRED/,'Never upgrade without new official capture');
+const wrongOld=fixtureDocument('OFFICIAL_PROVIDER_USAGE_RIGHTS_CAPTURE',{
+  version:1,providerId:pIds[1],usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',
+  originalDocumentSha256:'f'.repeat(64)});
+const wrongMarket={...existingMarket,ownerReviewedRights:[fixtureRights[0],
+  fixtureReview({...fixtureRights[1],evidenceSha256:wrongOld.sha256,
+    technicalReview:undefined},'PROVIDER_USAGE_RIGHTS',wrongOld.sha256)]};
+assert.throws(()=>refreshExistingEuRights({...reviewArgs,existing:wrongMarket,
+  documents:[...fixtureDocuments,wrongOld]}),/CURRENT_POLICY_REVIEW_REQUIRED/,
+  'Unknown historical rights original must never be silently reclassified');
+const ownerRight={...fixtureRights[1],reviewedByOwner:true};delete ownerRight.technicalReview;
+assert.throws(()=>refreshExistingEuRights({...reviewArgs,existing:{
+  ...existingMarket,ownerReviewedRights:[fixtureRights[0],ownerRight]}}),
+  /CURRENT_POLICY_REVIEW_REQUIRED/,'Do not replace a personally approved document with delegated review');
 
 console.log('PASS EU delayed EOD: strict bounded ZIP/CSV, MTAA closing auction, independent CEUX pre-close trade, exact semantics, official API discovery, corruption/ambiguity/venue/condition rejection. SYNTHETIC fixtures only; no FILL claimed.');
