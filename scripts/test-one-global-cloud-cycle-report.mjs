@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {publicOneGlobalCloudCycleReport as publicReport} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 const fixture={state:'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:true,originalEventsPreserved:true,
   journalEventCount:3,pendingSignalCount:1,virtualFillCount:0,paperFillsCreated:0,newSignals:0,sourcePairsAttempted:0,
   settlementState:'SETTLEMENT_BLOCKED',settlementSourceRequests:0,
@@ -68,3 +68,24 @@ assert.equal(euBlocked.euSourceAccessCheck.blocker,'EU_DELAYED_EOD_CBOE_DISCOVER
 for(const delta of [{sourcePairsReceived:3},{sourcePairsAgree:2,sourcePairsReceived:1},{rightsEvidenceConnected:'SECRET'},
  {blocker:'private URL = SECRET'},{state:'EU_FAKE_PASS'}])
  assert.throws(()=>publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,...delta}}),/NOT_VERIFIED/);
+
+
+// GitHub Actions must never represent a blocked settlement as a completed FILL.
+const annotatedBlock=oneGlobalActionsCycleSummary({...fixture,
+  token:'SENSITIVE_TOKEN',rawClose:10.123456,privateOwnerConsent:'PRIVATE'});
+assert.equal(annotatedBlock.status,'PAPER_BLOCKED');
+assert.match(annotatedBlock.markdown,/PAPER OUTCOME: PAPER_BLOCKED/);
+assert.match(annotatedBlock.markdown,/CLOUD_SETTLEMENT_ORIGINAL_CONTEXT_NOT_CONNECTED/);
+assert.match(annotatedBlock.markdown,/New FILLs this cycle \\| 0/);
+assert.match(annotatedBlock.annotation,/^::warning title=FENICE PAPER BLOCKED::/);
+assert.doesNotMatch(JSON.stringify(annotatedBlock),/SENSITIVE_TOKEN|10\\.123456|privateOwnerConsent/);
+const noFillRun=oneGlobalActionsCycleSummary({...fixture,pendingSignalCount:0,
+  settlementState:'NO_PENDING_SIGNAL_TO_SETTLE',settlementBlockers:[]});
+assert.equal(noFillRun.status,'NO_FILL');
+assert.match(noFillRun.annotation,/^::notice title=FENICE PAPER NOT EXECUTED::/);
+const confirmedRun=oneGlobalActionsCycleSummary(filled);
+assert.equal(confirmedRun.status,'FILL_VERIFIED');
+assert.match(confirmedRun.markdown,/New FILLs this cycle \\| 1/);
+assert.match(confirmedRun.annotation,/^::notice title=FENICE PAPER FILL VERIFIED::/);
+assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,settlementBlockers:['secret=TOKEN']}),/NOT_VERIFIED/);
+console.log('PASS GitHub Actions PAPER outcome: visible blocked warning, NO_FILL and verified FILL mutually distinct; sanitized enumeration only.');
