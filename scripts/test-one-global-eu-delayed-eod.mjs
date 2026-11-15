@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {deflateRawSync} from 'node:zlib';
+import {readFileSync} from 'node:fs';
 import {
   buildOneGlobalEuDualVenueReport,
   CBOE_POLICY_URL,
@@ -19,6 +20,8 @@ import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPa
 import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
 import {refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
 import {oneGlobalReviewSubjectSha256,validOneGlobalEvidenceReview} from '../lib/trading/one-global-technical-review.mjs';
+import {fetchOneGlobalSettlementSource} from '../lib/market/one-global-cloud-settlement-sources.mjs';
+import {runOneGlobalCloudSettlementCycle} from '../lib/trading/one-global-cloud-settlement.mjs';
 
 // Every value in this file is synthetic. The test validates the strict parser
 // and official-interface contract; it does not claim a real market observation.
@@ -71,6 +74,17 @@ assert.deepEqual(oneGlobalMilanSession(sessionDate),{
   closingAuctionNominalAt:'2026-11-13T16:35:00.000Z',sessionClosedAt:'2026-11-13T16:35:30.000Z',
   cboeSessionClosedAt:'2026-11-13T16:30:00.000Z',
 });
+for(const [date,open,close,cboeClose] of [
+  ['2026-03-27','08:00','16:35:30','16:30'],
+  ['2026-03-30','07:00','15:35:30','15:30'],
+  ['2026-10-23','07:00','15:35:30','15:30'],
+  ['2026-10-26','08:00','16:35:30','16:30'],
+]){
+  const bounds=oneGlobalMilanSession(date);
+  assert.equal(bounds.sessionOpenedAt,date+'T'+open+':00.000Z');
+  assert.equal(bounds.sessionClosedAt,date+'T'+close+'.000Z');
+  assert.equal(bounds.cboeSessionClosedAt,date+'T'+cboeClose+':00.000Z');
+}
 const primary=parseOneGlobalEuronextMilan({raw:zip,isin,sessionDate});
 assert.equal(primary.close,10);assert.equal(primary.open,9.7);assert.equal(primary.observedVenueMic,'MTAA');
 assert.equal(primary.priceSemantics,'PRIMARY_CLOSING_AUCTION');assert(primary.vwap>9.7&&primary.vwap<9.96);
@@ -178,7 +192,7 @@ function memory(ledger=existing){
     async createSourceArtifact({hash,body:raw,contentType}){assert.equal(createHash('sha256').update(raw).digest('hex'),hash);
       assert(['application/zip','text/csv','application/json'].includes(contentType));artifacts++;return {created:true,verified:true};},
     async createResearchObservation({hash,body:observation}){const parsed=JSON.parse(observation);
-      assert.equal(createHash('sha256').update(JSON.stringify(parsed.report)).digest('hex'),hash);observations++;return {created:true};},
+      assert.equal(createHash('sha256').update(JSON.stringify(parsed.report??parsed)).digest('hex'),hash);observations++;return {created:true};},
     async compareAndSwap(input){assert.equal(input.expectedEtag,etag);body=input.body;etag='"eu-2"';writes++;return {committed:true,etag};},
     get ledger(){return body===null?null:JSON.parse(body);},get writes(){return writes;},get observations(){return observations;},get artifacts(){return artifacts;},
   };
@@ -243,6 +257,101 @@ assert.equal(mondayStore.ledger.events.at(-1).referenceSessionDate,monday);
 assert.equal(replayOneGlobalEodPaperLedger(mondayStore.ledger).virtualBuys,0);
 assert.equal(oneGlobalMilanSession(tuesday).sessionOpenedAt,'2026-11-17T08:00:00.000Z');
 assert.equal(oneGlobalMilanSession(tuesday).sessionClosedAt,'2026-11-17T16:35:30.000Z');
+// Within the strict 48h window, the Wednesday current-day endpoint no longer
+// contains Tuesday's complete close. Read the previous file, then require
+// the exact Tuesday rows; never substitute Wednesday's price or session.
+const tuesdayZip=zipCsv(euronextCsv().replaceAll(sessionDate,tuesday));
+const wednesdayZip=zipCsv(euronextCsv().replaceAll(sessionDate,'2026-11-18'));
+const settlementSource={providerId:'euronext-mifir',symbol:isin,
+  sourceFamily:'euronext-mtaa-primary',...signal};
+const selectors=[];
+const recoveredTuesday=await fetchOneGlobalSettlementSource({source:settlementSource,signal,
+  sessionDate:tuesday,clock:()=>'2026-11-18T08:30:00.000Z',fetcher:async url=>{
+    const selector=new URL(url).pathname.split('/').at(-2);selectors.push(selector);
+    return new Response(selector==='CURRENT_TRADING_DAY'?wednesdayZip:tuesdayZip);
+  }});
+assert.deepEqual(selectors,['CURRENT_TRADING_DAY','PREVIOUS_TRADING_DAY']);
+assert.equal(recoveredTuesday.receipt.sessionDate,tuesday);
+assert.equal(recoveredTuesday.receipt.payloadSha256,createHash('sha256').update(tuesdayZip).digest('hex'));
+assert.equal(recoveredTuesday.receipt.close,10);
+assert.equal(recoveredTuesday.receipt.tradeAt,'2026-11-17T16:35:00.000Z');
+// Carry the actual Monday fixture SIGNAL through Tuesday acquisition, original
+// evidence gates, raw archival, CAS, full replay and idempotent second run.
+// No production journal, network, consent or provider evidence is used here.
+const docs=[];
+const originalDoc=(kind,value)=>{
+  const body=Buffer.from(typeof value==='string'?value:JSON.stringify(value));
+  const sha256=createHash('sha256').update(body).digest('hex');
+  docs.push({kind,sha256,bodyBase64:body.toString('base64')});return sha256;
+};
+const authorityEvidenceSha256=originalDoc('ORIGINAL_OWNER_PAPER_CONSENT',authority);
+const mondayOriginalContext={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',authority,
+  authorityEvidenceSha256,documents:docs,markets:[{...signal,sources:['euronext-mifir','cboe-eu-mifir'].map((providerId,i)=>({
+    providerId,...signal,symbol:isin,sourceFamily:i?'cboe-ceux-orderbook':'euronext-mtaa-primary',
+    reviewedByOwner:true,reviewedAt:mondayClock,
+    independenceEvidenceSha256:originalDoc('PROVIDER_UPSTREAM_PROVENANCE','SYNTHETIC ONLY separate venue evidence '+i),
+  })),ownerReviewedRights:syntheticRights.map((r,i)=>({...r,
+    evidenceSha256:originalDoc('ORIGINAL_PROVIDER_USAGE_RIGHTS','SYNTHETIC ONLY internal-use right '+i)}))}],
+  sessions:[{mic:'XMIL',sessionDate:tuesday,...oneGlobalMilanSession(tuesday),
+    reviewedByOwner:true,reviewedAt:mondayClock,
+    evidenceSha256:originalDoc('ORIGINAL_EXCHANGE_SESSION','SYNTHETIC ONLY exact Tuesday exchange session')}],
+};
+const originalContextBody=JSON.stringify(mondayOriginalContext);
+mondayStore.readSettlementContext=async()=>({body:originalContextBody,etag:'"synthetic-monday-context"'});
+const tuesdayDiscoveryUrl=discoveryUrl.replaceAll('20261113','20261117');
+const tuesdayFetcher=async url=>{
+  const href=String(url);
+  if(href.includes('marketdata.euronext.com'))return new Response(tuesdayZip);
+  if(href.startsWith('https://www-api.cboe.com/europe/equities/transparency_data/get_file_map?')){
+    assert.equal(new URL(href).searchParams.get('date'),tuesday);
+    return Response.json({daily:[],minute:[{filename:'eqt_trade_CEUX_20261117_1629.csv',serveUrl:tuesdayDiscoveryUrl}]});
+  }
+  assert.equal(href,tuesdayDiscoveryUrl);return new Response(cboeCsv().replaceAll(sessionDate,tuesday));
+};
+const beforeTuesday=structuredClone(mondayStore.ledger);
+const tuesdayResult=await runOneGlobalCloudSettlementCycle({storage:mondayStore,
+  clock:()=>'2026-11-17T17:15:00.000Z',fetcher:tuesdayFetcher});
+assert.equal(tuesdayResult.paperFillsCreated,1);assert.equal(tuesdayResult.sourceEvidenceArchived,true);
+assert.equal(mondayStore.writes,2,'Exactly one Monday SIGNAL and one Tuesday fixture FILL');
+assert.deepEqual(mondayStore.ledger.events.slice(0,-1),beforeTuesday.events);
+assert.equal(mondayStore.ledger.events.at(-1).signalHash,beforeTuesday.lastHash);
+assert.equal(mondayStore.ledger.events.at(-1).sessionDate,tuesday);
+assert.match(mondayStore.ledger.events.at(-1).settlementEvidenceArchiveSha256,/^[a-f0-9]{64}$/);
+assert.equal(replayOneGlobalEodPaperLedger(mondayStore.ledger).virtualBuys,1);
+const tuesdayAgain=await runOneGlobalCloudSettlementCycle({storage:mondayStore,
+  clock:()=>'2026-11-17T18:15:00.000Z',fetcher:async()=>{throw Error('Already settled EU signal must not refetch');}});
+assert.equal(tuesdayAgain.paperFillsCreated,0);assert.equal(mondayStore.writes,2);
+assert.equal(tuesdayAgain.liveTradingAllowed,false);
+console.log('PASS complete 16-17 November chain: Monday forward SIGNAL -> Tuesday exact dual venue -> originals -> archive -> CAS -> hash replay -> no duplicate. SYNTHETIC ONLY.');
+const bothWrong=[];
+await assert.rejects(fetchOneGlobalSettlementSource({source:settlementSource,signal,
+  sessionDate:tuesday,clock:()=>'2026-11-18T08:30:00.000Z',fetcher:async url=>{
+    bothWrong.push(String(url));return new Response(wednesdayZip);
+  }}),/EURONEXT_SESSION_INCOMPLETE/);
+assert.equal(bothWrong.length,2,'Never accept a different session from either official selector');
+for(const errorMode of ['SAME_DAY','TRANSPORT','CORRUPTION']){
+  let requests=0;
+  await assert.rejects(fetchOneGlobalSettlementSource({source:settlementSource,signal,
+    sessionDate:tuesday,clock:()=>errorMode==='SAME_DAY'?'2026-11-17T17:15:00.000Z':'2026-11-18T08:30:00.000Z',
+    fetcher:async()=>{requests++;
+      if(errorMode==='TRANSPORT')throw Error('PRIVATE_TRANSPORT_DETAIL');
+      return new Response(errorMode==='CORRUPTION'?Buffer.from('invalid zip bytes for regression'):wednesdayZip);
+    }}));
+  assert.equal(requests,1,'No fallback for same-day, failed transport or damaged originals');
+}
+// Exercise each actual scheduled November slot, not only one mocked clock.
+const workflow=readFileSync(new URL('../.github/workflows/one-global-eod-private-paper.yml',import.meta.url),'utf8');
+assert.match(workflow,/cron: "15 17-19 \* \* 1-5"/);
+for(const hour of [17,18,19]){
+  const retryStore=memory(),retryClock=`2026-11-16T${hour}:15:00.000Z`;
+  const retry=await runOneGlobalCloudEuProspectiveCycle({storage:retryStore,clock:()=>retryClock,
+    fetcher:mondayFetcher,ensureEvidenceContext:async x=>{assert.equal(x.sessionDate,tuesday);}});
+  assert.equal(retry.newSignals,1);assert.equal(retry.paperFillsCreated,0);
+  const again=await runOneGlobalCloudEuProspectiveCycle({storage:retryStore,clock:()=>retryClock,
+    fetcher:async()=>{throw Error('Duplicate must not fetch again');}});
+  assert.equal(again.state,'EU_SESSION_SIGNAL_ALREADY_COMMITTED');
+  assert.equal(retryStore.writes,1);
+}
 for(const badClock of ['2026-11-16T16:59:00.000Z','2026-11-16T20:01:00.000Z']){
   const outsideStore=memory();
   const outside=await runOneGlobalCloudEuProspectiveCycle({storage:outsideStore,

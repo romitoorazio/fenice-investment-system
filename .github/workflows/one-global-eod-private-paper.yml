@@ -199,7 +199,11 @@ on:
     # original independently evidenced sessions, never a weekday assumption.
     - cron: "20 7 * * 1-5"
     - cron: "35 8 * * 1-5"
-    - cron: "15 17 * * 1-5"
+    # Three bounded opportunities inside the November Europe/Rome postclose
+    # window (18:15, 19:15, 20:15 CET). A transient first fetch must not lose
+    # the only forward SIGNAL opportunity. The in-process calendar/window
+    # and journal CAS still reject holidays, late slots and duplicates.
+    - cron: "15 17-19 * * 1-5"
     # 16:45 New York throughout EST/EDT without using the owner's PC.
     # The in-process NY clock rejects the unwanted UTC slot.
     - cron: "45 20 * * 1-5"
