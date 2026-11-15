@@ -231,6 +231,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      # One-time public-document fingerprint audit; remove before merge.
+      - name: Resolve authoritative August 2026 Cboe PDF SHA-256
+        if: github.event_name == 'pull_request'
+        run: |
+          node --input-type=module - <<'NODE'
+          import {createHash} from 'node:crypto';
+          const url='https://cdn.cboe.com/resources/participant_resources/Cboe_Europe_Data_Policy_August_2026.pdf';
+          const response=await fetch(url,{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20000)});
+          if(!response.ok)throw Error('PUBLIC_POLICY_FETCH_FAILED');
+          const raw=Buffer.from(await response.arrayBuffer());
+          if(raw.length<1000||raw.length>2000000||raw.subarray(0,5).toString()!=='%PDF-')throw Error('PUBLIC_POLICY_PDF_INVALID');
+          console.log('PUBLIC_CBOE_EU_AUGUST_2026_SHA256='+createHash('sha256').update(raw).digest('hex'));
+          NODE
       - name: Test prospective EOD signals and private simulation accounting
         run: node scripts/test-one-global-eod-paper.mjs
       - name: Test safe worldwide metadata and private path guards
