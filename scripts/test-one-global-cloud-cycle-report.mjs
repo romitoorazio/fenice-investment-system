@@ -97,3 +97,43 @@ assert.match(confirmedRun.markdown,/New FILLs this cycle \\| 1/);
 assert.match(confirmedRun.annotation,/^::notice title=FENICE PAPER FILL VERIFIED::/);
 assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,settlementBlockers:['secret=TOKEN']}),/NOT_VERIFIED/);
 console.log('PASS GitHub Actions PAPER outcome: visible blocked warning, NO_FILL and verified FILL mutually distinct; sanitized enumeration only.');
+
+
+// The EU source/forward-SIGNAL path must remain visible independently of an
+// expired older CBA settlement blocker. No prices, ISINs, raw receipts, keys,
+// private journal body or unreviewed proof may enter Actions.
+const euProspectiveBlocked={state:'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE',
+  newSignals:0,sourcePairsAttempted:2,canonicalSignalCommitted:false,
+  sourceEvidenceArchived:false,paperFillsCreated:0,liveTradingAllowed:false,
+  brokerConnectivityAllowed:false,privateRawQuote:'PRIVATE_EU_PRICE'};
+const euBlockedSummary=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:euProspectiveBlocked});
+assert.equal(euBlockedSummary.status,'PAPER_BLOCKED','Old settlement and EU research statuses are independent');
+assert.equal(euBlockedSummary.report.euSignalCycle.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
+assert.match(euBlockedSummary.markdown,/European signal research \| EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE/);
+assert.match(euBlockedSummary.euAnnotation,/^::warning title=FENICE EU SIGNAL BLOCKED::/);
+assert.doesNotMatch(JSON.stringify(euBlockedSummary),/PRIVATE_EU_PRICE|privateRawQuote/);
+const euProspectiveCommitted={...euProspectiveBlocked,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',
+  newSignals:1,canonicalSignalCommitted:true,sourceEvidenceArchived:true,
+  rightsAndNextSessionEvidenceConnected:true};
+const euCommitSummary=oneGlobalActionsCycleSummary({...fixture,
+  state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
+  pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,sourceEvidenceArchived:true,
+  euSignalCycle:euProspectiveCommitted});
+assert.equal(euCommitSummary.report.euSignalCycle.newSignals,1);
+assert.equal(euCommitSummary.report.euSignalCycle.rightsAndNextSessionEvidenceConnected,true);
+assert.equal(euCommitSummary.report.paperFillsCreated,0,'A SIGNAL must never masquerade as FILL');
+assert.equal(euCommitSummary.status,'PAPER_BLOCKED','Expired CBA can still be pending when fresh EU SIGNAL is valid');
+assert.match(euCommitSummary.euAnnotation,/^::notice title=FENICE EU SIGNAL RECORDED::/);
+assert.match(euCommitSummary.markdown,/EU next-session evidence \| CONNECTED/);
+for(const q of [
+  {...euProspectiveBlocked,state:'EU_FAKE_SIGNAL_COMMITTED'},
+  {...euProspectiveBlocked,newSignals:1},
+  {...euProspectiveBlocked,canonicalSignalCommitted:true},
+  {...euProspectiveBlocked,sourcePairsAttempted:3},
+  {...euProspectiveBlocked,rightsAndNextSessionEvidenceConnected:true},
+  {...euProspectiveCommitted,sourceEvidenceArchived:false},
+  {...euProspectiveCommitted,rightsAndNextSessionEvidenceConnected:false},
+  {...euProspectiveCommitted,paperFillsCreated:1},
+])assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,euSignalCycle:q}),/NOT_VERIFIED/,
+  'No forged or internally contradictory EU run status');
+console.log('PASS separated EU SIGNAL visibility: source-failure warning, private next-session SIGNAL notice, older CBA block still disclosed, zero fake FILL/secret leaks.');

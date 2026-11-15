@@ -25,6 +25,7 @@ try{
   console.log(JSON.stringify(visible.report));
   console.log('ONE_GLOBAL_PAPER_OUTCOME='+visible.status);
   console.log(visible.annotation);
+  if(visible.euAnnotation)console.log(visible.euAnnotation);
   // This summary is attached to the job run, not just buried in raw logs.
   if(process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,visible.markdown,{encoding:'utf8'});

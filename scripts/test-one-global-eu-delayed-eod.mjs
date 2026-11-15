@@ -202,6 +202,56 @@ const weekend=await runOneGlobalCloudEuProspectiveCycle({storage:weekendStore,cl
 assert.equal(weekend.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');assert.equal(weekendStore.artifacts,0);assert.equal(weekendStore.writes,0);
 await assert.rejects(runOneGlobalCloudEuProspectiveCycle({storage:memory(null),clock:()=>cycleNow,fetcher,ensureEvidenceContext}),/ORIGINAL_JOURNAL_REQUIRED/);
 
+// Before Monday's market, verify the exact CET clock and Tuesday next-session
+// reservation with SYNTHETIC provider bytes. Never fabricate actual BAMI/ENEL
+// observations, market consent, external sources or Monday FILL evidence.
+const monday='2026-11-16',tuesday='2026-11-17';
+const mondayRaw=zipCsv(euronextCsv().replaceAll(sessionDate,monday));
+const mondayCboe=Buffer.from(cboeCsv().replaceAll(sessionDate,monday));
+const mondayDiscoveryUrl=discoveryUrl.replaceAll('20261113','20261116');
+const mondayDiscovery=Buffer.from(JSON.stringify({
+  daily:[],minute:[{filename:'eqt_trade_CEUX_20261116_1629.csv',serveUrl:mondayDiscoveryUrl}],
+}));
+const mondayFetcher=async(url,init)=>{
+  const href=String(url);
+  assert.equal(init.redirect,'error');
+  assert.equal(init.cache,'no-store');
+  if(href.includes('marketdata.euronext.com'))return new Response(mondayRaw);
+  if(href.startsWith('https://www-api.cboe.com/europe/equities/transparency_data/get_file_map?')){
+    assert.equal(new URL(href).searchParams.get('date'),monday);
+    return new Response(mondayDiscovery);
+  }
+  if(href===mondayDiscoveryUrl)return new Response(mondayCboe);
+  throw Error('Unexpected Monday synthetic provider URL');
+};
+const mondayClock='2026-11-16T17:15:00.000Z'; // 18:15 CET
+const mondayStore=memory();let mondayEvidenceCalls=0;
+const mondaySignal=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore,
+  clock:()=>mondayClock,fetcher:mondayFetcher,ensureEvidenceContext:async x=>{
+    mondayEvidenceCalls++;
+    assert.equal(x.sessionDate,tuesday,'Tuesday next session must be checked BEFORE signal CAS');
+    assert.equal(x.rawEvidence.sessionDate,monday);
+    assert.match(x.rawEvidence.cboeDiscoveryHash,/^[a-f0-9]{64}$/);
+    return {changed:true};
+  }});
+assert.equal(mondaySignal.state,'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE');
+assert.equal(mondaySignal.newSignals,1);
+assert.equal(mondaySignal.paperFillsCreated,0);
+assert.equal(mondayEvidenceCalls,1);
+assert.equal(mondayStore.writes,1);
+assert.equal(mondayStore.ledger.events.at(-1).referenceSessionDate,monday);
+assert.equal(replayOneGlobalEodPaperLedger(mondayStore.ledger).virtualBuys,0);
+assert.equal(oneGlobalMilanSession(tuesday).sessionOpenedAt,'2026-11-17T08:00:00.000Z');
+assert.equal(oneGlobalMilanSession(tuesday).sessionClosedAt,'2026-11-17T16:35:30.000Z');
+for(const badClock of ['2026-11-16T16:59:00.000Z','2026-11-16T20:01:00.000Z']){
+  const outsideStore=memory();
+  const outside=await runOneGlobalCloudEuProspectiveCycle({storage:outsideStore,
+    clock:()=>badClock,fetcher:async()=>{throw Error('Outside postclose must not fetch');}});
+  assert.equal(outside.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');
+  assert.equal(outsideStore.writes,0);
+}
+console.log('PASS Monday 16 Nov 18:15 CET prospective EU SIGNAL gate and Tuesday 17 Nov next-session preflight; SYNTHETIC ONLY, no actual market signal/FILL.');
+
 // Policy rollover is a precise, document-hash-bound technical review.
 assert.equal(CBOE_POLICY_URL,ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.url);
 assert.equal(ONE_GLOBAL_EU_RIGHTS_DOCUMENTS.cboe.sha256,
