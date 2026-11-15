@@ -196,7 +196,7 @@ assert(recovered.settlementBlockers.includes('CLOUD_SETTLEMENT_TWO_ADMISSIBLE_PR
 assert.equal(pairMissingStore.writes,1);
 assert.equal(pairMissingStore.archives.length,1);
 assert.deepEqual(pairMissingStore.ledger.events.slice(0,2),two.events);
-assert.equal(pairMissingStore.ledger.events.at(-1).signalHash,f.signal.hash);
+assert.equal(pairMissingStore.ledger.events.at(-1).signalHash,two.events[1].hash);
 assert.equal(replayOneGlobalEodPaperLedger(pairMissingStore.ledger).pendingSignals.length,1);
 const noPairStore=memory({...f,ledger:two},mergedContext);
 const noPairs=await run({storage:noPairStore,clock:()=>now,
