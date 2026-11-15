@@ -209,6 +209,57 @@ assert.equal(noPairStore.writes,0);
 assert.equal(noPairStore.archives.length,0);
 assert.deepEqual(noPairStore.ledger.events,two.events);
 
+// Two real-interface rows can both exist but disagree. Rejection is still
+// entirely before persistence and must not starve a different valid signal.
+// These are isolated SYNTHETIC regression fixtures, never original events.
+const divergentStore=memory({...f,ledger:two},mergedContext),divergentReached=[];
+const divergentFirstNet=network(unavailableFirst,{diverge:true});
+const afterDivergence=await run({storage:divergentStore,clock:()=>now,
+  collect:async args=>{
+    divergentReached.push(args.signal.key);
+    return collectOneGlobalSettlementPair({...args,env,fetcher:
+      args.signal.key===unavailableFirst.signal.key?divergentFirstNet.fetcher:network(f).fetcher});
+  }});
+assert.deepEqual(divergentReached,[unavailableFirst.signal.key,f.signal.key]);
+assert.equal(afterDivergence.paperFillsCreated,1);
+assert(afterDivergence.settlementBlockers.includes('EOD_PAPER_INDEPENDENT_CLOSE_DIVERGENCE'));
+assert.equal(divergentStore.writes,1);
+assert.equal(divergentStore.archives.length,1,'Rejected first pair must not be archived as admissible');
+assert.equal(divergentStore.ledger.events.at(-1).signalHash,two.events[1].hash);
+assert.deepEqual(divergentStore.ledger.events.slice(0,2),two.events);
+
+// Collection and original-byte rejection happen before all persistence too.
+for(const mode of ['COLLECTION_THROW','RAW_RECEIPT_TAMPER']){
+  const st=memory({...f,ledger:two},mergedContext),reached=[];
+  const result=await run({storage:st,clock:()=>now,collect:async args=>{
+    reached.push(args.signal.key);
+    if(args.signal.key!==unavailableFirst.signal.key)
+      return collectOneGlobalSettlementPair({...args,env,fetcher:network(f).fetcher});
+    if(mode==='COLLECTION_THROW')throw Error('PRIVATE_PROVIDER_FAILURE_TOKEN');
+    const pair=await collectOneGlobalSettlementPair({...args,env,fetcher:network(unavailableFirst).fetcher});
+    pair.pair[0].receipt.payloadSha256='f'.repeat(64);return pair;
+  }});
+  assert.equal(result.paperFillsCreated,1);
+  assert.deepEqual(reached,[unavailableFirst.signal.key,f.signal.key]);
+  assert.equal(st.writes,1);assert.equal(st.archives.length,1);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE_PROVIDER_FAILURE_TOKEN/);
+}
+// Once ANY evidence write has started, do not skip to another market on an
+// ambiguous archive/CAS/readback. A possibly committed event is terminal.
+for(const mode of ['ARCHIVE','CAS']){
+  const st=memory({...f,ledger:two},mergedContext),reached=[];
+  if(mode==='ARCHIVE')st.createResearchObservation=async()=>{throw Error('lost archive response');};
+  else st.compareAndSwap=async()=>{throw Error('lost conditional-write response');};
+  const attempt=run({storage:st,clock:()=>now,collect:async args=>{
+    reached.push(args.signal.key);
+    return collectOneGlobalSettlementPair({...args,env,fetcher:network(unavailableFirst).fetcher});
+  }});
+  if(mode==='CAS')await assert.rejects(attempt,/COMMIT_OUTCOME_UNCONFIRMED/);
+  else assert.equal((await attempt).paperFillsCreated,0);
+  assert.deepEqual(reached,[unavailableFirst.signal.key]);
+  assert.equal(st.writes,0);
+}
+
 
 const noContext=memory(f,null);let research=0;
 const combined=await runOneGlobalCloudPaperCycle({storage:noContext,clock:()=>now,
