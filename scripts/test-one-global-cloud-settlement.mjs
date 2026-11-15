@@ -172,6 +172,44 @@ const two=recordOneGlobalEodSignal({previousLedger:unavailableFirst.ledger,nowIs
 const twoStore=memory({...f,ledger:two});assert.equal((await execute(twoStore,f).promise).paperFillsCreated,1);
 assert.equal(twoStore.ledger.events.length,3);assert.equal(replayOneGlobalEodPaperLedger(twoStore.ledger).pendingSignals.length,1);
 
+// A fully reviewed, but unavailable, earlier provider pair must NOT starve a
+// separately admissible next market. Only the no-pair precommit path may skip;
+// the original journal remains append-only and no synthetic price becomes real.
+const mergedContext={...f.context,markets:[
+  unavailableFirst.context.markets[0],f.context.markets[0]]};
+const pairMissingStore=memory({...f,ledger:two},mergedContext);
+const reached=[];
+const realFixtureNet=network(f);
+const recovered=await run({storage:pairMissingStore,clock:()=>now,fetcher:realFixtureNet.fetcher,
+  collect:async args=>{
+    reached.push(args.signal.key);
+    if(args.signal.key===unavailableFirst.signal.key)return {pair:null,outcomes:[
+      {providerId:'alpha-vantage',state:'SOURCE_UNAVAILABLE'},
+      {providerId:'eodhd',state:'SOURCE_UNAVAILABLE'}]};
+    return collectOneGlobalSettlementPair({...args,env});
+  }});
+assert.deepEqual(reached,[unavailableFirst.signal.key,f.signal.key]);
+assert.equal(recovered.paperFillsCreated,1);
+assert.equal(recovered.state,'STRICT_PAPER_FILL_COMMITTED_PRIVATE');
+assert.equal(recovered.settlementSourceRequests,4);
+assert(recovered.settlementBlockers.includes('CLOUD_SETTLEMENT_TWO_ADMISSIBLE_PROVIDER_RECEIPTS_UNAVAILABLE'));
+assert.equal(pairMissingStore.writes,1);
+assert.equal(pairMissingStore.archives.length,1);
+assert.deepEqual(pairMissingStore.ledger.events.slice(0,2),two.events);
+assert.equal(pairMissingStore.ledger.events.at(-1).signalHash,f.signal.hash);
+assert.equal(replayOneGlobalEodPaperLedger(pairMissingStore.ledger).pendingSignals.length,1);
+const noPairStore=memory({...f,ledger:two},mergedContext);
+const noPairs=await run({storage:noPairStore,clock:()=>now,
+  collect:async args=>({pair:null,outcomes:args.sources.map(s=>({
+    providerId:s.providerId,state:'SOURCE_UNAVAILABLE'}))})});
+assert.equal(noPairs.paperFillsCreated,0);
+assert.equal(noPairs.state,'SETTLEMENT_BLOCKED');
+assert.equal(noPairs.settlementSourceRequests,4);
+assert.equal(noPairStore.writes,0);
+assert.equal(noPairStore.archives.length,0);
+assert.deepEqual(noPairStore.ledger.events,two.events);
+
+
 const noContext=memory(f,null);let research=0;
 const combined=await runOneGlobalCloudPaperCycle({storage:noContext,clock:()=>now,
   collect:async()=>{research++;throw Error('unexpected research outside NY window');}});
