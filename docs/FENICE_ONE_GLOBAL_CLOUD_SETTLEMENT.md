@@ -198,3 +198,30 @@ The private content HTTP ETag is not assumed to be the provider's CAS version. R
 The cloud source report may expose a fixed document-connection result and bounded candidate-context byte count. It never exposes a private ETag, hash, raw document, source price or SDK error text. These fields distinguish a rejected/oversized packet from an unconfirmed conditional write while preserving all original documents and consent.
 
 Reference: https://github.com/vercel/storage/blob/main/packages/blob/CHANGELOG.md — documented control-plane `head().etag` / `ifMatch` contract.
+
+
+## Cboe Europe: politica in vigore dal 1° agosto 2026 (15 novembre 2026)
+
+La libreria ufficiale Cboe per le azioni europee pubblica come corrente la
+[European Market Data Policy efficace dal 1° agosto 2026](https://cdn.cboe.com/resources/participant_resources/Cboe_Europe_Data_Policy_August_2026.pdf).
+Il PDF originale è stato scaricato da un runner GitHub non privilegiato ed è
+stato verificato come file PDF, con SHA-256 esatto
+`f7b94db1c37c79cb9deb63dca855907ff0f30db08ce40bc20f6c093b1a59929a`.
+Il vecchio SHA-256 del PDF di marzo
+`9319ca470aa4cf8fb243b0ae3139f87a7936ea7c2ddf1c0c9e78e8743c2fd228`
+resta riconoscibile esclusivamente per una migrazione controllata della
+revisione documentale; nessun vecchio originale viene cancellato.
+
+La nuova revisione riconosce solo lo **scope personale interno di dati
+ritardati/storici**. Non è una licenza di redistribuzione, non autorizza
+real-time o trading LIVE e non sostituisce il consenso del proprietario. I
+mapping ENEL/BAMI già archiviati possono aggiornare soltanto il documento
+tecnico Cboe con hash nuovo dopo aver verificato la revisione precedente;
+mapping in conflitto, modificati manualmente, approvati personalmente o
+collegati a un originale sconosciuto restano bloccati. Il journal e le
+ricevute di mercato non vengono riscritti. La scrittura del nuovo contesto
+rimane privata e soggetta a CAS/ETag e rilettura verificata.
+
+Un aggiornamento di termini non produce segnali o FILL retroattivi: la
+prima prova prospettica deve sempre provenire da una nuova seduta completata,
+con due piazze indipendenti, vincoli di data, archivio originale e replay.
