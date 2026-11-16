@@ -56,7 +56,7 @@ const invoke=(ledger,originals,nowIso='2026-11-12T22:30:00.000Z')=>inspectOneGlo
 assert.equal(invoke(recorded,null).state,'US_ORIGINAL_CONTEXT_NOT_CONNECTED');
 const empty=invoke(newOneGlobalEodPaperLedger(),context);
 assert.equal(empty.state,'US_NO_PENDING_PROSPECTIVE_SIGNAL');
-assert.equal(empty.reviewedUsMarketMappings,1);
+assert.equal(empty.configuredUsMarketMappings,1);
 assert.equal(empty.originalUsUsageDocuments,2);
 assert.equal(empty.sourceRightsEvidenceValidated,false);
 const missing=invoke(recorded,{...context,markets:[]});
@@ -99,7 +99,7 @@ const publicWaiting=publicOneGlobalCloudCycleReport({...report,usAdmissibility:{
 assert.equal(publicWaiting.usAdmissibility.state,'US_NEXT_SESSION_NOT_COMPLETED');
 assert.equal(publicWaiting.usAdmissibility.sourceRightsEvidenceValidated,true);
 assert.doesNotMatch(JSON.stringify(publicWaiting),/SECRET|privateOwner|closePrice/);
-for(const mutant of [{sourceRightsEvidenceValidated:false},{reviewedUsMarketMappings:99},
+for(const mutant of [{sourceRightsEvidenceValidated:false},{configuredUsMarketMappings:99},
   {state:'US_FAKE_FILL'}, {blocker:'raw price = SECRET'},{paperFillsCreated:1},{liveTradingAllowed:true}])
   assert.throws(()=>publicOneGlobalCloudCycleReport({...report,usAdmissibility:{...waiting,...mutant}}),/NOT_VERIFIED/);
 console.log('PASS ONE GLOBAL USA admission: original consent/market source rights/next session audited; missing/revoked/expired inputs fail closed; no network, mutable journal, retroactive FILL or Directa.');
