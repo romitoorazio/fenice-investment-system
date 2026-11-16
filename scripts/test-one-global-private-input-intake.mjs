@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
-import {importOneGlobalPrivateInputs as put,inspectOneGlobalPrivateInputs as inspect} from '../lib/trading/one-global-private-input-intake.mjs';
+import {importOneGlobalPrivateInputs as put,inspectOneGlobalPrivateInputs as inspect,inspectOneGlobalPrivateArchive as archiveAudit} from '../lib/trading/one-global-private-input-intake.mjs';
 import {handleOneGlobalPrivateInputRequest as http} from '../lib/trading/one-global-private-input-http.mjs';
 import {createVercelPrivateEodBlobStore} from '../lib/trading/one-global-vercel-private-blob-store.mjs';
 // Synthetic originals only; no user consent, credential or original ledger here.
@@ -146,6 +146,44 @@ for(const changed of [request(JSON.stringify({...authority,ownerConsent:false}))
   {...request(),documentBase64:'not valid base64'}, {...request(),marketEvidence:{}}, {...request(),kind:'SETTLE'}]){
   const no=memory();await assert.rejects(put({storage:no,input:changed,nowIso:now}));assert.equal(no.writes,0);assert.equal(no.journal,before);
 }
+// Original input archaeology: synthetic historical mapping in immutable
+// archive, current consent-only context, NO automatic owner review or writing.
+const historical=memory();
+await put({storage:historical,input:request(),nowIso:now});
+historical.readArchivedOriginalContexts=async()=>({contexts:[{receivedAt:now,context:expanded}],
+  complete:true,listed:1,read:1,invalid:0});
+const oldJournal=historical.journal,oldContext=JSON.stringify(historical.context);
+const found=await archiveAudit({storage:historical,nowIso:now});
+assert.equal(found.state,'HISTORICAL_MAPPING_CANDIDATES_REVIEW_REQUIRED');
+assert.equal(found.pendingWithoutCurrentMappings,1);
+assert.deepEqual(found.historicalMappingCandidates,[{
+  key:'XNAS:FIXTURE',mic:'XNAS',archivedWithCurrentConsent:true}]);
+assert.equal(historical.journal,oldJournal);
+assert.equal(JSON.stringify(historical.context),oldContext);
+historical.readArchivedOriginalContexts=async()=>({contexts:[],complete:false,listed:40,read:40,invalid:0});
+const incomplete=await archiveAudit({storage:historical,nowIso:now});
+assert.equal(incomplete.state,'PRIVATE_ARCHIVE_AUDIT_INCOMPLETE');
+assert.equal(incomplete.archiveScanComplete,false);
+historical.readArchivedOriginalContexts=async()=>({contexts:[],complete:true,listed:0,read:0,invalid:0});
+assert.equal((await archiveAudit({storage:historical,nowIso:now})).state,'NO_MATCHING_ARCHIVED_ORIGINAL_FOUND');
+// The real SDK adapter must verify exact immutable original archive bytes.
+const archiveInput=JSON.stringify(expanded),archiveRaw=JSON.stringify({
+  kind:'ONE_GLOBAL_PRIVATE_INPUT_ORIGINAL',receivedAt:now,inputKind:'SETTLEMENT_CONTEXT',
+  originalFileSha256:sha(archiveInput),originalFileBase64:Buffer.from(archiveInput).toString('base64'),
+  context:expanded,liveTradingAllowed:false,brokerConnectivityAllowed:false})+'\n';
+const archivePath='fenice/one-global/private-eod/observations/'+sha(archiveRaw)+'.json';
+const archiveBlob=await createVercelPrivateEodBlobStore({token:'',storeId:'store_SYNTHETIC',sdk:{
+  async get(path,opts){assert.equal(path,archivePath);assert.equal(opts.access,'private');
+    return {statusCode:200,blob:{etag:'"mock-origin"',size:archiveRaw.length},
+      stream:new Response(archiveRaw).body};},
+  async put(){throw Error('READ_ONLY_ARCHIVE_MUST_NOT_WRITE');},
+  async list(options){assert.equal(options.prefix,'fenice/one-global/private-eod/observations/');
+    return {blobs:[{pathname:archivePath,size:archiveRaw.length}],hasMore:false};}
+}});
+const scanned=await archiveBlob.readArchivedOriginalContexts();
+assert.equal(scanned.complete,true);assert.equal(scanned.contexts.length,1);
+assert.deepEqual(scanned.contexts[0].context,expanded);
+console.log('PASS private original archive audit: exact byte hash, owner-only candidate report, incomplete scan fail-open-to-uncertainty, no mutation.');
 const denied=memory();denied.createResearchObservation=async()=>({created:false});
 await assert.rejects(put({storage:denied,input:request(),nowIso:now}),/ARCHIVE_NOT_CONFIRMED/);assert.equal(denied.writes,0);
 const ambiguous=memory(),writer=ambiguous.writeSettlementContext.bind(ambiguous);

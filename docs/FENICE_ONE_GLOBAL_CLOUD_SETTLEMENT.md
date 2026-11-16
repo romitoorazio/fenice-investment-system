@@ -171,6 +171,14 @@ creazione esclusiva o ETag CAS e rilegge il risultato. Un conflitto o una rispos
 persa impone di ricontrollare lo stato. Caricare di nuovo lo stesso consenso
 non elimina le prove dei provider già collegate.
 
+La pagina privata permette inoltre una ricerca **solo su richiesta del proprietario**
+degli archivi ORIGINAL già presenti nel Blob privato. Il controllo è read-only,
+limita l'analisi a 400 oggetti indicizzati e 40 letture, verifica hash del
+pacchetto e byte originali, e segnala se la ricerca è incompleta.
+Una mappatura trovata in archivio è soltanto una candidata da verificare:
+non prova il diritto corrente del provider e non viene reimportata in automatico.
+Nessun byte originale, token, prezzo o hash privato è pubblicato nei log.
+
 L'importazione non chiama il settlement, non scrive il journal e non acquisisce
 quotazioni. Il ciclo cloud preesistente riesamina successivamente le prove con
 il motore rigoroso. Limiti: file massimo 500 kB, JSON UTF-8, originali verificati
