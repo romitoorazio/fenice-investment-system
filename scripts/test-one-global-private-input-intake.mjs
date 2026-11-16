@@ -88,12 +88,11 @@ const missingSession=structuredClone(expanded);missingSession.sessions=[];
 await refuseRegression(missingSession,'PREVIOUS_EXCHANGE_SESSIONS_MUST_BE_PRESERVED');
 const changedSession=structuredClone(expanded);changedSession.sessions[0].sessionClosedAt='2026-11-13T22:00:00.000Z';
 await refuseRegression(changedSession,'PREVIOUS_EXCHANGE_SESSIONS_MUST_BE_PRESERVED');
-const replacedAuthority=structuredClone(expanded),reapproval={...authority,expiresAt:'2026-12-02T00:00:00.000Z'};
-const reapprovalRaw=JSON.stringify(reapproval);
-replacedAuthority.authority=reapproval;replacedAuthority.authorityEvidenceSha256=sha(reapprovalRaw);
-replacedAuthority.documents.push({kind:'ORIGINAL_OWNER_PAPER_CONSENT',sha256:sha(reapprovalRaw),
-  bodyBase64:Buffer.from(reapprovalRaw).toString('base64')});
-await refuseRegression(replacedAuthority,'PREVIOUS_OWNER_CONSENT_MUST_BE_PRESERVED');
+// A renewal without a genuine new original document is always refused.
+const unsignedRenewal=structuredClone(expanded);
+unsignedRenewal.authority={...authority,expiresAt:'2026-12-02T00:00:00.000Z'};
+unsignedRenewal.authorityEvidenceSha256=sha(JSON.stringify(unsignedRenewal.authority));
+await refuseRegression(unsignedRenewal,'ORIGINAL_OWNER_CONSENT_DOCUMENT_MISSING');
 // Rights may be updated/revoked for the same provider and new evidence appended;
 // do not freeze the official Cboe rights refresh or create synthetic approvals.
 const additive=structuredClone(expanded);
@@ -105,6 +104,23 @@ await put({storage:store,input:{...complete,
   documentBase64:Buffer.from(JSON.stringify(additive)).toString('base64'),expectedEtag:store.etag},nowIso:now});
 assert.equal(store.context.sessions.length,2);assert.equal(store.context.markets.length,1);
 assert.equal(store.context.markets[0].ownerReviewedRights[0].usageScope,'SYNTHETIC_REVOKED');
+assert.equal(store.journal,before);
+assert.equal((await inspect({storage:store,nowIso:now})).eligiblePendingSignals,0);
+// Keep future renewal of expiring genuine owner consent possible. Old original
+// remains intact; prior approval-dependent technical reviews are not promoted.
+const renewed=structuredClone(store.context);
+const reapproval={...authority,approvedAt:'2026-11-13T20:00:00.000Z',expiresAt:'2026-12-02T00:00:00.000Z'};
+const reapprovalRaw=JSON.stringify(reapproval);
+renewed.authority=reapproval;renewed.authorityEvidenceSha256=sha(reapprovalRaw);
+renewed.documents.push({kind:'ORIGINAL_OWNER_PAPER_CONSENT',sha256:sha(reapprovalRaw),
+  bodyBase64:Buffer.from(reapprovalRaw).toString('base64')});
+await put({storage:store,input:{...complete,
+  documentBase64:Buffer.from(JSON.stringify(renewed)).toString('base64'),expectedEtag:store.etag},
+  nowIso:now});
+assert.equal(store.context.documents.length,3);
+assert.equal(store.context.authorityEvidenceSha256,sha(reapprovalRaw));
+assert.deepEqual(store.context.markets,additive.markets);
+assert.deepEqual(store.context.sessions,additive.sessions);
 assert.equal(store.journal,before);
 assert.equal((await inspect({storage:store,nowIso:now})).eligiblePendingSignals,0);
 for(const changed of [request(JSON.stringify({...authority,ownerConsent:false})),request(JSON.stringify({...authority,expiresAt:'2026-11-13T00:00:00.000Z'})),
