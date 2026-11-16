@@ -213,6 +213,11 @@ on:
     # The in-process NY clock rejects the unwanted UTC slot.
     - cron: "45 20 * * 1-5"
     - cron: "45 21 * * 1-5"
+    # Bounded second USA post-close attempt, including EST/EDT transitions.
+    # One slot is pre-close in winter and is rejected by the EXISTING NY
+    # engine window; both are the same trusted OIDC/immutable-CAS writer.
+    # This neither extends the 48h receipt deadline nor admits stale quotes.
+    - cron: "15 21-22 * * 1-5"
   workflow_dispatch:
   workflow_run:
     # Independent late-night fallback: existing EOD research runs at 23:40Z.
