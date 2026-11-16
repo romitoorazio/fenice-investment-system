@@ -2,6 +2,9 @@
 import {useEffect,useState} from "react";
 type InputStatus={state:string;contextPresent?:boolean;contextEtag?:string|null;
   originalConsentValid?:boolean;originalDocumentCount?:number;blockers?:string[];};
+type ArchiveAudit={state:string;archiveScanComplete?:boolean;examinedArchiveObjects?:number;
+  verifiedArchivedContexts?:number;pendingWithoutCurrentMappings?:number;
+  historicalMappingCandidates?:{key:string;mic:string;archivedWithCurrentConsent:boolean}[]};
 const endpoint="/api/paper/one-global-private-inputs";
 const style={border:"1px solid #475569",borderRadius:10,padding:16,marginTop:20};
 function blockerText(code:string){
@@ -19,6 +22,19 @@ export default function OneGlobalPrivateInputPanel(){
   const [file,setFile]=useState<File|null>(null);
   const [busy,setBusy]=useState(false);
   const [note,setNote]=useState("");
+  const [archiveAudit,setArchiveAudit]=useState<ArchiveAudit|null>(null);
+  const [auditBusy,setAuditBusy]=useState(false);
+  async function auditArchives(){
+    if(auditBusy||busy)return;
+    setAuditBusy(true);setArchiveAudit(null);
+    try{
+      const response=await fetch(endpoint+"?archiveAudit=1",{credentials:"same-origin",cache:"no-store"});
+      const result=await response.json() as ArchiveAudit;
+      if(!response.ok)throw Error(result.state||"AUDIT_UNAVAILABLE");
+      setArchiveAudit(result);
+    }catch{setNote("Verifica archivio storico non disponibile: nessun dato è stato modificato.");}
+    finally{setAuditBusy(false);}
+  }
   async function refresh(){
     const response=await fetch(endpoint,{credentials:"same-origin",cache:"no-store"});
     const result=await response.json() as InputStatus;
@@ -78,6 +94,23 @@ export default function OneGlobalPrivateInputPanel(){
     </button>
     <button type="button" disabled={busy} onClick={()=>void refresh().catch(()=>setNote("Verifica privata non disponibile."))}
       style={{padding:"12px 16px",border:"1px solid #64748b",borderRadius:8,marginLeft:8}}>Ricontrolla documenti</button>
+    <div style={{borderTop:"1px solid #475569",marginTop:18,paddingTop:12}}>
+      <h3 style={{fontWeight:600}}>Ricerca delle prove originali già archiviate</h3>
+      <p>Controllo privato in sola lettura. Non recupera automaticamente licenze, non genera FILL e non modifica autorizzazioni.</p>
+      <button type="button" disabled={busy||auditBusy} onClick={()=>void auditArchives()}
+        style={{padding:"10px 14px",border:"1px solid #64748b",borderRadius:8}}>
+        {auditBusy?"Verifica archivio...":"Cerca mapping già documentati"}
+      </button>
+      {archiveAudit?<div role="status">
+        <p>Esito: <strong>{archiveAudit.state}</strong>. Oggetti esaminati: {archiveAudit.examinedArchiveObjects??0};
+          contesti originali verificati: {archiveAudit.verifiedArchivedContexts??0}.</p>
+        <p>Ricerca {archiveAudit.archiveScanComplete?"completa":"parziale: l’assenza di risultati non prova che manchino gli originali"}.
+          Segnali senza mapping attuale: {archiveAudit.pendingWithoutCurrentMappings??0}.</p>
+        {archiveAudit.historicalMappingCandidates?.map(m=><p key={m.key}>
+          {m.key}: mapping storico trovato; consenso {m.archivedWithCurrentConsent?"coincidente":"diverso o non verificato"}.
+          Serve verifica delle condizioni originali prima di riutilizzarlo.</p>)}
+      </div>:null}
+    </div>
     {note?<p role="status">{note}</p>:null}
     <p style={{fontSize:13}}>Il consenso non sostituisce i diritti dei provider, la prova delle fonti indipendenti e della seduta. Queste autorizzazioni non vengono generate dal software.</p>
   </section>;
