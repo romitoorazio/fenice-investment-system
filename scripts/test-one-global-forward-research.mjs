@@ -3,12 +3,18 @@ import {readFileSync} from "node:fs";
 import {advanceWorldForwardResearchLedger,replayWorldForwardResearchLedger,
   newWorldForwardResearchLedger,summarizeWorldForwardResearchLedger}
   from "../lib/trading/one-global-forward-research.mjs";
+import {worldTacticalResearchRadar} from "../lib/intelligence/one-global-tactical-watchlist.mjs";
 
 const terminal=JSON.parse(readFileSync(new URL("../data/terminal-intelligence.json",import.meta.url),"utf8"));
-// This synthetic replay represents Terminal after the new same-day close gate.
-// The actual historical fixture predates the policy and must not be upgraded.
+const actualTerminal=structuredClone(terminal);
+// Use the actual snapshot below for non-fabrication safety, and a separate
+// explicitly SYNTHETIC, completed-bar replay for deterministic ledger tests.
+// Real Friday Asia closes can be >72 hours old on Monday morning. They must
+// stay excluded, not cause a false CI failure against an arbitrary count.
+const syntheticBucketAt=new Date(Date.parse(terminal.generatedAt)-24*3600000).toISOString();
 for(const asset of terminal.assets){
   if(!asset.technical)continue;
+  asset.technical.observedAt=syntheticBucketAt;
   asset.technical.dailyBarCompletion={
     status:"RESEARCH_SESSION_COMPLETED",heldBackUnsettledCandles:0,
     eligibilityRule:"EXCHANGE_LOCAL_DAY_ELAPSED_OR_PROVIDER_REGULAR_SESSION_END_PLUS_20M",
@@ -50,6 +56,30 @@ assert(historicReport.results.filter(x=>x.shortAfter2ObservedBars!==null).every(
   "Genuine measured outcomes may grow naturally as new settled bars arrive");
 
 const at=new Date(Date.parse(terminal.generatedAt)+60_000).toISOString();
+// Read-only safety check on ACTUAL generated provider observations: no future
+// bucket, old Friday/holiday close or unselected venue may be admitted.
+const actualWatch=worldTacticalResearchRadar({terminal:actualTerminal,nowIso:at});
+const actualSelected=new Set(actualWatch.balancedGlobalWatchlist.map(
+  row=>String(row.venueMic||"UNVERIFIED")+":"+row.symbol));
+const actualScan=advanceWorldForwardResearchLedger({
+  terminal:actualTerminal,nowIso:at,previousLedger:newWorldForwardResearchLedger()});
+assert(actualScan.ledger.events.filter(e=>e.kind==="BAR_OBSERVATION").every(e=>
+  actualSelected.has(e.key)&&Date.parse(e.barBucketAt)<=Date.parse(at)
+  &&Date.parse(at)-Date.parse(e.barBucketAt)<=3*86400000),
+  "Actual snapshots must never append expired/future or non-selected bars");
+assert.equal(actualScan.performance.paperFills,0);
+// A tactical radar may legitimately show 4-day-old Friday candles, but the
+// prospective ledger must reject them even when the synthetic research window
+// otherwise qualifies. This guards the exact Monday/holiday failure mode.
+const fourDayOld=structuredClone(terminal);
+const oldBucket=new Date(Date.parse(at)-4*86400000).toISOString();
+for(const asset of fourDayOld.assets)
+  if(asset.technical)asset.technical.observedAt=oldBucket;
+const rejectedOld=advanceWorldForwardResearchLedger({
+  terminal:fourDayOld,nowIso:at,previousLedger:newWorldForwardResearchLedger()});
+assert.equal(rejectedOld.newObservations,0,
+  "No research observation may be backfilled from 4-day-old chart buckets");
+assert.equal(rejectedOld.newSetups,0);
 const blank=newWorldForwardResearchLedger();
 assert.deepEqual(blank.events,[]);
 assert.equal(blank.liveTradingAllowed,false);
