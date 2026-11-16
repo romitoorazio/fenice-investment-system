@@ -123,6 +123,25 @@ assert.deepEqual(store.context.markets,additive.markets);
 assert.deepEqual(store.context.sessions,additive.sessions);
 assert.equal(store.journal,before);
 assert.equal((await inspect({storage:store,nowIso:now})).eligiblePendingSignals,0);
+// A complete-context renewal after expiration of the previous consent must
+// still be possible with exact NEW consent bytes; never erase old originals.
+const renewalClock='2026-12-02T12:00:00.000Z';
+const postExpiry=structuredClone(store.context);
+const postExpiryConsent={...reapproval,approvedAt:'2026-12-02T06:00:00.000Z',
+  expiresAt:'2026-12-10T00:00:00.000Z'};
+const postExpiryRaw=JSON.stringify(postExpiryConsent);
+postExpiry.authority=postExpiryConsent;postExpiry.authorityEvidenceSha256=sha(postExpiryRaw);
+postExpiry.documents.push({kind:'ORIGINAL_OWNER_PAPER_CONSENT',
+  sha256:sha(postExpiryRaw),bodyBase64:Buffer.from(postExpiryRaw).toString('base64')});
+await put({storage:store,input:{...complete,
+  documentBase64:Buffer.from(JSON.stringify(postExpiry)).toString('base64'),
+  expectedEtag:store.etag},nowIso:renewalClock});
+assert.equal(store.context.documents.length,4);
+assert.equal(store.context.authorityEvidenceSha256,sha(postExpiryRaw));
+assert.deepEqual(store.context.markets,additive.markets);
+assert.deepEqual(store.context.sessions,additive.sessions);
+assert.equal(store.journal,before);
+assert.equal((await inspect({storage:store,nowIso:renewalClock})).eligiblePendingSignals,0);
 for(const changed of [request(JSON.stringify({...authority,ownerConsent:false})),request(JSON.stringify({...authority,expiresAt:'2026-11-13T00:00:00.000Z'})),
   {...request(),documentBase64:'not valid base64'}, {...request(),marketEvidence:{}}, {...request(),kind:'SETTLE'}]){
   const no=memory();await assert.rejects(put({storage:no,input:changed,nowIso:now}));assert.equal(no.writes,0);assert.equal(no.journal,before);
