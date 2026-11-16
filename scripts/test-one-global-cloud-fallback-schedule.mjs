@@ -16,6 +16,10 @@ assert.equal((trigger.match(/- cron: "41 17-18 \* \* 1-5"/g)||[]).length,1,
   'only one bounded EU off-minute recovery schedule');
 assert.match(trigger,/- cron: "45 20 \* \* 1-5"/);
 assert.match(trigger,/- cron: "45 21 \* \* 1-5"/);
+// Extra late US EOD attempt never widens the in-process New York gate.
+assert.equal((trigger.match(/- cron: "15 21-22 \\* \\* 1-5"/g)||[]).length,1,
+  'exactly one bounded US post-close recovery cron');
+
 const recovery=trigger.split("  workflow_run:\n")[1];
 assert(recovery,"workflow_run fallback trigger must exist");
 assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research"\]/);
