@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
+import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,expireOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {importOneGlobalPrivateInputs as put,inspectOneGlobalPrivateInputs as inspect,inspectOneGlobalPrivateArchive as archiveAudit} from '../lib/trading/one-global-private-input-intake.mjs';
 import {handleOneGlobalPrivateInputRequest as http} from '../lib/trading/one-global-private-input-http.mjs';
 import {createVercelPrivateEodBlobStore} from '../lib/trading/one-global-vercel-private-blob-store.mjs';
@@ -184,6 +184,77 @@ const scanned=await archiveBlob.readArchivedOriginalContexts();
 assert.equal(scanned.complete,true);assert.equal(scanned.contexts.length,1);
 assert.deepEqual(scanned.contexts[0].context,expanded);
 console.log('PASS private original archive audit: exact byte hash, owner-only candidate report, incomplete scan fail-open-to-uncertainty, no mutation.');
+
+// An exhausted listing is NOT a verified scan when any original is unreadable,
+// corrupt, too large or malformed. Research observation keys have a different
+// hash contract and must not make a valid input scan spuriously incomplete.
+async function scanFixture({body=archiveRaw,pathHash=sha(body),readError=false,size=Buffer.byteLength(body)}={}){
+  const path='fenice/one-global/private-eod/observations/'+pathHash+'.json';
+  const adapter=await createVercelPrivateEodBlobStore({token:'',storeId:'store_SYNTHETIC',sdk:{
+    async list(){return {blobs:[{pathname:path,size}],hasMore:false};},
+    async get(){if(readError)throw Error('SYNTHETIC_ARCHIVE_UNAVAILABLE');
+      return {statusCode:200,blob:{etag:'"fixture"'},stream:new Response(body).body};},
+    async put(){throw Error('ARCHIVE_SCAN_MUST_NEVER_WRITE');},
+  }});
+  return adapter.readArchivedOriginalContexts();
+}
+for(const scenario of [
+  {readError:true},
+  {pathHash:'f'.repeat(64)},
+  {body:JSON.stringify({...JSON.parse(archiveRaw),originalFileSha256:'f'.repeat(64)})},
+  {body:JSON.stringify({...JSON.parse(archiveRaw),inputKind:'UNKNOWN'})},
+  {body:JSON.stringify({...JSON.parse(archiveRaw),receivedAt:'invalid'})},
+  {body:'{invalid-json-original-packet'},
+  {size:1500001},
+]){
+  const result=await scanFixture(scenario);
+  assert.equal(result.complete,false,'unverifiable originals must keep archive search partial');
+  assert.equal(result.invalid,1);
+  assert.equal(result.contexts.length,0);
+}
+const nonInput=JSON.stringify({kind:'ONE_GLOBAL_PRIVATE_RESEARCH_SOURCE_OBSERVATION',report:{synthetic:true}})+'\n';
+const unrelated=await scanFixture({body:nonInput,pathHash:'e'.repeat(64)});
+assert.equal(unrelated.complete,true,'report-keyed research observations are safely excluded');
+assert.equal(unrelated.invalid,0);assert.equal(unrelated.contexts.length,0);
+assert.equal((await scanFixture()).contexts.length,1);
+
+// Defense in depth: even a legacy/injected adapter must not turn read failures
+// or invalid original consent into a conclusive "no original found" result.
+historical.readArchivedOriginalContexts=async()=>({contexts:[],complete:true,listed:1,read:1,invalid:1});
+const unverifiable=await archiveAudit({storage:historical,nowIso:now});
+assert.equal(unverifiable.state,'PRIVATE_ARCHIVE_AUDIT_INCOMPLETE');
+assert.equal(unverifiable.archiveScanComplete,false);
+const invalidArchived=structuredClone(expanded);invalidArchived.authority.expiresAt='2026-11-13T00:00:00.000Z';
+historical.readArchivedOriginalContexts=async()=>({contexts:[{receivedAt:now,context:invalidArchived}],
+  complete:true,listed:1,read:1,invalid:0});
+assert.equal((await archiveAudit({storage:historical,nowIso:now})).archiveScanComplete,false);
+historical.readArchivedOriginalContexts=async()=>({contexts:[{receivedAt:now,context:expanded}],
+  complete:false,listed:2,read:2,invalid:1});
+const partialFound=await archiveAudit({storage:historical,nowIso:now});
+assert.equal(partialFound.state,'HISTORICAL_MAPPING_CANDIDATES_REVIEW_REQUIRED');
+assert.equal(partialFound.archiveScanComplete,false,'valid candidates survive an incomplete scan');
+
+// Same instrument can have an expired SIGNAL followed by a fresh one.
+// Match the current pending event exactly once, as the settlement engine does.
+const oldRecorded=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedger(),
+  nowIso:'2026-11-09T18:00:00.000Z',signal:{
+    signalId:'synthetic-archive-old-milan',key:'XMIL:FIXTURE',mic:'XMIL',currency:'EUR',side:'BUY',
+    decisionAt:'2026-11-09T18:00:00.000Z',referenceSessionDate:'2026-11-09',
+    referenceCloseAt:'2026-11-09T16:40:00.000Z',referencePublishedAt:'2026-11-09T17:00:00.000Z',
+    sourceSnapshotHash:'c'.repeat(64),maxNotionalEuro:50,strategyReason:'UPTREND_CONFIRMATION'}});
+const expiredHistory=expireOneGlobalEodSignal({previousLedger:oldRecorded.ledger,
+  nowIso:'2026-11-12T17:00:00.000Z',signalHash:oldRecorded.ledger.events[0].hash}).ledger;
+const renewedHistory=recordOneGlobalEodSignal({previousLedger:expiredHistory,
+  nowIso:'2026-11-12T22:00:00.000Z',signal:{...oldRecorded.ledger.events[0],
+    signalId:'synthetic-archive-current-milan',decisionAt:'2026-11-12T22:00:00.000Z',
+    referenceSessionDate:'2026-11-12',referenceCloseAt:'2026-11-12T16:40:00.000Z',
+    referencePublishedAt:'2026-11-12T17:00:00.000Z'}}).ledger;
+historical.read=async()=>({etag:'"synthetic-history"',body:JSON.stringify(renewedHistory)});
+historical.readArchivedOriginalContexts=async()=>({contexts:[],complete:true,listed:0,read:0,invalid:0});
+assert.equal((await archiveAudit({storage:historical,nowIso:now})).pendingWithoutCurrentMappings,1);
+assert.equal(historical.journal,oldJournal);assert.equal(JSON.stringify(historical.context),oldContext);
+console.log('PASS archive uncertainty: read/hash/schema/size errors stay incomplete, research digest scopes respected, partial candidates preserved, reopened instruments counted once; zero mutations.');
+
 const denied=memory();denied.createResearchObservation=async()=>({created:false});
 await assert.rejects(put({storage:denied,input:request(),nowIso:now}),/ARCHIVE_NOT_CONFIRMED/);assert.equal(denied.writes,0);
 const ambiguous=memory(),writer=ambiguous.writeSettlementContext.bind(ambiguous);
