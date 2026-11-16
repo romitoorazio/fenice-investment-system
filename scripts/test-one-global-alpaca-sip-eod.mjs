@@ -50,11 +50,11 @@ let hosts=[];
 const combined=await pair({symbol:'AAPL',sessionDate:date,alphaKey:'SYNTHETIC_ALPHA_KEY',env,clock:()=>now,fetcher:async(u,o)=>{
   hosts.push(u.hostname);if(u.hostname==='www.alphavantage.co'){
     assert.equal(o.headers['APCA-API-SECRET-KEY'],undefined);return Response.json(alpha);
-  }return fetcher(u,o);
+  }assert.equal(u.searchParams.get('feed'),'iex');return Response.json({...data(),feed:'iex'});
 }});
 assert.deepEqual(hosts.sort(),['data.alpaca.markets','www.alphavantage.co']);
-assert.equal(combined.report.sources[1].providerId,'alpaca-sip');assert.equal(combined.report.paperSettlementEligible,false);
-assert(Buffer.isBuffer(combined.alpacaRaw));assert.equal(combined.eodhdRaw,undefined);
+assert.equal(combined.report.sources[1].providerId,'alpaca-iex');assert.equal(combined.report.paperSettlementEligible,false);
+assert(Buffer.isBuffer(combined.alpacaIexRaw));assert.equal(combined.alpacaRaw,undefined);assert.equal(combined.eodhdRaw,undefined);
 const signal=prospective({report:combined.report,previousLedger:newOneGlobalEodPaperLedger(),nowIso:now});
 assert.equal(signal.kind,'SIGNAL');assert.equal(signal.paperFillCreated,false);
 const source={providerId:'alpaca-sip',sourceFamily:'SYNTHETIC-reviewed-direct-sip',key:'XNAS:AAPL',mic:'XNAS',currency:'USD',symbol:'AAPL'};
@@ -80,11 +80,11 @@ const eodHistory=Object.entries(alphaBars).map(([date,r])=>({date,close:Number(r
 for(const alphaKey of ['SYNTHETIC_ALPHA_KEY','']){
  const recovered=await pair({symbol:'AAPL',sessionDate:date,alphaKey,env,clock:()=>now,fetcher:async(u,o)=>{
   if(u.hostname==='www.alphavantage.co')return Response.json({Information:'quota exhausted'});
-  if(u.hostname==='data.alpaca.markets')return fetcher(u,o);
+  if(u.hostname==='data.alpaca.markets'){assert.equal(u.searchParams.get('feed'),'iex');return Response.json({...data(),feed:'iex'});}
   assert.equal(u.hostname,'eodhd.com');assert(u.searchParams.get('from')<date);return Response.json(eodHistory);
  }});
- assert.equal(recovered.alphaRaw,undefined);assert(Buffer.isBuffer(recovered.eodhdRaw));assert(Buffer.isBuffer(recovered.alpacaRaw));
- assert.deepEqual(recovered.report.sources.map(x=>x.providerId),['eodhd','alpaca-sip']);
+ assert.equal(recovered.alphaRaw,undefined);assert(Buffer.isBuffer(recovered.eodhdRaw));assert(Buffer.isBuffer(recovered.alpacaIexRaw));
+ assert.deepEqual(recovered.report.sources.map(x=>x.providerId),['eodhd','alpaca-iex']);
  assert.equal(recovered.report.researchIndicator,'UPTREND_RESEARCH_ONLY');
  const decision=prospective({report:recovered.report,previousLedger:newOneGlobalEodPaperLedger(),nowIso:now});
  assert.equal(decision.kind,'SIGNAL');assert.equal(decision.paperFillCreated,false);
@@ -97,7 +97,7 @@ for(const alphaKey of ['SYNTHETIC_ALPHA_KEY','']){
   async read(){return {etag:'"original"',body:JSON.stringify(journal)};},
   async createResearchObservation({body}){const payload=JSON.parse(body);
    assert.equal(payload.alphaRawBase64,undefined);assert.equal(typeof payload.eodhdRawBase64,'string');
-   assert.equal(typeof payload.alpacaRawBase64,'string');archived++;return {created:true};},
+   assert.equal(typeof payload.alpacaIexRawBase64,'string');archived++;return {created:true};},
   async compareAndSwap({body,expectedEtag}){assert.equal(archived,1);assert.equal(expectedEtag,'"original"');
    journal=JSON.parse(body);return {committed:true,etag:'"new"'};}};
  const committed=await runOneGlobalCloudProspectiveCycle({storage,clock:()=>now,collect:async()=>recovered});
