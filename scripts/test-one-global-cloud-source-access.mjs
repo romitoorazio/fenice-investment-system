@@ -37,7 +37,7 @@ function network({denyAlpha=false,denySip=false,diverge=false,denyDocs=false}={}
       return Response.json({'Meta Data':{'2. Symbol':'AAPL'},'Time Series (Daily)':{'2026-11-13':{'4. close':'100'}}});
     }
     if(u.hostname==='eodhd.com'){assert.equal(init.headers['APCA-API-SECRET-KEY'],undefined);return Response.json([{date:'2026-11-13',close:100.1}]);}
-    assert.equal(u.hostname,'data.alpaca.markets');assert.equal(u.searchParams.get('feed'),'sip');
+    assert.equal(u.hostname,'data.alpaca.markets');assert.equal(u.searchParams.get('feed'),'iex');
     if(denySip)return Response.json({message:'SECRET'},{status:403});
     return Response.json({symbol:'AAPL',next_page_token:null,bars:[{t:'2026-11-13T05:00:00Z',o:100,h:103,l:99,c:diverge?102:100.1,v:100,n:10}]});
   }};
@@ -46,7 +46,8 @@ const store=memory(),net=network(),before=(await store.read()).body;
 const result=await inspect({storage:store,env,fetcher:net.fetcher,clock:()=>now});
 assert.equal(result.state,'TWO_DAILY_ROWS_AGREE_REVIEW_REQUIRED');assert.equal(result.sessionDate,'2026-11-13');
 assert.equal(result.twoDailyRowsReceived,true);assert.equal(result.closesAgree,true);
-assert.equal(result.rawReceiptArchiveConfirmed,true);assert.equal(result.originalDocumentsArchived,2);
+assert.equal(result.rawReceiptArchiveConfirmed,true);
+assert.equal(result.alpacaPriceScope,'IEX_SINGLE_VENUE_NOT_CONSOLIDATED');assert.equal(result.originalDocumentsArchived,2);
 assert.equal(result.originalDocumentsConnected,true);assert.equal(result.originalDocumentConnectionState,'ORIGINAL_DOCUMENTS_CONNECTED');assert(result.candidateContextBytes>0);assert.equal(store.context.documents.length,3);
 assert.equal(result.technicalReviewsConnected,0);assert.equal(result.alphaDocumentReview,'UNKNOWN_ORIGINAL_REVISION');
 assert.equal(result.alpacaDocumentReview,'UNKNOWN_ORIGINAL_REVISION');
