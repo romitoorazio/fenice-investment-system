@@ -16,7 +16,11 @@ assert.equal((trigger.match(/- cron: "41 17-18 \* \* 1-5"/g)||[]).length,1,
   'only one bounded EU off-minute recovery schedule');
 assert.match(trigger,/- cron: "45 20 \* \* 1-5"/);
 assert.match(trigger,/- cron: "45 21 \* \* 1-5"/);
-assert.match(trigger,/workflow_run:\n\s+workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research"\]\n\s+types: \[completed\]\n\s+branches: \[main\]/);
+const recovery=trigger.split("  workflow_run:\n")[1];
+assert(recovery,"workflow_run fallback trigger must exist");
+assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research"\]/);
+assert.match(recovery,/types: \[completed\]/);
+assert.match(recovery,/branches: \[main\]/);
 assert.match(research,/name: Fenice World V7 EOD Research/);
 assert.match(research,/- cron: "40 23 \* \* 1-5"/,
   'the independent late-night recovery must remain scheduled');
