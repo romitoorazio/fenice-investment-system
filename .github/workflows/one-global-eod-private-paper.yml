@@ -20,6 +20,7 @@ on:
       - "scripts/test-one-global-cloud-source-access.mjs"
       - "scripts/test-one-global-private-version-cas.mjs"
       - "scripts/test-one-global-cloud-*"
+      - "scripts/test-one-global-cloud-fallback-schedule.mjs"
       - "lib/trading/one-global-private-input-*"
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
@@ -114,6 +115,7 @@ on:
       - "scripts/test-one-global-cloud-source-access.mjs"
       - "scripts/test-one-global-private-version-cas.mjs"
       - "scripts/test-one-global-cloud-*"
+      - "scripts/test-one-global-cloud-fallback-schedule.mjs"
       - "lib/trading/one-global-private-input-*"
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
@@ -199,18 +201,24 @@ on:
     # original independently evidenced sessions, never a weekday assumption.
     - cron: "20 7 * * 1-5"
     - cron: "35 8 * * 1-5"
-    # Three bounded opportunities inside the November Europe/Rome postclose
+    # Three primary opportunities inside the November Europe/Rome postclose
     # window (18:15, 19:15, 20:15 CET). A transient first fetch must not lose
     # the only forward SIGNAL opportunity. The in-process calendar/window
     # and journal CAS still reject holidays, late slots and duplicates.
     - cron: "15 17-19 * * 1-5"
+    # Off-minute EU recovery through the same protected OIDC/CAS workflow.
+    # The engine still requires next-session evidence and forbids duplicates.
+    - cron: "41 17-18 * * 1-5"
     # 16:45 New York throughout EST/EDT without using the owner's PC.
     # The in-process NY clock rejects the unwanted UTC slot.
     - cron: "45 20 * * 1-5"
     - cron: "45 21 * * 1-5"
   workflow_dispatch:
   workflow_run:
-    workflows: ["Fenice Production Deploy"]
+    # Independent late-night fallback: existing EOD research runs at 23:40Z.
+    # Its successful completion retries settlement for an already pending
+    # SIGNAL without reading its artifacts or relaxing the strict 48h window.
+    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research"]
     types: [completed]
     branches: [main]
 
@@ -235,6 +243,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: Validate bounded EU recovery and protected OIDC-only settlement
+        run: node scripts/test-one-global-cloud-fallback-schedule.mjs
       - name: Test prospective EOD signals and private simulation accounting
         run: node scripts/test-one-global-eod-paper.mjs
       - name: Test safe worldwide metadata and private path guards
@@ -279,6 +289,7 @@ jobs:
           node scripts/test-one-global-technical-review.mjs
           node scripts/test-one-global-private-version-cas.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
+          node scripts/test-one-global-cloud-fallback-schedule.mjs
           node scripts/test-one-global-private-input-intake.mjs
           node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Scan for accidentally committed credentials
@@ -435,6 +446,7 @@ jobs:
           node scripts/test-one-global-technical-review.mjs
           node scripts/test-one-global-private-version-cas.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
+          node scripts/test-one-global-cloud-fallback-schedule.mjs
           node scripts/test-one-global-private-input-intake.mjs
           node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
