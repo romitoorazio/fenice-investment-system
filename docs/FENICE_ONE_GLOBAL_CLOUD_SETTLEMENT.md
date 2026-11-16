@@ -155,7 +155,14 @@ fonti, attestazioni di seduta o nuove date di approvazione. Un consenso valido
 da solo resta insufficiente per il settlement.
 
 Il tipo **Pacchetto completo** accetta il contesto documentato sopra e preserva
-tutti i documenti originali già presenti. Ogni caricamento archivia prima il file
+tutti i documenti originali già presenti. L'importazione conserva anche il
+consenso originale, le identità dei mercati, gli esatti mapping delle fonti,
+le voci dei diritti per provider e le sedute già documentate. Nuove prove si
+possono aggiungere; una revisione autentica dei diritti (come Cboe) può
+sostituire la voce del medesimo provider, o revocarla, senza cancellarne
+l'identità. Il motore riesamina sempre la validità dei diritti aggiornati.
+Questo impedisce perdite future, ma non ricrea mapping già assenti né inventa
+licenze o FILL. Ogni caricamento archivia prima il file
 originale nello stesso Blob privato, scrive solo `settlement-inputs.json` con
 creazione esclusiva o ETag CAS e rilegge il risultato. Un conflitto o una risposta
 persa impone di ricontrollare lo stato. Caricare di nuovo lo stesso consenso
