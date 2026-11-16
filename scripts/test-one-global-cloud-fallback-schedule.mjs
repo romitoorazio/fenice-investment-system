@@ -1,6 +1,8 @@
 /** Safety contract: retries only via the pre-existing trusted ONE GLOBAL cloud writer. */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {newOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
+import {planPrivateEodSignalCycle} from '../lib/trading/one-global-private-eod-autopilot.mjs';
 
 const workflow=readFileSync('.github/workflows/one-global-eod-private-paper.yml','utf8');
 const research=readFileSync('.github/workflows/world-v7-eod-research.yml','utf8');
@@ -16,6 +18,20 @@ assert.equal((trigger.match(/- cron: "41 17-18 \* \* 1-5"/g)||[]).length,1,
   'only one bounded EU off-minute recovery schedule');
 assert.match(trigger,/- cron: "45 20 \* \* 1-5"/);
 assert.match(trigger,/- cron: "45 21 \* \* 1-5"/);
+// Extra late US EOD attempt never widens the in-process New York gate.
+assert.equal((trigger.match(/- cron: "15 21-22 \* \* 1-5"/g)||[]).length,1,
+  'exactly one bounded US post-close recovery cron');
+// Simulate each scheduled US slot across EST/EDT using the real existing
+// fail-closed autopilot. The runner cannot force a research SIGNAL or FILL.
+const emptyOriginal=newOneGlobalEodPaperLedger();
+const canProbe=nowIso=>planPrivateEodSignalCycle({nowIso,originalLedger:emptyOriginal}).expectedPostcloseWindow;
+assert.equal(canProbe('2026-07-13T21:15:00.000Z'),true,'17:15 EDT summer retry');
+assert.equal(canProbe('2026-11-16T22:15:00.000Z'),true,'17:15 EST winter retry');
+assert.equal(canProbe('2026-11-16T21:15:00.000Z'),false,'16:15 EST pre-close must fail closed');
+assert.equal(canProbe('2026-07-13T22:15:00.000Z'),true,'18:15 EDT delayed retry within window');
+assert.equal(canProbe('2026-07-13T23:00:00.000Z'),false,'19:00 EDT old close must be rejected');
+
+
 const recovery=trigger.split("  workflow_run:\n")[1];
 assert(recovery,"workflow_run fallback trigger must exist");
 assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research"\]/);
