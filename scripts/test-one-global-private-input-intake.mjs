@@ -46,11 +46,102 @@ assert.equal(repeat.state,'ORIGINAL_CONSENT_ALREADY_CONNECTED');assert.equal(sto
 const expanded=structuredClone(store.context);
 const terms=Buffer.from('SYNTHETIC TEST ONLY provider usage rights original');
 expanded.documents.push({kind:'ORIGINAL_PROVIDER_USAGE_RIGHTS',sha256:sha(terms),bodyBase64:terms.toString('base64')});
+// Synthetic *ineligible* mapping/session: tests preservation, not approvals or FILLs.
+const fixtureMarket={key:'XNAS:FIXTURE',mic:'XNAS',currency:'USD',
+  sources:[
+    {providerId:'alpha-vantage',key:'XNAS:FIXTURE',mic:'XNAS',currency:'USD',
+      symbol:'FIXTURE',sourceFamily:'alpha-vantage',independenceEvidenceSha256:'1'.repeat(64)},
+    {providerId:'alpaca-iex',key:'XNAS:FIXTURE',mic:'XNAS',currency:'USD',
+      symbol:'FIXTURE',sourceFamily:'alpaca-iex',independenceEvidenceSha256:'2'.repeat(64)}],
+  ownerReviewedRights:[
+    {providerId:'alpha-vantage',mic:'XNAS',currency:'USD',automatedUseAllowed:false,evidenceSha256:sha(terms)},
+    {providerId:'alpaca-iex',mic:'XNAS',currency:'USD',automatedUseAllowed:false,evidenceSha256:sha(terms)}]};
+const fixtureSession={mic:'XNAS',sessionDate:'2026-11-13',
+  sessionOpenedAt:'2026-11-13T14:30:00.000Z',sessionClosedAt:'2026-11-13T21:00:00.000Z',
+  evidenceSha256:'3'.repeat(64)};
+expanded.markets.push(fixtureMarket);expanded.sessions.push(fixtureSession);
 const complete={kind:'SETTLEMENT_CONTEXT',documentBase64:Buffer.from(JSON.stringify(expanded)).toString('base64'),expectedEtag:store.etag};
 await put({storage:store,input:complete,nowIso:now});assert.equal(store.context.documents.length,2);assert.equal(store.journal,before);
-await put({storage:store,input:request(raw,store.etag),nowIso:now});assert.equal(store.context.documents.length,2,'bare consent never discards existing provider originals');
+assert.deepEqual(store.context.markets,[fixtureMarket]);assert.deepEqual(store.context.sessions,[fixtureSession]);
+await put({storage:store,input:request(raw,store.etag),nowIso:now});
+assert.equal(store.context.documents.length,2,'bare consent never discards original provider documents');
+assert.deepEqual(store.context.markets,[fixtureMarket]);assert.deepEqual(store.context.sessions,[fixtureSession]);
+async function refuseRegression(mutated,code){
+  const saved=JSON.stringify(store.context),writes=store.writes,archives=store.archives.length;
+  await assert.rejects(put({storage:store,input:{...complete,
+    documentBase64:Buffer.from(JSON.stringify(mutated)).toString('base64'),expectedEtag:store.etag},
+    nowIso:now}),new RegExp(code));
+  assert.equal(store.writes,writes);assert.equal(store.archives.length,archives);
+  assert.equal(JSON.stringify(store.context),saved);assert.equal(store.journal,before);
+}
 const erased=structuredClone(expanded);erased.documents.pop();
-await assert.rejects(put({storage:store,input:{...complete,documentBase64:Buffer.from(JSON.stringify(erased)).toString('base64'),expectedEtag:store.etag},nowIso:now}),/PREVIOUS_ORIGINAL_DOCUMENTS_MUST_BE_PRESERVED/);
+await refuseRegression(erased,'PREVIOUS_ORIGINAL_DOCUMENTS_MUST_BE_PRESERVED');
+const missingMarket=structuredClone(expanded);missingMarket.markets=[];
+await refuseRegression(missingMarket,'PREVIOUS_MARKET_MAPPING_MUST_BE_PRESERVED');
+const renamedMarket=structuredClone(expanded);renamedMarket.markets[0].key='XNAS:OTHER';
+await refuseRegression(renamedMarket,'PREVIOUS_MARKET_MAPPING_MUST_BE_PRESERVED');
+const changedSource=structuredClone(expanded);changedSource.markets[0].sources[0].symbol='OTHER';
+await refuseRegression(changedSource,'PREVIOUS_SOURCE_MAPPING_MUST_BE_PRESERVED');
+const missingRights=structuredClone(expanded);missingRights.markets[0].ownerReviewedRights.pop();
+await refuseRegression(missingRights,'PREVIOUS_PROVIDER_RIGHTS_ENTRY_MUST_BE_PRESERVED');
+const missingSession=structuredClone(expanded);missingSession.sessions=[];
+await refuseRegression(missingSession,'PREVIOUS_EXCHANGE_SESSIONS_MUST_BE_PRESERVED');
+const changedSession=structuredClone(expanded);changedSession.sessions[0].sessionClosedAt='2026-11-13T22:00:00.000Z';
+await refuseRegression(changedSession,'PREVIOUS_EXCHANGE_SESSIONS_MUST_BE_PRESERVED');
+// A renewal without a genuine new original document is always refused.
+const unsignedRenewal=structuredClone(expanded);
+unsignedRenewal.authority={...authority,expiresAt:'2026-12-02T00:00:00.000Z'};
+unsignedRenewal.authorityEvidenceSha256=sha(JSON.stringify(unsignedRenewal.authority));
+await refuseRegression(unsignedRenewal,'ORIGINAL_OWNER_CONSENT_DOCUMENT_MISSING');
+// Rights may be updated/revoked for the same provider and new evidence appended;
+// do not freeze the official Cboe rights refresh or create synthetic approvals.
+const additive=structuredClone(expanded);
+additive.markets[0].ownerReviewedRights[0].usageScope='SYNTHETIC_REVOKED';
+additive.sessions.push({mic:'XMIL',sessionDate:'2026-11-17',
+  sessionOpenedAt:'2026-11-17T08:00:00.000Z',sessionClosedAt:'2026-11-17T16:35:00.000Z',
+  evidenceSha256:'4'.repeat(64)});
+await put({storage:store,input:{...complete,
+  documentBase64:Buffer.from(JSON.stringify(additive)).toString('base64'),expectedEtag:store.etag},nowIso:now});
+assert.equal(store.context.sessions.length,2);assert.equal(store.context.markets.length,1);
+assert.equal(store.context.markets[0].ownerReviewedRights[0].usageScope,'SYNTHETIC_REVOKED');
+assert.equal(store.journal,before);
+assert.equal((await inspect({storage:store,nowIso:now})).eligiblePendingSignals,0);
+// Keep future renewal of expiring genuine owner consent possible. Old original
+// remains intact; prior approval-dependent technical reviews are not promoted.
+const renewed=structuredClone(store.context);
+const reapproval={...authority,approvedAt:'2026-11-13T20:00:00.000Z',expiresAt:'2026-12-02T00:00:00.000Z'};
+const reapprovalRaw=JSON.stringify(reapproval);
+renewed.authority=reapproval;renewed.authorityEvidenceSha256=sha(reapprovalRaw);
+renewed.documents.push({kind:'ORIGINAL_OWNER_PAPER_CONSENT',sha256:sha(reapprovalRaw),
+  bodyBase64:Buffer.from(reapprovalRaw).toString('base64')});
+await put({storage:store,input:{...complete,
+  documentBase64:Buffer.from(JSON.stringify(renewed)).toString('base64'),expectedEtag:store.etag},
+  nowIso:now});
+assert.equal(store.context.documents.length,3);
+assert.equal(store.context.authorityEvidenceSha256,sha(reapprovalRaw));
+assert.deepEqual(store.context.markets,additive.markets);
+assert.deepEqual(store.context.sessions,additive.sessions);
+assert.equal(store.journal,before);
+assert.equal((await inspect({storage:store,nowIso:now})).eligiblePendingSignals,0);
+// A complete-context renewal after expiration of the previous consent must
+// still be possible with exact NEW consent bytes; never erase old originals.
+const renewalClock='2026-12-02T12:00:00.000Z';
+const postExpiry=structuredClone(store.context);
+const postExpiryConsent={...reapproval,approvedAt:'2026-12-02T06:00:00.000Z',
+  expiresAt:'2026-12-10T00:00:00.000Z'};
+const postExpiryRaw=JSON.stringify(postExpiryConsent);
+postExpiry.authority=postExpiryConsent;postExpiry.authorityEvidenceSha256=sha(postExpiryRaw);
+postExpiry.documents.push({kind:'ORIGINAL_OWNER_PAPER_CONSENT',
+  sha256:sha(postExpiryRaw),bodyBase64:Buffer.from(postExpiryRaw).toString('base64')});
+await put({storage:store,input:{...complete,
+  documentBase64:Buffer.from(JSON.stringify(postExpiry)).toString('base64'),
+  expectedEtag:store.etag},nowIso:renewalClock});
+assert.equal(store.context.documents.length,4);
+assert.equal(store.context.authorityEvidenceSha256,sha(postExpiryRaw));
+assert.deepEqual(store.context.markets,additive.markets);
+assert.deepEqual(store.context.sessions,additive.sessions);
+assert.equal(store.journal,before);
+assert.equal((await inspect({storage:store,nowIso:renewalClock})).eligiblePendingSignals,0);
 for(const changed of [request(JSON.stringify({...authority,ownerConsent:false})),request(JSON.stringify({...authority,expiresAt:'2026-11-13T00:00:00.000Z'})),
   {...request(),documentBase64:'not valid base64'}, {...request(),marketEvidence:{}}, {...request(),kind:'SETTLE'}]){
   const no=memory();await assert.rejects(put({storage:no,input:changed,nowIso:now}));assert.equal(no.writes,0);assert.equal(no.journal,before);
