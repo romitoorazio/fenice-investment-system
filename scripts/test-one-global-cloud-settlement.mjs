@@ -288,6 +288,37 @@ console.log('PASS cloud settlement: original documents/consent/rights/upstreams/
 }
 console.log('PASS SYNTHETIC full Alpha + Alpaca SIP strict settlement: original gates, raw reparse, official-interface ECB, archive, one CAS append. No real journal/network.');
 
+// IEX is a single venue, never a consolidated SIP quote. This test uses
+// SYNTHETIC original provider rights, provenance and owner review ONLY.
+// Real Alpaca Basic access or 200 HTTP status can never instantiate these.
+{
+ const f=fixture({mic:'XNAS',currency:'USD',symbol:'AAPL',providers:['alpha-vantage','alpaca-iex']});
+ f.context.markets[0].sources.forEach(source=>{source.symbol='AAPL';});
+ const storage=memory(f);
+ const fetcher=async(url,init)=>{
+   const u=new URL(url);assert.equal(init.redirect,'error');
+   if(u.hostname==='www.ecb.europa.eu')return new Response(xml(),{headers:{'Content-Type':'application/xml'}});
+   if(u.hostname==='www.alphavantage.co')return Response.json({'Meta Data':{'2. Symbol':'AAPL'},
+     'Time Series (Daily)':{[sessionDate]:{'4. close':'10'}}});
+   assert.equal(u.origin,'https://data.alpaca.markets');
+   assert.equal(u.searchParams.get('feed'),'iex','paper-only settlement must not query SIP');
+   return Response.json({symbol:'AAPL',feed:'iex',next_page_token:null,bars:[
+     {t:'2026-11-13T05:00:00Z',o:10,h:11,l:9,c:10,v:100,n:10}]});
+ };
+ const options={storage,clock:()=> '2026-11-14T20:00:00.000Z',fetcher,
+   collect:args=>collectOneGlobalSettlementPair({...args,env:{...env,
+     APCA_API_KEY_ID:'SYNTHETIC_IEX_KEY',APCA_API_SECRET_KEY:'SYNTHETIC_IEX_SECRET'}})};
+ const done=await run(options);
+ assert.equal(done.paperFillsCreated,1,'synthetic rights + raw IEX/Alpha receipts may settle in an isolated fixture');
+ assert.equal(storage.writes,1);assert.equal(storage.archives.length,1);
+ assert.deepEqual(storage.ledger.events.at(-1).providerReceipts.map(q=>q.providerId),['alpha-vantage','alpaca-iex']);
+ const denied=structuredClone(f.context);denied.markets[0].ownerReviewedRights[1].automatedUseAllowed=false;
+ const blockedStore=memory(f,denied);let calls=0;
+ const refused=await run({...options,storage:blockedStore,fetcher:async()=>{calls++;throw Error('UNEXPECTED_HTTP');}});
+ assert.equal(refused.paperFillsCreated,0);assert.equal(calls,0);assert.equal(blockedStore.writes,0);
+}
+console.log('PASS SYNTHETIC Alpha + Alpaca IEX strict settlement only with original provider rights, independent provenance and session; no real permission inferred.');
+
 // Delegated review is distinct from owner consent; SYNTHETIC documents only.
 const delegatedFixture=fixture();
 function delegate(subject,scope,evidenceSha256){
