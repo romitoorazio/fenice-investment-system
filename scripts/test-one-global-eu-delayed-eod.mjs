@@ -17,7 +17,8 @@ import {
 } from '../lib/market/one-global-eu-delayed-eod.mjs';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger,
   settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
-import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
+import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle,
+  isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
 import {refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
 import {oneGlobalReviewSubjectSha256,validOneGlobalEvidenceReview} from '../lib/trading/one-global-technical-review.mjs';
 import {fetchOneGlobalSettlementSource} from '../lib/market/one-global-cloud-settlement-sources.mjs';
@@ -210,6 +211,49 @@ assert.equal(cycleStore.ledger.events.at(-1).kind,'SIGNAL');assert.equal(cycleSt
 assert.equal(replayOneGlobalEodPaperLedger(cycleStore.ledger).virtualBuys,0);
 const repeated=await runOneGlobalCloudEuProspectiveCycle({storage:cycleStore,clock:()=>cycleNow,fetcher,ensureEvidenceContext});
 assert.equal(repeated.state,'EU_SESSION_SIGNAL_ALREADY_COMMITTED');assert.equal(cycleStore.writes,1);assert.equal(evidenceCalls,1);
+// Confirmed deterioration can produce a prospective SELL even below original
+// acquisition cost. No neutral/down-day-only EXIT and no duplicate BUY.
+const dropZip=zipCsv(euronextCsv({auctionPrices:['9.1000000']}).replaceAll('9.9600000','9.0000000'));
+const dropCboe=Buffer.from(cboeCsv({price:'9.0900'}));
+const bearishReport=buildOneGlobalEuDualVenueReport({euronextRaw:dropZip,cboeRaw:dropCboe,
+  symbol:'ENEL',sessionDate,observedAt:'2026-11-13T17:15:00.000Z'});
+assert.equal(bearishReport.researchIndicator,'NO_UPTREND');
+assert.equal(isOneGlobalEuConfirmedExitResearch(report),false);
+assert.equal(isOneGlobalEuConfirmedExitResearch(bearishReport),true);
+assert.equal(isOneGlobalEuConfirmedExitResearch({...bearishReport,closeDifferencePct:1}),false);
+assert.equal(isOneGlobalEuConfirmedExitResearch({...bearishReport,
+  primary:{...bearishReport.primary,continuousLast:bearishReport.primary.vwap}}),false);
+const dropFetcher=async(url,init)=>{
+  const href=String(url);
+  if(href.includes('marketdata.euronext.com'))return new Response(dropZip);
+  if(href.startsWith('https://www-api.cboe.com/europe/equities/transparency_data/get_file_map?'))
+    return new Response(discovery);
+  if(href===discoveryUrl)return new Response(dropCboe);
+  throw Error('unexpected decline fixture URL');
+};
+const held=memory(settled.ledger);
+const exitCycle=await runOneGlobalCloudEuProspectiveCycle({storage:held,
+  clock:()=>cycleNow,fetcher:dropFetcher,ensureEvidenceContext});
+assert.equal(exitCycle.state,'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE');
+assert.equal(exitCycle.newSignals,1);assert.equal(exitCycle.paperFillsCreated,0);
+assert.equal(held.ledger.events.at(-1).side,'SELL');
+assert.equal(held.ledger.events.at(-1).strategyReason,'DOWNTREND_EXIT');
+assert.equal(held.ledger.events.at(-1).sourceRightsIndependentlyCertified,false);
+assert.deepEqual(held.ledger.events.slice(0,settled.ledger.events.length),settled.ledger.events);
+assert.equal(held.ledger.cashEuro,settled.ledger.cashEuro);
+assert.deepEqual(held.ledger.positions,settled.ledger.positions);
+assert.equal(replayOneGlobalEodPaperLedger(held.ledger).virtualSells,0,
+  'Research SELL is pending: execution requires the actual NEXT completed session');
+const repeatedExit=await runOneGlobalCloudEuProspectiveCycle({storage:held,
+  clock:()=>cycleNow,fetcher:async()=>{throw Error('duplicate must not fetch');},ensureEvidenceContext});
+assert.equal(repeatedExit.state,'EU_SESSION_SIGNAL_ALREADY_COMMITTED');
+const heldNeutral=memory(settled.ledger);
+const neutralCycle=await runOneGlobalCloudEuProspectiveCycle({storage:heldNeutral,
+  clock:()=>cycleNow,fetcher,ensureEvidenceContext});
+assert.equal(neutralCycle.newSignals,0,'An uptrend cannot generate a duplicate BUY for holdings');
+assert.equal(heldNeutral.writes,0);
+assert.equal(heldNeutral.artifacts,0);
+assert.equal(heldNeutral.observations,0);
 // Both HTTPS requests may succeed while neither official venue parser can
 // establish a usable close. This is unavailable evidence, NOT a measured no-uptrend.
 const invalidVenueStore=memory();
@@ -342,8 +386,10 @@ assert.equal(tuesdayAgain.liveTradingAllowed,false);
 const heldTuesday=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore,
   clock:()=>'2026-11-17T17:20:00.000Z',fetcher:tuesdayFetcher,
   ensureEvidenceContext:async()=>{throw Error('Held instrument must not archive another signal');}});
-assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,1);
-assert.equal(heldTuesday.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
+assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,2,
+  'Held ENEL must be observed for SELL while unheld BAMI remains an independent BUY candidate');
+assert.equal(heldTuesday.state,'EU_NO_DUAL_VENUE_UPTREND',
+  'Valid held ENEL uptrend is not a SELL and cannot duplicate an existing BUY');
 assert.equal(mondayStore.writes,2,'held ENEL must not create a permanently blocked second BUY');
 console.log('PASS complete 16-17 November chain: Monday forward SIGNAL -> Tuesday exact dual venue -> originals -> archive -> CAS -> hash replay -> no duplicate. SYNTHETIC ONLY.');
 const bothWrong=[];
