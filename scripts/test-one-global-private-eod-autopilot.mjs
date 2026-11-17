@@ -3,7 +3,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
+import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {privateEodNewYorkClock,planPrivateEodSignalCycle} from '../lib/trading/one-global-private-eod-autopilot.mjs';
 const initial=newOneGlobalEodPaperLedger();
 const friday='2026-11-13T22:45:00.000Z'; // Fri 17:45 EST
@@ -53,6 +53,24 @@ const w2=planPrivateEodSignalCycle({nowIso:friday,originalLedger:ledger});
 assert.equal(w2.candidates[0].reason,'SIGNAL_ALREADY_PENDING');
 assert.equal(w2.candidates[0].eligible,false);
 assert.equal(w2.candidates[1].eligible,true);
+const monday='2026-11-16T22:40:00.000Z';
+const authority={mode:'ONE_GLOBAL_FORWARD_EOD_PRIVATE_PAPER',ownerConsent:true,approvedForVirtualSimulation:true,
+  approvalEvidence:{kind:'EXPLICIT_OWNER_CONSENT',reviewedCommit:'a'.repeat(40)},executionMethod:'NEXT_COMPLETED_SESSION_CLOSE_PLUS_IMPACT',
+  allowBackfill:false,liveTradingAllowed:false,brokerConnectivityAllowed:false,realBrokerOrdersAllowed:false,
+  strategyPerformanceCertified:false,approvedAt:'2026-11-13T20:00:00.000Z',expiresAt:'2026-12-01T00:00:00.000Z'};
+const heldLedger=settleOneGlobalEodSignal({previousLedger:ledger,nowIso:monday,signalHash:ledger.lastHash,authority,
+  marketEvidence:{sessionDate:'2026-11-16',sessionOpenedAt:'2026-11-16T14:30:00.000Z',sessionClosedAt:'2026-11-16T21:00:00.000Z',
+    providerReceipts:['alpha-vantage','alpaca-sip'].map((providerId,i)=>({providerId,sourceFamily:providerId,
+      key:'XNAS:AAPL',mic:'XNAS',currency:'USD',sessionDate:'2026-11-16',close:100,payloadSha256:String(i+1).repeat(64),
+      publishedAt:'2026-11-16T22:00:00.000Z',simulatedOrSynthetic:false}))},
+  ownerReviewedRights:['alpha-vantage','alpaca-sip'].map((providerId,i)=>({providerId,mic:'XNAS',currency:'USD',
+    evidenceSha256:String(i+1).repeat(64),usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',reviewedByOwner:true,
+    automatedUseAllowed:true,validUntil:'2026-12-31T23:59:59.000Z'})),
+  fxEvidence:{rateToEuro:1/1.1,source:'ECB_REFERENCE_ONLY',referenceDate:'2026-11-13',publishedAt:'2026-11-13T16:00:00.000Z',
+    unitsPerEuro:1.1,series:'EXR.D.USD.EUR.SP00.A',currency:'USD'}}).ledger;
+const heldPlan=planPrivateEodSignalCycle({nowIso:monday,originalLedger:heldLedger});
+assert.equal(heldPlan.candidates[0].eligible,false);assert.equal(heldPlan.candidates[0].reason,'POSITION_ALREADY_HELD');
+assert.equal(heldPlan.candidates[1].eligible,true,'holding AAPL must never starve the remaining US candidates');
 assert.equal(initial.events.length,0,'planner must not mutate original journal');
 
 const script=resolve('scripts/run-one-global-private-eod-autopilot.mjs');
