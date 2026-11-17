@@ -388,7 +388,8 @@ const heldTuesday=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore
   ensureEvidenceContext:async()=>{throw Error('Held instrument must not archive another signal');}});
 assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,2,
   'Held ENEL must be observed for SELL while unheld BAMI remains an independent BUY candidate');
-assert.equal(heldTuesday.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
+assert.equal(heldTuesday.state,'EU_NO_DUAL_VENUE_UPTREND',
+  'Valid held ENEL uptrend is not a SELL and cannot duplicate an existing BUY');
 assert.equal(mondayStore.writes,2,'held ENEL must not create a permanently blocked second BUY');
 console.log('PASS complete 16-17 November chain: Monday forward SIGNAL -> Tuesday exact dual venue -> originals -> archive -> CAS -> hash replay -> no duplicate. SYNTHETIC ONLY.');
 const bothWrong=[];
