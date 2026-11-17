@@ -41,7 +41,27 @@ assert(madrid.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSIN
 assert(madrid.blockers.includes("EXACT_MIC_AND_PROVIDER_SYMBOL_NOT_CERTIFIED"));
 const tokyo=r.venues.find(x=>x.mic==="XTKS");
 assert.equal(tokyo.regularWindowExpected,false);
-assert.equal(tokyo.sourceStatus,"INVALID_SYMBOL_OR_ACCESS");
+// Research observations are refreshed on main. Tokyo may now have a valid
+// Yahoo research-only EOD fallback even when Alpha Vantage access is invalid.
+// A research status must not be confused with independent PAPER admissibility.
+assert.equal(tokyo.sourceStatus,eod.records.XTKS?.status??"NOT_OBSERVED");
+assert.equal(tokyo.eodPaperFillRecorded,false);
+assert(tokyo.blockers.includes("EXCHANGE_SESSION_NOT_INDEPENDENTLY_CONFIRMED"));
+assert(tokyo.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
+assert(tokyo.blockers.includes("EOD_DATA_USAGE_RIGHTS_NOT_CERTIFIED"));
+// Both observed states must keep execution blocked, independent of daily data.
+for(const status of ["INVALID_SYMBOL_OR_ACCESS","TENTATIVE_COMPLETED_DAILY_RESEARCH"]){
+  const fixture=structuredClone(eod);
+  fixture.records.XTKS={...fixture.records.XTKS,status,exactMicCertified:false,
+    licensedPaperSource:false};
+  const observed=check({nowIso:time,eod:fixture,provider,committee,
+    ownerPaperConsent:true}).venues.find(v=>v.mic==="XTKS");
+  assert.equal(observed.sourceStatus,status);
+  assert.equal(observed.eodPaperFillRecorded,false);
+  assert.equal(observed.paperSignalCommitted,false);
+  assert(observed.blockers.includes("EOD_DATA_USAGE_RIGHTS_NOT_CERTIFIED"));
+  assert(observed.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
+}
 assert(r.venues.find(x=>x.mic==="XETR").regularWindowExpected);
 assert(r.venues.find(x=>x.mic==="XNYS").regularWindowExpected===false);
 const nyOpen=check({nowIso:"2026-11-12T14:40:00.000Z",
