@@ -129,9 +129,15 @@ let sdkReads=0;
 const adapter=await createVercelPrivateEodBlobStore({token:'SYNTHETIC_TEST_TOKEN',storeId:'',sdk:{
   async get(path,options){sdkReads++;assert.equal(options.access,'private');assert.equal(options.useCache,false);
     assert.equal(path,'fenice/one-global/private-eod/observations/raw/'+rawHash);
-    return {statusCode:200,blob:{size:rawTest.length},stream:new Response(rawTest).body};},
+    return {statusCode:200,blob:{size:rawTest.length,uploadedAt:new Date('2026-11-17T17:00:02.000Z')},stream:new Response(rawTest).body};},
+  async head(path){assert.equal(path,'fenice/one-global/private-eod/observations/raw/'+rawHash);
+    return {size:rawTest.length,uploadedAt:new Date('2026-11-17T17:00:01.456Z')};},
   async put(){assert.fail('read-only evidence read attempted a write');}}});
-assert.deepEqual((await adapter.readSourceArtifact(rawHash)).body,rawTest);
+const exactMetadata=await adapter.readSourceArtifact(rawHash);
+assert.deepEqual(exactMetadata.body,rawTest);
+assert.equal(exactMetadata.uploadedAt.toISOString(),'2026-11-17T17:00:01.456Z');
+assert.equal(exactMetadata.httpLastModified.toISOString(),'2026-11-17T17:00:02.000Z');
+assert.equal(exactMetadata.uploadedAtSource,'VERCEL_CONTROL_PLANE_HEAD');
 await assert.rejects(adapter.readSourceArtifact('../original-ledger.json'),/FORENSIC_HASH_INVALID/);
 assert.equal(sdkReads,1,'invalid paths rejected before SDK access');
 const route=readFileSync('app/api/paper/one-global-private-forensic/route.js','utf8');
