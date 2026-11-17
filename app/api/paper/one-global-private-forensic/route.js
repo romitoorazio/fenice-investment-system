@@ -2,6 +2,7 @@
 import {isOwnerAuthorized} from '@/lib/ai/fenice-generative-research';
 import {feniceSessionCookieFromRequest,verifyFeniceOwnerSession} from '@/lib/ai/fenice-owner-session';
 import {createVercelPrivateEodBlobStore} from '../../../../lib/trading/one-global-vercel-private-blob-store.mjs';
+import {pinOneGlobalRecoveredOriginalStore} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
 import {handleOneGlobalPrivateForensicRequest} from '../../../../lib/trading/one-global-private-forensic-audit.mjs';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -14,5 +15,5 @@ export async function GET(request){
   const authorized=typeof secret==='string'&&secret.length>=32&&(isOwnerAuthorized(bearer,secret)
     ||verifyFeniceOwnerSession(feniceSessionCookieFromRequest(request),secret,Date.now()));
   return handleOneGlobalPrivateForensicRequest(request,{production:process.env.VERCEL_ENV==='production',
-    authorized,storageFactory:createVercelPrivateEodBlobStore});
+    authorized,storageFactory:async()=>pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore())});
 }

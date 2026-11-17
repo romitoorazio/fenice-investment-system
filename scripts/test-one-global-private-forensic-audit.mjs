@@ -110,6 +110,8 @@ assert.equal(changed.missingEvidence[0].code,'ORIGINAL_JOURNAL_CHANGED_DURING_RE
 const delayedSignal={...storage,readResearchObservation:async hash=>hash===signalSnapshot
   ?{...observations.get(hash),uploadedAt:'2026-11-17T09:00:00.000Z'}:observations.get(hash)};
 assert.equal((await audit({storage:delayedSignal,nowIso,policyPins})).state,'FILL_INVALID');
+const noTimestamp={...storage,readResearchObservation:async hash=>({...observations.get(hash),uploadedAt:null})};
+assert.equal((await audit({storage:noTimestamp,nowIso,policyPins})).state,'FILL_NOT_YET_VERIFIABLE');
 const unauthFactory=()=>assert.fail('unauthenticated request must never initialize storage');
 let response=await handle(new Request('https://fenice.example/api'),{production:true,authorized:false,storageFactory:unauthFactory});
 assert.equal(response.status,401);assert.equal((await response.json()).state,'OWNER_AUTH_REQUIRED');
@@ -134,5 +136,6 @@ await assert.rejects(adapter.readSourceArtifact('../original-ledger.json'),/FORE
 assert.equal(sdkReads,1,'invalid paths rejected before SDK access');
 const route=readFileSync('app/api/paper/one-global-private-forensic/route.js','utf8');
 assert.match(route,/verifyFeniceOwnerSession/);assert.match(route,/isOwnerAuthorized/);
+assert.match(route,/pinOneGlobalRecoveredOriginalStore/);
 assert.doesNotMatch(route,/export async function (?:POST|PUT|PATCH|DELETE)|console\.|\.put\(|\.compareAndSwap\(/);
 console.log('PASS read-only original-fill audit: raw evidence replay, exact event/account/hash reproduction, prior-session signal, policies/calendar/discovery, corruption/missing/race/late-archive rejection, owner-only HTTP, no writes or private raw exports. SYNTHETIC ONLY.');
