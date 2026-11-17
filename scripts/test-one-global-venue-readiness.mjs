@@ -26,7 +26,12 @@ const tokyo=a.venues.find(v=>v.mic==="XTKS");
 assert(milan.blockers.includes("PROVIDER_CATALOGUE_INDICATES_PAID_TIER"));
 assert.equal(milan.providerDiagnostic.requiredPlanAdvertised,"Pro");
 assert(milan.blockers.includes("HISTORICAL_LISTING_MAPPING_UNCERTIFIED"));
-assert(milan.blockers.includes("NO_COMPLETE_DAILY_HISTORY"));
+assert.equal(milan.dailyResearch.lastCompleteBarDate,baseline.eodResearch.records.XMIL.lastCompleteBarDate,
+  "Daily research observation must reflect the actual input, not a frozen missing-history assumption");
+assert.equal(milan.dailyResearch.executionEligible,false,
+  "A completed research bar cannot authorize execution or strategy PAPER");
+assert(milan.blockers.includes("NO_EXECUTABLE_REALTIME_QUOTE_PROOF"));
+assert(milan.blockers.includes("HISTORICAL_LISTING_MAPPING_UNCERTIFIED"));
 assert(milan.blockers.includes("PROVIDER_ACCESS_OBSERVATION_OLDER_THAN_24H"));
 assert(xetra.blockers.includes("PROVIDER_CATALOGUE_INDICATES_PAID_TIER"));
 assert.equal(xetra.providerDiagnostic.requiredPlanAdvertised,"Grow");
