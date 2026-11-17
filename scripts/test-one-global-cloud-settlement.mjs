@@ -55,6 +55,25 @@ function memory(f=fixture(),context=f.context){
     get ledger(){return JSON.parse(ledger);},get reads(){return reads;}};
   return store;
 }
+// A session still in progress is a time blocker, not missing data rights.
+// The reporting fix must never acquire prices or mutate the original journal.
+{
+  const f=fixture(),store=memory(f);let requests=0;
+  const waiting=await run({storage:store,clock:()=>"2026-11-13T12:00:00.000Z",
+    fetcher:async()=>{requests++;throw Error("UNEXPECTED_NETWORK");}});
+  assert.deepEqual(waiting.settlementBlockers,["CLOUD_SETTLEMENT_NEXT_SESSION_NOT_COMPLETED"]);
+  assert.equal(waiting.sourceRightsEvidenceValidated,true);
+  assert.equal(waiting.upstreamEvidenceValidated,true);
+  assert.equal(waiting.exchangeSessionEvidenceValidated,true);
+  assert.equal(waiting.paperFillsCreated,0);
+  assert.equal(waiting.settlementSourceRequests,0);
+  assert.equal(requests,0);assert.equal(store.writes,0);
+  const denied=fixture();denied.context.markets[0].ownerReviewedRights[0].automatedUseAllowed=false;
+  const rejected=await run({storage:memory(denied),clock:()=>"2026-11-13T12:00:00.000Z",
+    fetcher:async()=>{throw Error("UNEXPECTED_NETWORK");}});
+  assert.equal(rejected.sourceRightsEvidenceValidated,false);
+  assert.equal(rejected.paperFillsCreated,0);
+}
 const env={ALPHA_VANTAGE_API_KEY:'YOUR_TEST_ALPHA_KEY',EODHD_API_TOKEN:'YOUR_TEST_EOD_KEY',TWELVE_DATA_API_KEY:'YOUR_TEST_TWELVE_KEY'};
 const xml=()=>Buffer.from("<?xml version='1.0'?><gesmes:Envelope><gesmes:Sender><gesmes:name>European Central Bank</gesmes:name></gesmes:Sender><Cube xmlns='eurofxref'><Cube time='2026-11-12'><Cube currency='AUD' rate='1.6'/><Cube currency='USD' rate='1.1'/><Cube currency='JPY' rate='170.0'/></Cube></Cube></gesmes:Envelope>");
 function network(f,options={}){

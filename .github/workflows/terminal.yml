@@ -10,6 +10,9 @@ on:
     branches: [main]
     paths:
       - "scripts/run-terminal-engine.mjs"
+      - "lib/intelligence/world-terminal-universe.mjs"
+      - "data/world-paper-v7-research-seeds.json"
+      - "scripts/test-world-terminal-universe.mjs"
       - "lib/intelligence/yahoo-regular-research-quote.mjs"
       - "lib/intelligence/yahoo-completed-daily-candles.mjs"
       - "scripts/test-yahoo-completed-daily-candles.mjs"
@@ -80,6 +83,8 @@ jobs:
 
       - name: Verify last-trade provenance is independent of daily bars
         run: node scripts/test-yahoo-regular-research-quote.mjs
+      - name: Verify world listing identity and pence-to-GBP research units
+        run: node scripts/test-world-terminal-universe.mjs
       - name: Verify Yahoo daily candles are withheld until regular venue sessions settle
         run: node scripts/test-yahoo-completed-daily-candles.mjs
 

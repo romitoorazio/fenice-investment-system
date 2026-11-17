@@ -4,6 +4,16 @@ on:
     branches: [main]
     paths:
       - "lib/ui/global-opportunity-audit.ts"
+      - "lib/ui/one-global-world-radar*"
+      - "lib/ui/world-market-data-health.mjs"
+      - "components/WorldEquityRadar.tsx"
+      - "components/MissionControl.tsx"
+      - "app/page.tsx"
+      - "app/radar/page.tsx"
+      - "app/api/research/world-radar/**"
+      - "app/api/sources/global/**"
+      - "scripts/test-world-market-data-health.mjs"
+      - "scripts/test-one-global-world-radar-ui.mjs"
       - "lib/ui/international-research-queue.ts"
       - "scripts/test-international-research-queue.mjs"
       - "app/opportunita-mondo/**"
@@ -15,6 +25,16 @@ on:
     branches: [main]
     paths:
       - "lib/ui/global-opportunity-audit.ts"
+      - "lib/ui/one-global-world-radar*"
+      - "lib/ui/world-market-data-health.mjs"
+      - "components/WorldEquityRadar.tsx"
+      - "components/MissionControl.tsx"
+      - "app/page.tsx"
+      - "app/radar/page.tsx"
+      - "app/api/research/world-radar/**"
+      - "app/api/sources/global/**"
+      - "scripts/test-world-market-data-health.mjs"
+      - "scripts/test-one-global-world-radar-ui.mjs"
       - "lib/ui/international-research-queue.ts"
       - "scripts/test-international-research-queue.mjs"
       - "app/opportunita-mondo/**"
@@ -35,4 +55,8 @@ jobs:
           node-version: 22
       - run: node --experimental-strip-types scripts/test-global-opportunity-audit.mjs
       - run: node --experimental-strip-types scripts/test-international-research-queue.mjs
+      - name: World equity radar and separate source-health dimensions
+        run: |
+          node scripts/test-one-global-world-radar-ui.mjs
+          node scripts/test-world-market-data-health.mjs
       - run: node scripts/scan-repository-secrets.mjs

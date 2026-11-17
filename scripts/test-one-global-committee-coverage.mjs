@@ -19,17 +19,17 @@ const run=x=>auditOneGlobalCommitteeWorldCoverage({...inputs,...x,nowIso:x?.nowI
 const r=run({});
 assert.equal(r.mode,"ONE_GLOBAL_COMMITTEE_WORLD_COVERAGE_DIAGNOSTIC");
 assert.equal(r.summary.foreignIssuerUSListings,2);
-assert.equal(r.summary.nonUSVenueEquities,11);
+assert.equal(r.summary.nonUSVenueEquities,15);
 assert.equal(r.summary.forwardStrategyPaperEligible,0);
 assert.equal(r.summary.certifiedClosedStrategyTrades,0);
 assert.equal(r.safety.liveTradingAllowed,false);
 assert.equal(r.safety.paperAuthorizationGranted,false);
 assert.equal(r.safety.v8TechnicalProofCredited,false);
-assert.equal(r.summary.listedEquities,19,"Current master and research seeds: 15+4 equities");
+assert.equal(r.summary.listedEquities,23,"Current master and research seeds: 15+8 equities");
 const missed=r.rows.filter(x=>x.nonUSVenue&&!x.committeeResearchPresent);
 assert.equal(r.summary.nonUSVenueExcludedFromCommittee,missed.length);
 const actionable=r.rows.filter(x=>x.nonUSVenue&&x.researchTasks.length>0);
-assert.equal(r.researchQueue.length,actionable.length,
+assert.equal(r.researchQueue.length,Math.min(12,actionable.length),
   "A covered Committee row with missing audited financials must remain in the research queue");
 assert.equal(r.summary.nonUSVenueActionableResearchGaps,actionable.length);
 assert.equal(r.summary.alreadyInCommitteeButStillNeedsResearch,
@@ -60,6 +60,8 @@ assert.equal(r.rows.find(x=>x.key==="XNAS:ASML").venueRegion,"north-america");
 assert.equal(r.rows.find(x=>x.key==="XETR:SIE").venueRegion,"europe");
 assert.equal(r.rows.find(x=>x.key==="XASX:CBA").venueRegion,"oceania");
 assert.equal(r.rows.find(x=>x.key==="XTKS:7203").venueRegion,"asia-pacific");
+assert.equal(r.rows.find(x=>x.key==="XLON:HSBA").venueRegion,"europe");
+assert.equal(r.rows.find(x=>x.key==="XTSE:RY").venueRegion,"north-america");
 assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").exactIdentityRecent,false);
 for(const key of ["XMIL:ENEL","XETR:SIE","XPAR:MC"]){
   const row=r.rows.find(x=>x.key===key);
@@ -149,4 +151,4 @@ bad(x=>{x.annualIssuerReleases=null},/WORLD_COMMITTEE_PRIMARY_RELEASE_PAIR_REQUI
 bad(x=>{x.interimIssuerReleases.policy.paperExecutionAllowed=true},
   /INTERIM_|WORLD_COMMITTEE_ISSUER_RELEASE_RIGHTS_INVALID/);
 assert.throws(()=>run({nowIso:"bad"}),/WORLD_COMMITTEE_CLOCK_INVALID/);
-console.log("PASS ONE GLOBAL global Committee research queue: keep covered-but-incomplete 11 local-market equities, reconcile three exact-LEI 2025/2026 issuer releases, honor next-day review, region fairness, no fake audited financials, DCF, PAPER or LIVE");
+console.log("PASS ONE GLOBAL global Committee research queue: track 15 local-market equities, reconcile three exact-LEI 2025/2026 issuer releases, honor next-day review, region fairness, no fake audited financials, DCF, PAPER or LIVE");

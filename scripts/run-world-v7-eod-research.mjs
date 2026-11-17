@@ -3,7 +3,7 @@ import path from "node:path";
 import { EOD_PILOTS, identifyAlphaListing, evaluateEodResearch, parseAlphaDailyBars, tentativeAlphaDailyCandidate } from "../lib/market/world-v7-eod-research.mjs";
 import { runWorldV7DailyHistoricalReplay, summarizeWorldV7DailyHistoricalReplay } from "../lib/market/world-v7-daily-historical-replay.mjs";
 import { fetchEcbJpyEurDailyHistory } from "../lib/market/world-v7-ecb-daily-fx.mjs";
-import {evaluateYahooBamiEodResearch} from "../lib/market/world-v7-yahoo-eod-research.mjs";
+import {evaluateYahooWorldEodResearch,YAHOO_EOD_RESEARCH_PILOTS} from "../lib/market/world-v7-yahoo-eod-research.mjs";
 import {fetchBamiOfficialReference,compareBamiOfficialReferenceToYahoo} from "../lib/market/one-global-bami-official-reference.mjs";
 
 const options = Object.fromEntries(process.argv.slice(2).filter(s=>s.startsWith("--")&&s.includes("=")).map(s=>s.slice(2).split(/=(.*)/s).slice(0,2)));
@@ -36,13 +36,16 @@ async function alphaRequest(params){
     return JSON.parse(text);
   }catch{return {"Error Message":"Provider not reachable"};}
 }
-// YAHOO_BAMI_EOD_FALLBACK: no-key, tightly bounded, read-only historical
+// YAHOO_BAMI_EOD_FALLBACK extended to the existing Tokyo and Xetra pilots:
+// no-key, tightly bounded, read-only historical
 // research. query1 and query2 belong to ONE publisher family, never two.
-async function yahooBamiRequest(){
+async function yahooPilotRequest(venue){
+  const mapping=YAHOO_EOD_RESEARCH_PILOTS[venue];
+  if(!mapping)throw Error("WORLD_EOD_YAHOO_PILOT_UNSUPPORTED");
   for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
     yahooChartRequestsUsed++;
     try{
-      const url="https://"+host+"/v8/finance/chart/BAMI.MI?range=6mo&interval=1d";
+      const url="https://"+host+"/v8/finance/chart/"+mapping.symbol+"?range=6mo&interval=1d";
       const response=await fetch(url,{redirect:"error",signal:AbortSignal.timeout(9000),
         headers:{Accept:"application/json"}});
       if(!response.ok||!String(response.headers.get("content-type")||"").includes("json"))
@@ -57,13 +60,18 @@ async function yahooBamiRequest(){
   }
   return null;
 }
-async function fallbackForMilan(alpha){
-  const raw=await yahooBamiRequest();
-  const yahoo=evaluateYahooBamiEodResearch(raw,new Date().toISOString());
+async function fallbackForVenue(venue,alpha){
+  const raw=await yahooPilotRequest(venue);
+  const yahoo=evaluateYahooWorldEodResearch(venue,raw,new Date().toISOString());
   if(yahoo.observation.status!=="TENTATIVE_COMPLETED_DAILY_RESEARCH")
-    return {observation:{...alpha,yahooFallbackStatus:yahoo.observation.status},
+    return {observation:{...alpha,yahooFallbackStatus:yahoo.observation.status,
+      ...(yahoo.observation.invalidBarSessionDate?{
+        yahooInvalidBarSessionDate:yahoo.observation.invalidBarSessionDate,
+        yahooInvalidBarReason:yahoo.observation.invalidBarReason,
+      }:{}),
+    },
       bars:[],admitted:false};
-  // Yahoo metadata validates the self-reported BAMI.MI/EUR/Rome identity,
+  // Yahoo metadata validates the exact pilot symbol/currency/timezone,
   // NOT the MIC, legal terms, independent close or future PAPER eligibility.
   return {observation:{...yahoo.observation,alphaVantageResearchStatus:alpha.status},
     bars:yahoo.bars,admitted:true};
@@ -77,11 +85,12 @@ for(const venue of venues){
       status:key&&!networkRequested?"NETWORK_NOT_AUTHORIZED":"ALPHA_VANTAGE_KEY_UNAVAILABLE",
       researchSignal:"NO_SIGNAL",paperFillCount:0,licensedPaperSource:false,
       liveTradingAllowed:false,rawPricePublished:false};
-    if(venue==="XMIL"&&networkRequested){
-      const yahoo=await fallbackForMilan(observation);
+    if(networkRequested){
+      const yahoo=await fallbackForVenue(venue,observation);
       observation=yahoo.observation;
-      if(yahoo.admitted)historicalInputs.push({venue,ticker:EOD_PILOTS.XMIL.ticker,
-        currency:"EUR",region:"europe",provider:"yahoo-finance",bars:yahoo.bars});
+      if(yahoo.admitted)historicalInputs.push({venue,ticker:EOD_PILOTS[venue].ticker,
+        currency:EOD_PILOTS[venue].currency,region:EOD_PILOTS[venue].region,
+        provider:"yahoo-finance",bars:yahoo.bars});
     }
     observations.push(observation);
     continue;
@@ -109,8 +118,8 @@ for(const venue of venues){
         region:target.region,provider:"alpha-vantage",bars:parsed.bars});
     }
   }
-  if(venue==="XMIL"&&!["COMPLETE_EOD_RESEARCH","TENTATIVE_COMPLETED_DAILY_RESEARCH"].includes(result.status)){
-    const yahoo=await fallbackForMilan(result);
+  if(!["COMPLETE_EOD_RESEARCH","TENTATIVE_COMPLETED_DAILY_RESEARCH"].includes(result.status)){
+    const yahoo=await fallbackForVenue(venue,result);
     result=yahoo.observation;
     if(yahoo.admitted)historicalInputs.push({venue,ticker:target.ticker,
       currency:target.currency,region:target.region,provider:"yahoo-finance",bars:yahoo.bars});
@@ -166,7 +175,11 @@ const consoleReport={generatedAt:report.generatedAt,mode:report.mode,requestsUse
   yahooChartRequestsUsed,bamiOfficialCrosscheckStatus:bamiOfficialCloseCrosscheck.status,
   data:observations.map(x=>({venue:x.venue,provider:x.provider??"none",
     status:x.status,date:x.lastCompleteBarDate??null,
-    signal:x.researchSignal??"NO_SIGNAL",fill:x.paperFillCount})),
+    signal:x.researchSignal??"NO_SIGNAL",fill:x.paperFillCount,
+    ...(x.yahooFallbackStatus?{yahooFallbackStatus:x.yahooFallbackStatus}:{}),
+    ...(x.yahooInvalidBarSessionDate?{invalidBarSessionDate:x.yahooInvalidBarSessionDate,
+      invalidBarReason:x.yahooInvalidBarReason}:{}),
+  })),
   historicalResearchTransactions:historicalReplay.historicalResearchTransactions,
   historicalReplayStatus:historicalReplay.performanceStatus,fxStatus:fxHistory.status,
   noRealOrders:true,noPrivatePricePublished:true};

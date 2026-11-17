@@ -97,7 +97,7 @@ jobs:
             const x=JSON.parse(fs.readFileSync(process.env.RESULT,"utf8"));
             if(x.liveTradingAllowed!==false || x.realtimePaperEligible!==false ||
                x.brokerConnectivityAllowed!==false || x.simulatedOrders!==0 ||
-               x.requestsUsed>6 || x.yahooChartRequestsUsed>2 ||
+               x.requestsUsed>6 || x.yahooChartRequestsUsed>6 ||
                !x.bamiOfficialCloseCrosscheck ||
                x.bamiOfficialCloseCrosscheck.virtualPaperFillEligible!==false ||
                x.bamiOfficialCloseCrosscheck.marketDataRightsCertified!==false ||
