@@ -44,7 +44,21 @@ assert.equal(xetra.dailyResearch.executionEligible,false);
 assert(tokyo.blockers.includes("EXACT_TRADING_SEGMENT_NOT_PROVEN"));
 assert(tokyo.blockers.includes("JPY_EUR_EXECUTABLE_FX_MISSING"));
 assert.equal(tokyo.providerDiagnostic.providerMic,"XJPX");
-assert.equal(tokyo.dailyResearch.lastCompleteBarDate,null);
+assert.equal(tokyo.dailyResearch.lastCompleteBarDate,baseline.eodResearch.records.XTKS.lastCompleteBarDate);
+assert.equal(tokyo.dailyResearch.executionEligible,false);
+// Both missing history and a successful research fallback are legitimate
+// inputs. Neither may remove the independent execution/rights blockers.
+for(const lastCompleteBarDate of [null,"2026-11-09"]){
+  const input=structuredClone(baseline);
+  input.eodResearch.records.XTKS.lastCompleteBarDate=lastCompleteBarDate;
+  const venue=diagnoseOneGlobalVenues(input).venues.find(v=>v.mic==="XTKS");
+  assert.equal(venue.dailyResearch.lastCompleteBarDate,lastCompleteBarDate);
+  assert.equal(venue.blockers.includes("NO_COMPLETE_DAILY_HISTORY"),lastCompleteBarDate===null);
+  assert.equal(venue.dailyResearch.executionEligible,false);
+  assert.equal(venue.prospectiveStrategyPaperEligible,false);
+  assert(venue.blockers.includes("NO_EXECUTABLE_REALTIME_QUOTE_PROOF"));
+  assert(venue.blockers.includes("JPY_EUR_EXECUTABLE_FX_MISSING"));
+}
 assert(a.venues.every(v=>v.prospectiveStrategyPaperEligible===false&&v.certifiedTrades===0));
 assert(a.venues.every(v=>!("price" in v)&&!("bid" in v)&&!("ask" in v)));
 assert(a.nextSteps.XMIL.some(x=>x.includes("two independent")));

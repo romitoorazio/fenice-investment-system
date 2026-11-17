@@ -4,19 +4,25 @@ on:
     branches: [main]
     paths:
       - "lib/brokers/directa-local-readonly.mjs"
+      - "lib/brokers/directa-local-reconciliation.mjs"
       - "lib/ui/directa-local-snapshot-evidence.mjs"
       - "scripts/run-directa-readonly.mjs"
       - "scripts/test-directa-local-snapshot-evidence.mjs"
       - "scripts/test-directa-local-readonly.mjs"
+      - "scripts/test-directa-local-reconciliation.mjs"
+      - "scripts/test-directa-local-cli.mjs"
       - ".github/workflows/directa-local-evidence-safety.yml"
   push:
     branches: [main]
     paths:
       - "lib/brokers/directa-local-readonly.mjs"
+      - "lib/brokers/directa-local-reconciliation.mjs"
       - "lib/ui/directa-local-snapshot-evidence.mjs"
       - "scripts/run-directa-readonly.mjs"
       - "scripts/test-directa-local-snapshot-evidence.mjs"
       - "scripts/test-directa-local-readonly.mjs"
+      - "scripts/test-directa-local-reconciliation.mjs"
+      - "scripts/test-directa-local-cli.mjs"
       - ".github/workflows/directa-local-evidence-safety.yml"
   workflow_dispatch:
 permissions:
@@ -34,5 +40,9 @@ jobs:
         run: node scripts/test-directa-local-snapshot-evidence.mjs
       - name: Verify explicit Directa local read-only responses
         run: node --experimental-strip-types scripts/test-directa-local-readonly.mjs
+      - name: Verify local cash positions and open-order reconciliation without broker writes
+        run: node --experimental-strip-types scripts/test-directa-local-reconciliation.mjs
+      - name: Verify existing CLI end-to-end against loopback fake Darwin only
+        run: node --experimental-strip-types scripts/test-directa-local-cli.mjs
       - name: Verify repository secrets are not present
         run: node scripts/scan-repository-secrets.mjs

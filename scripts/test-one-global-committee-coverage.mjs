@@ -98,20 +98,25 @@ assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").missingTasks.includes(
   "BUILD_EXACT_LISTING_COMMITTEE_RESEARCH"),!enelResearchCurrent);
 assert.equal(r.rows.find(x=>x.key==="XETR:SIE").eodResearchStatus,null,
   "German EOD DTE must never be presented as Siemens SIE");
-// The current XMIL EOD observation belongs to BAMI, not ENEL. Never
-// propagate a different issuer's failed symbol check just because both
-// instruments trade on the same venue.
+// The XMIL EOD observation belongs to BAMI, not ENEL. Its research status
+// changes with daily collection; issuer identity must remain exact.
 assert.equal(inputs.eod.records.XMIL.ticker,"BAMI");
-assert.equal(inputs.eod.records.XMIL.status,"RETURNED_SYMBOL_MISMATCH");
 assert.equal(r.rows.find(x=>x.key==="XMIL:ENEL").eodResearchStatus,null,
-  "The BAMI EOD symbol mismatch must not be attributed to ENEL");
+  "A BAMI research observation must not be attributed to ENEL");
 // A deliberately matching research observation remains visible to its exact
 // ticker while conferring no PAPER, LIVE or broker entitlement.
-const enelEod=run({eod:{...inputs.eod,records:{...inputs.eod.records,
-  XMIL:{...inputs.eod.records.XMIL,ticker:"ENEL"}}}});
-assert.equal(enelEod.rows.find(x=>x.key==="XMIL:ENEL").eodResearchStatus,
-  "RETURNED_SYMBOL_MISMATCH");
-assert.equal(enelEod.rows.find(x=>x.key==="XMIL:ENEL").paperEligible,false);
+for(const status of ["RETURNED_SYMBOL_MISMATCH","TENTATIVE_COMPLETED_DAILY_RESEARCH"]){
+  const observation={...inputs.eod.records.XMIL,status};
+  const unrelated=run({eod:{...inputs.eod,records:{...inputs.eod.records,XMIL:observation}}});
+  assert.equal(unrelated.rows.find(x=>x.key==="XMIL:ENEL").eodResearchStatus,null);
+  const enelEod=run({eod:{...inputs.eod,records:{...inputs.eod.records,
+    XMIL:{...observation,ticker:"ENEL"}}}});
+  const enel=enelEod.rows.find(x=>x.key==="XMIL:ENEL");
+  assert.equal(enel.eodResearchStatus,status);
+  assert.equal(enel.paperEligible,false);
+  assert.equal(enel.brokerSubmissionAllowed,false);
+  assert.equal(enel.liveTradingAllowed,false);
+}
 // Test regional round-robin on a deliberately uncovered synthetic snapshot:
 const noResearchCommittee={...inputs.committee,allDecisions:[]};
 const uncovered=run({committee:noResearchCommittee});
