@@ -1,17 +1,16 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-16T17:01:28.952Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-17T16:54:26.986Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
 
 | Posizione | Borsa | Strumento | Punteggio | Stato |
 |---:|---|---|---:|---|
-| 1 | XNSE | XNSE:RELIANCE | 5.8891 | Virtuale aperta |
-| 2 | XTKS | XTKS:7203 | 5.2216 | Virtuale aperta |
-| 3 | XETR | XETR:SAP | 3.0746 | Da osservare |
-| 4 | XNYS | XNYS:JPM | 2.2712 | Da osservare |
-| 5 | XMIL | XMIL:ENI | 1.5723 | Da osservare |
+| 1 | XNSE | XNSE:RELIANCE | 4.4917 | Virtuale aperta |
+| 2 | XETR | XETR:SAP | 2.6583 | Da osservare |
+| 3 | XTKS | XTKS:7203 | 1.8872 | Virtuale aperta |
+| 4 | XMIL | XMIL:ENI | 0.9486 | Da osservare |
 
 ## Portafoglio forward (simulazione non certificata)
 - Posizioni aperte: **3**; chiuse: **0**
@@ -21,7 +20,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 - Rischio: **ACTIVE**; nuove posizioni virtuali: sottoposte ai limiti
 
 ## Backtest distinto dal forward
-- Risultato storico: **−€5,20** (non va sommato al forward)
+- Risultato storico: **−€10,68** (non va sommato al forward)
 
 ## Trasparenza
 - Fonte: Yahoo Finance pubblico non attestato; cambi BCE indicativi

@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 8: verbale di verifica
 
-**Data:** 2026-11-16T17:01:28.952Z
+**Data:** 2026-11-17T16:54:26.986Z
 **Audit tecnico:** PASS
 **PAPER certificato:** NO | **Ordini Directa:** 0
 
@@ -8,8 +8,8 @@
 
 | Verifica | Esito | Evidenza |
 |---|---|---|
-| SIGNAL_JOURNAL_INTEGRITY | PASS | 39 valid entries |
-| HISTORICAL_LEDGER_INTEGRITY | PASS | 13 valid entries |
+| SIGNAL_JOURNAL_INTEGRITY | PASS | 47 valid entries |
+| HISTORICAL_LEDGER_INTEGRITY | PASS | 16 valid entries |
 | FORWARD_LEDGER_INTEGRITY | PASS | 3 valid events |
 | RISK_CONTROLS_MATCH | PASS | ACTIVE |
 | BROKER_ISOLATION | PASS | 0 orders |
@@ -18,10 +18,10 @@
 | INDEPENDENT_EXECUTABLE_QUOTES | PENDING | 0 independently attested providers |
 
 ## Performance e provenienza
-- Segnali forward valutabili: 39; esclusi motivatamente: 0
+- Segnali forward valutabili: 47; esclusi motivatamente: 0
 - Operazioni forward chiuse: 0; positive: 0; negative: 0
 - Risultato forward simulato: €0.0000
-- Backtest storico, completamente separato: €-5.2042
+- Backtest storico, completamente separato: €-10.6833
 - Campione mondiale: 8/8 borse, non una scansione di tutte le azioni.
 - Due vecchie osservazioni storiche potenzialmente provvisorie: 2
 - Prezzi Yahoo non attestati; cambi BCE indicativi, non eseguibili.
@@ -31,8 +31,8 @@
 - INDEPENDENT_EXECUTABLE_QUOTES
 
 ## Integrità registri
-- Segnali: 05a7de1cc07a5d34f621199cfeaca4668a75100f9a50a240723a4beb79725594
-- Storico: 225a7fd4e40563bd9ebac5f33d5633524f40e8869027d4947af97845b1506361
+- Segnali: 2f550315d1aa2f4aa076d7e9315e14eda7b76d2629c2fefd0844d8d339d8c72f
+- Storico: f2f2b758c9fa827ca0add299b8051863ed7e8180543d1f3e9ad179f84e78548b
 - Forward: 95e4667fe51511f2c9ea553eb9ba8138a7dbbd95129cb6cd1e3212d7eac750ec
 
 **L'audit della Fase 8 è implementato ed eseguito; non autorizza PAPER certificato o ordini reali.**
