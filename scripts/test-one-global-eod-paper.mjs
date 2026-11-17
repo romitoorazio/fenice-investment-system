@@ -207,6 +207,25 @@ const sell=settleOneGlobalEodSignal({
 assert.equal(sell.accounting.virtualSells,1);
 assert.equal(sell.accounting.closedVirtualRoundTrips,1);
 assert.equal(sell.accounting.realizedNetEuro>0,true);
+const declineSell=settleOneGlobalEodSignal({
+  previousLedger:repeatedSignal.ledger,nowIso:"2026-11-16T17:30:00.000Z",
+  signalHash:repeatedSignal.signalHash,
+  marketEvidence:{...sellEvidence,providerReceipts:sellEvidence.providerReceipts.map((q,j)=>({
+    ...q,close:j===0?8:8.002,
+  }))},
+  ownerReviewedRights:rights(),authority,
+});
+assert.equal(declineSell.accounting.virtualSells,1,
+  "Confirmed downtrend SELL must close an existing PAPER position even at a loss");
+assert.equal(declineSell.accounting.closedVirtualRoundTrips,1);
+assert(declineSell.accounting.realizedNetEuro<0,"PAPER must account for losses, not only winners");
+assert(declineSell.ledger.cashEuro<1000);
+assert.equal(declineSell.ledger.positions["XMIL:ENEL"],undefined);
+assert.deepEqual(declineSell.ledger.events.slice(0,repeatedSignal.ledger.events.length),
+  repeatedSignal.ledger.events,"Original BUY and SELL signal hashes must remain untouched");
+assert.equal(declineSell.accounting.phase9Credit,0);
+assert.equal(declineSell.accounting.liveTradingAllowed,false);
+
 assert.equal(sell.ledger.positions["XMIL:ENEL"],undefined);
 assert.equal(sell.accounting.certifiedClosedTrades,0);
 assert.equal(sell.accounting.phase9Credit,0);
