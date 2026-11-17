@@ -33,7 +33,7 @@ function fixture(){
     async read(){return {etag:'"ledger"',body:JSON.stringify(rawJournal)};},
     async readSettlementContext(){return {etag,body:JSON.stringify(c)};},
     async createSourceArtifact({hash,body,contentType}){
-      assert.equal(hash,sha(body));assert.equal(contentType,'text/html');
+      assert.equal(hash,sha(body));assert(['text/html','application/pdf'].includes(contentType));
       assert(Buffer.isBuffer(body));rawWrites++;return {verified:true};
     },
     async createResearchObservation({body}){assert(JSON.parse(body).kind==='ONE_GLOBAL_PRIVATE_INPUT_ORIGINAL');
@@ -47,8 +47,7 @@ function fixture(){
 }
 const fixtures={
   'https://www.alphavantage.co/terms_of_service/':
-    '<html><body>Alpha Vantage grants personal non-commercial use for investment analysis research testing. '+
-    'Some redistribution is not permitted. '.repeat(12)+'</body></html>',
+    Buffer.from('%PDF-1.4\n% SYNTHETIC PDF test fixture, not Alpha Vantage terms.\n'+('fixture only. '.repeat(20))+'\n%%EOF'),
   'https://www.alphavantage.co/stock_api_landing/':
     '<html><body>Alpha Vantage data officially licensed from NASDAQ. '+
     'NASDAQ licensed publisher and exchange data. '.repeat(12)+'</body></html>',
@@ -62,9 +61,10 @@ const fixtures={
 let httpCalls=0;
 const fetcher=async(url,opts)=>{
   httpCalls++;assert.equal(opts.method,'GET');assert.equal(opts.redirect,'error');
-  assert.equal(opts.cache,'no-store');assert.equal(opts.headers.Accept,'text/html');
+  assert.equal(opts.cache,'no-store');
+  assert.equal(opts.headers.Accept,url.includes('terms_of_service')?'application/pdf':'text/html');
   if(!Object.hasOwn(fixtures,url))throw Error('FORBIDDEN_URL');
-  return new Response(fixtures[url],{headers:{'content-type':'text/html;charset=UTF-8'}});
+  return new Response(fixtures[url],{headers:{'content-type':url.includes('terms_of_service')?'application/pdf':'text/html;charset=UTF-8'}});
 };
 const store=fixture();
 const preview=await inspectOneGlobalUsOwnerMapping({storage:store,nowIso:now});
@@ -74,16 +74,17 @@ assert.equal(preview.expectedEtag,'"original"');
 assert.equal(preview.state,'US_MAPPING_OFFICIAL_DOCUMENT_REVIEW_AVAILABLE');
 assert.equal(httpCalls,0,'read-only preview does not fetch or write');
 assert.equal(store.get().writes,0);
+const pinnedAlphaTermsSha256=sha(fixtures['https://www.alphavantage.co/terms_of_service/']);
 const input={confirm:'I_REVIEWED_US_SOURCE_TERMS_AND_PRIVATE_PAPER_SCOPE',
   key:'XNAS:AAPL',expectedEtag:preview.expectedEtag};
 for(const bad of [{...input,confirm:'yes'}, {...input,key:'XNAS:TSLA'},
   {...input,expectedEtag:'"old"'},
   {...input,unexpectedKey:true}]){
-  await assert.rejects(connectOneGlobalUsOwnerMapping({storage:store,input:bad,nowIso:now,fetcher}),
+  await assert.rejects(connectOneGlobalUsOwnerMapping({storage:store,input:bad,nowIso:now,fetcher,pinnedAlphaTermsSha256}),
     /US_OWNER_MAPPING_/);
   assert.equal(store.get().writes,0);
 }
-const saved=await connectOneGlobalUsOwnerMapping({storage:store,input,nowIso:now,fetcher});
+const saved=await connectOneGlobalUsOwnerMapping({storage:store,input,nowIso:now,fetcher,pinnedAlphaTermsSha256});
 assert.equal(saved.state,'US_OWNER_REVIEWED_MAPPING_CONNECTED_PRIVATE');
 assert.equal(saved.originalBytesArchived,true);
 assert.equal(saved.paperFillsCreated,0);
@@ -120,7 +121,7 @@ market.sources[1].independenceEvidenceSha256=h;
 assert.throws(()=>validateOneGlobalSettlementContext({context:badVenue,signal:rawJournal.events[0],nowIso:now}),
   /CLOUD_SETTLEMENT_US_ORIGINAL_PROVENANCE_CAPTURE_INVALID/);
 const failStorage=fixture();
-await assert.rejects(connectOneGlobalUsOwnerMapping({storage:failStorage,input,nowIso:now,
+await assert.rejects(connectOneGlobalUsOwnerMapping({storage:failStorage,input,nowIso:now,pinnedAlphaTermsSha256,
   fetcher:async(url,opts)=>url.includes('paper-trading')?Response.json({error:'not found'},{status:403}):fetcher(url,opts)}),
   /US_OWNER_MAPPING_OFFICIAL_ORIGINAL_HTTP_OR_TYPE_REJECTED/);
 assert.equal(failStorage.get().writes,0);assert.equal(failStorage.get().rawWrites,0);
