@@ -28,10 +28,11 @@ const rawJournal=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLe
   sourceSnapshotHash:'e'.repeat(64),maxNotionalEuro:50,strategyReason:'UPTREND_CONFIRMATION'}}).ledger;
 function fixture(){
   let c=structuredClone(context),etag='"original"',writes=0,rawWrites=0,packetWrites=0;
+  let currentBody=JSON.stringify(c);
   return {
     privateAccess:true,durable:true,atomicCompareAndSwap:true,
     async read(){return {etag:'"ledger"',body:JSON.stringify(rawJournal)};},
-    async readSettlementContext(){return {etag,body:JSON.stringify(c)};},
+    async readSettlementContext(){return {etag,body:currentBody};},
     async createSourceArtifact({hash,body,contentType}){
       assert.equal(hash,sha(body));assert(['text/html','application/pdf'].includes(contentType));
       assert(Buffer.isBuffer(body));rawWrites++;return {verified:true};
@@ -39,7 +40,7 @@ function fixture(){
     async createResearchObservation({body}){assert(JSON.parse(body).kind==='ONE_GLOBAL_PRIVATE_INPUT_ORIGINAL');
       packetWrites++;return {created:true};},
     async writeSettlementContext({expectedEtag,body}){
-      assert.equal(expectedEtag,etag);writes++;c=JSON.parse(body);etag='"reviewed"';
+      assert.equal(expectedEtag,etag);writes++;currentBody=body;c=JSON.parse(body);etag='"reviewed"';
       return {committed:true,etag};
     },
     get(){return {c,writes,rawWrites,packetWrites,etag};}
