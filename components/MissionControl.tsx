@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { MissionControl as MissionControlData, RankedAsset } from "@/lib/mission";
 import { executionReadinessCopy } from "@/lib/ui/execution-readiness-copy";
+import WorldEquityRadar from "./WorldEquityRadar";
+import type {WorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-runtime.mjs";
 
 const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
@@ -92,46 +94,57 @@ function executionLabel(state: ExecutionReadinessState) {
   return "PAPER QUORUM BLOCCATO";
 }
 
-export default function MissionControl({ initialData }: { initialData: MissionControlData }) {
+export default function MissionControl({ initialData,initialWorldEvidence }: {
+  initialData: MissionControlData;initialWorldEvidence?:WorldTacticalEvidence;
+}) {
   const [data, setData] = useState<MissionControlData>(initialData);
   const [readiness, setReadiness] = useState<ReadinessPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [worldEvidence,setWorldEvidence]=useState(initialWorldEvidence??null);
 
   useEffect(() => {
     let active = true;
-    const controller = new AbortController();
+    let controller:AbortController|null=null;
 
     async function load() {
+      // An expired request must not leave every future interval aborted.
+      const request=new AbortController();
+      controller=request;
+      const timeout=window.setTimeout(()=>request.abort(),12_000);
       try {
-        const timeout = window.setTimeout(() => controller.abort(), 12_000);
-        const missionResponse = await fetch("/api/mission", { cache: "no-store", signal: controller.signal });
+        const missionResponse = await fetch("/api/mission", { cache: "no-store", signal: request.signal });
         if (!missionResponse.ok) throw new Error("Mission API non disponibile");
         const nextMission = (await missionResponse.json()) as MissionControlData;
 
         let nextReadiness: ReadinessPayload | null = null;
         try {
-          const readinessResponse = await fetch("/api/trading/readiness", { cache: "no-store", signal: controller.signal });
+          const readinessResponse = await fetch("/api/trading/readiness", { cache: "no-store", signal: request.signal });
           if (readinessResponse.ok) nextReadiness = (await readinessResponse.json()) as ReadinessPayload;
         } catch {
           nextReadiness = null;
         }
 
-        window.clearTimeout(timeout);
+        let nextWorldEvidence:WorldTacticalEvidence|null=null;
+        try{
+          const response=await fetch("/api/research/world-radar",{cache:"no-store",signal:request.signal});
+          if(response.ok)nextWorldEvidence=await response.json() as WorldTacticalEvidence;
+        }catch{ /* The server-rendered evidence keeps its explicit timestamp. */ }
         if (active) {
           setData(nextMission);
           if (nextReadiness) setReadiness(nextReadiness);
+          if(nextWorldEvidence)setWorldEvidence(nextWorldEvidence);
           setError(null);
         }
       } catch (reason) {
         if (active) setError(reason instanceof Error ? reason.message : "Aggiornamento dati non disponibile");
-      }
+      }finally{window.clearTimeout(timeout);}
     }
 
     void load();
     const timer = window.setInterval(() => void load(), 5 * 60 * 1000);
     return () => {
       active = false;
-      controller.abort();
+      controller?.abort();
       window.clearInterval(timer);
     };
   }, []);
@@ -163,6 +176,8 @@ export default function MissionControl({ initialData }: { initialData: MissionCo
             Readiness
           </Link>
         </header>
+
+        {worldEvidence?<WorldEquityRadar evidence={worldEvidence}/>:null}
 
         <section aria-label="Obiettivo economico Fenice" className="rounded-3xl border border-emerald-400/30 bg-emerald-400/[0.06] p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">

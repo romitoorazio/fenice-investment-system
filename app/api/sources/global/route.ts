@@ -1,5 +1,6 @@
 import healthData from "@/data/global-source-health.json";
 import registryData from "@/data/global-source-registry.json";
+import {getWorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,6 +19,7 @@ type SourceHealth = {
 };
 
 export async function GET() {
+  const current=await getWorldTacticalEvidence();
   const health = healthData as {
     version: number;
     generatedAt: string | null;
@@ -38,11 +40,16 @@ export async function GET() {
       registeredSources: registry.sources.length,
       summary: health.summary,
       sources: health.sources,
+      dataHealth:current.dataHealth,
+      dataHealthSource:current.source,
       policy: {
         institutionalSourcesFirst: true,
         crossSourceValidationRequired: true,
-        paidMarketFeedsRequiredForRealtimeExchangeCoverage: true,
+        realtimeExchangeCoverageDependsOnProviderEntitlement: true,
+        admissibleHistoricalPaperDoesNotRequirePaidRealtimeFeed: true,
         autonomousTrading: false,
+        generalAvailabilityIsNotQuoteQuality: true,
+        generalAvailabilityIsNotPaperEvidence: true,
       },
     },
     { headers: { "cache-control": "no-store, max-age=0" } },

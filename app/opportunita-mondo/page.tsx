@@ -11,48 +11,13 @@ import globalSeeds from "@/data/world-paper-v7-research-seeds.json";
 import worldEod from "@/data/world-v7-eod-research.json";
 import worldLedger from "@/data/world-v7-validation-ledger.json";
 import {auditOneGlobalCommitteeWorldCoverage} from "@/lib/intelligence/one-global-committee-world-coverage.mjs";
-import forwardResearch from "@/data/one-global-forward-research-ledger.json";
-import {buildOneGlobalPublicTacticalView} from "@/lib/ui/one-global-world-radar.mjs";
+import {getWorldTacticalEvidence as readLatestWorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-evidence";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export const revalidate=0;
 function serverRequestTime(){return Date.now()}
 
-/**
- * Fetch current GitHub main snapshots SERVER-SIDE, never broker endpoints.
- * A response is accepted only after the research-only radar policy and the
- * forward ledger's SHA256 hash chain validate. If the site was last deployed
- * before the latest World Terminal run, source labels distinguish embedded
- * snapshots from current main. Never emit the source OHLC/close in HTML.
- */
-async function readLatestWorldTacticalEvidence(){
-  const nowIso=new Date(serverRequestTime()).toISOString();
-  try {
-    const files=["terminal-intelligence.json","one-global-forward-research-ledger.json"];
-    const payloads=await Promise.all(files.map(async name=>{
-      const url="https://raw.githubusercontent.com/romitoorazio/fenice-investment-system/main/data/"+name;
-      const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(3500)});
-      if(!response.ok)throw Error("WORLD_RADAR_SOURCE_HTTP_"+response.status);
-      const declared=Number(response.headers.get("content-length"));
-      if(Number.isFinite(declared)&&declared>3_000_000)throw Error("WORLD_RADAR_SOURCE_TOO_LARGE");
-      const raw=await response.text();
-      if(raw.length>3_000_000)throw Error("WORLD_RADAR_SOURCE_TOO_LARGE");
-      return JSON.parse(raw) as unknown;
-    }));
-    const radar=buildOneGlobalPublicTacticalView({
-      terminal:payloads[0],ledger:payloads[1],nowIso,
-    });
-    return {radar,source:"Ultimo GitHub main (verificato)"};
-  }catch {
-    try{
-      const radar=buildOneGlobalPublicTacticalView({
-        terminal,ledger:forwardResearch,nowIso,
-      });
-      return {radar,source:"Snapshot incluso nel sito; aggiornamento GitHub non raggiungibile"};
-    }catch{return {radar:null,source:"Dati non verificabili: radar sospeso"};}
-  }
-}
 export default async function GlobalOpportunitiesPage(){
   const latest=await readLatestWorldTacticalEvidence();
   const radar=latest.radar;

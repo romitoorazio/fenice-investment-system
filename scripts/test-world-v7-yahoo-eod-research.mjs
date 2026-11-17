@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {evaluateYahooBamiEodResearch as check} from "../lib/market/world-v7-yahoo-eod-research.mjs";
+import {evaluateYahooBamiEodResearch as check,evaluateYahooWorldEodResearch} from "../lib/market/world-v7-yahoo-eod-research.mjs";
 const sec=x=>Math.round(Date.parse(x)/1000);
 const now="2026-11-13T12:00:00.000Z";
 const days=[];
@@ -54,12 +54,39 @@ assert.equal(mutate(v=>v.chart.result[0].meta.instrumentType="ETF").observation.
 assert.equal(mutate(v=>v.chart.result[0].timestamp=[]).observation.status,
   "YAHOO_DAILY_SCHEMA_INVALID");
 assert.equal(check(null,now).observation.status,"YAHOO_CHART_UNAVAILABLE");
+// A provisional candle must be excluded before its (unfinished) OHLC is read.
+for(const field of ["open","high","low","close","volume"]){
+  const pending=mutate(v=>v.chart.result[0].indicators.quote[0][field][prices.length-1]=null);
+  assert.equal(pending.observation.status,"TENTATIVE_COMPLETED_DAILY_RESEARCH",field);
+  assert.deepEqual(pending.bars,good.bars,"Current partial OHLC cannot change completed history");
+}
+const completedBad=mutate(v=>v.chart.result[0].indicators.quote[0].high[20]=1);
+assert.equal(completedBad.observation.status,"YAHOO_INVALID_OHLC");
+assert.equal(completedBad.observation.invalidBarSessionDate,days[20]);
+assert.equal(completedBad.observation.invalidBarReason,"INCONSISTENT_OHLC_RANGE");
+for(const [venue,symbol,currency,zone] of [
+  ["XTKS","7203.T","JPY","Asia/Tokyo"],
+  ["XETR","DTE.DE","EUR","Europe/Berlin"],
+]){
+  const raw=structuredClone(payload),meta=raw.chart.result[0].meta;
+  Object.assign(meta,{symbol,currency,exchangeTimezoneName:zone});
+  const result=evaluateYahooWorldEodResearch(venue,raw,now);
+  assert.equal(result.observation.status,"TENTATIVE_COMPLETED_DAILY_RESEARCH");
+  assert.equal(result.observation.venue,venue);
+  assert.equal(result.observation.currency,currency);
+  assert.equal(result.observation.paperFillCount,0);
+  assert.equal(result.observation.licensedPaperSource,false);
+  assert.equal(result.observation.liveTradingAllowed,false);
+  meta.symbol=venue==="XTKS"?"TM":"DTE.DEX";
+  assert.equal(evaluateYahooWorldEodResearch(venue,raw,now).observation.status,"YAHOO_LISTING_IDENTITY_UNVERIFIED");
+}
+assert.throws(()=>evaluateYahooWorldEodResearch("XNYS",payload,now),/UNSUPPORTED_VENUE/);
 assert.throws(()=>check(payload,"not an ISO clock"),/YAHOO_BAMI_INVALID_AUDIT_CLOCK/);
 const wf=readFileSync(".github/workflows/world-v7-eod-research.yml","utf8");
 assert.match(wf,/test-world-v7-yahoo-eod-research\.mjs/);
 assert.match(wf,/world-v7-yahoo-eod-research\.mjs/);
 const runner=readFileSync("scripts/run-world-v7-eod-research.mjs","utf8");
-assert.match(runner,/evaluateYahooBamiEodResearch/);
-assert.match(runner,/venue==="XMIL"/);
+assert.match(runner,/evaluateYahooWorldEodResearch/);
+assert.match(runner,/fallbackForVenue\(venue/);
 assert.match(runner,/YAHOO_BAMI_EOD_FALLBACK/);
 console.log("PASS BAMI Yahoo EOD research fallback: issuer, EUR, Rome, malformed bars, future/same-day exclusion, zero PAPER and LIVE.");

@@ -2,6 +2,8 @@ import Link from "next/link";
 import snapshot from "@/data/latest-snapshot.json";
 import type { AutonomySnapshot } from "@/lib/autonomy";
 import { buildMissionControl } from "@/lib/mission";
+import WorldEquityRadar from "@/components/WorldEquityRadar";
+import {getWorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -61,7 +63,8 @@ function dominantDriver(breakdown: Record<string, number>) {
   return { label: driverLabels[best[0]] ?? best[0], value: best[1] };
 }
 
-export default function RadarPage() {
+export default async function RadarPage() {
+  const worldEvidence=await getWorldTacticalEvidence();
   const data = snapshot as AutonomySnapshot;
   const mission = buildMissionControl(data);
   const markets = data.markets.filter((item) => item.classification !== "stablecoin");
@@ -96,7 +99,7 @@ export default function RadarPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300">Fenice Global Radar · Institutional Diagnostics</p>
-              <h1 className="mt-2 text-3xl font-black">Il mercato intero, con timing, rischio e qualità dati separati dalla narrativa</h1>
+              <h1 className="mt-2 text-3xl font-black">Azioni mondiali e quadro degli altri asset</h1>
               <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
                 Fenice confronta mercati, settori e asset diversi. La convinzione misura la qualità complessiva del candidato;
                 la readiness misura quanto il momento attuale è favorevole a un ingresso. La diagnostica istituzionale mostra anche
@@ -106,6 +109,9 @@ export default function RadarPage() {
             <Link href="/" className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-white/5">← Mission Control</Link>
           </div>
         </header>
+
+        <WorldEquityRadar evidence={worldEvidence}/>
+        <p className="text-sm text-slate-400">Le metriche seguenti descrivono il feed multi asset: includono criptovalute e sono separate dal radar azionario mondiale qui sopra.</p>
 
         <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           {[

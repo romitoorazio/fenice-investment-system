@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildGlobalResearchDesk } from "../lib/ui/global-research-desk.ts";
-const reference = JSON.parse(await readFile(new URL("../data/global-reference-coverage.json", import.meta.url),"utf8"));
 const universe = JSON.parse(await readFile(new URL("../data/global-market-universe.json", import.meta.url),"utf8"));
+// Synthetic catalogue: daily production refreshes must not change this
+// historical ageing/DST and instrument-type aggregation regression.
+const countryCoverage=[
+  {code:"HK",regionId:"asia-pacific",providerCovered:true,instrumentCount:400,
+    instrumentTypes:{"Common Stock":300,Warrant:100}},
+  {code:"JP",regionId:"asia-pacific",providerCovered:true,instrumentCount:500,
+    instrumentTypes:{"Common Stock":450,Warrant:50}},
+  {code:"IT",regionId:"europe",providerCovered:true,instrumentCount:250,
+    instrumentTypes:{"Common Stock":200,Warrant:50}},
+];
+const reference={generatedAt:"2026-10-13T09:00:00.000Z",countryCoverage,
+  regionCoverage:universe.regions.map(r=>({regionId:r.id,targetCountries:r.countries.length,
+    providerMatchedCountries:countryCoverage.filter(c=>c.regionId===r.id).length,
+    instrumentCount:countryCoverage.filter(c=>c.regionId===r.id).reduce((n,c)=>n+c.instrumentCount,0)})),
+  safety:{researchOnly:true,paperExecutionAllowed:false,liveTradingAllowed:false,
+    brokerConnectivityAllowed:false,isolatedFromPaperV6InstrumentMaster:true,changesPaperV6Fingerprint:false},
+};
 const monday = Date.parse("2026-10-19T02:00:00Z");
 const desk = buildGlobalResearchDesk(universe, reference, monday);
 assert.equal(desk.summary.representedRegions, 5);
@@ -12,11 +28,11 @@ assert.equal(desk.venues.length, 15);
 assert.equal(new Set(desk.venues.map(x=>x.mic)).size, 15);
 assert.equal(desk.summary.verifiedWorldExecutionVenues, 0);
 assert.equal(desk.referenceState, "REVIEW_OUTDATED", "13 Oct reference snapshot is not current on 19 Oct");
-assert.equal(desk.regions.find(x=>x.id==="asia-pacific").matchedCountries, 14);
+assert.equal(desk.regions.find(x=>x.id==="asia-pacific").matchedCountries, 2);
 assert.equal(desk.regions.find(x=>x.id==="asia-pacific").targetCountries, 30);
-assert.equal(desk.regions.find(x=>x.id==="asia-pacific").ordinaryShareReferences, 34825);
-assert.equal(desk.regions.find(x=>x.id==="asia-pacific").warrantReferences, 19526);
-assert.equal(desk.regions.find(x=>x.id==="europe").ordinaryShareReferences, 97701);
+assert.equal(desk.regions.find(x=>x.id==="asia-pacific").ordinaryShareReferences, 750);
+assert.equal(desk.regions.find(x=>x.id==="asia-pacific").warrantReferences, 150);
+assert.equal(desk.regions.find(x=>x.id==="europe").ordinaryShareReferences, 200);
 assert.equal(desk.venues.find(x=>x.mic==="XHKG").researchWindowCandidate, true);
 assert.equal(desk.venues.find(x=>x.mic==="XLON").researchWindowCandidate, false);
 assert.equal(desk.venues.find(x=>x.mic==="XNAS").researchWindowCandidate, false);

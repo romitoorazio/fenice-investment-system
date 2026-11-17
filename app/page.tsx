@@ -3,16 +3,18 @@ import MissionControl from "../components/MissionControl";
 import snapshot from "@/data/latest-snapshot.json";
 import type { AutonomySnapshot } from "@/lib/autonomy";
 import { buildMissionControl } from "@/lib/mission";
+import {getWorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-evidence";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default function Home() {
+export default async function Home() {
   const mission = buildMissionControl(snapshot as AutonomySnapshot);
+  const worldEvidence=await getWorldTacticalEvidence();
 
   return (
     <>
-      <MissionControl initialData={mission} />
+      <MissionControl initialData={mission} initialWorldEvidence={worldEvidence} />
       <nav
         className="fixed inset-x-3 z-50 mx-auto flex max-w-5xl items-center gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur sm:justify-around"
         style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
