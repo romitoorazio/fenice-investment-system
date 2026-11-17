@@ -5,6 +5,10 @@ type InputStatus={state:string;contextPresent?:boolean;contextEtag?:string|null;
 type ArchiveAudit={state:string;archiveScanComplete?:boolean;examinedArchiveObjects?:number;
   verifiedArchivedContexts?:number;pendingWithoutCurrentMappings?:number;
   historicalMappingCandidates?:{key:string;mic:string;archivedWithCurrentConsent:boolean}[]};
+type UsMappingPreview={state:string;signalKey?:string;referenceSessionDate?:string;
+  nextSessionDate?:string;expectedEtag?:string;officialTerms?:{
+    alphaRights:string;alphaOrigin:string;alpacaIex:string;nasdaqCalendar:string};
+  originalBytesArchived?:boolean;paperFillsCreated?:number};
 const endpoint="/api/paper/one-global-private-inputs";
 const style={border:"1px solid #475569",borderRadius:10,padding:16,marginTop:20};
 function blockerText(code:string){
@@ -24,6 +28,43 @@ export default function OneGlobalPrivateInputPanel(){
   const [note,setNote]=useState("");
   const [archiveAudit,setArchiveAudit]=useState<ArchiveAudit|null>(null);
   const [auditBusy,setAuditBusy]=useState(false);
+  const [usPreview,setUsPreview]=useState<UsMappingPreview|null>(null);
+  const [usBusy,setUsBusy]=useState(false);
+  const [usReviewed,setUsReviewed]=useState(false);
+  const [usNote,setUsNote]=useState("");
+  async function inspectUs(){
+    if(usBusy||busy)return;
+    setUsBusy(true);setUsReviewed(false);setUsNote("");
+    try{
+      const response=await fetch("/api/paper/one-global-private-us-mapping",{
+        credentials:"same-origin",cache:"no-store"});
+      const data=await response.json() as UsMappingPreview;
+      setUsPreview(data);
+      if(!response.ok)setUsNote("Prove USA non verificabili: "+data.state);
+    }catch{setUsNote("Il controllo privato USA non è disponibile; nessun dato modificato.");}
+    finally{setUsBusy(false);}
+  }
+  async function connectUs(){
+    if(!usReviewed||usBusy||busy||!usPreview?.signalKey||!usPreview?.expectedEtag
+      ||usPreview.state!=="US_MAPPING_OFFICIAL_DOCUMENT_REVIEW_AVAILABLE")return;
+    setUsBusy(true);setUsNote("");
+    try{
+      const response=await fetch("/api/paper/one-global-private-us-mapping",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({confirm:"I_REVIEWED_US_SOURCE_TERMS_AND_PRIVATE_PAPER_SCOPE",
+          key:usPreview.signalKey,expectedEtag:usPreview.expectedEtag})});
+      const data=await response.json() as UsMappingPreview;
+      if(response.ok&&data.state==="US_OWNER_REVIEWED_MAPPING_CONNECTED_PRIVATE"){
+        setUsNote("Mappatura USA collegata agli originali archiviati. Non è stato creato un FILL.");
+        setUsPreview(data);await refresh();
+      }else{
+        setUsNote("Collegamento non confermato: "+(data.state||"PROVE_NON_VALIDE"));
+        setUsPreview(null);
+      }
+    }catch{setUsNote("Nessuna importazione confermata. Ricontrolla prima di ripetere.");setUsPreview(null);}
+    finally{setUsBusy(false);}
+  }
   async function auditArchives(){
     if(auditBusy||busy)return;
     setAuditBusy(true);setArchiveAudit(null);
@@ -110,6 +151,41 @@ export default function OneGlobalPrivateInputPanel(){
           {m.key}: mapping storico trovato; consenso {m.archivedWithCurrentConsent?"coincidente":"diverso o non verificato"}.
           Serve verifica delle condizioni originali prima di riutilizzarlo.</p>)}
       </div>:null}
+    </div>
+    <div style={{borderTop:"1px solid #475569",marginTop:18,paddingTop:14}}>
+      <h3 style={{fontWeight:600}}>Mappatura USA guidata · Alpaca Basic IEX</h3>
+      <p>Solo per il proprietario. Verifica il segnale originale, consulta le condizioni ufficiali
+        e collega le prove nel Blob privato senza preparare un JSON a mano.
+        Il servizio rifiuta pagine non verificabili e non permette ordini reali.</p>
+      <button type="button" disabled={busy||usBusy} onClick={()=>void inspectUs()}
+        style={{padding:"10px 14px",border:"1px solid #64748b",borderRadius:8}}>
+        {usBusy?"Controllo privato USA...":"Verifica il segnale USA e prepara il mapping"}
+      </button>
+      {usPreview?.signalKey?<div role="status" style={{marginTop:12}}>
+        <p>Stato: <strong>{usPreview.state}</strong>. Segnale: <strong>{usPreview.signalKey}</strong>.
+          Seduta successiva: {usPreview.nextSessionDate}.</p>
+        {usPreview.state==="US_MAPPING_OFFICIAL_DOCUMENT_REVIEW_AVAILABLE"&&usPreview.officialTerms?<>
+          <p>Leggi le condizioni originali prima di confermare. IEX è una singola borsa, non SIP consolidato:</p>
+          <ul style={{paddingLeft:20}}>
+            <li><a href={usPreview.officialTerms.alphaRights} target="_blank" rel="noopener noreferrer">Diritti personali Alpha Vantage</a></li>
+            <li><a href={usPreview.officialTerms.alphaOrigin} target="_blank" rel="noopener noreferrer">Origine dati Alpha Vantage</a></li>
+            <li><a href={usPreview.officialTerms.alpacaIex} target="_blank" rel="noopener noreferrer">Alpaca Paper Only e mercato IEX</a></li>
+            <li><a href={usPreview.officialTerms.nasdaqCalendar} target="_blank" rel="noopener noreferrer">Calendario ufficiale Nasdaq</a></li>
+          </ul>
+          <label style={{display:"flex",gap:10,margin:"12px 0"}}>
+            <input type="checkbox" checked={usReviewed} onChange={e=>setUsReviewed(e.target.checked)}/>
+            Confermo come proprietario di aver esaminato i documenti, di usare i dati
+            solo per la mia ricerca PAPER privata non commerciale e di avere diritto
+            a tale utilizzo sui miei account, senza redistribuzione.
+          </label>
+          <button type="button" disabled={busy||usBusy||!usReviewed}
+            onClick={()=>void connectUs()}
+            style={{padding:"12px 16px",borderRadius:8,background:"#334155",color:"white"}}>
+            Verifica gli originali e collega mapping USA
+          </button>
+        </>:null}
+      </div>:null}
+      {usNote?<p role="status">{usNote}</p>:null}
     </div>
     {note?<p role="status">{note}</p>:null}
     <p style={{fontSize:13}}>Il consenso non sostituisce i diritti dei provider, la prova delle fonti indipendenti e della seduta. Queste autorizzazioni non vengono generate dal software.</p>
