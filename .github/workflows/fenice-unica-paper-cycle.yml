@@ -12,6 +12,7 @@ on:
     paths:
       - "scripts/fenice-unica-paper-cycle.mjs"
       - "scripts/test-fenice-unica-paper-cycle.mjs"
+      - "scripts/test-one-global-scoreboard-ci-coverage.mjs"
       - "scripts/run-one-global-strategy-paper.mjs"
       - "data/one-global-strategy-paper-ledger.json"
       - "lib/trading/one-global-strategy-ledger-audit.mjs"
@@ -60,6 +61,22 @@ on:
       - "scripts/test-one-global-private-intake.mjs"
       - "scripts/run-one-global-strategy-paper.mjs"
       - "scripts/test-fenice-unica-paper-cycle.mjs"
+      - "scripts/test-one-global-scoreboard-ci-coverage.mjs"
+      - "lib/trading/one-global-strategy-ledger-audit.mjs"
+      - "scripts/test-one-global-strategy-ledger-audit.mjs"
+      - "scripts/diagnose-one-global-venues.mjs"
+      - "scripts/test-one-global-venue-readiness.mjs"
+      - "scripts/test-one-global-venue-ui.mjs"
+      - "scripts/test-one-global-strategy-paper.mjs"
+      - "app/opportunita-mondo/page.tsx"
+      - "app/paper-mondo/page.tsx"
+      - "lib/trading/one-global-forward-research.mjs"
+      - "scripts/run-one-global-forward-research.mjs"
+      - "scripts/test-one-global-forward-research.mjs"
+      - "scripts/discover-one-global-esef-filings.mjs"
+      - "scripts/report-one-global-forward-research.mjs"
+      - "data/one-global-strategy-paper-ledger.json"
+      - "scripts/test-one-global-esef-discovery.mjs"
       - "lib/intelligence/one-global-committee-world-coverage.mjs"
       - "scripts/audit-one-global-committee-coverage.mjs"
       - "scripts/test-one-global-committee-coverage.mjs"
@@ -108,6 +125,7 @@ jobs:
           node-version: "22"
       - name: Fail-closed replay and test of one global scorecard
         run: |
+          node scripts/test-one-global-scoreboard-ci-coverage.mjs
           node scripts/test-fenice-unica-paper-cycle.mjs
           node scripts/test-one-global-strategy-paper.mjs
           node scripts/test-one-global-private-intake.mjs

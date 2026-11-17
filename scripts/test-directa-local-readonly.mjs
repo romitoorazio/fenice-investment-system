@@ -124,6 +124,18 @@ assert.equal(full.snapshot.positions.length, 1);
 assert.equal(full.snapshot.orders.length, 1);
 assert.equal(full.snapshot.diagnostics.localReadOnly.orderListCompletion, "FLOWPOINT_END");
 
+// Duplicate rows used to collapse silently in the frozen Map reducer. A
+// complete broker list cannot contain contradictory copies of one holding
+// or reuse an order ID/reference for a second row.
+blocked(await observe({INFOSTOCKS:"BEGIN STOCKLIST\n"+stock+stock+"END STOCKLIST\n"}),
+  "DUPLICATE_STOCK_LIST_ROW");
+blocked(await observe({INFOSTOCKS:"BEGIN STOCKLIST\n"+stock+stock.replace(";2;0;",";9;0;")+"END STOCKLIST\n"}),
+  "DUPLICATE_STOCK_LIST_ROW");
+blocked(await observe({ORDERLIST:"BEGIN ORDERLIST\n"+order+order+"END ORDERLIST\n"}),
+  "DUPLICATE_ORDER_LIST_ROW");
+blocked(await observe({ORDERLIST:"BEGIN ORDERLIST\n"+order+order.replace(";PRIVATE_ID;",";OTHER_ID;")+"END ORDERLIST\n"}),
+  "DUPLICATE_ORDER_LIST_ROW");
+
 // The documented initial >=100 cancelled-order filter must never erase real orders.
 const filteredStartup = await observe({ ORDERLIST: "BEGIN ORDERLIST\n" + order + "END ORDERLIST\n" }, {
   startup: status + account + availability + "ERR;N/A;1019\n",
