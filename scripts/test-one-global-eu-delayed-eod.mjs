@@ -210,6 +210,21 @@ assert.equal(cycleStore.ledger.events.at(-1).kind,'SIGNAL');assert.equal(cycleSt
 assert.equal(replayOneGlobalEodPaperLedger(cycleStore.ledger).virtualBuys,0);
 const repeated=await runOneGlobalCloudEuProspectiveCycle({storage:cycleStore,clock:()=>cycleNow,fetcher,ensureEvidenceContext});
 assert.equal(repeated.state,'EU_SESSION_SIGNAL_ALREADY_COMMITTED');assert.equal(cycleStore.writes,1);assert.equal(evidenceCalls,1);
+// Both HTTPS requests may succeed while neither official venue parser can
+// establish a usable close. This is unavailable evidence, NOT a measured no-uptrend.
+const invalidVenueStore=memory();
+const invalidVenueZip=zipCsv(euronextCsv({venue:'XPAR'}));
+const invalidVenueFetcher=async(url,init)=>String(url).includes('marketdata.euronext.com')
+  ?new Response(invalidVenueZip):fetcher(url,init);
+const invalidVenueCycle=await runOneGlobalCloudEuProspectiveCycle({storage:invalidVenueStore,
+  clock:()=>cycleNow,fetcher:invalidVenueFetcher,ensureEvidenceContext});
+assert.equal(invalidVenueCycle.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
+assert(invalidVenueCycle.sourcePairsAttempted>=1);
+assert.equal(invalidVenueCycle.newSignals,0);
+assert.equal(invalidVenueCycle.paperFillsCreated,0);
+assert.equal(invalidVenueStore.writes,0);
+assert.equal(invalidVenueStore.artifacts,0);
+assert.equal(invalidVenueStore.observations,0);
 const weekendStore=memory();
 const weekend=await runOneGlobalCloudEuProspectiveCycle({storage:weekendStore,clock:()=>'2026-11-14T17:15:00.000Z',
   fetcher:async()=>{throw Error('weekend must not fetch');},ensureEvidenceContext});
