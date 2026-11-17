@@ -337,6 +337,14 @@ const tuesdayAgain=await runOneGlobalCloudSettlementCycle({storage:mondayStore,
   clock:()=>'2026-11-17T18:15:00.000Z',fetcher:async()=>{throw Error('Already settled EU signal must not refetch');}});
 assert.equal(tuesdayAgain.paperFillsCreated,0);assert.equal(mondayStore.writes,2);
 assert.equal(tuesdayAgain.liveTradingAllowed,false);
+// A held instrument must not acquire another BUY signal that the strict
+// settlement engine can never execute. Other unheld candidates remain eligible.
+const heldTuesday=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore,
+  clock:()=>'2026-11-17T17:20:00.000Z',fetcher:tuesdayFetcher,
+  ensureEvidenceContext:async()=>{throw Error('Held instrument must not archive another signal');}});
+assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,1);
+assert.equal(heldTuesday.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
+assert.equal(mondayStore.writes,2,'held ENEL must not create a permanently blocked second BUY');
 console.log('PASS complete 16-17 November chain: Monday forward SIGNAL -> Tuesday exact dual venue -> originals -> archive -> CAS -> hash replay -> no duplicate. SYNTHETIC ONLY.');
 const bothWrong=[];
 await assert.rejects(fetchOneGlobalSettlementSource({source:settlementSource,signal,
