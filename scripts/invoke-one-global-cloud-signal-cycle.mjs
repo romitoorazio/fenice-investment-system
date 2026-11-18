@@ -54,13 +54,13 @@ try{
       throw Error('FORENSIC_STATUS_NOT_VERIFIED');
     console.log('ONE_GLOBAL_FIRST_FILL_FORENSIC='+audit.state);
     if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      '\\n## First original FILL — read-only forensic audit\\n'
-      +'\\n| Check | Result |\\n|---|---|\\n'
-      +'| Verdict | '+audit.state+' |\\n'
-      +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\\n'
-      +'| Missing evidence groups | '+audit.missingEvidenceCount+' |\\n'
-      +'| Evidence defects | '+audit.defectCount+' |\\n'
-      +'| Phase 9 / Directa LIVE | DISABLED |\\n',
+      '\n## First original FILL — read-only forensic audit\n'
+      +'\n| Check | Result |\n|---|---|\n'
+      +'| Verdict | '+audit.state+' |\n'
+      +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\n'
+      +'| Missing evidence groups | '+audit.missingEvidenceCount+' |\n'
+      +'| Evidence defects | '+audit.defectCount+' |\n'
+      +'| Phase 9 / Directa LIVE | DISABLED |\n',
       {encoding:'utf8'});
   }catch{
     // Safe warning only: NEVER echo the private endpoint body or its error.
