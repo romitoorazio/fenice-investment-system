@@ -125,6 +125,32 @@ assert.equal(euCommitSummary.report.paperFillsCreated,0,'A SIGNAL must never mas
 assert.equal(euCommitSummary.status,'PAPER_BLOCKED','Expired CBA can still be pending when fresh EU SIGNAL is valid');
 assert.match(euCommitSummary.euAnnotation,/^::notice title=FENICE EU SIGNAL RECORDED::/);
 assert.match(euCommitSummary.markdown,/EU next-session evidence \| CONNECTED/);
+// Regression for PR #567: a genuine research SELL can be committed into the
+// original journal. The public allowlist MUST accept it without leaking
+// holdings, prices, original receipts or declaring it a completed FILL.
+const euExitCommitted={...euProspectiveCommitted,state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',
+  privatePosition:{key:'XMIL:ENEL',cashEuro:999},rawPrice:123456};
+const exitReport={...fixture,
+  state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
+  pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,
+  sourceEvidenceArchived:true,euSignalCycle:euExitCommitted};
+const euExitSummary=oneGlobalActionsCycleSummary(exitReport);
+assert.equal(euExitSummary.report.euSignalCycle.state,'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE');
+assert.equal(euExitSummary.report.euSignalCycle.newSignals,1);
+assert.equal(euExitSummary.report.paperFillsCreated,0,'An EXIT SIGNAL is not a settled SELL');
+assert.match(euExitSummary.euAnnotation,/EU SIGNAL RECORDED/);
+assert.doesNotMatch(JSON.stringify(euExitSummary),/privatePosition|rawPrice|123456|cashEuro/);
+assert.throws(()=>publicReport({...exitReport,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE'}),
+  /NOT_VERIFIED/,'Reject mismatched reported BUY versus committed SELL state');
+assert.throws(()=>publicReport({...exitReport,euSignalCycle:{...euExitCommitted,newSignals:0}}),
+  /NOT_VERIFIED/,'Never mask an original SELL SIGNAL as a no-op');
+const alreadyHeld=publicReport({...fixture,euSignalCycle:{
+  ...euProspectiveBlocked,state:'EU_ALL_CANDIDATES_ALREADY_HELD_OR_PENDING'}});
+assert.equal(alreadyHeld.euSignalCycle.state,'EU_ALL_CANDIDATES_ALREADY_HELD_OR_PENDING');
+assert.equal(alreadyHeld.euSignalCycle.canonicalSignalCommitted,false);
+assert.equal(alreadyHeld.paperFillsCreated,0);
+console.log('PASS ONE GLOBAL EU SELL Actions report: exit signal, held-position no-op, strict matching, no fake FILL or private leakage.');
+
 for(const q of [
   {...euProspectiveBlocked,state:'EU_FAKE_SIGNAL_COMMITTED'},
   {...euProspectiveBlocked,newSignals:1},
