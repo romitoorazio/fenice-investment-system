@@ -188,12 +188,24 @@ const existing=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedg
 }}).ledger;
 function memory(ledger=existing){
   let body=ledger===null?null:JSON.stringify(ledger),etag='"eu-1"',writes=0,observations=0,artifacts=0;
+  // Synthetic-only immutable archive backing the forensic HEAD readback.
+  const originals=new Map();
   return {privateAccess:true,durable:true,atomicCompareAndSwap:true,
     async read(){return body===null?null:{body,etag};},
     async createSourceArtifact({hash,body:raw,contentType}){assert.equal(createHash('sha256').update(raw).digest('hex'),hash);
       assert(['application/zip','text/csv','application/json'].includes(contentType));artifacts++;return {created:true,verified:true};},
     async createResearchObservation({hash,body:observation}){const parsed=JSON.parse(observation);
-      assert.equal(createHash('sha256').update(JSON.stringify(parsed.report??parsed)).digest('hex'),hash);observations++;return {created:true};},
+      assert.equal(createHash('sha256').update(JSON.stringify(parsed.report??parsed)).digest('hex'),hash);
+      assert.equal(originals.has(hash),false,'Synthetic immutable research archive cannot be overwritten');
+      originals.set(hash,observation);observations++;return {created:true};},
+    async readResearchObservation(hash){
+      const body=originals.get(hash);
+      return body===undefined?null:{
+        body:Buffer.from(body),
+        uploadedAt:new Date('2026-11-17T17:14:59.500Z'),
+        uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD',
+      };
+    },
     async compareAndSwap(input){assert.equal(input.expectedEtag,etag);body=input.body;etag='"eu-2"';writes++;return {committed:true,etag};},
     get ledger(){return body===null?null:JSON.parse(body);},get writes(){return writes;},get observations(){return observations;},get artifacts(){return artifacts;},
   };
@@ -376,6 +388,10 @@ assert.deepEqual(mondayStore.ledger.events.slice(0,-1),beforeTuesday.events);
 assert.equal(mondayStore.ledger.events.at(-1).signalHash,beforeTuesday.lastHash);
 assert.equal(mondayStore.ledger.events.at(-1).sessionDate,tuesday);
 assert.match(mondayStore.ledger.events.at(-1).settlementEvidenceArchiveSha256,/^[a-f0-9]{64}$/);
+assert(Date.parse(mondayStore.ledger.events.at(-1).recordedAt)>=
+  (await mondayStore.readResearchObservation(mondayStore.ledger.events.at(-1)
+    .settlementEvidenceArchiveSha256)).uploadedAt.getTime(),
+  'Original next-session synthetic FILL timestamp cannot predate private source evidence');
 assert.equal(replayOneGlobalEodPaperLedger(mondayStore.ledger).virtualBuys,1);
 const tuesdayAgain=await runOneGlobalCloudSettlementCycle({storage:mondayStore,
   clock:()=>'2026-11-17T18:15:00.000Z',fetcher:async()=>{throw Error('Already settled EU signal must not refetch');}});
