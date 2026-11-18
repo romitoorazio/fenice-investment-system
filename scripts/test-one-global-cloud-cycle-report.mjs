@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSummary,
+  publicOneGlobalFirstFillForensicSummary as forensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 const fixture={state:'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:true,originalEventsPreserved:true,
   journalEventCount:3,pendingSignalCount:1,virtualFillCount:0,paperFillsCreated:0,newSignals:0,sourcePairsAttempted:0,
   settlementState:'SETTLEMENT_BLOCKED',settlementSourceRequests:0,
@@ -125,6 +126,32 @@ assert.equal(euCommitSummary.report.paperFillsCreated,0,'A SIGNAL must never mas
 assert.equal(euCommitSummary.status,'PAPER_BLOCKED','Expired CBA can still be pending when fresh EU SIGNAL is valid');
 assert.match(euCommitSummary.euAnnotation,/^::notice title=FENICE EU SIGNAL RECORDED::/);
 assert.match(euCommitSummary.markdown,/EU next-session evidence \| CONNECTED/);
+// Regression for PR #567: a genuine research SELL can be committed into the
+// original journal. The public allowlist MUST accept it without leaking
+// holdings, prices, original receipts or declaring it a completed FILL.
+const euExitCommitted={...euProspectiveCommitted,state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',
+  privatePosition:{key:'XMIL:ENEL',cashEuro:999},rawPrice:123456};
+const exitReport={...fixture,
+  state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
+  pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,
+  sourceEvidenceArchived:true,euSignalCycle:euExitCommitted};
+const euExitSummary=oneGlobalActionsCycleSummary(exitReport);
+assert.equal(euExitSummary.report.euSignalCycle.state,'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE');
+assert.equal(euExitSummary.report.euSignalCycle.newSignals,1);
+assert.equal(euExitSummary.report.paperFillsCreated,0,'An EXIT SIGNAL is not a settled SELL');
+assert.match(euExitSummary.euAnnotation,/EU SIGNAL RECORDED/);
+assert.doesNotMatch(JSON.stringify(euExitSummary),/privatePosition|rawPrice|123456|cashEuro/);
+assert.throws(()=>publicReport({...exitReport,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE'}),
+  /NOT_VERIFIED/,'Reject mismatched reported BUY versus committed SELL state');
+assert.throws(()=>publicReport({...exitReport,euSignalCycle:{...euExitCommitted,newSignals:0}}),
+  /NOT_VERIFIED/,'Never mask an original SELL SIGNAL as a no-op');
+const alreadyHeld=publicReport({...fixture,euSignalCycle:{
+  ...euProspectiveBlocked,state:'EU_ALL_CANDIDATES_ALREADY_HELD_OR_PENDING'}});
+assert.equal(alreadyHeld.euSignalCycle.state,'EU_ALL_CANDIDATES_ALREADY_HELD_OR_PENDING');
+assert.equal(alreadyHeld.euSignalCycle.canonicalSignalCommitted,false);
+assert.equal(alreadyHeld.paperFillsCreated,0);
+console.log('PASS ONE GLOBAL EU SELL Actions report: exit signal, held-position no-op, strict matching, no fake FILL or private leakage.');
+
 for(const q of [
   {...euProspectiveBlocked,state:'EU_FAKE_SIGNAL_COMMITTED'},
   {...euProspectiveBlocked,newSignals:1},
@@ -137,3 +164,48 @@ for(const q of [
 ])assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,euSignalCycle:q}),/NOT_VERIFIED/,
   'No forged or internally contradictory EU run status');
 console.log('PASS separated EU SIGNAL visibility: source-failure warning, private next-session SIGNAL notice, older CBA block still disclosed, zero fake FILL/secret leaks.');
+
+
+// The OIDC Actions forensic status must never publish original instruments,
+// receipts, owner consent, account values, document bytes or content hashes.
+const auditChecks=[
+  'ORIGINAL_HASH_CHAIN_AND_ACCOUNT_REPLAY',
+  'ORIGINAL_SETTLEMENT_ARCHIVE_AND_RECEIPTS_BOUND_TO_FILL',
+  'ORIGINAL_DOCUMENT_BYTES_CONSENT_RIGHTS_MAPPING_AND_EXACT_SESSION',
+  'BOTH_ORIGINAL_VENUE_FILES_REPARSED_EXACTLY',
+  'ARCHIVED_OFFICIAL_USAGE_POLICIES_CALENDAR_AND_DISCOVERY',
+  'PROSPECTIVE_SIGNAL_RECOMPUTED_FROM_ORIGINAL_PRIOR_SESSION_BYTES',
+  'EXACT_FILL_EVENT_QUANTITY_FEE_BALANCE_AND_HASH_REPRODUCED',
+  'ONE_FILL_FOR_SIGNAL_AND_SINGLE_OPEN_POSITION',
+  'ORIGINAL_JOURNAL_UNCHANGED_DURING_AUDIT',
+  'ORIGINAL_STORAGE_TIMESTAMPS_PRESERVE_PROSPECTIVE_EVIDENCE',
+];
+const rawAudit={state:'FILL_RIGOROUS_REPLAY_VERIFIED',
+  checks:auditChecks.map(name=>({name,verified:true,privateRaw:'SECRET'})),
+  missingEvidence:[],defects:[],journalMutationAllowed:false,
+  paperFillsCreated:0,certifiedTrades:0,phase9Credit:0,
+  brokerConnectivityAllowed:false,liveTradingAllowed:false,
+  identity:{key:'XMIL:BAMI',signalHash:'PRIVATE_HASH'},accounting:{cashEuro:999,price:12345},
+  originalPolicy:'VERY_PRIVATE'};
+const safeAudit=forensicSummary(rawAudit);
+assert.equal(safeAudit.firstFillForensicallyVerified,true);
+assert.equal(safeAudit.checksPassed,10);
+assert.equal(safeAudit.originalJournalReplayed,true);
+assert.equal(safeAudit.phase9Credit,0);
+assert.doesNotMatch(JSON.stringify(safeAudit),/SECRET|PRIVATE_HASH|XMIL|12345|cashEuro|originalPolicy/);
+const incompleteAudit=forensicSummary({...rawAudit,state:'FILL_NOT_YET_VERIFIABLE',
+  checks:rawAudit.checks.slice(0,2),missingEvidence:[{code:'MISSING_ORIGINAL',path:'SECRET'}]});
+assert.equal(incompleteAudit.firstFillForensicallyVerified,false);
+assert.equal(incompleteAudit.missingEvidenceCount,1);
+assert.doesNotMatch(JSON.stringify(incompleteAudit),/SECRET|MISSING_ORIGINAL/);
+for(const delta of [
+  {state:'FILL_RIGOROUS_REPLAY_VERIFIED',checks:rawAudit.checks.slice(0,9)},
+  {missingEvidence:[{code:'SECRET'}]},
+  {defects:['TAMPERED']},
+  {checks:[...rawAudit.checks,rawAudit.checks[0]]},
+  {checks:[...rawAudit.checks.slice(0,9),{name:'FORGED_CERTIFICATION',verified:true}]},
+  {liveTradingAllowed:true},{phase9Credit:1},{brokerConnectivityAllowed:true},
+  {state:'FAKE_VERIFIED_FILL'},
+])assert.throws(()=>forensicSummary({...rawAudit,...delta}),/NOT_VERIFIED/,
+  'No forged forensic proof or escalated broker authority');
+console.log('PASS first original FILL forensic Actions attestation: 10 exact checks, incomplete evidence, no leaks or broker elevation.');

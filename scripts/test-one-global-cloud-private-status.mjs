@@ -8,7 +8,7 @@ const snapshot=(ledger)=>({etag:'"e1"',body:JSON.stringify(ledger)});
 const store=(data)=>({privateAccess:true,durable:true,async read(){return data;}});
 const assertNeverPrivateMaterial=(x)=>{
  const serialized=JSON.stringify(x);
- for(const text of ['cashEuro','positions','sourceSnapshotHash','providerReceipts','lastHash',
+ for(const text of ['realBrokerOrders','cashEuro','positions','sourceSnapshotHash','providerReceipts','lastHash',
     'ownerConsent','payloadSha256','fxRateToEuro','signalId','token','etag'])
    assert.equal(serialized.includes('"'+text+'"'),false,'private field must never leave server: '+text);
  assert.equal(x.liveTradingAllowed,false);
@@ -24,6 +24,8 @@ const original=await inspect({storage:store(snapshot(initial))});
 assert.equal(original.state,'ORIGINAL_JOURNAL_VALID_PRIVATE');
 assert.equal(original.journalEventCount,0);
 assert.equal(original.virtualBuyCount,0);
+assert.equal(original.virtualRealizedNetEuro,0);
+assert.equal(original.virtualPerformanceCertified,false);
 assertNeverPrivateMaterial(original);
 const signal={
  signalId:'fenice-xnas-aapl-20261113-readonly-probe',
@@ -51,6 +53,9 @@ assert.equal(populated.state,'ORIGINAL_JOURNAL_VALID_PRIVATE');
 assert.equal(populated.journalEventCount,1);
 assert.equal(populated.pendingSignalCount,1);
 assert.equal(populated.virtualBuyCount,0);
+assert.equal(populated.virtualRealizedNetEuro,0);
+assert.equal(populated.virtualPerformanceCertified,false);
+assert.equal(populated.closedVirtualRoundTrips,0);
 assert.equal(reads,1);
 assertNeverPrivateMaterial(populated);
 assert.equal(initial.events.length,0,'original source not mutated');
