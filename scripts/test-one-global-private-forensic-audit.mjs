@@ -7,6 +7,9 @@ import {buildOneGlobalEuDualVenueReport,oneGlobalEuReceipt,oneGlobalMilanSession
 import {createVercelPrivateEodBlobStore} from '../lib/trading/one-global-vercel-private-blob-store.mjs';
 import {publicOneGlobalSecondFillForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
+import {buildFirstPaperFreeEodEvidence} from '../lib/market/one-global-first-paper-dual-eod.mjs';
+import {buildOneGlobalProspectiveSignalFromDualEod} from '../lib/trading/one-global-prospective-dual-eod-bridge.mjs';
+import {selectOneGlobalEcbCurrencyReference} from '../lib/market/one-global-cloud-ecb-reference.mjs';
 
 // SYNTHETIC ONLY. No private journal, consent, publisher payload or actual
 // production fill is committed in this fixture; no network request is made.
@@ -261,4 +264,127 @@ assert.match(route,/verifyFeniceOwnerSession/);assert.match(route,/isOwnerAuthor
 assert.match(route,/pinOneGlobalRecoveredOriginalStore/);
 assert.match(readFileSync('app/api/paper/one-global-private-signal-cycle/route.js','utf8'),/AUDIT_SECOND_FILL_READ_ONLY/);
 assert.doesNotMatch(route,/export async function (?:POST|PUT|PATCH|DELETE)|console\.|\.put\(|\.compareAndSwap\(/);
+
+// Synthetic US second FILL AFTER an independent Milan FILL. All private
+// originals are supplied entirely in memory: no production Blob, API or CAS.
+const usSignalDate='2026-11-17',usFillDate='2026-11-18';
+const usResearchAt='2026-11-17T21:30:00.000Z',usSignalAt='2026-11-17T21:31:00.000Z';
+const usFillAt='2026-11-18T22:30:00.000Z',usReceiptAt='2026-11-18T22:20:00.000Z';
+const usBars={},usDate=new Date('2026-11-17T12:00:00.000Z');
+for(let n=0;n<25;){
+  if(![0,6].includes(usDate.getUTCDay())){
+    usBars[usDate.toISOString().slice(0,10)]={'4. close':String(180-n)};n++;
+  }
+  usDate.setUTCDate(usDate.getUTCDate()-1);
+}
+const usPriorAlpha=Buffer.from(JSON.stringify({'Meta Data':{'2. Symbol':'AAPL'},'Time Series (Daily)':usBars}));
+const usPriorEodhd=Buffer.from(JSON.stringify([{date:usSignalDate,close:180}]));
+const usReport=buildFirstPaperFreeEodEvidence({alphaRaw:usPriorAlpha,eodhdRaw:usPriorEodhd,
+  symbol:'AAPL',sessionDate:usSignalDate,observedAt:usResearchAt});
+assert.equal(usReport.researchIndicator,'UPTREND_RESEARCH_ONLY');
+const usSignalSnapshot=digest(usReport),usSignalOriginal={
+  version:1,kind:'ONE_GLOBAL_PRIVATE_RESEARCH_SOURCE_OBSERVATION',report:usReport,
+  alphaRawBase64:usPriorAlpha.toString('base64'),
+  eodhdRawBase64:usPriorEodhd.toString('base64'),
+  paperSettlementEligible:false,liveTradingAllowed:false};
+observations.set(usSignalSnapshot,{body:Buffer.from(JSON.stringify(usSignalOriginal)+'\n'),
+  uploadedAt:'2026-11-17T21:30:00.100Z'});
+const usBefore=buildOneGlobalProspectiveSignalFromDualEod({
+  report:usReport,previousLedger:ledger,nowIso:usSignalAt}).ledger;
+const usSignal=usBefore.events.at(-1);
+const usDocuments=[],usDoc=(kind,value)=>{
+  const bytes=Buffer.from(typeof value==='string'?value:JSON.stringify(value));
+  const h=sha(bytes);usDocuments.push({kind,sha256:h,bodyBase64:bytes.toString('base64')});return h;
+};
+const usAuthority={...authority,approvedAt:'2026-11-16T12:00:00.000Z',
+  expiresAt:'2026-12-01T00:00:00.000Z'};
+const usAuthoritySha=usDoc('ORIGINAL_OWNER_PAPER_CONSENT',usAuthority);
+const usSources=[],usRights=[];
+for(const [id,symbol] of [['alpha-vantage','AAPL'],['eodhd','AAPL.US']]){
+  const provenanceSha=usDoc('PROVIDER_UPSTREAM_PROVENANCE',
+    'SYNTHETIC OWNER-REVIEWED NON-PRODUCTION UPSTREAM EVIDENCE '+id);
+  const rightSha=usDoc('ORIGINAL_PROVIDER_USAGE_RIGHTS',
+    'SYNTHETIC OWNER-REVIEWED PRIVATE PAPER RIGHTS '+id);
+  usSources.push({providerId:id,key:'XNAS:AAPL',mic:'XNAS',currency:'USD',symbol,
+    sourceFamily:id,independenceEvidenceSha256:provenanceSha,
+    reviewedByOwner:true,reviewedAt:'2026-11-17T18:00:00.000Z'});
+  usRights.push({providerId:id,mic:'XNAS',currency:'USD',evidenceSha256:rightSha,
+    usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION',automatedUseAllowed:true,
+    validUntil:'2026-12-31T23:59:59.000Z',reviewedByOwner:true});
+}
+const usOpenedAt='2026-11-18T14:30:00.000Z',usClosedAt='2026-11-18T21:00:00.000Z';
+const usSessionSha=usDoc('ORIGINAL_EXCHANGE_SESSION',
+  'SYNTHETIC reviewed XNAS November 18 regular session evidence, not exchange proof');
+const usContext={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',authority:usAuthority,
+  authorityEvidenceSha256:usAuthoritySha,documents:usDocuments,
+  markets:[{key:'XNAS:AAPL',mic:'XNAS',currency:'USD',
+    sources:usSources,ownerReviewedRights:usRights}],
+  sessions:[{mic:'XNAS',sessionDate:usFillDate,sessionOpenedAt:usOpenedAt,
+    sessionClosedAt:usClosedAt,evidenceSha256:usSessionSha,
+    reviewedByOwner:true,reviewedAt:'2026-11-17T18:00:00.000Z'}]};
+const usCloseAlpha=Buffer.from(JSON.stringify({'Meta Data':{'2. Symbol':'AAPL'},
+  'Time Series (Daily)':{[usFillDate]:{'4. close':'181'}}}));
+const usCloseEodhd=Buffer.from(JSON.stringify([{date:usFillDate,close:181.05}]));
+const usFillRaws=[usCloseAlpha,usCloseEodhd];
+const usReceipts=usSources.map((source,i)=>({
+  providerId:source.providerId,sourceFamily:source.sourceFamily,
+  key:'XNAS:AAPL',mic:'XNAS',currency:'USD',sessionDate:usFillDate,
+  close:i===0?181:181.05,payloadSha256:sha(usFillRaws[i]),
+  publishedAt:usReceiptAt,observedAt:usReceiptAt,
+  timestampMeaning:'FIRST_OBSERVED_AT_HTTPS_FETCH_NOT_VENDOR_RELEASE',
+  transport:'FIXED_HTTPS_ORIGIN_NO_REDIRECT',simulatedOrSynthetic:false}));
+const usEcbRaw=Buffer.from("<?xml version='1.0'?><gesmes:Envelope><gesmes:Sender><gesmes:name>European Central Bank</gesmes:name></gesmes:Sender><Cube xmlns='eurofxref'><Cube time='2026-11-17'><Cube currency='USD' rate='1.1'/></Cube></Cube></gesmes:Envelope>");
+const usFx=selectOneGlobalEcbCurrencyReference({raw:usEcbRaw,
+  currency:'USD',sessionDate:usFillDate,observedAt:usReceiptAt});
+const usMarket={sessionDate:usFillDate,sessionOpenedAt:usOpenedAt,
+  sessionClosedAt:usClosedAt,providerReceipts:usReceipts};
+const usSettleOriginal={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',
+  signalHash:usSignal.hash,context:usContext,
+  contextSha256:sha(JSON.stringify(usContext,null,2)+'\n'),
+  marketEvidence:usMarket,providerRaw:usSources.map((source,i)=>({
+    providerId:source.providerId,rawBase64:usFillRaws[i].toString('base64')})),
+  fxEvidence:usFx,ecbRawBase64:usEcbRaw.toString('base64'),
+  sourceRightsIndependentlyCertified:false,liveTradingAllowed:false,
+  brokerConnectivityAllowed:false};
+const usSettleHash=digest(usSettleOriginal);
+observations.set(usSettleHash,{body:Buffer.from(JSON.stringify(usSettleOriginal)+'\n'),
+  uploadedAt:'2026-11-18T22:20:00.100Z'});
+const usLedger=settleOneGlobalEodSignal({previousLedger:usBefore,nowIso:usFillAt,
+  signalHash:usSignal.hash,marketEvidence:usMarket,ownerReviewedRights:usRights,
+  authority:usAuthority,fxEvidence:usFx,
+  settlementEvidenceArchiveSha256:usSettleHash}).ledger;
+const usLedgerBody=JSON.stringify(usLedger);
+const usStorage={...storage,async read(){return {body:usLedgerBody,etag:'synthetic-us-second'};}};
+const usAudit=await audit({storage:usStorage,nowIso:'2026-11-19T00:00:00.000Z',
+  policyPins,fillOrdinal:2});
+assert.equal(usAudit.state,'FILL_RIGOROUS_REPLAY_VERIFIED',JSON.stringify(usAudit));
+assert.equal(usAudit.checks.length,10);
+assert.equal(usAudit.accounting.cashBeforeEuro,ledger.cashEuro);
+assert.equal(usAudit.certifiedTrades,0);
+assert.equal(usAudit.liveTradingAllowed,false);
+assert.equal(publicOneGlobalSecondFillForensicSummary(usAudit).checksPassed,10);
+assert.equal(publicOneGlobalSecondFillForensicSummary(usAudit).secondFillForensicallyVerified,true);
+assert.equal(usLedgerBody,JSON.stringify(usLedger),'original synthetic US journal unchanged');
+const usCorruptResearch={...usStorage,
+  async readResearchObservation(hash){
+    if(hash!==usSignalSnapshot)return observations.get(hash);
+    const modified={...usSignalOriginal,alphaRawBase64:Buffer.from('MODIFIED SYNTHETIC VENDOR BYTES').toString('base64')};
+    return {...observations.get(hash),body:Buffer.from(JSON.stringify(modified))};
+  }};
+const usCorrupt=await audit({storage:usCorruptResearch,
+  nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:2});
+assert.equal(usCorrupt.state,'FILL_INVALID');
+assert(usCorrupt.defects.includes('US_SIGNAL_RAW_HASH_MISMATCH'));
+const usLateStorage={...usStorage,
+  async readResearchObservation(hash){
+    return hash===usSettleHash
+      ?{...observations.get(hash),uploadedAt:'2026-11-18T22:31:00.000Z'}
+      :observations.get(hash);
+  }};
+const usLate=await audit({storage:usLateStorage,
+  nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:2});
+assert.equal(usLate.state,'FILL_NOT_YET_VERIFIABLE');
+assert.equal(usLate.missingEvidence[0].code,'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN');
+console.log('PASS synthetic US SECOND FILL forensic: original inline receipts, original research, ECB FX, account replay, safe 10-check classification, corruption and late-archive refusal; no real PAPER credit.');
+
 console.log('PASS read-only original-fill audit: raw evidence replay, exact event/account/hash reproduction, prior-session signal, policies/calendar/discovery, corruption/missing/race/late-archive rejection, owner-only HTTP, no writes or private raw exports. SYNTHETIC ONLY.');
