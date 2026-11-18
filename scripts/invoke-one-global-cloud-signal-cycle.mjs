@@ -109,7 +109,7 @@ try{
     if(secondText.length>2500)throw Error('SECOND_FORENSIC_OVERSIZE');
     const audit=JSON.parse(secondText);
     const allowedKeys=new Set(['mode','state','forensicReasonCode','nextRequiredCheck',
-      'fillOrdinal','secondFillForensicallyVerified','checksPassed','originalJournalReplayed',
+      'fillOrdinal','secondFillForensicallyVerified','adapterFamily','checksPassed','originalJournalReplayed',
       'missingEvidenceCount','defectCount','journalMutationAllowed','paperFillsCreated',
       'certifiedTrades','phase9Credit','brokerConnectivityAllowed','liveTradingAllowed']);
     const states=['NO_ORIGINAL_FILL','FILL_NOT_YET_VERIFIABLE','FILL_INVALID','FILL_RIGOROUS_REPLAY_VERIFIED'];
@@ -132,8 +132,11 @@ try{
       'ONE_FILL_FOR_SIGNAL_AND_SINGLE_OPEN_POSITION',
       'ORIGINAL_JOURNAL_UNCHANGED_DURING_AUDIT',
       'ORIGINAL_STORAGE_TIMESTAMPS_PRESERVE_PROSPECTIVE_EVIDENCE']);
+    const adapterFamilies=new Set(['MILAN_UNMAPPED_INSTRUMENT','NON_MILAN_EURO_MARKET',
+      'NON_MILAN_USD_MARKET','OTHER_CURRENCY_MARKET','NOT_REQUIRED_OR_UNDETERMINED']);
     if(!audit||audit.mode!=='ONE_GLOBAL_SECOND_FILL_FORENSIC_SAFE_STATUS'
       ||audit.fillOrdinal!==2||!states.includes(audit.state)
+      ||!adapterFamilies.has(audit.adapterFamily)
       ||Object.keys(audit).some(k=>!allowedKeys.has(k))
       ||typeof audit.secondFillForensicallyVerified!=='boolean'
       ||audit.secondFillForensicallyVerified!==(audit.state==='FILL_RIGOROUS_REPLAY_VERIFIED')
@@ -148,7 +151,7 @@ try{
       ||audit.brokerConnectivityAllowed!==false||audit.liveTradingAllowed!==false)
       throw Error('SECOND_FORENSIC_STATUS_NOT_VERIFIED');
     console.log('ONE_GLOBAL_SECOND_FILL_FORENSIC='+audit.state
-      +' REASON='+audit.forensicReasonCode+' CHECKS='+audit.checksPassed+'/10');
+      +' REASON='+audit.forensicReasonCode+' ADAPTER='+audit.adapterFamily+' CHECKS='+audit.checksPassed+'/10');
     if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       '\n## Second original FILL — independent read-only forensic audit\n'
       +'\n| Check | Result |\n|---|---|\n'
@@ -156,6 +159,7 @@ try{
       +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\n'
       +'| Next pending forensic check | '+(audit.nextRequiredCheck??'NONE')+' |\n'
       +'| First safe evidence reason | '+audit.forensicReasonCode+' |\n'
+      +'| Required original market adapter family | '+audit.adapterFamily+' |\n'
       +'| Phase 9 / Directa LIVE | DISABLED |\n',
       {encoding:'utf8'});
   }catch{

@@ -172,6 +172,19 @@ const secondSafe=publicOneGlobalSecondFillForensicSummary(secondOfTwo);
 assert.equal(secondSafe.fillOrdinal,2);
 assert.equal(secondSafe.secondFillForensicallyVerified,true);
 assert.equal(secondSafe.checksPassed,10);
+assert.equal(secondSafe.adapterFamily,'NOT_REQUIRED_OR_UNDETERMINED');
+const missingAdapterSafe=publicOneGlobalSecondFillForensicSummary({
+  ...secondOfTwo,state:'FILL_NOT_YET_VERIFIABLE',
+  checks:secondOfTwo.checks.slice(0,3),
+  missingEvidence:[{code:'FIRST_FILL_MARKET_FORENSIC_ADAPTER_NOT_REVIEWED'}],
+  adapterRequirement:{status:'NOT_IMPLEMENTED',family:'NON_MILAN_USD_MARKET',
+    originalReceiptCount:2}});
+assert.equal(missingAdapterSafe.adapterFamily,'NON_MILAN_USD_MARKET');
+assert.equal(missingAdapterSafe.secondFillForensicallyVerified,false);
+assert.throws(()=>publicOneGlobalSecondFillForensicSummary({
+  ...secondOfTwo,adapterRequirement:{status:'NOT_IMPLEMENTED',
+    family:'INJECT_PRIVATE_SYMBOL_XYZ',originalReceiptCount:2}}),
+  /ONE_GLOBAL_PRIVATE_CLOUD_REPORT_NOT_VERIFIED/);
 assert.equal(secondSafe.liveTradingAllowed,false);
 assert(!JSON.stringify(secondSafe).includes(isin));
 assert(!JSON.stringify(secondSafe).includes(exitSignal.hash));
