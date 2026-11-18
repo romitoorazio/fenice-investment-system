@@ -20,6 +20,13 @@ function memory(){return {privateAccess:true,durable:true,atomicCompareAndSwap:t
   async read(){return {etag:'"original"',body:JSON.stringify(ledger)};},
   async readSettlementContext(){return this.context?{etag:'"context-'+this.contextWrites+'"',body:this.contextBody??JSON.stringify(this.context)}:null;},
   async createResearchObservation(x){this.archives.push(x);return {created:true};},
+  // Synthetic stub for the settlement HEAD-backed read-only proof. The
+  // source-access research flow cannot turn these records into a real FILL.
+  async readResearchObservation(hash){
+    const row=this.archives.find(x=>x.hash===hash);
+    return row?{body:Buffer.from(row.body),uploadedAt:new Date('2026-11-14T19:59:59.000Z'),
+      uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'}:null;
+  },
   async writeSettlementContext({expectedEtag,body}){assert.equal(expectedEtag,'"context-'+this.contextWrites+'"');
     this.context=JSON.parse(body);this.contextBody=body;this.contextWrites++;return {committed:true,etag:'"context-'+this.contextWrites+'"'};},
   async compareAndSwap(){throw Error('SOURCE_CHECK_MUST_NEVER_MUTATE_JOURNAL');}};}

@@ -51,6 +51,13 @@ function memory(f=fixture(),context=f.context){
     async read(){reads++;return {body:ledger,etag};},
     async readSettlementContext(){return this.contextBody===null?null:{body:this.contextBody,etag:this.contextEtag};},
     async createResearchObservation(x){assert.equal(sha(JSON.stringify(JSON.parse(x.body))),x.hash);this.archives.push(x);return {created:true};},
+    // Synthetic representation of the production HEAD-backed private Blob
+    // object. These test timestamps are not real trading evidence.
+    async readResearchObservation(hash){
+      const a=this.archives.find(x=>x.hash===hash);
+      return a?{body:Buffer.from(a.body),uploadedAt:new Date('2026-11-13T17:59:59.500Z'),
+        uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'}:null;
+    },
     async compareAndSwap(x){assert.equal(x.expectedEtag,etag);this.writes++;ledger=x.body;etag='"ledger-'+(this.writes+1)+'"';return {committed:true,etag};},
     get ledger(){return JSON.parse(ledger);},get reads(){return reads;}};
   return store;
@@ -109,6 +116,9 @@ assert.equal(result.state,'STRICT_PAPER_FILL_COMMITTED_PRIVATE');assert.equal(re
 assert.equal(result.virtualFillCount,1);assert.equal(store.writes,1);assert.equal(store.archives.length,1);
 assert.deepEqual(store.ledger.events.slice(0,-1),f.ledger.events);assert.equal(replayOneGlobalEodPaperLedger(store.ledger).virtualBuys,1);
 assert.equal(store.ledger.events.at(-1).settlementEvidenceArchiveSha256,store.archives[0].hash);
+assert(Date.parse(store.ledger.events.at(-1).recordedAt)>=
+  (await store.readResearchObservation(store.archives[0].hash)).uploadedAt.getTime(),
+  'An actual future FILL timestamp must never predate its durable source archive');
 assert.equal(store.ledger.events.at(-1).providerReceipts[1].close,10,'raw close, never adjusted_close');
 const second=await execute(store,f).promise;assert.equal(second.paperFillsCreated,0);assert.equal(second.virtualFillCount,1);assert.equal(store.writes,1);
 const missing=memory(f,null),missingRun=execute(missing,f),blocked=await missingRun.promise;
@@ -136,6 +146,67 @@ const fallbackStore=memory(fallbackFixture);const fallback=await execute(fallbac
 assert.equal(fallback.paperFillsCreated,1);assert.equal(fallback.settlementSourceRequests,3);
 assert.deepEqual(fallbackStore.ledger.events.at(-1).providerReceipts.map(r=>r.providerId),['alpha-vantage','twelve-data']);
 assert.equal(fallbackStore.ledger.events.at(-1).ownerReviewedRights.length,2);
+
+
+// The private archive must pre-exist the FILL by authoritative control-plane
+// time; never compensate for skew by inventing an earlier archive timestamp.
+for(const mode of ['MISSING_ORIGIN_READER','MISSING_ORIGIN_OBJECT','UNTRUSTED_HTTP_DATE',
+  'CHANGED_BYTES','MISSING_ORIGIN_TIMESTAMP','MALFORMED_ORIGIN_TIMESTAMP']){
+  const st=memory(f),orig=st.readResearchObservation.bind(st);
+  if(mode==='MISSING_ORIGIN_READER')st.readResearchObservation=undefined;
+  else if(mode==='MISSING_ORIGIN_OBJECT')st.readResearchObservation=async()=>null;
+  else st.readResearchObservation=async hash=>{
+    const original=await orig(hash);
+    if(mode==='UNTRUSTED_HTTP_DATE')return {...original,uploadedAtSource:'HTTP_LAST_MODIFIED'};
+    if(mode==='CHANGED_BYTES')return {...original,body:Buffer.from('CORRUPTED')};
+    if(mode==='MISSING_ORIGIN_TIMESTAMP')return {...original,uploadedAt:null};
+    return {...original,uploadedAt:new Date('not-a-valid-time')};
+  };
+  if(mode==='MISSING_ORIGIN_READER')
+    await assert.rejects(execute(st,f).promise,/PRIVATE_CONTEXT_AND_CAS_STORE_REQUIRED/);
+  else {
+    const res=await execute(st,f).promise;
+    assert.equal(res.state,'SETTLEMENT_BLOCKED',mode);
+    assert.equal(res.paperFillsCreated,0,mode);
+    assert.match(res.settlementBlockers.join(' '),/CLOUD_SETTLEMENT_PRECOMMIT_ARCHIVE_/,mode);
+  }
+  assert.equal(st.writes,0,'Never write a PAPER FILL with '+mode);
+}
+const futureClock=memory(f),futureArchive=futureClock.readResearchObservation.bind(futureClock);
+futureClock.readResearchObservation=async hash=>({
+  ...await futureArchive(hash),uploadedAt:new Date('2026-11-13T18:00:01.000Z'),
+});
+const futureBlocked=await execute(futureClock,f).promise;
+assert.equal(futureBlocked.paperFillsCreated,0);
+assert.equal(futureBlocked.state,'SETTLEMENT_BLOCKED');
+assert(futureBlocked.settlementBlockers.includes(
+  'CLOUD_SETTLEMENT_PRECOMMIT_ARCHIVE_TIMESTAMP_AFTER_FILL_CLOCK'));
+assert.equal(futureClock.writes,0,'Clock skew must fail closed, never backdate an original FILL');
+const equalClock=memory(f),readEqual=equalClock.readResearchObservation.bind(equalClock);
+equalClock.readResearchObservation=async hash=>({...await readEqual(hash),
+  uploadedAt:new Date(now)});
+const exactEqual=await execute(equalClock,f).promise;
+assert.equal(exactEqual.paperFillsCreated,1,'Exact provider/server timestamp equality is admissible');
+assert.equal(equalClock.ledger.events.at(-1).recordedAt,now);
+// If the local clock regresses after the first precommit comparison, reject
+// again INSIDE the mutation callback. A failed callback must not write CAS.
+const clockRollback=memory(f),originalRead=clockRollback.readResearchObservation.bind(clockRollback);
+let originalWasVerified=false,afterProofClockCalls=0;
+clockRollback.readResearchObservation=async hash=>{
+  const evidence=await originalRead(hash);originalWasVerified=true;return evidence;
+};
+const rollbackClock=()=>{
+  if(!originalWasVerified)return now;
+  afterProofClockCalls++;
+  return afterProofClockCalls===1?now:'2026-11-13T17:59:58.000Z';
+};
+await assert.rejects(run({storage:clockRollback,clock:rollbackClock,
+  fetcher:network(f).fetcher,
+  collect:args=>collectOneGlobalSettlementPair({...args,env})}),
+  /COMMIT_OUTCOME_UNCONFIRMED_RELOAD_REQUIRED/);
+assert.equal(clockRollback.writes,0,'Clock rollback inside CAS callback must not create a FILL');
+assert.equal(clockRollback.archives.length,1,'Already committed evidence remains immutable');
+console.log('PASS original settlement future-FILL origin chronology: source HEAD, byte match, clock skew, missing metadata, no CAS on failure. SYNTHETIC ONLY.');
 
 // Real interface shape for original ASX signal + official reference conversion.
 const audFixture=fixture({mic:'XASX',currency:'AUD'}),audStore=memory(audFixture);
