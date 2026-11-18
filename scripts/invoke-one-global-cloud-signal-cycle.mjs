@@ -29,6 +29,44 @@ try{
   // This summary is attached to the job run, not just buried in raw logs.
   if(process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,visible.markdown,{encoding:'utf8'});
+  // Follow-up is READ ONLY and deliberately independent: a forensic outage
+  // cannot reverse/duplicate the already finished atomic PAPER cycle.
+  try{
+    const auditResponse=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
+      signal:AbortSignal.timeout(52000),headers:{Authorization:'Bearer '+value,
+        'Content-Type':'application/json'},body:JSON.stringify({action:'AUDIT_FIRST_FILL_READ_ONLY'})});
+    if(!auditResponse.ok)throw Error('FORENSIC_UNAVAILABLE');
+    const auditText=await auditResponse.text();if(auditText.length>2500)throw Error('FORENSIC_OVERSIZE');
+    const audit=JSON.parse(auditText);
+    const states=['NO_ORIGINAL_FILL','FILL_NOT_YET_VERIFIABLE',
+      'FILL_INVALID','FILL_RIGOROUS_REPLAY_VERIFIED'];
+    if(!states.includes(audit.state)
+      ||audit.mode!=='ONE_GLOBAL_FIRST_FILL_FORENSIC_SAFE_STATUS'
+      ||typeof audit.firstFillForensicallyVerified!=='boolean'
+      ||audit.firstFillForensicallyVerified!==(audit.state==='FILL_RIGOROUS_REPLAY_VERIFIED')
+      ||!Number.isSafeInteger(audit.checksPassed)||audit.checksPassed<0||audit.checksPassed>10
+      ||typeof audit.originalJournalReplayed!=='boolean'
+      ||!Number.isSafeInteger(audit.missingEvidenceCount)||audit.missingEvidenceCount<0
+      ||!Number.isSafeInteger(audit.defectCount)||audit.defectCount<0
+      ||audit.journalMutationAllowed!==false||audit.paperFillsCreated!==0
+      ||audit.certifiedTrades!==0||audit.phase9Credit!==0
+      ||audit.brokerConnectivityAllowed!==false||audit.liveTradingAllowed!==false)
+      throw Error('FORENSIC_STATUS_NOT_VERIFIED');
+    console.log('ONE_GLOBAL_FIRST_FILL_FORENSIC='+audit.state);
+    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+      '\\n## First original FILL — read-only forensic audit\\n'
+      +'\\n| Check | Result |\\n|---|---|\\n'
+      +'| Verdict | '+audit.state+' |\\n'
+      +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\\n'
+      +'| Missing evidence groups | '+audit.missingEvidenceCount+' |\\n'
+      +'| Evidence defects | '+audit.defectCount+' |\\n'
+      +'| Phase 9 / Directa LIVE | DISABLED |\\n',
+      {encoding:'utf8'});
+  }catch{
+    // Safe warning only: NEVER echo the private endpoint body or its error.
+    console.log('ONE_GLOBAL_FIRST_FILL_FORENSIC=CHECK_NOT_CONFIRMED');
+  }
+
 }catch{
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');process.exitCode=1;
 }
