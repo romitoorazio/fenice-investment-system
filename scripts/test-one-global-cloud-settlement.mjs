@@ -201,6 +201,7 @@ const rollbackClock=()=>{
   return afterProofClockCalls===1?now:'2026-11-13T17:59:58.000Z';
 };
 await assert.rejects(run({storage:clockRollback,clock:rollbackClock,
+  fetcher:network(f).fetcher,
   collect:args=>collectOneGlobalSettlementPair({...args,env})}),
   /COMMIT_OUTCOME_UNCONFIRMED_RELOAD_REQUIRED/);
 assert.equal(clockRollback.writes,0,'Clock rollback inside CAS callback must not create a FILL');
