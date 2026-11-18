@@ -188,6 +188,23 @@ equalClock.readResearchObservation=async hash=>({...await readEqual(hash),
 const exactEqual=await execute(equalClock,f).promise;
 assert.equal(exactEqual.paperFillsCreated,1,'Exact provider/server timestamp equality is admissible');
 assert.equal(equalClock.ledger.events.at(-1).recordedAt,now);
+// If the local clock regresses after the first precommit comparison, reject
+// again INSIDE the mutation callback. A failed callback must not write CAS.
+const clockRollback=memory(f),originalRead=clockRollback.readResearchObservation.bind(clockRollback);
+let originalWasVerified=false,afterProofClockCalls=0;
+clockRollback.readResearchObservation=async hash=>{
+  const evidence=await originalRead(hash);originalWasVerified=true;return evidence;
+};
+const rollbackClock=()=>{
+  if(!originalWasVerified)return now;
+  afterProofClockCalls++;
+  return afterProofClockCalls===1?now:'2026-11-13T17:59:58.000Z';
+};
+await assert.rejects(run({storage:clockRollback,clock:rollbackClock,
+  collect:args=>collectOneGlobalSettlementPair({...args,env})}),
+  /COMMIT_OUTCOME_UNCONFIRMED_RELOAD_REQUIRED/);
+assert.equal(clockRollback.writes,0,'Clock rollback inside CAS callback must not create a FILL');
+assert.equal(clockRollback.archives.length,1,'Already committed evidence remains immutable');
 console.log('PASS original settlement future-FILL origin chronology: source HEAD, byte match, clock skew, missing metadata, no CAS on failure. SYNTHETIC ONLY.');
 
 // Real interface shape for original ASX signal + official reference conversion.
