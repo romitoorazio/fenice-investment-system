@@ -4,7 +4,7 @@ import {createVercelPrivateEodBlobStore} from '../../../../lib/trading/one-globa
 import {pinOneGlobalRecoveredOriginalStore} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
 import {runOneGlobalCloudPaperCycle} from '../../../../lib/trading/one-global-cloud-paper-cycle.mjs';
 import {auditOneGlobalFirstPrivateFill} from '../../../../lib/trading/one-global-private-forensic-audit.mjs';
-import {publicOneGlobalFirstFillForensicSummary} from '../../../../lib/trading/one-global-cloud-cycle-report.mjs';
+import {publicOneGlobalFirstFillForensicSummary,publicOneGlobalSecondFillForensicSummary} from '../../../../lib/trading/one-global-cloud-cycle-report.mjs';
 import {fetchOneGlobalCloudDualEod} from '../../../../lib/market/one-global-cloud-dual-eod-fetch.mjs';
 import {inspectOneGlobalCloudSourceAccess} from '../../../../lib/trading/one-global-cloud-source-access.mjs';
 import {alpacaSipCredentialsPresent} from '../../../../lib/market/one-global-alpaca-sip-eod.mjs';
@@ -29,7 +29,7 @@ export async function POST(request){
     const text=await request.text();if(text.length>80)return json('CYCLE_REQUEST_INVALID',400);
     const input=JSON.parse(text);
     if(!input||Object.keys(input).length!==1
-      ||!['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY'].includes(input.action))
+      ||!['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY'].includes(input.action))
       return json('CYCLE_REQUEST_INVALID',400);
     const storage=pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore());
     if(input.action==='AUDIT_FIRST_FILL_READ_ONLY'){
@@ -37,6 +37,11 @@ export async function POST(request){
       // Read private originals; return only a strict, hash-free attestation.
       const audit=await auditOneGlobalFirstPrivateFill({storage});
       return Response.json(publicOneGlobalFirstFillForensicSummary(audit),{headers});
+    }
+    if(input.action==='AUDIT_SECOND_FILL_READ_ONLY'){
+      // Static OIDC-scoped read-only action; no user-provided ordinal, inputs or writes.
+      const audit=await auditOneGlobalFirstPrivateFill({storage,fillOrdinal:2});
+      return Response.json(publicOneGlobalSecondFillForensicSummary(audit),{headers});
     }
     const report=await runOneGlobalCloudPaperCycle({storage,collect:fetchOneGlobalCloudDualEod,checkSourceAccess:inspectOneGlobalCloudSourceAccess});
     return Response.json({...report,providerConfiguration:{

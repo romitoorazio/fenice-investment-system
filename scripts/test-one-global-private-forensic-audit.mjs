@@ -5,6 +5,8 @@ import {auditOneGlobalFirstPrivateFill as audit,handleOneGlobalPrivateForensicRe
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {buildOneGlobalEuDualVenueReport,oneGlobalEuReceipt,oneGlobalMilanSession} from '../lib/market/one-global-eu-delayed-eod.mjs';
 import {createVercelPrivateEodBlobStore} from '../lib/trading/one-global-vercel-private-blob-store.mjs';
+import {publicOneGlobalSecondFillForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
 
 // SYNTHETIC ONLY. No private journal, consent, publisher payload or actual
 // production fill is committed in this fixture; no network request is made.
@@ -16,10 +18,11 @@ const doc=(kind,value)=>{const bytes=Buffer.from(JSON.stringify(value)),hash=sha
   documents.push({kind,sha256:hash,bodyBase64:bytes.toString('base64')});return hash;};
 const raw=bytes=>{const hash=sha(bytes);raws.set(hash,{body:bytes});return hash;};
 const header='TradingDateTime,PublicationDateTime,MifidInstrumentID,MifidPrice,MifidQuantity,MifidPriceNotation,MifidCurrency,MmtMarketMechanism,MmtNegotiationIndicator,MmtModificationIndicator,MmtBenchMarkIndicator,MmtContributionToPrice,MmtAlgorithmicIndicator,MmtPublicationMode,Venue,ThirdCountryTradingVenueExecution,TradeUniqueIdentifier,MissingPrice,MmtContingentTransactionIndicator,VenueOfPublication';
-function primary(date,close){
+function primary(date,close,trend='up'){
   const row=(time,price,id)=>[`${date}T${time}.000000Z`,`${date}T${time}.001000Z`,isin,price,100,'MONE','EUR','1','-','-','-','-','-','-','MTAA','',id,'','-','MTAA'].join(',');
-  const rows=Array.from({length:12},(_,i)=>row('08:'+String(i).padStart(2,'0')+':00',9.7+i*.01,'REGULAR'+i));
-  rows.push(row('16:29:59',close-.01,'REGULARLAST'),row('16:35:09',close,'AUCTION0001'));
+  const rows=Array.from({length:12},(_,i)=>row('08:'+String(i).padStart(2,'0')+':00',
+    trend==='down'?10.5-i*.08:9.7+i*.01,'REGULAR'+i));
+  rows.push(row('16:29:59',trend==='down'?close+.01:close-.01,'REGULARLAST'),row('16:35:09',close,'AUCTION0001'));
   return Buffer.from('Euronext N.V. SYNTHETIC TEST ONLY\n'+header+'\n'+rows.join('\n')+'\n');
 }
 const secondary=(date,price)=>Buffer.from(`${date} 16:29:55.000000,${isin},${price},EUR,MONE,100,CEUX,CLOB,${date} 16:29:55.001000,CEUX,TEST00001,""\n`);
@@ -95,6 +98,94 @@ assert(complete.checks.some(x=>x.name==='EXACT_FILL_EVENT_QUANTITY_FEE_BALANCE_A
 assert(complete.checks.some(x=>x.name==='PROSPECTIVE_SIGNAL_RECOMPUTED_FROM_ORIGINAL_PRIOR_SESSION_BYTES'));
 for(const field of ['bodyBase64','ownerConsent','approvalEvidence','rawBase64','technicalReview'])assert(!JSON.stringify(complete).includes(field));
 assert.equal(JSON.stringify(ledger),ledgerBody,'original private fixture is byte-for-byte unchanged');
+// Independent SECOND original FILL: prospective SELL, original preceding BUY
+// position, separate raw venue receipts, source archive and real CAS semantics.
+// Entire fixture is synthetic and stays outside the production private Blob.
+const exitResearchPrimary=primary('2026-11-17',9.45,'down');
+const exitResearchSecondary=secondary('2026-11-17',9.44);
+const exitReport=buildOneGlobalEuDualVenueReport({euronextRaw:exitResearchPrimary,
+  cboeRaw:exitResearchSecondary,symbol:'BAMI',sessionDate:'2026-11-17',
+  observedAt:'2026-11-17T17:04:00.000Z'});
+assert.equal(exitReport.researchIndicator,'NO_UPTREND');
+assert.equal(isOneGlobalEuConfirmedExitResearch(exitReport),true);
+const exitSnapshot=digest(exitReport);
+observations.set(exitSnapshot,{body:Buffer.from(JSON.stringify({
+  version:1,kind:'ONE_GLOBAL_PRIVATE_EU_DUAL_VENUE_RESEARCH_OBSERVATION',report:exitReport,
+  rawArtifacts:{euronextHash:raw(exitResearchPrimary),cboeHash:raw(exitResearchSecondary),
+    cboeDiscoveryHash:raw(discovery('2026-11-17'))},
+  paperSettlementEligible:false,strategyPerformanceCertified:false,
+  liveTradingAllowed:false,brokerConnectivityAllowed:false})),
+  uploadedAt:'2026-11-17T17:04:00.100Z'});
+const exitBefore=recordOneGlobalEodSignal({previousLedger:ledger,
+  nowIso:'2026-11-17T17:04:01.000Z',signal:{
+    signalId:'synthetic-forensic-bami-20261117-exit',
+    key:'XMIL:BAMI',mic:'XMIL',side:'SELL',currency:'EUR',
+    decisionAt:'2026-11-17T17:04:01.000Z',referenceSessionDate:'2026-11-17',
+    referenceCloseAt:exitReport.primary.tradeAt,referencePublishedAt:exitReport.observedAt,
+    sourceSnapshotHash:exitSnapshot,maxNotionalEuro:50,strategyReason:'DOWNTREND_EXIT'}}).ledger;
+const exitSignal=exitBefore.events.at(-1),exitBounds=oneGlobalMilanSession('2026-11-18');
+const exitCalendarArtifact=raw(Buffer.from('<html>Calendar of business days 2026 SYNTHETIC EXIT</html>'));
+const exitSessionEvidence=doc('OFFICIAL_EXCHANGE_SESSION_CAPTURE',{mic:'XMIL',sessionDate:'2026-11-18',
+  calendarArtifactSha256:exitCalendarArtifact,bounds:exitBounds});
+const exitContext={...context,documents:[...documents],
+  sessions:[...context.sessions,{mic:'XMIL',sessionDate:'2026-11-18',
+    sessionOpenedAt:exitBounds.sessionOpenedAt,sessionClosedAt:exitBounds.sessionClosedAt,
+    evidenceSha256:exitSessionEvidence,reviewedByOwner:true,reviewedAt:'2026-11-17T16:00:00.000Z'}]};
+const exitFillPrimary=primary('2026-11-18',9.2,'down');
+const exitFillSecondary=secondary('2026-11-18',9.19);
+const exitMarket={sessionDate:'2026-11-18',
+  sessionOpenedAt:exitBounds.sessionOpenedAt,sessionClosedAt:exitBounds.sessionClosedAt,
+  providerReceipts:[
+    oneGlobalEuReceipt({source:sources[0],signal:exitSignal,sessionDate:'2026-11-18',
+      raw:exitFillPrimary,observedAt:'2026-11-18T17:00:00.000Z'}),
+    oneGlobalEuReceipt({source:sources[1],signal:exitSignal,sessionDate:'2026-11-18',
+      raw:exitFillSecondary,observedAt:'2026-11-18T17:00:00.000Z'})]};
+const exitObservation={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',
+  signalHash:exitSignal.hash,context:exitContext,
+  contextSha256:sha(JSON.stringify(exitContext,null,2)+'\n'),marketEvidence:exitMarket,
+  providerRaw:[
+    {providerId:'euronext-mifir',rawArtifactSha256:raw(exitFillPrimary)},
+    {providerId:'cboe-eu-mifir',rawArtifactSha256:raw(exitFillSecondary)},
+    {providerId:'cboe-eu-mifir',supportingKind:'CBOE_OFFICIAL_DISCOVERY_JSON',
+      rawArtifactSha256:raw(discovery('2026-11-18'))}],
+  fxEvidence:null,ecbRawBase64:null,sourceRightsIndependentlyCertified:false,
+  liveTradingAllowed:false,brokerConnectivityAllowed:false};
+const exitArchive=digest(exitObservation);
+observations.set(exitArchive,{body:Buffer.from(JSON.stringify(exitObservation)),
+  uploadedAt:'2026-11-18T17:00:00.500Z'});
+const exitLedger=settleOneGlobalEodSignal({previousLedger:exitBefore,
+  nowIso:'2026-11-18T17:00:01.000Z',signalHash:exitSignal.hash,
+  marketEvidence:exitMarket,ownerReviewedRights:rights,authority,
+  settlementEvidenceArchiveSha256:exitArchive}).ledger;
+const exitBody=JSON.stringify(exitLedger),twoFillStorage={...storage,
+  async read(){return {body:exitBody,etag:'synthetic-two-fills'};}};
+const firstOfTwo=await audit({storage:twoFillStorage,nowIso:'2026-11-18T18:00:00.000Z',policyPins,fillOrdinal:1});
+const secondOfTwo=await audit({storage:twoFillStorage,nowIso:'2026-11-18T18:00:00.000Z',policyPins,fillOrdinal:2});
+assert.equal(firstOfTwo.state,'FILL_RIGOROUS_REPLAY_VERIFIED',JSON.stringify(firstOfTwo));
+assert.equal(secondOfTwo.state,'FILL_RIGOROUS_REPLAY_VERIFIED',JSON.stringify(secondOfTwo));
+assert.equal(secondOfTwo.identity.side,'SELL');
+assert.equal(secondOfTwo.identity.sequence,4);
+assert.equal(secondOfTwo.certification.closedVirtualRoundTrips,1);
+assert.equal(secondOfTwo.accounting.cashImmediatelyAfterEuro,exitLedger.cashEuro);
+assert(secondOfTwo.accounting.executionPrice<secondOfTwo.accounting.referencePrice);
+const secondSafe=publicOneGlobalSecondFillForensicSummary(secondOfTwo);
+assert.equal(secondSafe.fillOrdinal,2);
+assert.equal(secondSafe.secondFillForensicallyVerified,true);
+assert.equal(secondSafe.checksPassed,10);
+assert.equal(secondSafe.liveTradingAllowed,false);
+assert(!JSON.stringify(secondSafe).includes(isin));
+assert(!JSON.stringify(secondSafe).includes(exitSignal.hash));
+assert(!JSON.stringify(secondSafe).includes('ownerConsent'));
+assert.equal(exitBody,JSON.stringify(exitLedger),'never mutate original two-FILL ledger');
+const secondTooLate={...twoFillStorage,readResearchObservation:async hash=>
+  hash===exitArchive?{...observations.get(hash),uploadedAt:'2026-11-18T17:00:02.000Z'}
+    :observations.get(hash)};
+const secondLate=await audit({storage:secondTooLate,nowIso:'2026-11-18T18:00:00.000Z',policyPins,fillOrdinal:2});
+assert.equal(secondLate.state,'FILL_NOT_YET_VERIFIABLE');
+assert.equal(secondLate.missingEvidence[0].code,'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN');
+assert.equal((await audit({storage,nowIso,policyPins,fillOrdinal:2})).state,'NO_ORIGINAL_FILL');
+assert.throws(()=>publicOneGlobalSecondFillForensicSummary(firstOfTwo),/ONE_GLOBAL_PRIVATE_CLOUD_REPORT_NOT_VERIFIED/);
+
 const absent=await audit({storage:{...storage,readSourceArtifact:async()=>null},nowIso,policyPins});
 assert.equal(absent.state,'FILL_NOT_YET_VERIFIABLE');assert.match(absent.missingEvidence[0].path,/observations\/raw\/[a-f0-9]{64}$/);
 const corrupt=await audit({storage:{...storage,readSourceArtifact:async()=>({body:Buffer.from('CORRUPTED ORIGINAL BYTES')})},nowIso,policyPins});
@@ -155,5 +246,6 @@ assert.equal(sdkReads,1,'invalid paths rejected before SDK access');
 const route=readFileSync('app/api/paper/one-global-private-forensic/route.js','utf8');
 assert.match(route,/verifyFeniceOwnerSession/);assert.match(route,/isOwnerAuthorized/);
 assert.match(route,/pinOneGlobalRecoveredOriginalStore/);
+assert.match(readFileSync('app/api/paper/one-global-private-signal-cycle/route.js','utf8'),/AUDIT_SECOND_FILL_READ_ONLY/);
 assert.doesNotMatch(route,/export async function (?:POST|PUT|PATCH|DELETE)|console\.|\.put\(|\.compareAndSwap\(/);
 console.log('PASS read-only original-fill audit: raw evidence replay, exact event/account/hash reproduction, prior-session signal, policies/calendar/discovery, corruption/missing/race/late-archive rejection, owner-only HTTP, no writes or private raw exports. SYNTHETIC ONLY.');
