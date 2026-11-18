@@ -101,6 +101,18 @@ const corrupt=await audit({storage:{...storage,readSourceArtifact:async()=>({bod
 assert.equal(corrupt.state,'FILL_INVALID');assert.deepEqual(corrupt.defects,['ARCHIVED_RAW_BYTES_HASH_MISMATCH']);
 const unavailable=await audit({storage:{...storage,readResearchObservation:async()=>{throw Error('DO_NOT_ECHO_SECRET_OR_URL');}},nowIso,policyPins});
 assert.equal(unavailable.state,'FILL_NOT_YET_VERIFIABLE');assert(!JSON.stringify(unavailable).includes('DO_NOT_ECHO'));
+// A protected origin metadata failure is separately actionable without
+// exposing any private blob path, vendor response, ETag or timestamp.
+const invalidOrigin=await audit({storage:{...storage,
+  readResearchObservation:async()=>{throw Error('CLOUD_BLOB_FORENSIC_VERSION_METADATA_INVALID');}},nowIso,policyPins});
+assert.equal(invalidOrigin.state,'FILL_NOT_YET_VERIFIABLE');
+assert.equal(invalidOrigin.missingEvidence[0].code,'PRIVATE_EVIDENCE_ORIGIN_METADATA_INVALID');
+const requiredOrigin=await audit({storage:{...storage,
+  readResearchObservation:async()=>{throw Error('CLOUD_BLOB_FORENSIC_VERSION_METADATA_REQUIRED');}},nowIso,policyPins});
+assert.equal(requiredOrigin.missingEvidence[0].code,'PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED');
+const invalidOriginalRead=await audit({storage:{...storage,
+  readResearchObservation:async()=>{throw Error('CLOUD_BLOB_FORENSIC_EVIDENCE_READ_INVALID');}},nowIso,policyPins});
+assert.equal(invalidOriginalRead.missingEvidence[0].code,'PRIVATE_EVIDENCE_ORIGINAL_READ_INVALID');
 const noAdapter=await audit({storage:{...storage,readSourceArtifact:undefined},nowIso,policyPins});
 assert.equal(noAdapter.state,'FILL_NOT_YET_VERIFIABLE');
 let readCount=0;

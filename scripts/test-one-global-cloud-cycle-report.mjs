@@ -189,6 +189,8 @@ const rawAudit={state:'FILL_RIGOROUS_REPLAY_VERIFIED',
   originalPolicy:'VERY_PRIVATE'};
 const safeAudit=forensicSummary(rawAudit);
 assert.equal(safeAudit.firstFillForensicallyVerified,true);
+assert.equal(safeAudit.forensicReasonCode,'NONE');
+assert.equal(safeAudit.nextRequiredCheck,null);
 assert.equal(safeAudit.checksPassed,10);
 assert.equal(safeAudit.originalJournalReplayed,true);
 assert.equal(safeAudit.phase9Credit,0);
@@ -197,12 +199,27 @@ const incompleteAudit=forensicSummary({...rawAudit,state:'FILL_NOT_YET_VERIFIABL
   checks:rawAudit.checks.slice(0,2),missingEvidence:[{code:'MISSING_ORIGINAL',path:'SECRET'}]});
 assert.equal(incompleteAudit.firstFillForensicallyVerified,false);
 assert.equal(incompleteAudit.missingEvidenceCount,1);
+assert.equal(incompleteAudit.forensicReasonCode,'PRIVATE_EVIDENCE_GAP_UNCLASSIFIED');
+assert.equal(incompleteAudit.nextRequiredCheck,'ORIGINAL_DOCUMENT_BYTES_CONSENT_RIGHTS_MAPPING_AND_EXACT_SESSION');
+const metadataGap=forensicSummary({...rawAudit,state:'FILL_NOT_YET_VERIFIABLE',
+  checks:rawAudit.checks.slice(0,1),
+  missingEvidence:[{code:'PRIVATE_EVIDENCE_ORIGIN_METADATA_INVALID',
+    path:'fenice/one-global/private-eod/observations/private-hash-NEVER-EXPOSE'}]});
+assert.equal(metadataGap.forensicReasonCode,'PRIVATE_EVIDENCE_ORIGIN_METADATA_INVALID');
+assert.equal(metadataGap.checksPassed,1);
+assert.doesNotMatch(JSON.stringify(metadataGap),/fenice\/|private-hash|NEVER-EXPOSE/);
+const arbitraryException=forensicSummary({...rawAudit,state:'FILL_NOT_YET_VERIFIABLE',
+  checks:rawAudit.checks.slice(0,1),
+  missingEvidence:[{code:'SECRET=https://somewhere.invalid/personal',path:'PRIVATE'}]});
+assert.equal(arbitraryException.forensicReasonCode,'PRIVATE_EVIDENCE_GAP_UNCLASSIFIED');
+assert.doesNotMatch(JSON.stringify(arbitraryException),/SECRET|somewhere|personal/);
 assert.doesNotMatch(JSON.stringify(incompleteAudit),/SECRET|MISSING_ORIGINAL/);
 for(const delta of [
   {state:'FILL_RIGOROUS_REPLAY_VERIFIED',checks:rawAudit.checks.slice(0,9)},
   {missingEvidence:[{code:'SECRET'}]},
   {defects:['TAMPERED']},
   {checks:[...rawAudit.checks,rawAudit.checks[0]]},
+  {checks:[...rawAudit.checks].reverse()},
   {checks:[...rawAudit.checks.slice(0,9),{name:'FORGED_CERTIFICATION',verified:true}]},
   {liveTradingAllowed:true},{phase9Credit:1},{brokerConnectivityAllowed:true},
   {state:'FAKE_VERIFIED_FILL'},
