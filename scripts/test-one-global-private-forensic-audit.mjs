@@ -288,7 +288,7 @@ const usSignalSnapshot=digest(usReport),usSignalOriginal={
   eodhdRawBase64:usPriorEodhd.toString('base64'),
   paperSettlementEligible:false,liveTradingAllowed:false};
 observations.set(usSignalSnapshot,{body:Buffer.from(JSON.stringify(usSignalOriginal)+'\n'),
-  uploadedAt:'2026-11-17T21:30:00.100Z'});
+  uploadedAt:'2026-11-17T21:30:00.100Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const usBefore=buildOneGlobalProspectiveSignalFromDualEod({
   report:usReport,previousLedger:ledger,nowIso:usSignalAt}).ledger;
 const usSignal=usBefore.events.at(-1);
@@ -348,7 +348,7 @@ const usSettleOriginal={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',
   brokerConnectivityAllowed:false};
 const usSettleHash=digest(usSettleOriginal);
 observations.set(usSettleHash,{body:Buffer.from(JSON.stringify(usSettleOriginal)+'\n'),
-  uploadedAt:'2026-11-18T22:20:00.100Z'});
+  uploadedAt:'2026-11-18T22:20:00.100Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const usLedger=settleOneGlobalEodSignal({previousLedger:usBefore,nowIso:usFillAt,
   signalHash:usSignal.hash,marketEvidence:usMarket,ownerReviewedRights:usRights,
   authority:usAuthority,fxEvidence:usFx,
@@ -375,6 +375,16 @@ const usCorrupt=await audit({storage:usCorruptResearch,
   nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:2});
 assert.equal(usCorrupt.state,'FILL_INVALID');
 assert(usCorrupt.defects.includes('US_SIGNAL_RAW_HASH_MISMATCH'));
+const usUntrusted={...usStorage,
+  async readResearchObservation(hash){
+    return hash===usSettleHash
+      ?{...observations.get(hash),uploadedAtSource:'HTTP_LAST_MODIFIED'}
+      :observations.get(hash);
+  }};
+const usUntrustedResult=await audit({storage:usUntrusted,
+  nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:2});
+assert.equal(usUntrustedResult.state,'FILL_NOT_YET_VERIFIABLE');
+assert.equal(usUntrustedResult.missingEvidence[0].code,'PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED');
 const usLateStorage={...usStorage,
   async readResearchObservation(hash){
     return hash===usSettleHash
