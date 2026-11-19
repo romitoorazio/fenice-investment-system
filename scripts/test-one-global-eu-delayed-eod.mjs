@@ -197,12 +197,16 @@ function memory(ledger=existing){
     async createResearchObservation({hash,body:observation}){const parsed=JSON.parse(observation);
       assert.equal(createHash('sha256').update(JSON.stringify(parsed.report??parsed)).digest('hex'),hash);
       assert.equal(originals.has(hash),false,'Synthetic immutable research archive cannot be overwritten');
-      originals.set(hash,observation);observations++;return {created:true};},
+      // The synthetic provenance clock equals the research observation time
+      // and never comes from local HTTP Last-Modified.
+      const originAt=parsed.report?.observedAt??'2026-11-17T17:14:59.500Z';
+      originals.set(hash,{body:observation,uploadedAt:new Date(originAt)});
+      observations++;return {created:true};},
     async readResearchObservation(hash){
-      const body=originals.get(hash);
-      return body===undefined?null:{
-        body:Buffer.from(body),
-        uploadedAt:new Date('2026-11-17T17:14:59.500Z'),
+      const item=originals.get(hash);
+      return item===undefined?null:{
+        body:Buffer.from(item.body),
+        uploadedAt:item.uploadedAt,
         uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD',
       };
     },
@@ -221,6 +225,34 @@ assert.equal(cycleStore.artifacts,3);assert.equal(evidenceCalls,1);
 assert.deepEqual(cycleStore.ledger.events.slice(0,existing.events.length),existing.events);
 assert.equal(cycleStore.ledger.events.at(-1).kind,'SIGNAL');assert.equal(cycleStore.ledger.events.at(-1).key,'XMIL:ENEL');
 assert.equal(replayOneGlobalEodPaperLedger(cycleStore.ledger).virtualBuys,0);
+// Before the EU journal CAS, re-read the immutable original bytes and
+// authoritative provider HEAD timestamp. All failures refuse a SIGNAL.
+for(const mode of ['MISSING_ORIGINAL','MUTATED_BYTES','UNTRUSTED_HTTP_DATE','FUTURE_ARCHIVE','MISSING_TIMESTAMP']){
+  const st=memory(),read=st.readResearchObservation.bind(st);
+  st.readResearchObservation=async hash=>{
+    const original=await read(hash);
+    if(mode==='MISSING_ORIGINAL')return null;
+    if(mode==='MUTATED_BYTES')return {...original,body:Buffer.from('changed synthetic research data')};
+    if(mode==='UNTRUSTED_HTTP_DATE')return {...original,uploadedAtSource:'HTTP_LAST_MODIFIED'};
+    if(mode==='FUTURE_ARCHIVE')return {...original,uploadedAt:new Date('2026-11-13T17:15:01.000Z')};
+    return {...original,uploadedAt:null};
+  };
+  await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
+    storage:st,clock:()=>cycleNow,fetcher,ensureEvidenceContext}),/CLOUD_SIGNAL_ORIGIN_/);
+  assert.equal(st.writes,0,'Never add EU SIGNAL with unproven archive '+mode);
+}
+const noEuHead=memory();noEuHead.readResearchObservation=undefined;
+await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
+  storage:noEuHead,clock:()=>cycleNow,fetcher,ensureEvidenceContext}),
+  /CLOUD_EU_SIGNAL_CYCLE_PRIVATE_EVIDENCE_STORE_REQUIRED/);
+assert.equal(noEuHead.writes,0);
+const euRollback=memory();let euTicks=0;
+const rollbackClock=()=>++euTicks<=4?cycleNow:'2026-11-13T17:14:59.000Z';
+await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
+  storage:euRollback,clock:rollbackClock,fetcher,ensureEvidenceContext}),
+  /CLOUD_SIGNAL_ORIGIN_ORIGINAL_ARCHIVE_LATER_THAN_SIGNAL_CLOCK/);
+assert.equal(euRollback.writes,0,'EU rollback inside CAS cannot create SIGNAL');
+
 const repeated=await runOneGlobalCloudEuProspectiveCycle({storage:cycleStore,clock:()=>cycleNow,fetcher,ensureEvidenceContext});
 assert.equal(repeated.state,'EU_SESSION_SIGNAL_ALREADY_COMMITTED');assert.equal(cycleStore.writes,1);assert.equal(evidenceCalls,1);
 // Confirmed deterioration can produce a prospective SELL even below original
