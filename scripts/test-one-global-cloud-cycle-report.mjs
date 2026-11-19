@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSummary,
-  publicOneGlobalFirstFillForensicSummary as forensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+  publicOneGlobalFirstFillForensicSummary as forensicSummary,
+  publicOneGlobalSecondFillForensicSummary as secondForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
 const fixture={state:'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:true,originalEventsPreserved:true,
   journalEventCount:3,pendingSignalCount:1,virtualFillCount:0,paperFillsCreated:0,newSignals:0,sourcePairsAttempted:0,
   settlementState:'SETTLEMENT_BLOCKED',settlementSourceRequests:0,
@@ -226,3 +228,63 @@ for(const delta of [
 ])assert.throws(()=>forensicSummary({...rawAudit,...delta}),/NOT_VERIFIED/,
   'No forged forensic proof or escalated broker authority');
 console.log('PASS first original FILL forensic Actions attestation: 10 exact checks, incomplete evidence, no leaks or broker elevation.');
+
+  
+// Execute the trusted Actions runner against SYNTHETIC safe route responses.
+// Regression: release #68 could report CHECK_NOT_CONFIRMED because the runner
+// still used Milan-only stage/reason enums for the new XNAS/USD audit.
+// No external HTTP, real OIDC, private Blob or journal writes occur here.
+const usOriginalSecond=secondForensicSummary({...rawAudit,fillOrdinal:2,
+  identity:{mic:'XNAS',currency:'USD',side:'BUY',opaqueFixture:'PRIVATE_US_ORIGINAL'},
+  state:'FILL_NOT_YET_VERIFIABLE',checks:rawAudit.checks.slice(0,3),
+  missingEvidence:[{code:'US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED',
+    path:'PRIVATE_ORIGINAL_BLOB'}]});
+assert.equal(usOriginalSecond.checksPassed,3);
+assert.equal(usOriginalSecond.nextRequiredCheck,'US_TWO_ORIGINAL_DAILY_SOURCE_PAYLOADS_REPARSED');
+assert.equal(usOriginalSecond.forensicReasonCode,'US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED');
+const firstHistoric=forensicSummary({...rawAudit,
+  state:'FILL_NOT_YET_VERIFIABLE',checks:rawAudit.checks.slice(0,9),
+  missingEvidence:[{code:'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN'}]});
+const syntheticNoFill={...fixture,state:'ORIGINAL_VERIFIED_NO_ELIGIBLE_SIGNAL',
+  pendingSignalCount:0,settlementState:'NO_PENDING_SIGNAL_TO_SETTLE',
+  settlementBlockers:[]};
+const envKeys=['GITHUB_REPOSITORY','GITHUB_REF','ACTIONS_ID_TOKEN_REQUEST_URL',
+  'ACTIONS_ID_TOKEN_REQUEST_TOKEN','GITHUB_STEP_SUMMARY'];
+const previousEnv=Object.fromEntries(envKeys.map(k=>[k,process.env[k]]));
+const originalFetch=globalThis.fetch,originalLog=console.log;
+const syntheticLogs=[];
+try{
+  Object.assign(process.env,{GITHUB_REPOSITORY:'romitoorazio/fenice-investment-system',
+    GITHUB_REF:'refs/heads/main',
+    ACTIONS_ID_TOKEN_REQUEST_URL:'https://token.actions.githubusercontent.com/oidc',
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN:'SYNTHETIC_TEST_ONLY'});
+  delete process.env.GITHUB_STEP_SUMMARY;
+  globalThis.fetch=async(url,init={})=>{
+    const link=String(url);
+    if(link.startsWith('https://token.actions.githubusercontent.com/'))
+      return Response.json({value:'SYNTHETIC_OIDC_'.repeat(20)});
+    assert.equal(link,SIGNAL_CYCLE_AUDIENCE,'No other network origin');
+    assert.equal(init.method,'POST');
+    const action=JSON.parse(init.body).action;
+    if(action==='RESEARCH_SIGNAL_CYCLE')return Response.json(syntheticNoFill);
+    if(action==='AUDIT_FIRST_FILL_READ_ONLY')return Response.json(firstHistoric);
+    if(action==='AUDIT_SECOND_FILL_READ_ONLY')return Response.json(usOriginalSecond);
+    assert.fail('Unexpected synthetic protected route action');
+  };
+  console.log=(...values)=>syntheticLogs.push(values.map(String).join(' '));
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?synthetic-us-forensic-runner-regression');
+}finally{
+  globalThis.fetch=originalFetch;
+  console.log=originalLog;
+  for(const k of envKeys){
+    if(previousEnv[k]===undefined)delete process.env[k];
+    else process.env[k]=previousEnv[k];
+  }
+}
+assert(syntheticLogs.some(x=>x.startsWith('ONE_GLOBAL_FIRST_FILL_FORENSIC=FILL_NOT_YET_VERIFIABLE')));
+assert(syntheticLogs.some(x=>x==='ONE_GLOBAL_SECOND_FILL_FORENSIC=FILL_NOT_YET_VERIFIABLE REASON=US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED ADAPTER=NOT_REQUIRED_OR_UNDETERMINED CHECKS=3/10'),
+  'Runner must publish bounded XNAS/USD blocker rather than CHECK_NOT_CONFIRMED');
+assert(!syntheticLogs.some(x=>x.includes('CHECK_NOT_CONFIRMED')));
+assert.doesNotMatch(syntheticLogs.join('\n'),/PRIVATE_US_ORIGINAL|PRIVATE_ORIGINAL_BLOB|SYNTHETIC_OIDC_/);
+assert.equal(process.exitCode??0,0);
+console.log('PASS trusted Actions forensic runner: bounded USD stage/reason allowlist, no private leakage, first 9\/10 unchanged and Directa locked. SYNTHETIC.');
