@@ -30,6 +30,21 @@ await assert.rejects(collect({...input,fetcher:async()=>new Response('<html>secr
   {headers:{'content-type':'text/html'}})}),/CONTENT_TYPE/);
 await assert.rejects(collect({...input,fetcher:async()=>{throw Error('URL?apikey=private');}}),/TRANSPORT_UNAVAILABLE/);
 await assert.rejects(collect({...input,fetcher:async url=>Response.json(url.hostname==='eodhd.com'?[{date,close:999}]:a)}),/INDEPENDENT_QUOTES_DIVERGE/);
+// Regression: Alpaca IEX entitlement denial must not suppress an independent
+// Alpha Vantage + EODHD pair. No order endpoint or fabricated source is used.
+const iexEnv={APCA_API_KEY_ID:'fixture-alpaca-key',APCA_API_SECRET_KEY:'fixture-alpaca-secret'};
+const fallbackHosts=[];
+const recovered=await collect({...input,env:iexEnv,fetcher:async(url,options)=>{
+  fallbackHosts.push(url.hostname);
+  assert.equal(options.redirect,'error');
+  if(url.hostname==='data.alpaca.markets')return Response.json({message:'fixture-denied'},{status:403});
+  return Response.json(url.hostname==='eodhd.com'?e:a);
+}});
+assert.deepEqual(fallbackHosts.sort(),['data.alpaca.markets','eodhd.com','www.alphavantage.co'].sort());
+assert(Buffer.isBuffer(recovered.alphaRaw));
+assert(Buffer.isBuffer(recovered.eodhdRaw));
+assert.equal(recovered.alpacaIexRaw,undefined);
+assert.equal(recovered.report.paperSettlementEligible,false);
 const before=calls;
 await assert.rejects(collect({...input,alphaKey:''}),/ALPHA_KEY_MISSING/);
 await assert.rejects(collect({...input,symbol:'CBA'}),/UNSUPPORTED_IDENTITY/);
