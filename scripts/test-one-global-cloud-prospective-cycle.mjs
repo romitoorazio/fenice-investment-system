@@ -64,6 +64,8 @@ const forged=store();
 const rejected=await run({storage:forged,clock:()=>now,collect:async({symbol})=>{
   const x=evidence(symbol);x.report.sma5=999;return x;}});
 assert.equal(rejected.newSignals,0);assert.equal(forged.writes,0);assert.equal(forged.archives,0);
+assert.deepEqual(rejected.outcomes.map(x=>x.state),Array(3).fill('CLOUD_SIGNAL_CYCLE_SOURCE_REPORT_MISMATCH'),
+  'Forged provider report must be classified without leaking vendor bytes');
 const provider=store();
 const unavailable=await run({storage:provider,clock:()=>now,collect:async()=>{throw Error('apikey=SECRET');}});
 assert.equal(unavailable.newSignals,0);assert(!JSON.stringify(unavailable).includes('SECRET'));assert.equal(provider.archives,0);
