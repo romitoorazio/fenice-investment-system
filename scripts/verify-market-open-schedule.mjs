@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -6,6 +7,7 @@ import path from "node:path";
 // opening cron, but only as *early-session* evidence, never as proof that an
 // opening-window scheduled check arrived on time.
 export const RECOVERY_EARLIEST_ET_MINUTE = 9 * 60 + 45;
+const MAX_EARLY_RECOVERY_WAIT_MS = 120_000;
 export const RECOVERY_LATEST_ET_MINUTE = 11 * 60 + 30;
 const SCHEDULES = new Set([
   "45 13 * * 1-5", // US summer opening window
@@ -53,7 +55,11 @@ export function assessOpenReadinessSchedule({
     const weekday = !["Sat","Sun"].includes(parts.weekday);
     const inWindow = weekday && marketMinutes >= RECOVERY_EARLIEST_ET_MINUTE
       && marketMinutes <= RECOVERY_LATEST_ET_MINUTE;
+    const untilWindowMs = (RECOVERY_EARLIEST_ET_MINUTE - marketMinutes) * 60_000
+      - checkedAt.getUTCSeconds() * 1000 - checkedAt.getUTCMilliseconds();
     return { ...base, ok: inWindow,
+      ...(weekday && untilWindowMs > 0 && untilWindowMs <= MAX_EARLY_RECOVERY_WAIT_MS
+        ? { retryAfterMs: untilWindowMs } : {}),
       status: inWindow ? "EARLY_SESSION_RECOVERY_NOT_OPENING_PROOF" : "OUTSIDE_EARLY_SESSION_RECOVERY_WINDOW",
       samplingKind: inWindow ? "EARLY_SESSION_RECOVERY_ONLY" : "NO_MARKET_OPEN_EVIDENCE",
       exchangeLocalClock: `${parts.weekday} ${parts.hour}:${parts.minute} America/New_York` };
@@ -90,8 +96,22 @@ export function assessOpenReadinessSchedule({
   };
 }
 
+export async function checkOpenReadinessAtRuntime(input, { clock = () => new Date(), wait = sleep } = {}) {
+  const first = assessOpenReadinessSchedule({ ...input, now: clock() });
+  if (!first.retryAfterMs) return first;
+  await wait(first.retryAfterMs);
+  // Observe the actual runner clock after the wait, including a rollback,
+  // delayed wakeup, or day change. Do not synthesize an in-window timestamp.
+  const second = assessOpenReadinessSchedule({ ...input, now: clock() });
+  const report = { ...second, firstCheckedAt: first.checkedAt, requestedWaitMs: first.retryAfterMs };
+  if (second.checkedAt?.slice(0, 10) !== first.checkedAt.slice(0, 10)) {
+    return { ...report, ok: false, status: "RECOVERY_CHECK_DATE_CHANGED", samplingKind: "NO_MARKET_OPEN_EVIDENCE" };
+  }
+  return report;
+}
+
 async function main() {
-  const result = assessOpenReadinessSchedule({
+  const result = await checkOpenReadinessAtRuntime({
     eventName: process.env.GITHUB_EVENT_NAME,
     schedule: process.env.FENICE_SCHEDULE_CRON,
     repository: process.env.GITHUB_REPOSITORY,
