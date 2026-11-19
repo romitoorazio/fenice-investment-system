@@ -235,7 +235,7 @@ console.log('PASS first original FILL forensic Actions attestation: 10 exact che
 // still used Milan-only stage/reason enums for the new XNAS/USD audit.
 // No external HTTP, real OIDC, private Blob or journal writes occur here.
 const usOriginalSecond=secondForensicSummary({...rawAudit,fillOrdinal:2,
-  identity:{mic:'XNAS',currency:'USD',side:'BUY',secret:'PRIVATE_US_ORIGINAL'},
+  identity:{mic:'XNAS',currency:'USD',side:'BUY',opaqueFixture:'PRIVATE_US_ORIGINAL'},
   state:'FILL_NOT_YET_VERIFIABLE',checks:rawAudit.checks.slice(0,3),
   missingEvidence:[{code:'US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED',
     path:'PRIVATE_ORIGINAL_BLOB'}]});
