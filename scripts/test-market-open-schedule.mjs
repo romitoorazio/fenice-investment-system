@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { assessOpenReadinessSchedule, MAX_SCHEDULE_DELAY_MINUTES } from "./verify-market-open-schedule.mjs";
+import { assessOpenReadinessSchedule, checkOpenReadinessAtRuntime, MAX_SCHEDULE_DELAY_MINUTES } from "./verify-market-open-schedule.mjs";
 
 const check = (schedule, now, eventName = "schedule") => assessOpenReadinessSchedule({
   eventName, schedule, now: new Date(now),
@@ -51,3 +51,39 @@ assert.equal(recover("2026-10-19T14:00:00.000Z",{event:"push"}).ok,true,"trusted
 assert.equal(recover("2026-10-19T14:00:00.000Z",{event:"pull_request"}).ok,false);
 
 console.log("Fenice US PAPER scheduled readiness delay regression: PASS.");
+
+
+// A real Foundation recovery on 19 November reached the gate at 09:44:10 ET.
+// The assessment stays refused until the runner actually observes 09:45.
+const input = { eventName: "workflow_run", repository: "o/r", upstream: {
+  name: "Fenice Foundation", event: "schedule", conclusion: "success", headBranch: "main", headRepository: "o/r",
+} };
+const early = "2026-11-19T14:44:10.620Z";
+async function runRecovery(first, second, args = input) {
+  const times = [new Date(first), new Date(second)];
+  const waits = [];
+  const report = await checkOpenReadinessAtRuntime(args, {
+    clock: () => times.shift(),
+    wait: async ms => { waits.push(ms); },
+  });
+  return { report, waits };
+}
+const timely = await runRecovery(early, "2026-11-19T14:45:00.000Z");
+assert.deepEqual(timely.waits, [49380]);
+assert.equal(timely.report.checkedAt, "2026-11-19T14:45:00.000Z");
+assert.equal(timely.report.samplingKind, "EARLY_SESSION_RECOVERY_ONLY");
+assert.equal(timely.report.ok, true);
+assert.equal((await runRecovery(early, early)).report.ok, false);
+assert.equal((await runRecovery(early, "2026-11-19T17:00:00.000Z")).report.ok, false);
+assert.equal((await runRecovery(early, "2026-11-20T14:45:00.000Z")).report.ok, false);
+for (const first of ["2026-11-19T14:42:59.999Z", "2026-11-21T14:44:10.620Z"]) {
+  const result = await runRecovery(first, early);
+  assert.equal(result.report.ok, false);
+  assert.deepEqual(result.waits, []);
+}
+const untrusted = await runRecovery(early, early, { ...input, upstream: { ...input.upstream, headBranch: "other" } });
+assert.equal(untrusted.report.ok, false);
+assert.deepEqual(untrusted.waits, []);
+const summerWait = await runRecovery("2026-07-20T13:44:30.000Z", "2026-07-20T13:45:00.000Z");
+assert.equal(summerWait.report.ok, true);
+assert.deepEqual(summerWait.waits, [30000]);
