@@ -1,3 +1,4 @@
+import { normalizePaperProviderTimestamp } from "./paper-timestamp-integrity.ts";
 import type {
   PreTradeDecision,
   ProposedOrder,
@@ -20,10 +21,16 @@ export const DEFAULT_RISK_LIMITS: RiskLimits = {
 
 const finitePositive = (value: unknown) => Number.isFinite(Number(value)) && Number(value) > 0;
 
-function quoteAgeSeconds(observedAt: string, now = Date.now()): number {
-  const observed = Date.parse(observedAt);
-  if (!Number.isFinite(observed)) return Number.POSITIVE_INFINITY;
-  return Math.max(0, (now - observed) / 1000);
+function quoteAgeSeconds(observedAt: string, now: number): number {
+  if (!Number.isSafeInteger(now) || now < 0 || now > 8.64e15) return Infinity;
+  const canonical = normalizePaperProviderTimestamp(observedAt);
+  if (!canonical) return Infinity;
+  const elapsedMs = now - Date.parse(canonical);
+  // The provider can timestamp a quote more precisely than the millisecond
+  // runner clock. A non-zero remainder in the current millisecond is future.
+  const subMs = /\.\d{3}(\d+)(?:Z|[+-])/.exec(observedAt)?.[1];
+  if (elapsedMs < 0 || (elapsedMs === 0 && Number(subMs ?? 0) > 0)) return Infinity;
+  return elapsedMs / 1000;
 }
 
 export function evaluatePreTradeRisk(
@@ -70,7 +77,9 @@ export function evaluatePreTradeRisk(
     { code: "data-confidence", passed: context.dataConfidence >= limits.minDataConfidence, message: "Data confidence is below the execution threshold.", observed: context.dataConfidence, limit: limits.minDataConfidence },
     { code: "independent-sources", passed: context.independentSources >= limits.minIndependentSources, message: "Insufficient independent sources.", observed: context.independentSources, limit: limits.minIndependentSources },
     { code: "risk-score", passed: context.riskScore <= limits.maxRiskScore, message: "Instrument risk score exceeds the paper execution limit.", observed: context.riskScore, limit: limits.maxRiskScore },
-    { code: "quote-freshness", passed: quoteAge <= limits.maxQuoteAgeSeconds, message: "Market quote is stale.", observed: Number(quoteAge.toFixed(1)), limit: limits.maxQuoteAgeSeconds },
+    { code: "quote-freshness", passed: Number.isFinite(quoteAge) && Number.isFinite(limits.maxQuoteAgeSeconds)
+      && quoteAge <= limits.maxQuoteAgeSeconds, message: "Quote must be valid, current, and no later than the risk clock.",
+      observed: Number.isFinite(quoteAge) ? Number(quoteAge.toFixed(1)) : "invalid", limit: limits.maxQuoteAgeSeconds },
     { code: "no-divergence", passed: context.dataDivergent === false, message: "Cross-source data divergence blocks execution.", observed: context.dataDivergent, limit: false },
     { code: "source-freshness", passed: context.sourceStale === false, message: "Stale source data blocks execution.", observed: context.sourceStale, limit: false },
   ];
