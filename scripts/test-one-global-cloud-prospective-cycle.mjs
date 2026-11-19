@@ -19,11 +19,21 @@ function evidence(symbol='AAPL',close=180){
 }
 function store(ledger=initial){
   let body=ledger===null?null:JSON.stringify(ledger),etag='"fixture-1"',writes=0,archives=0;
+  let originalObservation=null;
   return {privateAccess:true,durable:true,atomicCompareAndSwap:true,
     async read(){return body===null?null:{body,etag};},
-    async createResearchObservation({body}){
+    async createResearchObservation({hash,body}){
       const observation=JSON.parse(body);assert.equal(observation.kind,'ONE_GLOBAL_PRIVATE_RESEARCH_SOURCE_OBSERVATION');
-      assert.equal(observation.report.paperSettlementEligible,false);archives++;return {created:true};
+      assert.equal(observation.report.paperSettlementEligible,false);
+      originalObservation={body,hash};archives++;
+      // Original observation key is the digest of the research report, not
+      // the complete envelope; preserve the caller hash for exact readback.
+      return {created:true};
+    },
+    async readResearchObservation(hash){
+      if(!originalObservation||originalObservation.hash!==hash)return null;
+      return {body:Buffer.from(originalObservation.body),uploadedAt:new Date(now),
+        uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'};
     },
     async compareAndSwap(x){assert.equal(x.expectedEtag,etag);body=x.body;etag='"fixture-2"';writes++;return {committed:true,etag};},
     get body(){return body;},get writes(){return writes;},get archives(){return archives;}};
@@ -59,6 +69,30 @@ const unavailable=await run({storage:provider,clock:()=>now,collect:async()=>{th
 assert.equal(unavailable.newSignals,0);assert(!JSON.stringify(unavailable).includes('SECRET'));assert.equal(provider.archives,0);
 const failedArchive=store();failedArchive.createResearchObservation=async()=>{throw Error('private-storage-error');};
 await assert.rejects(run({storage:failedArchive,collect,clock:()=>now}));assert.equal(failedArchive.writes,0);
+// No SIGNAL may be written if the authoritative original archive did not
+// exist before the journal timestamp. Test fail-closed readback failures.
+for(const mode of ['MISSING_ORIGINAL','TAMPERED_BYTES','HTTP_DATE_ONLY','FUTURE_ORIGIN_CLOCK','INVALID_ORIGIN_CLOCK']){
+  const st=store(),read=st.readResearchObservation.bind(st);
+  st.readResearchObservation=async hash=>{
+    const original=await read(hash);
+    if(mode==='MISSING_ORIGINAL')return null;
+    if(mode==='TAMPERED_BYTES')return {...original,body:Buffer.from('synthetic changed bytes')};
+    if(mode==='HTTP_DATE_ONLY')return {...original,uploadedAtSource:'HTTP_LAST_MODIFIED'};
+    if(mode==='FUTURE_ORIGIN_CLOCK')return {...original,uploadedAt:new Date('2026-11-13T21:45:01.000Z')};
+    return {...original,uploadedAt:'not-a-date'};
+  };
+  await assert.rejects(run({storage:st,collect,clock:()=>now}),/CLOUD_SIGNAL_ORIGIN_/);
+  assert.equal(st.writes,0,'Never append signal with unproven archive: '+mode);
+  assert.equal(st.archives,1,'Untrusted archive remains immutable');
+}
+const missingHead=store();missingHead.readResearchObservation=undefined;
+await assert.rejects(run({storage:missingHead,collect,clock:()=>now}),/PRIVATE_EVIDENCE_AND_CAS_STORE_REQUIRED/);
+assert.equal(missingHead.writes,0);
+const reversedClock=store();let ticksAfter=0;
+const reversed=()=>++ticksAfter<=3?now:'2026-11-13T21:44:59.000Z';
+await assert.rejects(run({storage:reversedClock,collect,clock:reversed}),
+  /CLOUD_SIGNAL_ORIGIN_ORIGINAL_ARCHIVE_LATER_THAN_SIGNAL_CLOCK/);
+assert.equal(reversedClock.writes,0,'CAS clock rollback cannot create SIGNAL');
 const conflict=store();let casAttempts=0;
 conflict.compareAndSwap=async()=>{casAttempts++;throw Error('PRECONDITION_FAILED');};
 await assert.rejects(run({storage:conflict,collect,clock:()=>now}),/ATOMIC_WRITE_REJECTED_RELOAD_REQUIRED/);
