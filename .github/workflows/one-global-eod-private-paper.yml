@@ -344,10 +344,9 @@ jobs:
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-asx-cba-next-session:
-    # Real keyed CBA 13 Nov EOD admission check. On trusted main only; PRs
-    # never see vendor tokens. The runner fails closed after the strict
-    # original 48h settlement window, without using Monday as Friday.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6'))
+    # Historical 13 Nov CBA evidence window expired. Keep explicit replay
+    # available without starting a keyed historical probe on new market days.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

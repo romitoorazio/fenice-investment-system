@@ -1,6 +1,6 @@
 /** Trusted Actions runner sends a short-lived identity, never vendor or owner keys. */
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
-import {oneGlobalActionsCycleSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {oneGlobalActionsCycleSummary,validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {appendFileSync} from 'node:fs';
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
@@ -29,161 +29,44 @@ try{
   // This summary is attached to the job run, not just buried in raw logs.
   if(process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,visible.markdown,{encoding:'utf8'});
-  // Follow-up is READ ONLY and deliberately independent: a forensic outage
-  // cannot reverse/duplicate the already finished atomic PAPER cycle.
-  try{
-    const auditResponse=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
+  // Fetch in parallel after settlement. Each read-only audit is isolated and
+  // bound to the ordinal observed by this cycle before rendering any output.
+  const targets=[['FIRST',1],['SECOND',2]];
+  if(visible.report.virtualFillCount>2)targets.push(['LATEST',visible.report.virtualFillCount]);
+  const audits=await Promise.allSettled(targets.map(async ([which,ordinal])=>{
+    const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
       signal:AbortSignal.timeout(52000),headers:{Authorization:'Bearer '+value,
-        'Content-Type':'application/json'},body:JSON.stringify({action:'AUDIT_FIRST_FILL_READ_ONLY'})});
-    if(!auditResponse.ok)throw Error('FORENSIC_UNAVAILABLE');
-    const auditText=await auditResponse.text();if(auditText.length>2500)throw Error('FORENSIC_OVERSIZE');
-    const audit=JSON.parse(auditText);
-    const states=['NO_ORIGINAL_FILL','FILL_NOT_YET_VERIFIABLE',
-      'FILL_INVALID','FILL_RIGOROUS_REPLAY_VERIFIED'];
-    const safeMissing=new Set([
-      'NONE','NO_ORIGINAL_FILL','FORENSIC_INTEGRITY_DEFECT',
-      'PRIVATE_EVIDENCE_GAP_UNCLASSIFIED',
-      'PRIVATE_READ_ONLY_EVIDENCE_ACCESS_REQUIRED','ORIGINAL_JOURNAL_REQUIRED',
-      'PRIVATE_EVIDENCE_READ_UNAVAILABLE','PRIVATE_EVIDENCE_OBJECT_MISSING',
-      'PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED','PRIVATE_EVIDENCE_ORIGIN_METADATA_INVALID',
-      'PRIVATE_EVIDENCE_ORIGINAL_READ_INVALID',
-      'FIRST_FILL_MARKET_FORENSIC_ADAPTER_NOT_REVIEWED',
-      'ORIGINAL_CBOE_FILE_DISCOVERY_REQUIRED',
-      'ORIGINAL_JOURNAL_CHANGED_DURING_READ_ONLY_AUDIT',
-      'ORIGINAL_STORAGE_OBJECT_TIMESTAMPS_REQUIRED',
-      'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN',
-      'SIGNAL_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN',
-      'US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED',
-      'US_ORIGINAL_ECB_FX_RAW_REQUIRED',
-      'US_ORIGINAL_RESEARCH_PROVIDER_ADAPTER_REQUIRED',
-      'PRIVATE_FORENSIC_CHECK_NOT_COMPLETED',
-    ]);
-    const safeChecks=new Set([
-      'ORIGINAL_HASH_CHAIN_AND_ACCOUNT_REPLAY',
-      'ORIGINAL_SETTLEMENT_ARCHIVE_AND_RECEIPTS_BOUND_TO_FILL',
-      'ORIGINAL_DOCUMENT_BYTES_CONSENT_RIGHTS_MAPPING_AND_EXACT_SESSION',
-      'BOTH_ORIGINAL_VENUE_FILES_REPARSED_EXACTLY',
-      'ARCHIVED_OFFICIAL_USAGE_POLICIES_CALENDAR_AND_DISCOVERY',
-      'PROSPECTIVE_SIGNAL_RECOMPUTED_FROM_ORIGINAL_PRIOR_SESSION_BYTES',
-      'EXACT_FILL_EVENT_QUANTITY_FEE_BALANCE_AND_HASH_REPRODUCED',
-      'ONE_FILL_FOR_SIGNAL_AND_SINGLE_OPEN_POSITION',
-      'ORIGINAL_JOURNAL_UNCHANGED_DURING_AUDIT',
-      'US_TWO_ORIGINAL_DAILY_SOURCE_PAYLOADS_REPARSED',
-      'US_REVIEWED_UPSTREAM_RIGHTS_AND_EXCHANGE_SESSION',
-      'US_ORIGINAL_ECB_PRIOR_SESSION_FX_REPARSED',
-      'US_PROSPECTIVE_RESEARCH_REBUILT_FROM_ORIGINAL_PAYLOADS',
-      'US_EXACT_SIGNAL_AND_FILL_ECONOMICS_REPLAY',
-      'US_ONE_FILL_AND_UNCHANGED_ORIGINAL_JOURNAL',
-      'ORIGINAL_STORAGE_TIMESTAMPS_PRESERVE_PROSPECTIVE_EVIDENCE',
-    ]);
-    if(!states.includes(audit.state)
-      ||audit.mode!=='ONE_GLOBAL_FIRST_FILL_FORENSIC_SAFE_STATUS'
-      ||typeof audit.firstFillForensicallyVerified!=='boolean'
-      ||audit.firstFillForensicallyVerified!==(audit.state==='FILL_RIGOROUS_REPLAY_VERIFIED')
-      ||!Number.isSafeInteger(audit.checksPassed)||audit.checksPassed<0||audit.checksPassed>10
-      ||typeof audit.originalJournalReplayed!=='boolean'
-      ||!Number.isSafeInteger(audit.missingEvidenceCount)||audit.missingEvidenceCount<0
-      ||!Number.isSafeInteger(audit.defectCount)||audit.defectCount<0
-      ||!safeMissing.has(audit.forensicReasonCode)
-      ||audit.nextRequiredCheck!==null&&!safeChecks.has(audit.nextRequiredCheck)
-      ||audit.journalMutationAllowed!==false||audit.paperFillsCreated!==0
-      ||audit.certifiedTrades!==0||audit.phase9Credit!==0
-      ||audit.brokerConnectivityAllowed!==false||audit.liveTradingAllowed!==false)
-      throw Error('FORENSIC_STATUS_NOT_VERIFIED');
-    console.log('ONE_GLOBAL_FIRST_FILL_FORENSIC='+audit.state
-      +' REASON='+audit.forensicReasonCode
-      +' CHECKS='+audit.checksPassed+'/10');
+        'Content-Type':'application/json'},body:JSON.stringify({action:'AUDIT_'+which+'_FILL_READ_ONLY'})});
+    if(!response.ok)throw Error('FORENSIC_UNAVAILABLE');
+    const text=await response.text();
+    if(text.length>2500)throw Error('FORENSIC_OVERSIZE');
+    return validateOneGlobalWorkflowForensic(JSON.parse(text),which,ordinal);
+  }));
+  for(const [index,outcome] of audits.entries()){
+    const [which,ordinal]=targets[index];
+    const tag='ONE_GLOBAL_'+which+'_FILL_FORENSIC=';
+    if(outcome.status!=='fulfilled'){
+      console.log(tag+'CHECK_NOT_CONFIRMED');
+      if(which==='LATEST'){
+        console.log('::warning title=FENICE PAPER forensic replay unavailable::Recorded FILL '+ordinal+' has no confirmed replay in this run.');
+      }
+      continue;
+    }
+    const audit=outcome.value;
+    console.log(tag+audit.state+' REASON='+audit.forensicReasonCode
+      +(audit.adapterFamily?' ADAPTER='+audit.adapterFamily:'')+' CHECKS='+audit.checksPassed+'/10'
+      +(which==='LATEST'?' ORDINAL='+ordinal:''));
     if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      '\n## First original FILL — read-only forensic audit\n'
+      '\n## Original FILL '+ordinal+' — read-only forensic audit\n'
       +'\n| Check | Result |\n|---|---|\n'
       +'| Verdict | '+audit.state+' |\n'
       +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\n'
       +'| Next pending forensic check | '+(audit.nextRequiredCheck??'NONE')+' |\n'
-      +'| First safe evidence reason | '+audit.forensicReasonCode+' |\n'
+      +'| Evidence reason | '+audit.forensicReasonCode+' |\n'
       +'| Missing evidence groups | '+audit.missingEvidenceCount+' |\n'
       +'| Evidence defects | '+audit.defectCount+' |\n'
-      +'| Phase 9 / Directa LIVE | DISABLED |\n',
-      {encoding:'utf8'});
-  }catch{
-    // Safe warning only: NEVER echo the private endpoint body or its error.
-    console.log('ONE_GLOBAL_FIRST_FILL_FORENSIC=CHECK_NOT_CONFIRMED');
-  }
-  // The second audit is independent. A historical first-FILL evidence gap
-  // must not prevent verifying the later original SELL/BUY on its own merits.
-  try{
-    const next=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
-      signal:AbortSignal.timeout(52000),headers:{Authorization:'Bearer '+value,
-        'Content-Type':'application/json'},body:JSON.stringify({action:'AUDIT_SECOND_FILL_READ_ONLY'})});
-    if(!next.ok)throw Error('SECOND_FORENSIC_UNAVAILABLE');
-    const secondText=await next.text();
-    if(secondText.length>2500)throw Error('SECOND_FORENSIC_OVERSIZE');
-    const audit=JSON.parse(secondText);
-    const allowedKeys=new Set(['mode','state','forensicReasonCode','nextRequiredCheck',
-      'fillOrdinal','secondFillForensicallyVerified','adapterFamily','checksPassed','originalJournalReplayed',
-      'missingEvidenceCount','defectCount','journalMutationAllowed','paperFillsCreated',
-      'certifiedTrades','phase9Credit','brokerConnectivityAllowed','liveTradingAllowed']);
-    const states=['NO_ORIGINAL_FILL','FILL_NOT_YET_VERIFIABLE','FILL_INVALID','FILL_RIGOROUS_REPLAY_VERIFIED'];
-    const reasons=new Set(['NONE','NO_ORIGINAL_FILL','FORENSIC_INTEGRITY_DEFECT',
-      'PRIVATE_EVIDENCE_GAP_UNCLASSIFIED','PRIVATE_READ_ONLY_EVIDENCE_ACCESS_REQUIRED',
-      'ORIGINAL_JOURNAL_REQUIRED','PRIVATE_EVIDENCE_READ_UNAVAILABLE',
-      'PRIVATE_EVIDENCE_OBJECT_MISSING','PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED',
-      'PRIVATE_EVIDENCE_ORIGIN_METADATA_INVALID','PRIVATE_EVIDENCE_ORIGINAL_READ_INVALID',
-      'FIRST_FILL_MARKET_FORENSIC_ADAPTER_NOT_REVIEWED',
-      'ORIGINAL_CBOE_FILE_DISCOVERY_REQUIRED','ORIGINAL_JOURNAL_CHANGED_DURING_READ_ONLY_AUDIT',
-      'ORIGINAL_STORAGE_OBJECT_TIMESTAMPS_REQUIRED',
-      'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN',
-      'SIGNAL_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN',
-      'US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED',
-      'US_ORIGINAL_ECB_FX_RAW_REQUIRED',
-      'US_ORIGINAL_RESEARCH_PROVIDER_ADAPTER_REQUIRED','PRIVATE_FORENSIC_CHECK_NOT_COMPLETED']);
-    const stages=new Set(['ORIGINAL_HASH_CHAIN_AND_ACCOUNT_REPLAY',
-      'ORIGINAL_SETTLEMENT_ARCHIVE_AND_RECEIPTS_BOUND_TO_FILL',
-      'ORIGINAL_DOCUMENT_BYTES_CONSENT_RIGHTS_MAPPING_AND_EXACT_SESSION',
-      'BOTH_ORIGINAL_VENUE_FILES_REPARSED_EXACTLY',
-      'ARCHIVED_OFFICIAL_USAGE_POLICIES_CALENDAR_AND_DISCOVERY',
-      'PROSPECTIVE_SIGNAL_RECOMPUTED_FROM_ORIGINAL_PRIOR_SESSION_BYTES',
-      'EXACT_FILL_EVENT_QUANTITY_FEE_BALANCE_AND_HASH_REPRODUCED',
-      'ONE_FILL_FOR_SIGNAL_AND_SINGLE_OPEN_POSITION',
-      'ORIGINAL_JOURNAL_UNCHANGED_DURING_AUDIT',
-      'US_TWO_ORIGINAL_DAILY_SOURCE_PAYLOADS_REPARSED',
-      'US_REVIEWED_UPSTREAM_RIGHTS_AND_EXCHANGE_SESSION',
-      'US_ORIGINAL_ECB_PRIOR_SESSION_FX_REPARSED',
-      'US_PROSPECTIVE_RESEARCH_REBUILT_FROM_ORIGINAL_PAYLOADS',
-      'US_EXACT_SIGNAL_AND_FILL_ECONOMICS_REPLAY',
-      'US_ONE_FILL_AND_UNCHANGED_ORIGINAL_JOURNAL',
-      'ORIGINAL_STORAGE_TIMESTAMPS_PRESERVE_PROSPECTIVE_EVIDENCE']);
-    const adapterFamilies=new Set(['MILAN_UNMAPPED_INSTRUMENT','NON_MILAN_EURO_MARKET',
-      'NON_MILAN_USD_MARKET','OTHER_CURRENCY_MARKET','NOT_REQUIRED_OR_UNDETERMINED']);
-    if(!audit||audit.mode!=='ONE_GLOBAL_SECOND_FILL_FORENSIC_SAFE_STATUS'
-      ||audit.fillOrdinal!==2||!states.includes(audit.state)
-      ||!adapterFamilies.has(audit.adapterFamily)
-      ||Object.keys(audit).some(k=>!allowedKeys.has(k))
-      ||typeof audit.secondFillForensicallyVerified!=='boolean'
-      ||audit.secondFillForensicallyVerified!==(audit.state==='FILL_RIGOROUS_REPLAY_VERIFIED')
-      ||typeof audit.originalJournalReplayed!=='boolean'
-      ||!Number.isSafeInteger(audit.checksPassed)||audit.checksPassed<0||audit.checksPassed>10
-      ||!Number.isSafeInteger(audit.missingEvidenceCount)||audit.missingEvidenceCount<0
-      ||!Number.isSafeInteger(audit.defectCount)||audit.defectCount<0
-      ||!reasons.has(audit.forensicReasonCode)
-      ||audit.nextRequiredCheck!==null&&!stages.has(audit.nextRequiredCheck)
-      ||audit.journalMutationAllowed!==false||audit.paperFillsCreated!==0
-      ||audit.certifiedTrades!==0||audit.phase9Credit!==0
-      ||audit.brokerConnectivityAllowed!==false||audit.liveTradingAllowed!==false)
-      throw Error('SECOND_FORENSIC_STATUS_NOT_VERIFIED');
-    console.log('ONE_GLOBAL_SECOND_FILL_FORENSIC='+audit.state
-      +' REASON='+audit.forensicReasonCode+' ADAPTER='+audit.adapterFamily+' CHECKS='+audit.checksPassed+'/10');
-    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      '\n## Second original FILL — independent read-only forensic audit\n'
-      +'\n| Check | Result |\n|---|---|\n'
-      +'| Verdict | '+audit.state+' |\n'
-      +'| Independent replay checks passed | '+audit.checksPassed+' / 10 |\n'
-      +'| Next pending forensic check | '+(audit.nextRequiredCheck??'NONE')+' |\n'
-      +'| First safe evidence reason | '+audit.forensicReasonCode+' |\n'
-      +'| Required original market adapter family | '+audit.adapterFamily+' |\n'
-      +'| Phase 9 / Directa LIVE | DISABLED |\n',
-      {encoding:'utf8'});
-  }catch{
-    console.log('ONE_GLOBAL_SECOND_FILL_FORENSIC=CHECK_NOT_CONFIRMED');
+      +(audit.adapterFamily?'| Original market adapter | '+audit.adapterFamily+' |\n':'')
+      +'| Phase 9 / Directa LIVE | DISABLED |\n',{encoding:'utf8'});
   }
 
 }catch{

@@ -68,3 +68,6 @@ assert.match(cycle,/runOneGlobalCloudSettlementCycle/);
 assert.match(settlement,/STRICT_NEXT_SESSION_48H_WINDOW_ELAPSED/);
 assert.match(settlement,/atomicCompareAndSwap/);
 console.log('PASS ONE GLOBAL: independent EU and overnight recovery, main-only OIDC, original ledger/CAS and strict 48h gates retained; no Directa.');
+
+const historicalCba=workflow.split('  cloud-asx-cba-next-session:')[1].split('    runs-on:')[0];
+assert.match(historicalCba,/if: github.ref == 'refs\/heads\/main' && github.event_name == 'workflow_dispatch'\s*$/);
