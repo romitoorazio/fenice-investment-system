@@ -92,12 +92,17 @@ for(const alphaKey of ['SYNTHETIC_ALPHA_KEY','']){
   signal:{signalId:'synthetic-existing-original',key:'XNAS:OTHER',mic:'XNAS',currency:'USD',side:'BUY',decisionAt:'2026-11-12T22:00:00.000Z',
    referenceSessionDate:'2026-11-12',referenceCloseAt:'2026-11-12T21:00:00.000Z',referencePublishedAt:'2026-11-12T21:30:00.000Z',
    sourceSnapshotHash:'a'.repeat(64),maxNotionalEuro:50,strategyReason:'UPTREND_CONFIRMATION'}}).ledger;
- let archived=0;
+ let archived=0,archivedBody=null,archivedHash=null;
  const storage={privateAccess:true,durable:true,atomicCompareAndSwap:true,
   async read(){return {etag:'"original"',body:JSON.stringify(journal)};},
-  async createResearchObservation({body}){const payload=JSON.parse(body);
+  async createResearchObservation({hash,body}){const payload=JSON.parse(body);
    assert.equal(payload.alphaRawBase64,undefined);assert.equal(typeof payload.eodhdRawBase64,'string');
-   assert.equal(typeof payload.alpacaIexRawBase64,'string');archived++;return {created:true};},
+   assert.equal(typeof payload.alpacaIexRawBase64,'string');
+   archivedBody=body;archivedHash=hash;archived++;return {created:true};},
+  async readResearchObservation(hash){
+   return hash===archivedHash?{body:Buffer.from(archivedBody),uploadedAt:new Date(now),
+     uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'}:null;
+  },
   async compareAndSwap({body,expectedEtag}){assert.equal(archived,1);assert.equal(expectedEtag,'"original"');
    journal=JSON.parse(body);return {committed:true,etag:'"new"'};}};
  const committed=await runOneGlobalCloudProspectiveCycle({storage,clock:()=>now,collect:async()=>recovered});
