@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { evaluatePreTradeRisk, DEFAULT_RISK_LIMITS } from "../lib/trading/risk-engine.ts";
+import { PaperOms } from "../lib/trading/paper-oms.ts";
 import { evaluateStrictPaperPreTradeRisk as assess, paperTimestamp,
   assessCoreTemporalRiskSafety, applyTemporalRiskReadiness } from "../lib/ui/paper-temporal-risk.ts";
 import { buildInstitutionalReadiness } from "../lib/trading/readiness-evidence.ts";
@@ -34,12 +36,34 @@ assert.equal(normalizePaperProviderTimestamp("2026-10-12T24:00:00Z"), null);
 assert.equal(assess({ ...order, mode: "LIVE" }, context, undefined, now).allowed, false);
 assert.equal(assess(order, { ...context, brokerConnectivityAllowed: true }, undefined, now).allowed, false);
 const state = assessCoreTemporalRiskSafety();
-assert.equal(state.coreVerified, false, "V6 defect must not be silently labelled PASS");
+assert.equal(state.coreVerified, true);
+assert.equal(state.futureQuoteRejected, true);
+assert.equal(state.invalidQuoteRejected, true);
+assert.equal(state.invalidClockRejected, true);
+const coreDecision = (quoteObservedAt, clock = now, limits = DEFAULT_RISK_LIMITS) =>
+  evaluatePreTradeRisk(order, { ...context, quoteObservedAt }, limits, clock);
+for (const stamp of [new Date(now + 1).toISOString(), "2026-10-12T13:00:00.000001Z",
+  new Date(now - 120_001).toISOString(), "2026-02-30T13:00:00Z", "2026-10-12"]) {
+  const denied = coreDecision(stamp);
+  assert.equal(denied.allowed, false);
+  assert.equal(denied.checks.find(check => check.code === "quote-freshness").passed, false);
+}
+for (const clock of [-1, Number.NaN, Infinity, now + 0.5, "invalid"]) {
+  assert.equal(coreDecision(context.quoteObservedAt, clock).allowed, false);
+}
+assert.equal(coreDecision("invalid", now, { ...DEFAULT_RISK_LIMITS, maxQuoteAgeSeconds: Infinity }).allowed, false);
+for (const stamp of [new Date(now - 120_000).toISOString(), new Date(now).toISOString(),
+  "2026-10-12T08:59:59.999999-04:00"]) assert.equal(coreDecision(stamp).allowed, true);
+const oms = new PaperOms();
+const refused = oms.submit(order, { ...context, quoteObservedAt: new Date(now + 1).toISOString() }, now);
+assert.equal(refused.status, "RISK_REJECTED");
+assert.equal(refused.filledQuantity, 0);
+assert.equal(oms.submit(order, context, now), refused, "retry must preserve the original rejection");
 assert.equal(state.reviewBoundaryFutureQuoteRejected, true);
 assert.equal(state.orderSubmitted, false);
 const readiness = applyTemporalRiskReadiness(buildInstitutionalReadiness({ intelligenceConfidence: 95,
   coverage: { sourceConcentrationPercent: 40 }, crossSourceValidation: { checked: 20, divergent: 0 } }));
-assert.equal(readiness.evidence["pretrade-risk"], "TESTING");
-assert(readiness.report.blockers.some(row => row.id === "pretrade-risk"));
+assert.equal(readiness.evidence["pretrade-risk"], "PASS");
+assert(!readiness.report.blockers.some(row => row.id === "pretrade-risk"));
 assert.equal(readiness.report.capitalReady, false);
 console.log("PAPER strict temporal boundary and honest core readiness: PASS");

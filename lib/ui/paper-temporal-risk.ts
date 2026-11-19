@@ -5,7 +5,7 @@ import type { ProposedOrder, RiskContext, RiskLimits, RiskCheck } from "../tradi
 import { paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
 export { paperTimestamp } from "../trading/paper-timestamp-integrity.ts";
 
-/** Strict read-only boundary around the immutable V6 risk implementation. */
+/** Strict timestamp controls for the read-only PAPER review. */
 export function evaluateStrictPaperPreTradeRisk(
   order: ProposedOrder, context: RiskContext,
   limits: RiskLimits = DEFAULT_RISK_LIMITS, now = Date.now(),
