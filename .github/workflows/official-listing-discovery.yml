@@ -1,0 +1,86 @@
+name: Fenice Official Listing and IPO Research
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/research/official-listing-discovery.mjs"
+      - "scripts/collect-official-listing-discovery.mjs"
+      - "scripts/test-official-listing-discovery.mjs"
+      - ".github/workflows/official-listing-discovery.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/research/official-listing-discovery.mjs"
+      - "scripts/collect-official-listing-discovery.mjs"
+      - "scripts/test-official-listing-discovery.mjs"
+      - ".github/workflows/official-listing-discovery.yml"
+  workflow_dispatch:
+  schedule:
+    # Nasdaq adds can update during the US session; SEC index is published overnight.
+    - cron: "47 15,23 * * 1-5"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Official listing research-only regression
+        run: node scripts/test-official-listing-discovery.mjs
+      - name: Repository secret scan
+        run: node scripts/scan-repository-secrets.mjs
+  collect:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: fenice-data-writer
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Fetch official US listing actions and SEC registrations (never trade)
+        run: node scripts/collect-official-listing-discovery.mjs
+      - name: Validate generated research-only output
+        shell: bash
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const report=JSON.parse(fs.readFileSync('data/official-listing-discovery.json','utf8'));
+          if (report.status!=='OFFICIAL_LISTING_RESEARCH_ONLY'||!report.safety?.noTrading||
+              report.events.some(e=>e.paperAllowed||e.liveAllowed||e.brokerOrderAllowed||
+              e.ipoOfferPrice!==null||e.firstTradeAt!==null)) {
+            throw Error('OFFICIAL_DISCOVERY_SAFETY_CONTRACT_FAILED');
+          }
+          console.log('OFFICIAL_DISCOVERY_RESEARCH_ONLY_PASS');
+          NODE
+      - name: Commit only public discovery research (no signals or ledger writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "fenice-research-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp data/official-listing-discovery.json "$RUNNER_TEMP/listing-research.json"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/listing-research.json" data/official-listing-discovery.json
+            git add data/official-listing-discovery.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data: refresh official listing research-only watch"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
