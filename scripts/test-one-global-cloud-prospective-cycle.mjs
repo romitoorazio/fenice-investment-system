@@ -57,6 +57,11 @@ assert.equal(b.writes,1);assert.equal(b.archives,1);
 const weekend=store();
 assert.equal((await run({storage:weekend,collect,clock:()=>'2026-11-14T21:45:00.000Z'})).state,'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW');
 assert.equal(weekend.writes,0);assert.equal(collections,1);
+const closedResult=await run({storage:store(),collect,clock:()=>'2026-11-13T20:35:00.000Z'});
+assert.deepEqual(closedResult.candidateEligibility.map(x=>x.reason),Array(3).fill('NOT_IN_NY_POSTCLOSE_WINDOW'));
+assert.equal(closedResult.sourcePairsAttempted,0);
+assert.deepEqual(result.candidateEligibility.map(x=>x.reason),Array(3).fill('ELIGIBLE_FOR_RESEARCH_PROBE'));
+assert.doesNotMatch(JSON.stringify(closedResult),/sourceSnapshotHash|payloadSha256|RawBase64/);
 for(const empty of [null,newOneGlobalEodPaperLedger()]){
   const no=store(empty);await assert.rejects(run({storage:no,collect,clock:()=>now}),/ORIGINAL/);assert.equal(no.writes,0);
 }
