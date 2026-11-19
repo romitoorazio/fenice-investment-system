@@ -1,0 +1,980 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/TnhcVtSwV+8GwMuj8NQl7DRfRQ8</id>
+  <title>arXiv Query: search_query=cat:cs.AI OR cat:cs.LG OR cat:q-bio.GN OR cat:quant-ph&amp;id_list=&amp;start=0&amp;max_results=40</title>
+  <updated>2026-11-18T23:48:58Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+OR+(cat:cs.LG+OR+(cat:q-bio.GN+OR+cat:quant-ph))&amp;start=0&amp;max_results=40&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>40</opensearch:itemsPerPage>
+  <opensearch:totalResults>617803</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23229v1</id>
+    <title>Ambient LLMs: Data-Efficient Supervised Fine-tuning via Temperature Matching</title>
+    <updated>2026-11-17T18:59:37Z</updated>
+    <link href="https://arxiv.org/abs/2611.23229v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23229v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Collecting large-scale, diverse, and high-quality post-training datasets for autoregressive language models is challenging. Consequently, Supervised Fine-Tuning (SFT) is typically applied to datasets significantly smaller than those used for pre-training, which leads to overfitting and the catastrophic forgetting of the tails of the data distribution. To prevent this collapse, we introduce Ambient SFT, a principled framework for leveraging imperfect predictions to augment the fine-tuning set. In our method, a "frozen" version of the pre-trained model serves as a noisy teacher that the fine-tuned model must match at a coarse level. In particular, we require that the high-temperature versions of the conditional distributions produced by the post-training model should match the high-temperature versions of the pre-training ones. The temperature hyperparameter controls the level of trust in the pre-trained model, with the limit $T\to \infty$ reverting back to regular SFT and $T=1$ to knowledge distillation. We demonstrate that our approach outperforms standard SFT across domain adaptation, instruction-tuning, and reasoning, leading for up to $21\%$ average relative improvement to standard SFT.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:59:37Z</published>
+    <arxiv:comment>Work in progress</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Giannis Daras</name>
+    </author>
+    <author>
+      <name>Marios Papachristou</name>
+    </author>
+    <author>
+      <name>Adam Klivans</name>
+    </author>
+    <author>
+      <name>Antonio Torralba</name>
+    </author>
+    <author>
+      <name>Constantinos Daskalakis</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23228v1</id>
+    <title>Spool: Low-Latency Streaming Inference for Hybrid Vision-Language Models</title>
+    <updated>2026-11-17T18:59:27Z</updated>
+    <link href="https://arxiv.org/abs/2611.23228v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23228v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Applications such as visual accessibility agents and robotics require answering questions about recent video content promptly, over a bounded window of past frames (e.g., the last two minutes). Hybrid vision-language models (VLMs), which interleave attention with linear recurrent layers such as Gated DeltaNet (GDN), are attractive for this setting, but maintaining a sliding window is expensive. The reason is that recurrent layers combine all past frames into a shared state, so expiring old frames normally requires re-running the entire window through the model. We observe that the recurrent update is affine in the state with input-dependent coefficients, so the effect of each frame can be captured as a transformation that composes associatively. We present Spool, a training-free framework that caches per-frame state transformations and composes them efficiently as the window advances, removing expired frames from each recurrent layer's state without replaying frames through the backbone. Removal is exact within each layer; as with key-value eviction in attention, expired frames can retain residual influence through the cached inputs computed by earlier layers. We design a dedicated data structure and GPU kernels to achieve low caching and composition overhead. Across five open-source hybrid VLMs and four video reasoning benchmarks, Spool achieves the lowest p95 time-to-first-token in all 20 model-benchmark tests, reducing it by a geometric mean of $6.6\times$ over the faster of two recent vLLM baselines, while improving accuracy by 2.3 percentage points on average.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:59:27Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Rui Ning</name>
+    </author>
+    <author>
+      <name>Om Chabra</name>
+    </author>
+    <author>
+      <name>Hari Balakrishnan</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23227v1</id>
+    <title>Expressivity of two-dimensional Gaussian fermion tensor network states</title>
+    <updated>2026-11-17T18:59:22Z</updated>
+    <link href="https://arxiv.org/abs/2611.23227v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23227v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Tensor network states (TNS) provide a family of efficiently compressed approximations to physically relevant many-body quantum states. An important quantity that characterizes the computational resources required by a TNS is its bond dimension. While in one dimension an area law for the Renyi-0 entropy guarantees an exact matrix product state representation with a bond dimension independent of the system size, an analogous statement does not hold for general states in two dimensions (2D). This leaves open the question of how the expressivity of 2D TNS is related to the entanglement properties of the states they represent. In this work, we focus on two families of 2D translation-invariant Gaussian fermionic states: single-band BCS superconductors and half-filled two-band insulators (including semimetals). For each family, we prove that an area law for the Renyi-0 entropy is equivalent to having an exact Gaussian fermionic TNS representation with a finite bond dimension determined by the Renyi-0 entropy. We also establish equivalent characterizations in terms of compactly supported Wannier-type orbitals and the momentum-space wavefunction, relating the spatial extent of these orbitals and the structure of the wavefunction to the required bond dimension.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.mes-hall" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.str-el" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.supr-con" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:59:22Z</published>
+    <arxiv:comment>Main: 17 pages, 2 figures, 2 tables; 4 appendices</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Pok Man Tam</name>
+    </author>
+    <author>
+      <name>William Musk</name>
+    </author>
+    <author>
+      <name>Zhehao Dai</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23225v1</id>
+    <title>StringQFT: A Multiuse Textbook Resource for AI-Assisted Theoretical Physics</title>
+    <updated>2026-11-17T18:58:40Z</updated>
+    <link href="https://arxiv.org/abs/2611.23225v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23225v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present StringQFT as a textbook collection for string constructions of quantum field theory and as infrastructure for AI-assisted theoretical physics. The collection comprises 18 volumes, 190 chapters and 3,795 pages, covering brane probes, brane webs, geometric engineering, F-theory constructions, wrapped M5-branes and exact worldsheet constructions. Its open-book benchmark inventory contains 1,073 items, including 499 with automatic finite-answer checking. For retrieval-augmented generation, it provides 1,371 section records linked to textbook sources and PDF locations, together with a local lexical retriever. Training-data preparation is illustrated by 21 private, source-linked examples. For agents, it exposes 19 calculation tools with specified inputs and finite domains, connecting tool use to textbook derivations. We illustrate these uses through specific questions, retrieved passages and finite calculations. The textbook collection and accompanying resources are available at https://github.com/xingyang-yu/StringQFT.</summary>
+    <category term="hep-th" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:58:40Z</published>
+    <arxiv:comment>23 pages, 6 figures. Companion paper to an 18-volume textbook collection. Textbook PDFs: https://xingyangyu.com/textbook/</arxiv:comment>
+    <arxiv:primary_category term="hep-th"/>
+    <author>
+      <name>Xingyang Yu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23224v1</id>
+    <title>From nonlocal correlations to local symmetry breaking: Asymmetry dynamics of crosscap states</title>
+    <updated>2026-11-17T18:57:40Z</updated>
+    <link href="https://arxiv.org/abs/2611.23224v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23224v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Under unitary dynamics preserving a global symmetry, bipartite entanglement typically grows while an initially broken symmetry is locally restored. Here, we show that this conventional scenario can be reversed when symmetry-breaking coherence is initially encoded in long-range entanglement. We investigate this phenomenon in a family of charge deformed crosscap states, characterized by antipodal entangled pairs with tunable entanglement and symmetry breaking. We first characterize their static properties, finding a Page-like entanglement profile and an entanglement asymmetry that vanishes for subsystems smaller than half the system size, but grows logarithmically for larger subsystems. For symmetric subsystems, we also analyze the symmetry-resolved entanglement and investigate how it evolves as the subsystem is continuously deformed away from a symmetric partition. Following a quench to a free-fermion tight-binding chain, we uncover an unconventional dynamics in which the entanglement entropy decreases whereas the entanglement asymmetry increases, so that initially symmetric subsystems dynamically develop local symmetry breaking. This behavior is quantitatively captured by a quasiparticle picture describing the propagation of antipodal correlations. Our results reveal how symmetry-preserving dynamics can redistribute globally encoded symmetry-breaking coherence, making it locally accessible, and establish the initial entanglement structure as a key ingredient in determining the fate of local symmetries out of equilibrium.</summary>
+    <category term="cond-mat.stat-mech" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:57:40Z</published>
+    <arxiv:comment>29 pages, 8 figures</arxiv:comment>
+    <arxiv:primary_category term="cond-mat.stat-mech"/>
+    <author>
+      <name>Konstantinos Chalas</name>
+    </author>
+    <author>
+      <name>Pasquale Calabrese</name>
+    </author>
+    <author>
+      <name>Colin Rylands</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23221v1</id>
+    <title>An inexact stochastic variance-reduced gradient method for constrained convex finite-sum optimization</title>
+    <updated>2026-11-17T18:57:16Z</updated>
+    <link href="https://arxiv.org/abs/2611.23221v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23221v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this paper, we study a class of constrained convex finite-sum optimization problems. In many practical applications, all or some of the constraints are hard constraints that represent imperative requirements. Consequently, any desirable approximate solution must (nearly) satisfy these constraints. Motivated by this, we focus on computing an $ε$-$surely\ feasible\ stochastic\ optimal$ ($ε$-SFSO) solution, in which the constraint violation is deterministically bounded by $ε$, and the expected optimality gap is at most $ε$. While a recently proposed stochastic variance-reduced first-order penalty method can compute an $ε$-SFSO solution, there remains a significant gap between its first-order oracle complexity for computing an $ε$-SFSO solution and that for computing an $ε$-$expected\ feasible\ stochastic\ optimal$ solution, where both the expected constraint violation and the expected optimality gap are bounded by $ε$. To narrow this gap, we propose an inexact stochastic variance-reduced gradient (SVRG) method that significantly improves the previously best-known first-order oracle complexity for computing an $ε$-SFSO solution. Furthermore, when the objective consists of a single function, the proposed method reduces to a novel deterministic first-order method for solving standard convex conic optimization. It achieves a significantly lower gradient evaluation complexity with respect to the objective function compared to existing methods, and can outperform them when computing constraint gradients and projections onto the associated cone is cheaper than evaluating the objective gradient. Preliminary numerical results are presented to illustrate the performance of the proposed method.</summary>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:57:16Z</published>
+    <arxiv:comment>Accepted by SIAM Journal on Optimization</arxiv:comment>
+    <arxiv:primary_category term="math.OC"/>
+    <author>
+      <name>Zhaosong Lu</name>
+    </author>
+    <author>
+      <name>Yifeng Xiao</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23219v1</id>
+    <title>Do LLM Agents Still Need to Be Told How to Self-Improve?</title>
+    <updated>2026-11-17T18:57:10Z</updated>
+    <link href="https://arxiv.org/abs/2611.23219v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23219v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>LLM agents increasingly drive their own learning. Self-improvement methods delegate various components of model optimization to the models themselves. As models become more capable, this motivates a basic question: do these increasingly capable models still need us to specify how they should self-improve? In this paper we study an autonomous paradigm in which, given basic primitives, resources, and a general goal for self-improvement, agents construct their own self-learning algorithm for context-based optimization. Using the setting of gameplay as a testbed, a frozen LLM agent is given a compute budget and tools for collecting experience and updating text documents, and allowed to freely experiment without an externally imposed loop or access to real-world data. We find that sufficiently capable models do self-improve under these conditions, demonstrating strategies that align with classic cognitive frameworks for self-regulated learning and constructs from machine learning literature on self-generated curricula. Furthermore, we study the extent to which the learned text artifacts transfer to external benchmarks, observing improvement across different game horizons, mechanics, and 3D navigation.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:57:10Z</published>
+    <arxiv:comment>Project page: https://ssundaram21.github.io/self-org/</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Shobhita Sundaram</name>
+    </author>
+    <author>
+      <name>Cansu Sancaktar</name>
+    </author>
+    <author>
+      <name>Phillip Isola</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23218v1</id>
+    <title>What Does a Bias Head Measure? Non-Identifiability in Head-Level Bias Attribution</title>
+    <updated>2026-11-17T18:57:08Z</updated>
+    <link href="https://arxiv.org/abs/2611.23218v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23218v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Methods that localise social bias in large language models to individual attention heads and remove it by ablation are validated by their effect on a fairness metric, never by evidence that the statistic selecting the heads measures bias. We audit this on Qwen-2.5-7B-Instruct and Llama-3.1-8B-Instruct. The head map correlates at $ρ= -0.950$ and $-0.768$ with a label-blind response-length map, apparently identifying a surface confound. An intervention that breaks the length-label coupling rejects this reading: with the prompt held fixed, response length explains 1% of the statistic's variance. What does explain it is prompt identity, at 64% of variance, in an ordering that is not monotonic in length. Within any fixed prompt the fairness label, response length and the presence of a protected-group token are collinear at $φ= 0.95$, partly by definition of the labelling rule, so no observational analysis can attribute the map to any of them, and no method in this family performs an experiment that could. The substantive claims fail independently: bias selectivity is not late-layer-concentrated on either model under either reference reading, and no head set we tested reduces the unfairness rate when ablated. Its complement, scored on the opposite label, reliably destroys refusal behaviour ($p = 2.7\times10^{-5}$), demonstrating that the pipeline detects effects at this scale.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:57:08Z</published>
+    <arxiv:comment>18 pages, 13 tables. Under review at ACL Rolling Review (October 2026 cycle)</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>S. M Seefat Alam</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23216v1</id>
+    <title>Higher-Scoring Coding Models Did Not Get More Work Done</title>
+    <updated>2026-11-17T18:56:42Z</updated>
+    <link href="https://arxiv.org/abs/2611.23216v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23216v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>New coding models advertise themselves on score improvements of coding benchmarks. Yet no study has tested if a model that scores higher on these benchmarks gets more real work done. On June 12, 2026, a U.S. export control directive banned access to Claude Fable 5 for 19 days, which forced users to switch to other models. During this time, most former Fable 5 users switched to Opus 4.8 (11 points lower on SWE-Bench Pro compared to Fable 5). We treat this suspension as a natural experiment, where the people and projects stayed the same and only the model changed, so we could isolate the effect of Fable 5 on user productivity. We tracked GitHub pull requests of 297 Fable 5 users before, during, and after the suspension. We used 8,908 developers who stayed on Opus 4.8 all the time as the control group. We also repeated the comparison across five model upgrades before and after the suspension in 2026 (1,208 developers, 15,442 pull requests). Fitting a difference-in-differences model with developer and date fixed effects, we found that having access to Fable 5 increased the 7-day merge rate of pull requests by only 1.4 percentage points [-1.4; +4.3], which was not statistically significant. Similarly, no significant increases of merge rates were found with the upgrades (weighted mean: -0.9 percentage points [-1.9; +0.2]); all five estimates were negative (95% intervals included 0, did not differ from each other). We also did not observe a significant increase in the number of pull requests merged per week (+2.4% [-4.9%; +10.2%]).</summary>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:56:42Z</published>
+    <arxiv:comment>20 pages, 4 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.SE"/>
+    <author>
+      <name>Yining Hua</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23213v1</id>
+    <title>Modeling quantum information scrambling in realistic protein NMR experiments</title>
+    <updated>2026-11-17T18:52:24Z</updated>
+    <link href="https://arxiv.org/abs/2611.23213v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23213v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Out-of-time-order correlators (OTOCs) are important probes of operator spreading and information scrambling, and have recently been proposed as a means of extracting molecular structural information through nuclear magnetic resonance (NMR). Realizing this potential requires accurate modeling of OTOCs in complex molecular environments within experimentally relevant settings. Here, we develop an end-to-end computational pipeline connecting molecular structures to OTOC dynamics in protein systems. Our framework incorporates molecular motion through molecular dynamics simulations, orientational averaging appropriate for powder samples, and spin-network truncation, using an experimentally realizable double-quantum effective Hamiltonian. We apply this framework to a dataset of over 350 carbon-carbon spin pairs across 10 protein systems, spanning interspin distances of 5-17 A. We find that OTOC arrival times scale approximately linearly with interspin distance, revealing system-dependent operator-spreading velocities that enable correlations to propagate over extended distances within milliseconds. Our sensitivity analysis further shows that individual OTOCs predominantly constrain a single structural parameter, primarily associated with interspin distance. Together, these findings highlight the potential of OTOCs to probe spatially extended spin correlations on timescales compatible with solid-state NMR experiments.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:52:24Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Alec F. White</name>
+    </author>
+    <author>
+      <name>Joseph Haslehurst</name>
+    </author>
+    <author>
+      <name>Daniel R. Moberg</name>
+    </author>
+    <author>
+      <name>Justin Provazza</name>
+    </author>
+    <author>
+      <name>Nicholas C. Rubin</name>
+    </author>
+    <author>
+      <name>Thomas E. O'Brien</name>
+    </author>
+    <author>
+      <name>Christian Bengs</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23211v1</id>
+    <title>Multimodal Masked Diffusion Autoencoder for Modeling Impaired Driving</title>
+    <updated>2026-11-17T18:50:22Z</updated>
+    <link href="https://arxiv.org/abs/2611.23211v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23211v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Human cognitive state (e.g., distraction, stress), gaze, and behavior interact with the driving environment in subtle ways that AI could use to assist drivers, but ground-truth labels for human cognitive state levels are costly to obtain at scale. We propose a multimodal masked-diffusion autoencoder, ID-MAE, that adds a self-supervised objective to impairment prediction: alongside predicting the impairment label as a masked token, it reconstructs masked gaze and trajectory. To probe the effects of different modalities and types of impairments on model inference, we introduce DIVERT, a driving-simulator dataset containing 103 hours of driving data (n = 109) with ten impairment inductions spanning cognitive, visual, and emotional states, recorded with gaze, vehicle state, and scene video. We demonstrate how ID-MAE affords significant improvements in impairment inference results on both the DIVERT dataset and existing datasets, and enables strong results in additional tasks, such as trajectory and gaze prediction. For location-matched pairs, our model achieves a paired AUC of 0.706 for impairment detection on DIVERT, compared to 0.590 without reconstruction loss, improving over existing baselines. We probe the design space in terms of input modalities, masking scheme, positional encoding, attention mechanism, and decoding. We also investigate the interaction between various impairments in training and inference, demonstrating that visually demanding distractions are separable from cognitive distractions. Code and data will be available upon acceptance.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:50:22Z</published>
+    <arxiv:comment>Equal contribution: John Gideon and Anshul Gupta. 8 pages, 6 figures. Submitted to CVPR 2027</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>John Gideon</name>
+    </author>
+    <author>
+      <name>Anshul Gupta</name>
+    </author>
+    <author>
+      <name>Megan Applegate-Kenton</name>
+    </author>
+    <author>
+      <name>Kayli Battel</name>
+    </author>
+    <author>
+      <name>Todd J Rowell</name>
+    </author>
+    <author>
+      <name>Patricio Reyes Gomez</name>
+    </author>
+    <author>
+      <name>Laporsha Dees</name>
+    </author>
+    <author>
+      <name>Emily Sumner</name>
+    </author>
+    <author>
+      <name>Avinash Balachandran</name>
+    </author>
+    <author>
+      <name>Guy Rosman</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23208v1</id>
+    <title>Distortion-Free Semantic Watermarks for Black-Box Generative Models</title>
+    <updated>2026-11-17T18:49:17Z</updated>
+    <link href="https://arxiv.org/abs/2611.23208v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23208v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present a provably distortion-free semantic watermarking algorithm that requires only black-box sampling access to a generative model and black-box access to a semantic embedding. A watermark is called distortion-free if, averaged over its secret detection key, it leaves the generator's output distribution unchanged; this provides a formal guarantee that watermarking does not reduce output quality. Conventional such watermarks are often brittle to transformations. This is especially problematic for images, where benign operations such as compression, cropping, or resizing change the entire pixel representation. Semantic watermarks therefore require detection to be robust to content-preserving transformations. Previous methods combining these properties rely heavily on specific white-box properties of the underlying model: either to autoregressive text generation or to diffusion-specific access, such as control of the initial noise or diffusion inversion. In contrast, our construction is fully generic: It only interacts with the generative model and the semantic embedding, a function that determines the notion of "preserving content" under which detection should be robust, via sample and query access. We then instantiate this framework for image generation. We characterize the two competing properties required of the semantic embedding: it should remain stable under transformations that preserve an image's content, but should distinguish independent generations from the same prompt. We train an image encoder directly for this tradeoff. The resulting encoder improves separation while maintaining stability over off-the-shelf alternatives and enables strong aggregate detection while remaining robust to various transformations. We demonstrate the effectiveness of our watermark scheme on both open-source and closed models, which is possible only due to restriction to black-box access.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:49:17Z</published>
+    <arxiv:comment>Project page: https://avivyossef.github.io/distortion-free-semantic-watermark/ Code: https://github.com/avivyossef/distortion-free-semantic-watermark</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Aviv Yossef</name>
+    </author>
+    <author>
+      <name>Or Patashnik</name>
+    </author>
+    <author>
+      <name>Or Zamir</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23207v1</id>
+    <title>Local interference algorithms for observables in large random circuits</title>
+    <updated>2026-11-17T18:48:27Z</updated>
+    <link href="https://arxiv.org/abs/2611.23207v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23207v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In quantum dynamics, it is generally believed that interference effects lead to a sign problem for classical Monte Carlo sampling methods, rendering sampling ineffective. In this paper we show that this is generically not the case for the task of simulating the evolution of observables in random instances of circuit dynamics. Specifically, we consider two examples of observables which give large signals despite the randomness of the dynamics: first order out-of-time-ordered correlators (OTOCs) in unstructured random circuits without conservation laws and time-ordered charge-charge correlators (TOCs) in particle number-preserving random circuits. We show that these observables can be approximated by classical stochastic processes and that these approximations can be systematically improved with a series expansion that incorporates coherent corrections associated with clusters of gates. We design and implement algorithms that combine Monte Carlo sampling and tensor network methods to approximate the series. We observe numerically that the computational complexity of approximating TOCs and OTOCs scales polynomially in the circuit size and in the target precision. We study the accuracy of these algorithms by directly mapping their ensemble-averaged errors to partition functions of replica statistical models, allowing for perturbative analysis and numerics in $1$d brickwork geometries. Our theoretical analysis explains the empirical observation of polynomial complexity of these algorithms and is consistent with polynomial complexity extending to arbitrarily small precision and to the thermodynamic limit.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.str-el" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:48:27Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Philippe Suchsland</name>
+    </author>
+    <author>
+      <name>Brayden Ware</name>
+    </author>
+    <author>
+      <name>Vladislav D. Kurilovich</name>
+    </author>
+    <author>
+      <name>Vadim Smelyanskiy</name>
+    </author>
+    <author>
+      <name>Kostyantyn Kechedzhi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23206v1</id>
+    <title>Reading Scene States: Uncovering Safety Failures in Vision-Language Models</title>
+    <updated>2026-11-17T18:48:02Z</updated>
+    <link href="https://arxiv.org/abs/2611.23206v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23206v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Vision-language models (VLMs) can provide harmful assistance by interpreting visual events, even without an explicit request for the underlying harmful objective. We identify this \textbf{scene-state safety vulnerability} and introduce \textbf{SceneSafetyBench}, comprising 375 image--question pairs spanning Initial, Medium, and Ultimate scene states and five visual presentations. Across eight VLMs, scene-state inputs elicit harmful assistance with attack success rates (ASRs) of 45.6--72.3\%. Comparative analysis across three VLMs shows that scene-state inputs most closely resemble QR-related images in their layer-wise safety-related signal profiles, while exhibiting lower average late-layer readouts and distinct signal dynamics during generation. To turn this vulnerability into a systematic attack, we propose \textbf{S3TA}, which translates harmful objectives into scene states, queries image--question pairs independently, and assembles the responses. On seven MM-SafetyBench categories across eight open-weight and commercial VLMs, S3TA achieves a model-average ASR of \textbf{71.2\%, exceeding the strongest baseline by 6.1 percentage points}. Text-side filters and visual moderation provide limited protection. These findings highlight the need to safeguard the assistance models infer through scene-grounded reasoning, beyond screening input content.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:48:02Z</published>
+    <arxiv:comment>VLM safety, multimodal jailbreaks, and scene-state reasoning</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Tongxi Wu</name>
+    </author>
+    <author>
+      <name>Yuyang Cheng</name>
+    </author>
+    <author>
+      <name>Jiacheng Xian</name>
+    </author>
+    <author>
+      <name>Menglin Yang</name>
+    </author>
+    <author>
+      <name>Kai Chen</name>
+    </author>
+    <author>
+      <name>Jian Zhang</name>
+    </author>
+    <author>
+      <name>Yang Gao</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23205v1</id>
+    <title>Fine-Tuning Gemma 4 Edge Models for MATLAB Signal-Processing Code with SFT and QLoRA on a Laptop iGPU</title>
+    <updated>2026-11-17T18:47:37Z</updated>
+    <link href="https://arxiv.org/abs/2611.23205v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23205v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Small language models that run on a laptop are attractive for writing signal-processing code offline, but they make systematic errors on digital signal processing (DSP) conventions. We apply supervised fine-tuning (SFT) to the Gemma 4 edge models E2B and E4B with 66 checked examples covering 11 signal-processing MATLAB subtasks, using low-rank adaptation (LoRA) and quantized LoRA (QLoRA) on the integrated GPU (iGPU) of a laptop, and deploy the 8-bit integer (int8) models with the adapters through OpenVINO. On held-out variants scored by deterministic checkers, the pass rate rises from 18/66 to 37/66 (LoRA) and 37/66 (QLoRA) for E2B and from 32/66 to 47/66 for E4B (QLoRA). Reading all 159 failing programs shows that the adapters remove most errors of convention, such as the sign of a lag, units and array shapes, but few errors in building signals and noise. Applied at run time, the adapter costs 17-19% of the generation speed.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SP" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:47:37Z</published>
+    <arxiv:comment>18 pages, 3 figures, 4 tables</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Mehmet Altan Toksöz</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23202v1</id>
+    <title>Agent Trust Infrastructure (ATI): A Federated Identity, Trust, Attestation, and Accountability Architecture for Cross-Organization Autonomous AI Agents</title>
+    <updated>2026-11-17T18:44:25Z</updated>
+    <link href="https://arxiv.org/abs/2611.23202v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23202v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>AI agents increasingly collaborate across organizational boundaries, invoking tools and interacting with agents operated by independent entities. Although existing agent frameworks support planning and coordination, they lack a common mechanism for verifying cross-organizational agent identity, execution integrity, and authorization. We propose the Agent Trust Infrastructure (ATI), a framework-independent security architecture built on Public Key Infrastructure (PKI), Zero Trust Architecture (ZTA), and remote attestation. ATI establishes federated trust through peer organizational certificate authorities (AgentCAs), eliminating the need for a shared root authority. Before executing requests, ATI validates agent certificates, verifies approved model, tool, and system-prompt configurations, and enforces authorization through three policy checks. We implement ATI as an external security enforcement layer that integrates with existing agent frameworks without modifying their underlying models. We evaluate ATI in a simulated federation of eight organizations using six agent frameworks, each deploying a five-agent team. Security experiments involve two organizations and assess 14 attack scenarios and six benign tasks across five agent models, using five attack variations and three repetitions per variation. A panel of judge models evaluates the experimental outcomes. With all enforcement mechanisms enabled, attack containment increases from 43% to 84% (40% to 80% for the 11 attack scenarios evaluated consistently across all configurations), while enforcement introduces approximately 174 microseconds of overhead per request. ATI is released as an open-source, framework-independent package that uses IETF WIMSE workload token formats for identity and request verification and Entity Attestation Tokens for model, tool, and system-prompt integrity verification.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:44:25Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Viet K. Nguyen</name>
+    </author>
+    <author>
+      <name>Mohammad I. Husain</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23198v1</id>
+    <title>Learned versus Kinematic Trajectory Prediction under Reduced Observation Frequency</title>
+    <updated>2026-11-17T18:38:28Z</updated>
+    <link href="https://arxiv.org/abs/2611.23198v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23198v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Trajectory prediction models for automated driving are usually trained on data with a fixed sampling frequency, while positions received via vehicle-to-everything (V2X) communication arrive at 1-10 Hz. We study whether a learned predictor that uses only the observation history keeps its advantage over constant velocity (CV) and constant acceleration (CA) models when the history frequency drops. On the Argoverse 2 motion forecasting dataset, the 5 s history of the focal agent was downsampled from 10 Hz to 5, 2, and 1 Hz, and the 6 s future was predicted without maps or neighboring agents. An LSTM-based recurrent neural network (RNN) trained for each frequency was compared with the same network trained at 10 Hz and applied to sparse histories after linear interpolation. Hypotheses and thresholds were fixed before training, the main RNNs were trained with ten seeds each, and results on 24,984 test scenarios have bootstrap confidence intervals over scenarios and seeds. The average displacement error of the frequency-specific RNN grew by 3.1% at 5 Hz, 10.1% at 2 Hz, and 20.3% at 1 Hz. Contrary to our hypothesis, its advantage over the better kinematic model did not vanish on straight motion and was 24-30% on both straight motion and turns at every frequency, while for pedestrians CV was more accurate. The 10 Hz model with interpolation was at most 1.3% less accurate than the frequency-specific model down to 2 Hz but 11.5% less accurate at 1 Hz. Each hypothesis was only partly supported.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:38:28Z</published>
+    <arxiv:comment>8 pages, 1 figure, 2 tables. Code and per-scenario results: https://github.com/nleaxy/learned-vs-kinematic-trajectory-prediction</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Nukhbala Gadzhiev</name>
+    </author>
+    <author>
+      <name>Alexander Morochko</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23197v1</id>
+    <title>Structure--Residual Inductive Biases for Language Model Pretraining</title>
+    <updated>2026-11-17T18:38:27Z</updated>
+    <link href="https://arxiv.org/abs/2611.23197v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23197v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Next-token prediction is relied upon to learn both predictive behavior and internal representations. We ask whether representation structure itself should be an explicit inductive bias. Motivated by the two-part coding view of Kolmogorov complexity, we study a structure--residual principle in which a representation separates structure from realization detail. We instantiate this principle in two complementary ways. Boundary Bottleneck Concept (BBC) routes information from token segments through boundary carriers while preserving local autoregressive computation. Continuous Concept (CC) regularizes representation geometry and induces a spectral decomposition into low-frequency structure and high-frequency residual. We derive coding bounds for both views and show that multiplicity-corrected boundary attention becomes exact as the within-segment path energy vanishes. Empirically, BBC and CC exhibit strikingly different depth preferences: BBC works best in early layers, whereas CC is most effective in later layers. At 300M training tokens, combining BBC and CC improves NLL by 1.44\% on GPT-2 Medium. These gains persist with training runs up to 20B tokens. Representation diagnostics show that BBC increases the relative predictive importance of boundary states, while CC reduces spectral residual energy. Together, these results suggest that structure--residual biases can improve language-model pretraining beyond next-token prediction. Code: https://github.com/haihuang-ml/structure-residual</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:38:27Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Hai Huang</name>
+    </author>
+    <author>
+      <name>Bartosz Żuk</name>
+    </author>
+    <author>
+      <name>Rassul Magauin</name>
+    </author>
+    <author>
+      <name>Jiaxin Huang</name>
+    </author>
+    <author>
+      <name>Xue Liu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23196v1</id>
+    <title>Nonlinearity-preserving quantum simulation of flows in the early fault-tolerant regime</title>
+    <updated>2026-11-17T18:38:14Z</updated>
+    <link href="https://arxiv.org/abs/2611.23196v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23196v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Ensemble prediction of nonlinear dynamics propagates a probability density whose linear transport equation retains the nonlinear drift, but grid-dependent circuit costs leave end-to-end feasibility in early fault-tolerant quantum computing unresolved. We couple polynomial reduced-order models fitted by sparse identification of nonlinear dynamics to Walsh-synthesized Koopman-von Neumann (KvN) transport and surface-code resource estimation. At fixed model dimension and drift degree, per-step transport rotation counts scale polylogarithmically with cells per reduced coordinate. Balancing model accuracy against circuit costs makes reduced-model polynomial degree a design variable for early fault-tolerant quantum simulation. For a cylinder wake approaching saturation, preparation, propagation and sampling to 1% relative root-mean-square field error against the radial model are estimated to take 1.62 h on about 560,000 physical qubits. Estimated three-coordinate wake runtimes span hours to weeks below one million qubits. IBM hardware experiments demonstrate nonlinear radial KvN transport for this wake, using reference circuits to mitigate noise.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="nlin.CD" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:38:14Z</published>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Hansol Noh</name>
+      <arxiv:affiliation>David</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Unam Oh</name>
+      <arxiv:affiliation>David</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Sangkyu Baek</name>
+      <arxiv:affiliation>David</arxiv:affiliation>
+    </author>
+    <author>
+      <name> Doyeol</name>
+      <arxiv:affiliation>David</arxiv:affiliation>
+    </author>
+    <author>
+      <name> Ahn</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23193v1</id>
+    <title>Performance analysis of a Rydberg atom THz radiometer concept</title>
+    <updated>2026-11-17T18:37:03Z</updated>
+    <link href="https://arxiv.org/abs/2611.23193v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23193v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>THz receiver technology lies between electronics and photonics; as such, its implementation is not as mature. This warrants investigation into alternative THz receivers such as Rydberg atom sensors, which are highly susceptible to electric fields. In particular, the conversion architecture has been demonstrated to coherently transduce thermal radiation. This system offers room-temperature operation and does not necessarily require a local oscillator at the frequency of the input signal. We provide an assessment of the feasibility of such sensors for THz radiometry within the context of Earth observation.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="physics.ao-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:37:03Z</published>
+    <arxiv:comment>16 pages, 4 figures, conference</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <arxiv:journal_ref>Richard J. Murchie, Petronilo Martin-Iglesias, Julian Hofmann, et al. "Performance analysis of a Rydberg atom THz radiometer concept", Proc. SPIE 14279, Sensors, Systems, and Next-Generation Satellites XXX, 1427912 (13 Nov 2026)</arxiv:journal_ref>
+    <author>
+      <name>Richard J. Murchie</name>
+    </author>
+    <author>
+      <name>Petronilo Martin-Iglesias</name>
+    </author>
+    <author>
+      <name>Julian Hofmann</name>
+    </author>
+    <author>
+      <name>Christophe Buisset</name>
+    </author>
+    <arxiv:doi>10.1117/12.3116900</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1117/12.3116900" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23192v1</id>
+    <title>WoRD: Diffusion-Based Posterior Inference for Online Goal Recognition</title>
+    <updated>2026-11-17T18:35:53Z</updated>
+    <link href="https://arxiv.org/abs/2611.23192v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23192v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Goal recognition is the task of inferring an agent's intended goal from its observed behavior. Most existing work focuses on high-level symbolic recognition, abstracting away the continuous motion through which agents reach their goal. Methods that do reason over continuous trajectories rely on an explicit dynamics model that is hard to acquire and rarely transfers across settings. Neither approach explicitly learns how agents move toward each candidate goal, limiting accuracy on ambiguous trajectory prefixes where such knowledge is most needed.
+  We present WoRD (Waypoint Recognition with Diffusion), which uses a learned trajectory prior to infer the agent's goal from partial observations. At each step, WoRD runs one warm-started denoising chain per candidate goal, steers each chain toward the observed trajectory through a closed-form log-likelihood gradient, and reweights the resulting samples by Bayes' rule into a calibrated posterior over goals. We evaluate WoRD on simulated robot settings, pedestrian trajectories, and vehicle trajectories using four metrics targeting distinct failure modes. Across all three settings, the same inference procedure preserves calibrated multimodal beliefs through ambiguous prefixes where filter- and classifier-based observers collapse to a single mode or grow overconfident.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:35:53Z</published>
+    <arxiv:comment>Accepted at the 40th Annual Conference on Neural Information Processing Systems (NeurIPS 2026)</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Almog Anschel</name>
+    </author>
+    <author>
+      <name>Sarah Keren</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23189v1</id>
+    <title>Retrieval-Augmented Correction for Generalist Medical Image Segmentation</title>
+    <updated>2026-11-17T18:33:42Z</updated>
+    <link href="https://arxiv.org/abs/2611.23189v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23189v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Automated segmentation is routinely used as the first step in quantitative image-based clinical workflows, where predicted masks are subsequently reviewed and corrected by human operators. Automated correction of the residual structural errors is currently addressed one anatomy at a time, so the number of trained correctors scales with the number of segmentation targets. We present GRACE, a retrieval-augmented refiner that edits an input mask under context drawn from a shared knowledge base of verified prior cases. The refiner is trained once on a multi-organ corpus spanning compact organs, cavities, branching vessels, and tumour lesions. In the held-out dataset-transfer evaluation, three held-out datasets query a fixed knowledge base built from training data only. A separate leave-one-anatomy-out experiment tests parameter-free index extension: verified cases of an unseen solid organ enter the knowledge base, and the refiner stays frozen. A light shape-aware projection head on a frozen multimodal encoder maps embedding similarity to the shape agreement of the masks, so the knowledge base returns cases that the refiner can use as a shape prior. We evaluate GRACE on 18 public datasets spanning CT, MRI and ultrasound, using nine refinement configurations and seven upstream segmentors that span weak, mid, and strong operating regimes. We report each change with the DSC of its input mask. On the weak tier, the input DSC is 0.386 and GRACE adds up to +0.35 DSC. On a strong segmentor, the input DSC is 0.932 and the mean change is small. Transfer to an imaging modality that is absent from training and from the index is partial and depends on the anatomy, and remains an open research direction. Our results suggest retrieval-conditioned refinement is a practical alternative to anatomy-specific correction models. Code: https://github.com/robustml-eurecom/grace</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:33:42Z</published>
+    <arxiv:comment>Accepted in Transactions on Machine Learning Research (10/2026). Reviewed on OpenReview: https://openreview.net/forum?id=PeDqE0SQRe</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Vincenzo Marcianò</name>
+    </author>
+    <author>
+      <name>Xiaoming Zhang</name>
+    </author>
+    <author>
+      <name>Michela Antonelli</name>
+    </author>
+    <author>
+      <name>Sebastien Ourselin</name>
+    </author>
+    <author>
+      <name>Maria A Zuluaga</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23188v1</id>
+    <title>Quantum amplification with a linear quantum coupler</title>
+    <updated>2026-11-17T18:32:51Z</updated>
+    <link href="https://arxiv.org/abs/2611.23188v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23188v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Josephson parametric amplifiers (JPAs) are essential components for quantum-limited microwave measurement, but their dynamic range is often constrained by Kerr and other pump-induced nonlinear effects. In this work, we systematically study the performance of a parametric amplifier based on the linear inductive coupler (LINC). Starting from the driven-circuit Hamiltonian, we derive the effective three-wave-mixing amplifier model, including leading flux-driven nonlinear corrections relevant to realistic operation. We analyze the resulting gain response, saturation behavior, and intermodulation distortion, comparing them with representative state-of-the-art JPA designs. Our results show that the symmetry-protected structure of the LINC suppresses static Kerr nonlinearity. Moreover, suitable circuit-parameter optimization can further reduce the dressed-squeezing and driven-Kerr effects, leading to considerable improvements in power-handling metrics. These results identify the LINC architecture as a promising platform for high-linearity Josephson parametric amplification.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="physics.app-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:32:51Z</published>
+    <arxiv:comment>14 pages, 4 figures</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Changqing Wang</name>
+    </author>
+    <author>
+      <name>Yao Lu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23186v1</id>
+    <title>Integral Tensor Isomorphism via Cubic Rings and Lattice Methods</title>
+    <updated>2026-11-17T18:30:53Z</updated>
+    <link href="https://arxiv.org/abs/2611.23186v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23186v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We prove that isomorphism of integral $2\times3\times3$ tensors under $\mathrm{GL}_2(\mathbb{Z})\times\mathrm{GL}_3(\mathbb{Z})\times\mathrm{GL}_3(\mathbb{Z})$ is decidable in bounded-error quantum polynomial time. For a tensor $T=(A,B)$ with nonzero determinant form $\det(xA-yB)$, we use the parametrization of Wood by balanced modules to reduce the isomorphism problem to principality tests for compatible lattices, and use the algorithms of Bley, Hofmann, and Johnston to solve this in BQP. When the determinant form vanishes identically, we get either an integral $2\times2\times2$ core, or a polynomial kernel vector of degree one or two. The linear-kernel case yields another compatible lattice problem, while the quadratic-kernel case reduces to a fixed system of polynomial congruences and unimodular lifting. A quantifier-elimination argument decides these congruences in deterministic polynomial time given the prime factorization of the modulus, which quantum integer factorization supplies. Finally, we show that zero padding preserves integral $2\times2\times2$ tensor isomorphism, yielding a polynomial-time reduction from real-quadratic principality to the identically singular $2\times3\times3$ problem.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:30:53Z</published>
+    <arxiv:comment>51 pages</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Thomas Huffstutler</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23179v1</id>
+    <title>Say Less, Hallucinate Less? Diagnosing and Restoring Object Coverage in Preference-Optimized Vision-Language Models</title>
+    <updated>2026-11-17T18:24:58Z</updated>
+    <link href="https://arxiv.org/abs/2611.23179v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23179v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Preference optimization (PO) is the standard way to reduce object hallucination in large vision-language models. We find that four public PO checkpoints of LLaVA-1.5-7B also lower object coverage. They name fewer object categories, and their lower hallucination rates bring no significant gain in set-level object F1 on CHAIR. We therefore ask how much of the PO gain the base model can reproduce by stopping earlier. A positive end-of-sequence (EOS) logit bias lets the base model reach the recall of each PO model, and this early stopping alone reproduces 58 to 86 percent of the CHAIRi gain of three checkpoints on two disjoint COCO sets. Writing longer does not bring the lost categories back. Under greedy decoding, a negative EOS bias recovers only 2 to 9 percent of the lost CHAIR recall of these checkpoints, and 94 to 96 percent of the added object mentions repeat categories already named. On CHAIR, the base caption of the same image still names about half of the missed object categories. We therefore propose base-guided object-category restoration, which appends high-confidence base-only categories to the PO caption without training. With thresholds fixed on a development set, it brings three checkpoints within one point of the base recall on a held-out COCO set with a lower distinct-object hallucination rate than the base model. Against the recall-matched base stopping curve, its gain holds for RLAIF-V near the base recall and for RLAIF-V and CHAIR-DPO at an intermediate recall. We will release the code of the recall-controlled evaluation.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:24:58Z</published>
+    <arxiv:comment>18 pages, 6 figures, 19 tables. Main text and appendices</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Hansang Lee</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23177v1</id>
+    <title>Déjà View: A Shared Working-Memory Model for Visual Tasks</title>
+    <updated>2026-11-17T18:23:14Z</updated>
+    <link href="https://arxiv.org/abs/2611.23177v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23177v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A working-memory model must remember stimuli and use its memory flexibly to perform different tasks. Here we introduce a model of working memory for images that combines dynamic activity with temporary associations between image features. We train the model on five tasks, including remembering a sample while other images are presented, categorizing distractor images while remembering the sample, and determining whether an image is new or has been presented before. The same trained model performs all tasks, guided by explicit cues about which response is required. We use this flexible memory model to ask how delay, distraction, and image history affect performance. Delays have little effect on sample-memory performance for the delays we tested, while seeing more images leads to more false alarms even when the target image appeared equally recently in all cases. On the sample-memory-plus-categorization task, the probability of correct responses on all questions decreases as more questions are asked, despite robust sample-memory performance. Finally, the model maintains stable performance across 40 brief trials of each task under the tested conditions. Together, these results demonstrate how a single working-memory system can be flexibly used to perform different tasks, and how its errors depend on both previous images and task demands.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="q-bio.NC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:23:14Z</published>
+    <arxiv:comment>6 figures; includes appendices</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Mranmay Shetty</name>
+    </author>
+    <author>
+      <name>Gabriel Kreiman</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23174v1</id>
+    <title>Inference after coding agents</title>
+    <updated>2026-11-17T18:22:01Z</updated>
+    <link href="https://arxiv.org/abs/2611.23174v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23174v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Empirical research is changing rapidly as AI coding agents are becoming increasingly proficient in every step of it, from writing code to manipulating data. We argue that while the potential of coding agents for science is vast, their use in hypothesis testing poses a substantial threat to classical inference, as these agents enable a supercharged form of selective inference. In particular, we argue that coding agents carrying out empirical research introduce a new type of post-selection inference that combines human-like, open-ended search over an implicit space of estimators with programmatic replayability of both the selection and the estimation process. Indeed, we find that on simulated data with zero effects, four frontier agents report significant p-values between 54% and 98% of the time when asked to produce a compelling finding. We propose a simple procedure for detecting and correcting these distortions. After an agent has completed its analysis, we reset and replay it on subsamples of the data to estimate the agent's relative probability of selecting that analysis when it looks statistically favorable. For agents with stable selection behavior, the resulting corrected test is asymptotically valid and consistent conditional on selection. Importantly, the correction is learned from the black-box agent's actual choices rather than a model of how it searches, so it remains valid even as AI technology continues to evolve rapidly. In simulations, the correction robustly lowers the high false rejection rates to near the nominal 5%. We illustrate the method on applications from two published papers.</summary>
+    <category term="stat.ME" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="econ.EM" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:22:01Z</published>
+    <arxiv:comment>35 pages, 7 figures, 1 table</arxiv:comment>
+    <arxiv:primary_category term="stat.ME"/>
+    <author>
+      <name>Florian Gunsilius</name>
+    </author>
+    <author>
+      <name>David Van Dijcke</name>
+    </author>
+    <author>
+      <name>Kaspar Wüthrich</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23165v1</id>
+    <title>Teleportation of Logical Qubits using Lattice Surgery with Superconducting Circuits</title>
+    <updated>2026-11-17T18:17:01Z</updated>
+    <link href="https://arxiv.org/abs/2611.23165v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23165v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Demonstrating a quantum advantage when solving large-scale computational problems on a quantum computer requires the correction of errors that occur due to limitations in control accuracy and coherence. Using the concept of quantum error correction, fault-tolerant logical qubits can be realized and manipulated with logical single- and two-qubit gates. In this paper, we experimentally analyze fault-tolerant lattice-surgery, which is a key primitive that enables operations between logical qubits realized in the surface-code. Using this primitive, we demonstrate the teleportation of logical states between two distance-three logical qubits realized in a superconducting circuit composed of 41 physical qubits. Throughout this process, we study the step-by-step transfer of logical information from a source to a target logical qubit by characterizing the time evolution of logical observables. We find that repeated execution of stabilizer measurements, after merging two surface-code patches, restores fault tolerance and yields increased fidelity of the teleported state. When optimizing the protocol in terms of gate count and sequence duration, we observe further improvements in fidelity. Our work offers new insights into the optimization of fault-tolerant lattice-surgery operations, while also providing a comprehensive description of the physical device and gate sequences used. We expect the efficient implementation of increasingly complex logical circuits to enhance the performance of future fault-tolerant quantum computers.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:17:01Z</published>
+    <arxiv:comment>16 pages, 10 figures</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Luca Hofele</name>
+    </author>
+    <author>
+      <name>Yongxin Song</name>
+    </author>
+    <author>
+      <name>Áron Márton</name>
+    </author>
+    <author>
+      <name>Ian Hesner</name>
+    </author>
+    <author>
+      <name>Ilya Besedin</name>
+    </author>
+    <author>
+      <name>Jakob Ekert</name>
+    </author>
+    <author>
+      <name>Jonathan Trebst</name>
+    </author>
+    <author>
+      <name>François Swiadek</name>
+    </author>
+    <author>
+      <name>Felix Henrich</name>
+    </author>
+    <author>
+      <name>Dante Colao Zanúz</name>
+    </author>
+    <author>
+      <name>Mohsen Bahrami Panah</name>
+    </author>
+    <author>
+      <name>Lukas Bödeker</name>
+    </author>
+    <author>
+      <name>Nicholas Gialouris</name>
+    </author>
+    <author>
+      <name>Chrysander D. Hagen</name>
+    </author>
+    <author>
+      <name>Marek Pechal</name>
+    </author>
+    <author>
+      <name>Jean Claude Besse</name>
+    </author>
+    <author>
+      <name>Markus Müller</name>
+    </author>
+    <author>
+      <name>Christoph Hellings</name>
+    </author>
+    <author>
+      <name>Andreas Wallraff</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23161v1</id>
+    <title>Attribution Through the Decoder: Prediction-Space Explanations for Structured Outputs</title>
+    <updated>2026-11-17T18:13:50Z</updated>
+    <link href="https://arxiv.org/abs/2611.23161v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23161v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Networks that predict angles, gaze directions, and rotations do not output these quantities directly: they emit raw coordinates that a fixed decoder, such as normalization, maps to the final prediction. Attribution methods are usually applied to the raw coordinates, so they can credit inputs for changes the decoder discards, such as rescaling a vector when only its direction matters. The resulting explanation can highlight inputs that have no effect on the prediction. We instead attribute through the decoder differential, which for normalization decoders reduces to a scaled tangent projection. We characterize invariance to output rescaling, show that every fixed smooth scalar target on a sphere has points of zero tangential sensitivity, and show that an endpoint-projected variant of Integrated Gradients can still attribute to scale-only inputs, whereas direct angular Integrated Gradients cannot. On synthetic tasks with analytically known relevance, ambient attribution assigns up to 72% of its mass to an irrelevant region. On MPIIGaze validation data, tangent Grad-CAM produces 44% greater prediction displacement under 10% pixel deletion. On PASCAL3D+ with a 6D rotation decoder, the full differential improves mean deletion displacement by 14.1 degrees over the ambient coordinate sum and by 13.8 degrees over a decoder-invariant scalar. Results for a two-polarity tangent LayerCAM variant are mixed: it exceeds ambient-sum LayerCAM on circular regression but no difference is detected on quaternion pose. These results separate two failure sources, radial contamination and scalarization loss. The approach uses existing attribution methods with decoder-aware targets, although some variants also require changes to attribution aggregation. An invariant attribution can still miss inputs that drive the prediction, so invariance and deletion performance should each be checked.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:13:50Z</published>
+    <arxiv:comment>Under review</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Zaer Bin Zaqy</name>
+    </author>
+    <author>
+      <name>Brinnae Bent</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23158v1</id>
+    <title>MoE--LoRA Methods for Multilingual Adaptation: A Systematic Empirical Study</title>
+    <updated>2026-11-17T18:11:42Z</updated>
+    <link href="https://arxiv.org/abs/2611.23158v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23158v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Routed low-rank adapters offer a parameter-efficient means to improve the performance of large language models (LLMs) across tasks. Hence, it is assumed that they can also be used to improve the support of low-resource languages in LLMs, which currently serve English far better than the thousands of other languages spoken worldwide. However, this assumption has never been verified empirically under a shared multilingual evaluation protocol. We address exactly this gap by comparing eight low-rank adaptation (LoRA) methods on a frozen base model using 200 unique languages in more than 9{,}000 evaluation settings. Our results suggest that a reduced-scale search can identify viable configurations of LoRA methods but does not reliably predict their relative performance, as the top-ranking configuration is never best at scale. LoRA reliably improves language-model fit on translation data, consistently degrades reading comprehension, and benefits low-resource languages most. These findings suggest that LoRA methods should be regarded as targeted tools rather than general-purpose means for improving the multilingual capabilities of LLMs.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:11:42Z</published>
+    <arxiv:comment>To Appear - EACL 2027 (Findings)</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Nikit Srivastava</name>
+    </author>
+    <author>
+      <name>Joel Dag</name>
+    </author>
+    <author>
+      <name>René Speck</name>
+    </author>
+    <author>
+      <name>Axel-Cyrille Ngonga Ngomo</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23156v1</id>
+    <title>Quantum simulation of neutral-meson mixing and decay on a reprogrammable photonic processor</title>
+    <updated>2026-11-17T18:10:09Z</updated>
+    <link href="https://arxiv.org/abs/2611.23156v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23156v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Neutral mesons oscillate into their antiparticles while decaying, so their dynamics is generated by a non-Hermitian effective Hamiltonian which a quantum simulator restricted to unitary operations cannot implement directly. We propose a reprogrammable photonic processor that simulates this open-system evolution through dilation and analyze it at the circuit level. The effective Hamiltonian is reconstructed exactly from measured lifetimes, mass and width differences, and the CP-violation parameter $|q/p|$. Through a singular-value decomposition and a single ancilla that encodes the total decay probability, its propagator is embedded in a four-mode unitary, which is compiled at each time step into a rectangular interferometer on a hexagonal mesh of tunable Mach-Zehnder units. Circuit simulations including coupler, propagation, and bend losses show that one fixed device, reprogrammed only through its control voltages, reproduces the flavor oscillation and decay of neutral kaons and of $B_d$ and $B_s$ mesons, with $x=Δm/Γ$ from 0.77 to 26.9. Over 500 time steps per system, the mean fidelity lies between 0.99979 and 0.99982, and no step falls below 0.9996. Because every optical path crosses nine tunable units, uniform insertion loss reduces only the transmitted power, whereas unit-to-unit loss variations lower the fidelity quadratically, $1-\langle F\rangle \simeq 0.08σ^2$ for a loss standard deviation $σ$ in dB. A leading-order analysis traces this coefficient to the routing of light through the mesh, reproduces the fitted value to within 2%, and explains why it is the same for all three mesons; a mean fidelity of 0.999 tolerates $σ\approx 0.11$ dB. The ancillary outputs encode the total decay probability without postselection, and the reported probabilities are normalized to the collected optical power.</summary>
+    <category term="physics.optics" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:10:09Z</published>
+    <arxiv:comment>16 pages, 7 figures. Submitted to Physical Review A</arxiv:comment>
+    <arxiv:primary_category term="physics.optics"/>
+    <author>
+      <name>Mohd Abu Bakar Siddique</name>
+    </author>
+    <author>
+      <name>Abrar Al Shadid Abir</name>
+    </author>
+    <author>
+      <name>A. K. M. Rakib</name>
+    </author>
+    <author>
+      <name>Mohammad Abrar Kabir</name>
+    </author>
+    <author>
+      <name>Aseer Imad Keats</name>
+    </author>
+    <author>
+      <name>Rakibul Hasan Sagor</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23154v1</id>
+    <title>Learning Stratified Policies for Inference-Time Objectives</title>
+    <updated>2026-11-17T18:06:12Z</updated>
+    <link href="https://arxiv.org/abs/2611.23154v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23154v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Inference-time scaling improves the performance of large language models by sampling multiple responses and evaluating their collective utility. However, many existing approaches obtain these samples by repeatedly sampling from a single policy. In this work, we study if the sample budget at inference time can instead be allocated across a population of policies. We introduce stratified policies, where each of $k$ learned policies contributes one response to a $k$-sample inference-time objective. We realize this policy population using separate LoRA adapters on a shared language model backbone and optimize it for pass@$k$. We theoretically motivate the approach by analyzing the linear setting; a population of LoRAs can achieve zero best-of-$k$ approximation error in settings where every single LoRA has strictly positive prediction error. Empirically, we demonstrate that stratified policies consistently improve pass@$k$ over a single-policy baseline across multiple reasoning tasks. Overall, our results highlight how distributing samples across complementary policies can be a more effective use of sample budget than repeated i.i.d. sampling from a single policy at inference time.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:06:12Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Mridul Mahajan</name>
+    </author>
+    <author>
+      <name>Xuezhou Zhang</name>
+    </author>
+    <author>
+      <name>Aldo Pacchiano</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23149v1</id>
+    <title>Capability Composition in Heterogeneous Teams via Barrier-Guided Diffusion Sampling</title>
+    <updated>2026-11-17T18:03:24Z</updated>
+    <link href="https://arxiv.org/abs/2611.23149v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23149v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The agents in a heterogeneous team can cooperate to accomplish tasks that exceed their individual capabilities. The team trajectories for a cooperative task can be generated by a generative model, provided that the model has been trained on demonstrations of the agents cooperating. Yet, demonstrations of cooperation are costly and may not exist for tasks that the team has never performed. The conditions under which the agents can combine their capabilities, however, are physical properties of the team and are known before any demonstration is collected. We encode the conditions as constraints on the team trajectories, and we enforce the constraints while sampling from generative models trained on demonstrations of each agent alone. We prove that the proposed method can generate every team trajectory that satisfies the constraints, although the demonstrations contain no cooperation. Hence the constraints determine which team trajectories can be generated, and the demonstrations determine how likely each team trajectory is. Numerical results on two cooperative tasks show the effectiveness of the method, which generates cooperative team trajectories that satisfy the constraints and requires no retraining when agents join or leave the team. Finally, we implement the method on a multi-robot testbed.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.MA" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T18:03:24Z</published>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Diana Laura Morales</name>
+    </author>
+    <author>
+      <name>Ruoyu Lin</name>
+    </author>
+    <author>
+      <name>Magnus Egerstedt</name>
+    </author>
+    <author>
+      <name>Fabio Pasqualetti</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23142v1</id>
+    <title>Mind the Gap: A Deployed Multi-Agent System for Documentation Maintenance</title>
+    <updated>2026-11-17T17:59:13Z</updated>
+    <link href="https://arxiv.org/abs/2611.23142v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23142v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The "AI revolution" has enabled teams across the technology industry to deliver software features at unprecedented velocity. While code evolves faster than ever, customer-facing documentation often struggles to stay up to speed. As users increasingly rely on LLM-based agents that consume documentation as their primary interface, the impact of this documentation gap worsens: stale information propagates and is treated as authoritative. Signals for identifying where documentation has fallen behind already exist in abundance, both explicit (e.g., resolved support tickets revealing what documentation lacks) and implicit (e.g., code-documentation discrepancies detectable from automated loops). We deploy a multi-agent system, built around a triage agent we call "TriAgent," that continuously extracts these signals and repairs documentation drift. Over 43 days of shadow-mode operation, our system triaged 499 tickets and surfaced 92 gaps in the documentation. Using a panel of LLM judges from independent model families, 81.1% of TriAgent's verifiable assertions were correct (245 of the 302 assertions the human resolution addresses; majority of three judges); on length-comparable pairs the panel preferred TriAgent's response in 70.5% of pairs and the human engineer's in 23.2% (the rest had no judge majority). Importantly, agent- and human-sourced replies tended to be complementary, with the human often surfacing insights that were either buried within the existing documentation or missing from it entirely; our system turns each such insight into a documentation gap and, after human review, a fix. Repairing a gap measurably improved the agent's later answer: when the agent re-answered the same ticket after the repair, blinded judges preferred the post-repair answer over its own pre-repair answer 71.4% of the time (n=35). A blinded human audit confirms strong alignment on self-improvement.</summary>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:59:13Z</published>
+    <arxiv:comment>Accepted at IAAI-27 (Innovative Applications of AI, co-located with AAAI 2027), Emerging Applications track. 12 pages (6 pages + references and appendix), 2 figures, 6 tables</arxiv:comment>
+    <arxiv:primary_category term="cs.SE"/>
+    <author>
+      <name>Lorenzo Masoero</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23138v1</id>
+    <title>RSI-Prime: Training Models to Train Models</title>
+    <updated>2026-11-17T17:55:30Z</updated>
+    <link href="https://arxiv.org/abs/2611.23138v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23138v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Enabling large language models (LLMs) to autonomously conduct training and improve target models is an important foundation for recursive self-improvement (RSI). As LLMs expand their role from being trained to conducting training, their model-training capability warrants dedicated study and systematic development. To this end, we construct RSI-Prime, a dataset for improving model-training capability, comprising 350 complete experimental trajectories across seven task categories. To help LLMs learn to make high-quality experimental decisions from training practice, we perform fine-grained decision identification and quality annotation, then apply decision-level loss masking to exclude supervision on low-quality behavior. Experiments with GLM-5.3 on PostTrainBench, a benchmark for autonomous post-training, show that training on RSI-Prime yields a 31.95% relative improvement in overall performance over the original GLM-5.3, highlighting a path toward future RSI systems in which models autonomously sustain their own advancement.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:55:30Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Dewu Zheng</name>
+    </author>
+    <author>
+      <name>Yang Ye</name>
+    </author>
+    <author>
+      <name>Hongyu Zhang</name>
+    </author>
+    <author>
+      <name>Jun Yu</name>
+    </author>
+    <author>
+      <name>Yanlin Wang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23134v1</id>
+    <title>Correcting Flows with Marginal Matching</title>
+    <updated>2026-11-17T17:53:38Z</updated>
+    <link href="https://arxiv.org/abs/2611.23134v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23134v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Flow matching models, ODE-based generative models, generate samples by gradually morphing a simple source distribution into a target distribution. However, these models still face challenges in optimally balancing computational efficiency with generation fidelity. While predictor-corrector schemes have been proven to help address this issue in diffusion models effectively, their application to flow matching models remains under-explored. In this work we present a novel training-based predictor-corrector framework for flow matching, which exploits the fact that the ODE can be easily reversed. Our key idea, termed Marginal Matching, is to correct samples at a particular time step in the forward ODE towards a matching marginal distribution of the backward ODE. This scheme proves to reduce a bound on the distance between the data distribution and the learned distribution, motivating two different implementations for the correction function. We show that our proposed method improves sample quality on CIFAR-10 and ImageNet-64, with minimal overhead in computation time.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:53:38Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Meital Bojan</name>
+    </author>
+    <author>
+      <name>Nadav Bojan Sellam</name>
+    </author>
+    <author>
+      <name>Ev Zisselman</name>
+    </author>
+    <author>
+      <name>Aviv Tamar</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23132v1</id>
+    <title>Non-equilibrium topological order from Floquet anyon proliferation in the toric code</title>
+    <updated>2026-11-17T17:50:11Z</updated>
+    <link href="https://arxiv.org/abs/2611.23132v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23132v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We analyze the dynamics of Kitaev's toric code in Floquet quenches where the drive coherently creates and propagates fermionic $f$ anyons. We show that the long-time state departs from pure-state topological order but retains long-range entanglement, thereby realizing a Floquet analog of intrinsic mixed-state topological order. As a key result enabling this analysis, we derive decompositions of the entanglement entropy and logarithmic negativity that separate the ground-state value, including topological terms, from a contribution given by the driven quasiparticles. For a drive inducing non-interacting $f$ dynamics, these decompositions allow us to leverage numerical methods for free fermions and to link the emergence of the proposed long-time ordered state to the equilibration of $f$ anyons to a periodic Gibbs ensemble. For drives inducing Floquet eigenstate thermalization of $f$, our results suggest a scenario where Floquet heating of the $f$ sector stabilizes a genuine non-equilibrium topological phase, in contrast with the usual view of heating as an obstacle to order in periodically driven systems.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.quant-gas" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:50:11Z</published>
+    <arxiv:comment>5 + 26 pages</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Francesco Petiziol</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23130v1</id>
+    <title>A Neural Envelope Method for Rapid Gradient-based Optimum Takeoff Trajectory Design</title>
+    <updated>2026-11-17T17:47:48Z</updated>
+    <link href="https://arxiv.org/abs/2611.23130v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23130v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Urban air mobility arises to mitigate ground traffic congestion. Multidisciplinary analysis and optimization (MDAO) has been introduced to reduce the energy consumption, thereby expanding aircraft performance. Surrogate-based MDAO lowers the cost of optimization, but multimodality disrupts global optimum search for both simulation-based and surrogate-based optimizations. Convex envelopes convert multimodal spaces into unimodal spaces, permitting efficient convex optimization; however, convexifying a design space may produce infeasible "optimal" designs due to complex design constraints. To address these challenges, this work proposes the coupling of a physics-constrained generative adversarial networks (physicsGAN) and neural envelope to transform original, constrained, non-convex optimizations into unconstrained, convex optimizations. Specifically, the physicsGAN discovers a feasible design space where all design candidates inherently satisfy all constraints, by penalizing surrogate-predicted constraint violations during training. Moreover, the neural envelope constructs a neural network-based convex envelope for the transformed objective function within the physicsGAN-discovered feasible space. Note that the neural envelope only needs to deal with objective function since constraints are inherently satisfied in the feasible space. The neural envelope is demonstrated on takeoff trajectory optimizations of the Airbus A3 Vahana eVTOL aircraft. Results show that neural envelopes achieve a 99.91% mean accuracy within a flight-condition space compared with reference convex envelopes. Neural-envelope-enabled optimizations achieve 99.84% accuracy on the global optimum design, costing only 0.04 seconds on average. The neural envelope accelerates the trajectory optimization by 53 and 162 times on average compared to the physicsGAN-enabled gradient-based and global optimizations, respectively.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:47:48Z</published>
+    <arxiv:comment>16 pages, 12 figures, submitted to AIAA Aviation conference</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Samuel Sisk</name>
+    </author>
+    <author>
+      <name>Xiaosong Du</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23129v1</id>
+    <title>Where Should Physics Enter? Information, Identifiability and Calibration in Probabilistic Sea Surface Temperature Forecasting</title>
+    <updated>2026-11-17T17:46:47Z</updated>
+    <link href="https://arxiv.org/abs/2611.23129v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23129v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Advection-diffusion priors are a common way to make neural sea surface temperature (SST) forecasts physics-informed. We test where such a prior must enter a heteroscedastic ConvLSTM to help, using daily NOAA OISST v2.1 for the Bay of Bengal (1982-2024) and a synthetic benchmark on the same grid with known currents of controlled strength. (i) On real data, a soft advection-diffusion residual with a learned velocity gives no reliable benefit (lead-15 CRPS -0.007 degrees C, 95% interval [-0.022, +0.008]); a plain temporal-smoothness penalty matches it, and equivalence within 3% is not established either. (ii) Learned velocities do not recover the currents, whether placed in the loss, in an explicit transport step, or in a transport step without neural correction: they correlate with the reference no better than a shuffled-date null, even on synthetic data where knowing the currents would improve day-15 forecasts by 16-23%. (iii) Supplied currents help on synthetic data, but mostly as information: giving them to the network as input channels, without transport, recovers 92% of the transport design's lead-5 gain, and a frozen-current numerical forecast does as well as either. (iv) With GLORYS12 reanalysis currents on real data, the transport design is 6% and 4% worse at leads 1 and 5; reanalysis advection explains essentially none of the daily OISST change (correlation 0.02), and frozen-current transport is worse than persistence. (v) The defect that matters is lead-dependent miscalibration shared by every model. One variance multiplier per lead, fitted on validation data, brings 90% coverage to 0.85-0.91 at all leads and lowers day-1 CRPS by 13-21%; fine-tuning on 15-day rollouts fixes long-lead coverage but costs short-lead skill. This version withdraws an earlier claim of an 81% CRPS reduction that came from an uncontrolled comparison.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:46:47Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Parmitha Vangapandu</name>
+    </author>
+    <author>
+      <name>Jonnakuti Pavan Kumar</name>
+    </author>
+    <author>
+      <name>Sathwik Narkedimilli</name>
+    </author>
+    <author>
+      <name>MSVPJ Sathvik</name>
+    </author>
+    <author>
+      <name>T. M. Balakrishnan Nair</name>
+    </author>
+    <author>
+      <name>Santanu Bhattacharya</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.23128v1</id>
+    <title>Causality, determinism and predictability: Probing nature through classical and quantum eyes</title>
+    <updated>2026-11-17T17:45:45Z</updated>
+    <link href="https://arxiv.org/abs/2611.23128v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.23128v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this article, mainly focussed on students and interested readers, we discuss how the understanding of causality, determinism and predictability is transformed as we move from the classical world view to the quantum description. We first explain how determinism and predictability operate in classical dynamics and outline the notion of causality. A paradigm shift occurs within the framework of quantum mechanics where we have to revisit, and even give up, the notions of determinism, predictability and maybe even strict causality. An engrossing and fascinating debate ensues, after the formulation of quantum mechanics among the giants of physics like Einstein, Bohr, Heisenberg, Pauli, and many others. While some questions have been settled in the last century in favour of quantum world view, there are still many open questions, most important of which is the role of gravity in shaping events within the quantum framework.</summary>
+    <category term="quant-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="physics.hist-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-17T17:45:45Z</published>
+    <arxiv:comment>21 pages, no figures, comments welcome</arxiv:comment>
+    <arxiv:primary_category term="quant-ph"/>
+    <author>
+      <name>Mundur V N Murthy</name>
+    </author>
+    <author>
+      <name>Usha Devi A R</name>
+    </author>
+  </entry>
+</feed>
