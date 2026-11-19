@@ -1,22 +1,22 @@
 # FENICE ONE GLOBAL — Fase 9: controllo operativo forward
 
-**Aggiornato:** 2026-11-18T16:28:00.667Z · **PAPER certificato: NO** · **Ordini Directa: 0**
+**Aggiornato:** 2026-11-19T16:35:02.281Z · **PAPER certificato: NO** · **Ordini Directa: 0**
 
 ## Risultati forward (non storici)
-- Operazioni virtuali chiuse: 0, positive: 0, negative: 0, pari: 0
-- Guadagno/perdita forward realizzato: **€0,00**
-- Profit factor: non significativo
+- Operazioni virtuali chiuse: 3, positive: 1, negative: 2, pari: 0
+- Guadagno/perdita forward realizzato: **−€1,81**
+- Profit factor: 0.5904
 
 ## Posizioni virtuali aperte
 - Aperte: 3; valorizzate su prezzi giornalieri conclusi: 3; non valorizzabili: 0
-- Liquidità virtuale: €700,00
-- Equity virtuale indicativa (commissione ipotetica di chiusura compresa): €997,39
-- Risultato virtuale totale indicativo: −€2,61
+- Liquidità virtuale: €698,19
+- Equity virtuale indicativa (commissione ipotetica di chiusura compresa): €991,94
+- Risultato virtuale totale indicativo: −€8,06
 
 ## Progressi verso la certificazione
-- Chiusure forward: 0/10
-- Mercati chiusi: 0/3
-- Date di chiusura: 0/3
+- Chiusure forward: 3/10
+- Mercati chiusi: 3/3
+- Date di chiusura: 1/3
 - Fonti prezzi eseguibili indipendenti: 0/2. Yahoo e BCE non sono quotazioni eseguibili.
 
 ## Requisiti mancanti
@@ -24,7 +24,7 @@
 - NO_TWO_INDEPENDENT_EXECUTABLE_PRICE_SOURCES
 
 ## Integrità e protezione
-- Ledger forward SHA-256: 95e4667fe51511f2c9ea553eb9ba8138a7dbbd95129cb6cd1e3212d7eac750ec
+- Ledger forward SHA-256: b40175345d773324ade632b30d3480a8803725dad5c974c8802e1da36af7fb4c
 - Stato rischio: ACTIVE
 - Nessun ordine Directa.
 
