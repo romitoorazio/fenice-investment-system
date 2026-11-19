@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSummary,
   publicOneGlobalFirstFillForensicSummary as forensicSummary,
-  publicOneGlobalSecondFillForensicSummary as secondForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+  publicOneGlobalSecondFillForensicSummary as secondForensicSummary,publicOneGlobalLatestFillForensicSummary as latestSummary,
+  validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
 const fixture={state:'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:true,originalEventsPreserved:true,
   journalEventCount:3,pendingSignalCount:1,virtualFillCount:0,paperFillsCreated:0,newSignals:0,sourcePairsAttempted:0,
@@ -97,7 +98,7 @@ assert.match(noFillRun.annotation,/^::notice title=FENICE PAPER NOT EXECUTED::/)
 const confirmedRun=oneGlobalActionsCycleSummary(filled);
 assert.equal(confirmedRun.status,'FILL_VERIFIED');
 assert.match(confirmedRun.markdown,/New FILLs this cycle \\| 1/);
-assert.match(confirmedRun.annotation,/^::notice title=FENICE PAPER FILL VERIFIED::/);
+assert.match(confirmedRun.annotation,/^::notice title=FENICE PAPER FILL RECORDED::/);
 assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,settlementBlockers:['secret=TOKEN']}),/NOT_VERIFIED/);
 console.log('PASS GitHub Actions PAPER outcome: visible blocked warning, NO_FILL and verified FILL mutually distinct; sanitized enumeration only.');
 
@@ -248,6 +249,17 @@ const firstHistoric=forensicSummary({...rawAudit,
 const syntheticNoFill={...fixture,state:'ORIGINAL_VERIFIED_NO_ELIGIBLE_SIGNAL',
   pendingSignalCount:0,settlementState:'NO_PENDING_SIGNAL_TO_SETTLE',
   settlementBlockers:[]};
+const latestReceipt=latestSummary({...rawAudit,fillOrdinal:3});
+assert.equal(validateOneGlobalWorkflowForensic(latestReceipt,'LATEST',3).checksPassed,10);
+for(const altered of [
+  {...latestReceipt,fillOrdinal:4},{...latestReceipt,checksPassed:9},{...latestReceipt,missingEvidenceCount:1},
+  {...latestReceipt,forensicReasonCode:'PRIVATE_BYTES'},{...latestReceipt,price:123},
+])assert.throws(()=>validateOneGlobalWorkflowForensic(altered,'LATEST',3),/NOT_VERIFIED/);
+const rejection=oneGlobalActionsCycleSummary({...syntheticNoFill,sourcePairsAttempted:2,outcomes:[
+  {symbol:'SECRET_SYMBOL',state:'EOD_PROSPECTIVE_BRIDGE_RESEARCH_GATE_NOT_MET'},
+  {symbol:'SECRET_SYMBOL',state:'PRIVATE_UNKNOWN_PROVIDER_ERROR'}]});
+assert.deepEqual(rejection.report.usResearchReasons,['STRATEGY_CONDITIONS_NOT_MET','OTHER_RESEARCH_GATE']);
+assert.doesNotMatch(JSON.stringify(rejection),/SECRET_SYMBOL|PRIVATE_UNKNOWN_PROVIDER_ERROR/);
 const envKeys=['GITHUB_REPOSITORY','GITHUB_REF','ACTIONS_ID_TOKEN_REQUEST_URL',
   'ACTIONS_ID_TOKEN_REQUEST_TOKEN','GITHUB_STEP_SUMMARY'];
 const previousEnv=Object.fromEntries(envKeys.map(k=>[k,process.env[k]]));
@@ -266,7 +278,8 @@ try{
     assert.equal(link,SIGNAL_CYCLE_AUDIENCE,'No other network origin');
     assert.equal(init.method,'POST');
     const action=JSON.parse(init.body).action;
-    if(action==='RESEARCH_SIGNAL_CYCLE')return Response.json(syntheticNoFill);
+    if(action==='RESEARCH_SIGNAL_CYCLE')return Response.json({...syntheticNoFill,journalEventCount:6,virtualFillCount:3});
+    if(action==='AUDIT_LATEST_FILL_READ_ONLY')return Response.json(latestReceipt);
     if(action==='AUDIT_FIRST_FILL_READ_ONLY')return Response.json(firstHistoric);
     if(action==='AUDIT_SECOND_FILL_READ_ONLY')return Response.json(usOriginalSecond);
     assert.fail('Unexpected synthetic protected route action');
@@ -284,6 +297,8 @@ try{
 assert(syntheticLogs.some(x=>x.startsWith('ONE_GLOBAL_FIRST_FILL_FORENSIC=FILL_NOT_YET_VERIFIABLE')));
 assert(syntheticLogs.some(x=>x==='ONE_GLOBAL_SECOND_FILL_FORENSIC=FILL_NOT_YET_VERIFIABLE REASON=US_ORIGINAL_RECEIPT_RAW_BYTES_REQUIRED ADAPTER=NOT_REQUIRED_OR_UNDETERMINED CHECKS=3/10'),
   'Runner must publish bounded XNAS/USD blocker rather than CHECK_NOT_CONFIRMED');
+assert(syntheticLogs.some(x=>x.startsWith('ONE_GLOBAL_LATEST_FILL_FORENSIC=FILL_RIGOROUS_REPLAY_VERIFIED')
+  &&x.endsWith('CHECKS=10/10 ORDINAL=3')));
 assert(!syntheticLogs.some(x=>x.includes('CHECK_NOT_CONFIRMED')));
 assert.doesNotMatch(syntheticLogs.join('\n'),/PRIVATE_US_ORIGINAL|PRIVATE_ORIGINAL_BLOB|SYNTHETIC_OIDC_/);
 assert.equal(process.exitCode??0,0);

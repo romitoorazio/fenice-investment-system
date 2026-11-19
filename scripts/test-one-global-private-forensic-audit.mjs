@@ -5,7 +5,7 @@ import {auditOneGlobalFirstPrivateFill as audit,handleOneGlobalPrivateForensicRe
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {buildOneGlobalEuDualVenueReport,oneGlobalEuReceipt,oneGlobalMilanSession} from '../lib/market/one-global-eu-delayed-eod.mjs';
 import {createVercelPrivateEodBlobStore} from '../lib/trading/one-global-vercel-private-blob-store.mjs';
-import {publicOneGlobalSecondFillForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {publicOneGlobalSecondFillForensicSummary,publicOneGlobalLatestFillForensicSummary} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
 import {buildFirstPaperFreeEodEvidence} from '../lib/market/one-global-first-paper-dual-eod.mjs';
 import {buildOneGlobalProspectiveSignalFromDualEod} from '../lib/trading/one-global-prospective-dual-eod-bridge.mjs';
@@ -39,7 +39,7 @@ assert.equal(report.researchIndicator,'UPTREND_RESEARCH_ONLY');
 const signalSnapshot=digest(report),signalObservation={version:1,kind:'ONE_GLOBAL_PRIVATE_EU_DUAL_VENUE_RESEARCH_OBSERVATION',report,
   rawArtifacts:{euronextHash:raw(priorPrimary),cboeHash:raw(priorSecondary),cboeDiscoveryHash:raw(discovery('2026-11-16'))},
   paperSettlementEligible:false,strategyPerformanceCertified:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
-observations.set(signalSnapshot,{body:Buffer.from(JSON.stringify(signalObservation)),uploadedAt:'2026-11-16T17:00:00.100Z'});
+observations.set(signalSnapshot,{body:Buffer.from(JSON.stringify(signalObservation)),uploadedAt:'2026-11-16T17:00:00.100Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const before=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedger(),nowIso:'2026-11-16T17:00:01.000Z',signal:{
   signalId:'synthetic-forensic-bami-20261116',key:'XMIL:BAMI',mic:'XMIL',side:'BUY',currency:'EUR',
   decisionAt:'2026-11-16T17:00:01.000Z',referenceSessionDate:'2026-11-16',referenceCloseAt:report.primary.tradeAt,
@@ -81,7 +81,7 @@ const observation={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',signa
     {providerId:'cboe-eu-mifir',rawArtifactSha256:raw(fillSecondary)},
     {providerId:'cboe-eu-mifir',supportingKind:'CBOE_OFFICIAL_DISCOVERY_JSON',rawArtifactSha256:raw(discovery('2026-11-17'))}],
   fxEvidence:null,ecbRawBase64:null,sourceRightsIndependentlyCertified:false,liveTradingAllowed:false,brokerConnectivityAllowed:false};
-const archiveHash=digest(observation);observations.set(archiveHash,{body:Buffer.from(JSON.stringify(observation)),uploadedAt:'2026-11-17T17:00:00.500Z'});
+const archiveHash=digest(observation);observations.set(archiveHash,{body:Buffer.from(JSON.stringify(observation)),uploadedAt:'2026-11-17T17:00:00.500Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const ledger=settleOneGlobalEodSignal({previousLedger:before,nowIso:'2026-11-17T17:00:01.000Z',signalHash:signal.hash,
   marketEvidence,ownerReviewedRights:rights,authority,settlementEvidenceArchiveSha256:archiveHash}).ledger;
 const ledgerBody=JSON.stringify(ledger),reads=[];
@@ -118,7 +118,7 @@ observations.set(exitSnapshot,{body:Buffer.from(JSON.stringify({
     cboeDiscoveryHash:raw(discovery('2026-11-17'))},
   paperSettlementEligible:false,strategyPerformanceCertified:false,
   liveTradingAllowed:false,brokerConnectivityAllowed:false})),
-  uploadedAt:'2026-11-17T17:04:00.100Z'});
+  uploadedAt:'2026-11-17T17:04:00.100Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const exitBefore=recordOneGlobalEodSignal({previousLedger:ledger,
   nowIso:'2026-11-17T17:04:01.000Z',signal:{
     signalId:'synthetic-forensic-bami-20261117-exit',
@@ -155,7 +155,7 @@ const exitObservation={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',
   liveTradingAllowed:false,brokerConnectivityAllowed:false};
 const exitArchive=digest(exitObservation);
 observations.set(exitArchive,{body:Buffer.from(JSON.stringify(exitObservation)),
-  uploadedAt:'2026-11-18T17:00:00.500Z'});
+  uploadedAt:'2026-11-18T17:00:00.500Z',uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
 const exitLedger=settleOneGlobalEodSignal({previousLedger:exitBefore,
   nowIso:'2026-11-18T17:00:01.000Z',signalHash:exitSignal.hash,
   marketEvidence:exitMarket,ownerReviewedRights:rights,authority,
@@ -229,6 +229,18 @@ assert.equal(changed.missingEvidence[0].code,'ORIGINAL_JOURNAL_CHANGED_DURING_RE
 const delayedSignal={...storage,readResearchObservation:async hash=>hash===signalSnapshot
   ?{...observations.get(hash),uploadedAt:'2026-11-17T09:00:00.000Z'}:observations.get(hash)};
 assert.equal((await audit({storage:delayedSignal,nowIso,policyPins})).state,'FILL_INVALID');
+for(const [hash,override,reason] of [
+  [signalSnapshot,{uploadedAt:'2026-11-16T17:00:01.001Z'},'SIGNAL_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN'],
+  [signalSnapshot,{uploadedAtSource:'HTTP_LAST_MODIFIED'},'PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED'],
+  [archiveHash,{uploadedAtSource:undefined},'PRIVATE_EVIDENCE_ORIGIN_METADATA_REQUIRED'],
+]){
+  const modified={...storage,readResearchObservation:async key=>key===hash
+    ?{...observations.get(key),...override}:observations.get(key)};
+  const verdict=await audit({storage:modified,nowIso,policyPins});
+  assert.equal(verdict.state,'FILL_NOT_YET_VERIFIABLE');
+  assert.equal(verdict.checks.length,9);
+  assert.equal(verdict.missingEvidence[0].code,reason);
+}
 const noTimestamp={...storage,readResearchObservation:async hash=>({...observations.get(hash),uploadedAt:null})};
 assert.equal((await audit({storage:noTimestamp,nowIso,policyPins})).state,'FILL_NOT_YET_VERIFIABLE');
 const unauthFactory=()=>assert.fail('unauthenticated request must never initialize storage');
@@ -395,6 +407,32 @@ const usLate=await audit({storage:usLateStorage,
   nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:2});
 assert.equal(usLate.state,'FILL_NOT_YET_VERIFIABLE');
 assert.equal(usLate.missingEvidence[0].code,'SETTLEMENT_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN');
+// Interleave original-style Milan BUY/SELL and XNAS BUY events in time order.
+// Replay the third FILL from the full account prefix, with its own receipts.
+const withUsSignal=buildOneGlobalProspectiveSignalFromDualEod({
+  report:usReport,previousLedger:exitBefore,nowIso:usSignalAt}).ledger;
+const thirdSignal=withUsSignal.events.at(-1);
+const afterEuExit=settleOneGlobalEodSignal({previousLedger:withUsSignal,
+  nowIso:exitLedger.events.at(-1).recordedAt,signalHash:exitSignal.hash,
+  marketEvidence:exitMarket,ownerReviewedRights:rights,authority,settlementEvidenceArchiveSha256:exitArchive}).ledger;
+const thirdObservation={...usSettleOriginal,signalHash:thirdSignal.hash};
+const thirdHash=digest(thirdObservation);
+observations.set(thirdHash,{...observations.get(usSettleHash),body:Buffer.from(JSON.stringify(thirdObservation)+'\n')});
+const thirdLedger=settleOneGlobalEodSignal({previousLedger:afterEuExit,nowIso:usFillAt,signalHash:thirdSignal.hash,
+  marketEvidence:usMarket,ownerReviewedRights:usRights,authority:usAuthority,fxEvidence:usFx,
+  settlementEvidenceArchiveSha256:thirdHash}).ledger;
+const thirdBody=JSON.stringify(thirdLedger);
+const thirdStorage={...storage,async read(){return {body:thirdBody,etag:'three-synthetic-fills'};}};
+const latest=await audit({storage:thirdStorage,nowIso:'2026-11-19T00:00:00.000Z',policyPins,fillOrdinal:'latest'});
+assert.equal(latest.state,'FILL_RIGOROUS_REPLAY_VERIFIED',JSON.stringify(latest));
+assert.equal(latest.identity.fillHash,thirdLedger.events.at(-1).hash);
+assert.equal(latest.accounting.cashBeforeEuro,afterEuExit.cashEuro);
+assert.equal(latest.fillOrdinal,3);
+assert.equal(publicOneGlobalLatestFillForensicSummary(latest).checksPassed,10);
+assert.equal(latest.phase9Credit,0);
+assert.equal(JSON.stringify(thirdLedger),thirdBody);
+const historicalAgain=await audit({storage:thirdStorage,nowIso,policyPins,fillOrdinal:1});
+assert.equal(historicalAgain.identity.fillHash,ledger.events.at(-1).hash);
 console.log('PASS synthetic US SECOND FILL forensic: original inline receipts, original research, ECB FX, account replay, safe 10-check classification, corruption and late-archive refusal; no real PAPER credit.');
 
 console.log('PASS read-only original-fill audit: raw evidence replay, exact event/account/hash reproduction, prior-session signal, policies/calendar/discovery, corruption/missing/race/late-archive rejection, owner-only HTTP, no writes or private raw exports. SYNTHETIC ONLY.');
