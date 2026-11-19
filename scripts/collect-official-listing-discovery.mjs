@@ -44,7 +44,7 @@ const [master,globalUniverse]=await Promise.all([
 ]);
 const nasdaqUrl="https://www.nasdaqtrader.com/dynamic/SymDir/TradingSystemAddsDeletes.txt";
 const nasdaqEvents=parseNasdaqTradingAdds(await publicText(nasdaqUrl,1_500_000));
-if (!nasdaqEvents.length) throw Error("NASDAQ_NO_ACTION_ROWS_REVIEW_REQUIRED");
+// A valid quiet session may contain zero Add rows; the Nasdaq header and trailer remain mandatory.
 
 const secDate=priorWeekdayNewYork(now),quarter=Math.floor((Number(secDate.slice(5,7))-1)/3)+1;
 const secUrl="https://www.sec.gov/Archives/edgar/daily-index/"+
