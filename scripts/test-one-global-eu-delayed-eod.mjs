@@ -227,6 +227,7 @@ assert.equal(cycleStore.ledger.events.at(-1).kind,'SIGNAL');assert.equal(cycleSt
 assert.equal(replayOneGlobalEodPaperLedger(cycleStore.ledger).virtualBuys,0);
 // Before the EU journal CAS, re-read the immutable original bytes and
 // authoritative provider HEAD timestamp. All failures refuse a SIGNAL.
+const negativeEnsureContext=async()=>({changed:true});
 for(const mode of ['MISSING_ORIGINAL','MUTATED_BYTES','UNTRUSTED_HTTP_DATE','FUTURE_ARCHIVE','MISSING_TIMESTAMP']){
   const st=memory(),read=st.readResearchObservation.bind(st);
   st.readResearchObservation=async hash=>{
@@ -238,18 +239,18 @@ for(const mode of ['MISSING_ORIGINAL','MUTATED_BYTES','UNTRUSTED_HTTP_DATE','FUT
     return {...original,uploadedAt:null};
   };
   await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
-    storage:st,clock:()=>cycleNow,fetcher,ensureEvidenceContext}),/CLOUD_SIGNAL_ORIGIN_/);
+    storage:st,clock:()=>cycleNow,fetcher,ensureEvidenceContext:negativeEnsureContext}),/CLOUD_SIGNAL_ORIGIN_/);
   assert.equal(st.writes,0,'Never add EU SIGNAL with unproven archive '+mode);
 }
 const noEuHead=memory();noEuHead.readResearchObservation=undefined;
 await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
-  storage:noEuHead,clock:()=>cycleNow,fetcher,ensureEvidenceContext}),
+  storage:noEuHead,clock:()=>cycleNow,fetcher,ensureEvidenceContext:negativeEnsureContext}),
   /CLOUD_EU_SIGNAL_CYCLE_PRIVATE_EVIDENCE_STORE_REQUIRED/);
 assert.equal(noEuHead.writes,0);
 const euRollback=memory();let euTicks=0;
 const rollbackClock=()=>++euTicks<=4?cycleNow:'2026-11-13T17:14:59.000Z';
 await assert.rejects(runOneGlobalCloudEuProspectiveCycle({
-  storage:euRollback,clock:rollbackClock,fetcher,ensureEvidenceContext}),
+  storage:euRollback,clock:rollbackClock,fetcher,ensureEvidenceContext:negativeEnsureContext}),
   /CLOUD_SIGNAL_ORIGIN_ORIGINAL_ARCHIVE_LATER_THAN_SIGNAL_CLOCK/);
 assert.equal(euRollback.writes,0,'EU rollback inside CAS cannot create SIGNAL');
 
