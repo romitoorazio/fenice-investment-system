@@ -27,6 +27,9 @@ on:
       - "scripts/test-one-global-private-version-cas.mjs"
       - "scripts/test-one-global-cloud-*"
       - "scripts/test-one-global-cloud-fallback-schedule.mjs"
+      - "scripts/test-one-global-hourly-ci-recovery.mjs"
+      - "scripts/check-one-global-hourly-ci-recovery.mjs"
+      - "lib/trading/one-global-hourly-ci-recovery-window.mjs"
       - "lib/trading/one-global-private-input-*"
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
@@ -131,6 +134,9 @@ on:
       - "scripts/test-one-global-private-version-cas.mjs"
       - "scripts/test-one-global-cloud-*"
       - "scripts/test-one-global-cloud-fallback-schedule.mjs"
+      - "scripts/test-one-global-hourly-ci-recovery.mjs"
+      - "scripts/check-one-global-hourly-ci-recovery.mjs"
+      - "lib/trading/one-global-hourly-ci-recovery-window.mjs"
       - "lib/trading/one-global-private-input-*"
       - "scripts/test-one-global-private-input-*"
       - "app/api/paper/one-global-private-inputs/route.js"
@@ -241,7 +247,9 @@ on:
     # Independent late-night fallback: existing EOD research runs at 23:40Z.
     # Its successful completion retries settlement for an already pending
     # SIGNAL without reading its artifacts or relaxing the strict 48h window.
-    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research"]
+    # A successful scheduled hourly Production CI is an independent fallback
+    # if GitHub does not deliver the native EOD schedule; never CI push or PR.
+    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI"]
     types: [completed]
     branches: [main]
 
@@ -317,6 +325,7 @@ jobs:
           node scripts/test-one-global-private-version-cas.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
           node scripts/test-one-global-cloud-fallback-schedule.mjs
+          node scripts/test-one-global-hourly-ci-recovery.mjs
           node scripts/test-one-global-private-input-intake.mjs
           node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Scan for accidentally committed credentials
@@ -325,7 +334,16 @@ jobs:
   cloud-original-private-signal-cycle:
     # Only this job gets a short-lived GitHub identity. Vendor keys and the
     # owner session stay in Vercel; PRs never acquire a journal-write identity.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (github.event.workflow_run.name == 'Fenice Production Deploy' ||
+         github.event.workflow_run.name == 'Fenice World V7 EOD Research' ||
+         (github.event.workflow_run.name == 'Fenice Production CI' &&
+          github.event.workflow_run.event == 'schedule'))))
     permissions:
       contents: read
       id-token: write
@@ -340,7 +358,15 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: Bound hourly CI recovery to existing exchange-local postclose windows
+        id: ci_recovery
+        env:
+          FENICE_WORKFLOW_EVENT: ${{ github.event_name }}
+          FENICE_UPSTREAM_WORKFLOW: ${{ github.event.workflow_run.name }}
+          FENICE_UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+        run: node scripts/check-one-global-hourly-ci-recovery.mjs
       - name: Verify original private journal, settle admissible PAPER and run bounded research
+        if: steps.ci_recovery.outputs.should_invoke == 'true'
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-asx-cba-next-session:
@@ -477,6 +503,7 @@ jobs:
           node scripts/test-one-global-private-version-cas.mjs
           node scripts/test-one-global-cloud-cycle-report.mjs
           node scripts/test-one-global-cloud-fallback-schedule.mjs
+          node scripts/test-one-global-hourly-ci-recovery.mjs
           node scripts/test-one-global-private-input-intake.mjs
           node --experimental-strip-types scripts/test-fenice-owner-session.mjs
       - name: Assess today's exchange-local opening windows, NEVER market proof
