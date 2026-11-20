@@ -72,7 +72,10 @@ const report=makeOfficialListingResearch({
     nasdaq:{status:unsupportedAddRows?"PARTIAL_UNSUPPORTED_ADD_ROWS":"OK",
       unsupportedAddRows,sourceUrl:nasdaqUrl},
     sec:{status:secStatus,source:"SEC_EDGAR_DAILY_MASTER_INDICES",
-      requestedDates:secDates,validatedDays:secValidated,diagnostics:secStatusRows}
+      sourceUrl:"https://www.sec.gov/Archives/edgar/daily-index/"+secDates[0].slice(0,4)+
+        "/QTR"+(Math.floor((Number(secDates[0].slice(5,7))-1)/3)+1)+"/master."+
+        secDates[0].replace(/-/g,"")+".idx",
+      requestedDate:secDates[0],requestedDates:secDates,validatedDays:secValidated,diagnostics:secStatusRows}
   }
 });
 await writeFile(dataFile("official-listing-discovery.json"),JSON.stringify(report,null,2)+"\n");
