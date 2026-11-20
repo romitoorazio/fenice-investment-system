@@ -321,6 +321,8 @@ const invalidVenueCycle=await runOneGlobalCloudEuProspectiveCycle({storage:inval
   clock:()=>cycleNow,fetcher:invalidVenueFetcher,ensureEvidenceContext});
 assert.equal(invalidVenueCycle.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
 assert(invalidVenueCycle.sourcePairsAttempted>=1);
+assert.equal(invalidVenueCycle.validatedCandidatePairs,0);
+assert.equal(invalidVenueCycle.eligibleBuyCandidates,0);
 assert.equal(invalidVenueCycle.newSignals,0);
 assert.equal(invalidVenueCycle.paperFillsCreated,0);
 assert.equal(invalidVenueStore.writes,0);
@@ -451,6 +453,10 @@ assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttem
   'Held ENEL must be observed for SELL while unheld BAMI remains an independent BUY candidate');
 assert.equal(heldTuesday.state,'EU_NO_DUAL_VENUE_UPTREND',
   'Valid held ENEL uptrend is not a SELL and cannot duplicate an existing BUY');
+assert(heldTuesday.validatedCandidatePairs>=1,'A valid venue pair was parsed');
+assert(heldTuesday.uptrendCandidatePairs>=1,'Measured uptrend must be distinguishable from eligible BUY');
+assert.equal(heldTuesday.eligibleBuyCandidates,0,'Already held cannot count as qualified BUY');
+assert.equal(heldTuesday.eligibleExitCandidates,0,'Uptrend is not a qualified SELL exit');
 assert.equal(mondayStore.writes,2,'held ENEL must not create a permanently blocked second BUY');
 console.log('PASS complete 16-17 November chain: Monday forward SIGNAL -> Tuesday exact dual venue -> originals -> archive -> CAS -> hash replay -> no duplicate. SYNTHETIC ONLY.');
 const bothWrong=[];
