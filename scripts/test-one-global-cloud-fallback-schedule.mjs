@@ -34,7 +34,15 @@ assert.equal(canProbe('2026-07-13T23:00:00.000Z'),false,'19:00 EDT old close mus
 
 const recovery=trigger.split("  workflow_run:\n")[1];
 assert(recovery,"workflow_run fallback trigger must exist");
-assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI"\]/);
+assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence"\]/);
+assert.match(originalJob,/github\.event\.workflow_run\.name == 'Fenice Foundation'/);
+assert.match(originalJob,/github\.event\.workflow_run\.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence'/);
+const autonomous=readFileSync('.github/workflows/autonomy.yml','utf8');
+const unified=readFileSync('.github/workflows/fenice-unica-paper-cycle.yml','utf8');
+assert.match(autonomous,/name: Fenice Foundation/);
+assert.match(autonomous,/- cron: "17 \*\/3 \* \* \*"/);
+assert.match(unified,/name: Fenice ONE GLOBAL — Unified PAPER Evidence/);
+assert.match(unified,/- cron: "25 22 \* \* \*"/);
 assert.match(recovery,/types: \[completed\]/);
 assert.match(recovery,/branches: \[main\]/);
 assert.match(research,/name: Fenice World V7 EOD Research/);
