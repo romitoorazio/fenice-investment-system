@@ -34,7 +34,7 @@ assert.equal(canProbe('2026-07-13T23:00:00.000Z'),false,'19:00 EDT old close mus
 
 const recovery=trigger.split("  workflow_run:\n")[1];
 assert(recovery,"workflow_run fallback trigger must exist");
-assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research"\]/);
+assert.match(recovery,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI"\]/);
 assert.match(recovery,/types: \[completed\]/);
 assert.match(recovery,/branches: \[main\]/);
 assert.match(research,/name: Fenice World V7 EOD Research/);
@@ -45,6 +45,12 @@ assert.match(originalJob,/github\.ref == 'refs\/heads\/main'/);
 assert.match(originalJob,/github\.event_name == 'schedule'/);
 assert.match(originalJob,/github\.event_name == 'workflow_dispatch'/);
 assert.match(originalJob,/github\.event_name == 'workflow_run' && github\.event\.workflow_run\.conclusion == 'success'/);
+assert.match(originalJob,/github\.event\.workflow_run\.head_branch == 'main'/);
+assert.match(originalJob,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
+assert.match(originalJob,/github\.event\.workflow_run\.name == 'Fenice Production CI'/);
+assert.match(originalJob,/github\.event\.workflow_run\.event == 'schedule'/);
+assert.match(originalJob,/steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
+assert.match(originalJob,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
 assert.match(originalJob,/id-token: write/);
 assert.match(originalJob,/ref: main/);
 assert.match(originalJob,/persist-credentials: false/);
