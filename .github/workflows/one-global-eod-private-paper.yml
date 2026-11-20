@@ -319,6 +319,11 @@ jobs:
           node scripts/test-one-global-cloud-fallback-schedule.mjs
           node scripts/test-one-global-private-input-intake.mjs
           node --experimental-strip-types scripts/test-fenice-owner-session.mjs
+      - name: Read-only Euronext/Cboe coverage of four additional Milan identities
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node scripts/probe-one-global-eu-expanded-universe.mjs
+
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
