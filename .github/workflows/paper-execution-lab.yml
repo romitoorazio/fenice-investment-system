@@ -14,6 +14,9 @@ on:
       - "scripts/run-v8-technical-evidence.mjs"
       - "scripts/run-v8-technical-samples.mjs"
       - "scripts/test-v8-technical-evidence.mjs"
+      - "scripts/test-v8-hourly-ci-recovery.mjs"
+      - "scripts/check-v8-hourly-ci-recovery.mjs"
+      - "lib/trading/v8-hourly-ci-recovery-window.mjs"
       - "data/paper-v8-technical-samples.json"
       - "data/paper-v8-technical-approval.json"
       - "data/paper-v8-technical-days.json"
@@ -25,7 +28,9 @@ on:
       - "data/paper-v8-technical-approval.json"
   workflow_dispatch:
   workflow_run:
-    workflows: ["Fenice PAPER Market-Open Readiness"]
+    # Bounded, schedule-only CI backup when native lab cron is not delivered.
+    # The pure preflight gates a single NY afternoon window and uses no broker.
+    workflows: ["Fenice PAPER Market-Open Readiness", "Fenice Production CI"]
     types: [completed]
   schedule:
     # Recover when the primary GitHub schedules drift; final source/market
@@ -49,6 +54,8 @@ jobs:
         run: node scripts/test-paper-execution-lab.mjs
       - name: Verify independent prospective V8 methodology and no historical credit
         run: node scripts/test-v8-technical-evidence.mjs
+      - name: Verify bounded schedule-only hourly CI V8 rescue
+        run: node scripts/test-v8-hourly-ci-recovery.mjs
       - name: Scan repository for accidentally committed secrets
         run: node scripts/scan-repository-secrets.mjs
 
@@ -60,7 +67,10 @@ jobs:
       (github.event_name != 'workflow_run' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository))
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (github.event.workflow_run.name == 'Fenice PAPER Market-Open Readiness' ||
+         (github.event.workflow_run.name == 'Fenice Production CI' &&
+          github.event.workflow_run.event == 'schedule')))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     concurrency:
@@ -88,8 +98,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: Restrict scheduled CI recovery to one approved NY afternoon observation slot
+        id: ci_recovery
+        env:
+          FENICE_WORKFLOW_EVENT: ${{ github.event_name }}
+          FENICE_UPSTREAM_WORKFLOW: ${{ github.event.workflow_run.name }}
+          FENICE_UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+        run: node scripts/check-v8-hourly-ci-recovery.mjs
       - name: Refuse duplicate sample before provider requests
         id: today
+        if: steps.ci_recovery.outputs.allow == 'true'
         run: |
           node --input-type=module <<'NODE'
           import fs from "node:fs";
