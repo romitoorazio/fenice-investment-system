@@ -2,7 +2,8 @@
 // This probe does not read any private journal, API keys, Blob, orders,
 // owner-consent file, brokerage account, or PAPER signal.
 import {
-  fetchOneGlobalEuronextMilanFile,fetchOneGlobalCboeCeuxFile
+  fetchOneGlobalEuronextMilanFile,fetchOneGlobalCboeCeuxFile,
+  buildOneGlobalEuDualVenueReport
 } from '../lib/market/one-global-eu-delayed-eod.mjs';
 
 const now=new Date();
@@ -83,6 +84,40 @@ async function euronextZipMetadataOnly(){
     cursor+=46+fileNameLength+extraLength+commentLength;
   }
   return {fetchState:'ZIP_DIRECTORY_OBSERVED',zipBytes:size,entries,centralBytes,rows};
+}
+
+if(results.every(x=>x.status==='PUBLIC_OFFICIAL_FILE_AVAILABLE')){
+  const [euronext,cboe]=await Promise.all([
+    fetchOneGlobalEuronextMilanFile(),
+    fetchOneGlobalCboeCeuxFile({sessionDate})
+  ]);
+  const reports=[];
+  for(const symbol of ['ENEL','BAMI']){
+    try{
+      const value=buildOneGlobalEuDualVenueReport({
+        euronextRaw:euronext.raw,cboeRaw:cboe.raw,
+        symbol,sessionDate,observedAt:now.toISOString()
+      });
+      reports.push({symbol,status:'EXACT_DUAL_VENUE_REPORT_VALID',
+        coherentVenueCloses:value.closeDifferencePct<=0.5});
+    }catch(error){
+      const reason=String(error?.message||'');
+      const safe=new Set([
+        'EU_DELAYED_EOD_EURONEXT_HEADER_INVALID',
+        'EU_DELAYED_EOD_EURONEXT_SESSION_INCOMPLETE',
+        'EU_DELAYED_EOD_EURONEXT_AUCTION_PRICE_AMBIGUOUS',
+        'EU_DELAYED_EOD_EURONEXT_ROW_SHAPE_INVALID',
+        'EU_DELAYED_EOD_CBOE_EXACT_PRECLOSE_TRADE_MISSING',
+        'EU_DELAYED_EOD_CBOE_ROW_SHAPE_INVALID',
+      ]);
+      reports.push({symbol,status:'DUAL_VENUE_REPORT_REJECTED',
+        reason:safe.has(reason)?reason:'DUAL_VENUE_UNCLASSIFIED_REJECTION'});
+    }
+  }
+  console.log('FENICE_EU_DUAL_VENUE_VALIDATION='+JSON.stringify({
+    sessionDate,reports,signalsCreated:0,paperFillsCreated:0,
+    liveTradingAllowed:false,originalJournalAccess:false
+  }));
 }
 
 if(results[0].safeReason==='EU_DELAYED_EOD_ZIP_ENTRY_INVALID'){
