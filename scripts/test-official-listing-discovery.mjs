@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  parseNasdaqTradingAdds,parseSecEdgarMaster,makeOfficialListingResearch
+  parseNasdaqTradingAdds,parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch
 } from "../lib/research/official-listing-discovery.mjs";
 
 const nasdaq=[
@@ -17,6 +17,13 @@ assert.equal(added[0].ipoOfferPrice,null);
 assert.equal(added[0].firstTradeAt,null);
 assert.equal(added[0].classification,"LISTING_ADD_NOT_IPO_OR_FIRST_TRADE_PROOF");
 assert.deepEqual(parseNasdaqTradingAdds(nasdaq),parseNasdaqTradingAdds(nasdaq));
+const unsupported=nasdaq.replace("DEL|Removed issuer|Delete",
+  "X$Y|Unsupported exchange symbol|Add|Add|Add|11/19/2026|Q\nDEL|Removed issuer|Delete");
+const diagnostics=parseNasdaqTradingAddsWithDiagnostics(unsupported);
+assert.equal(diagnostics.unsupportedAddRows,1);
+assert.deepEqual(diagnostics.events.map(x=>x.symbol).sort(),["ANT","CGBI"]);
+assert.ok(!diagnostics.events.some(x=>x.symbol.includes("$")));
+assert.deepEqual(parseNasdaqTradingAdds(unsupported),diagnostics.events);
 assert.throws(()=>parseNasdaqTradingAdds(nasdaq.replace("NASDAQ Action","Wrong Action")),/HEADER/);
 assert.throws(()=>parseNasdaqTradingAdds(nasdaq.replace("File Creation Time: 1119202609:32|||||","")),/CREATION_TIME/);
 assert.throws(()=>parseNasdaqTradingAdds(nasdaq.replace("11\/19\/2026","02\/30\/2026")),/DATE/);
@@ -46,6 +53,7 @@ const report=makeOfficialListingResearch({
   sourceStatus:{nasdaq:{status:"OK"},sec:{status:"OK"}}
 });
 assert.equal(report.status,"OFFICIAL_LISTING_RESEARCH_ONLY");
+assert.equal(parseNasdaqTradingAddsWithDiagnostics(nasdaq).unsupportedAddRows,0);
 assert.equal(report.summary.newSymbolsOutsideSeed,1);
 assert.equal(report.summary.registrationFilingsWithoutVerifiedSymbol,2);
 assert.equal(report.events.find(x=>x.symbol==="ANT").inCurrentSeedUniverse,false);

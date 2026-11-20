@@ -2,7 +2,7 @@ import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  parseNasdaqTradingAdds,parseSecEdgarMaster,makeOfficialListingResearch
+  parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch
 } from "../lib/research/official-listing-discovery.mjs";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
@@ -43,7 +43,9 @@ const [master,globalUniverse]=await Promise.all([
   readJson("instrument-master.json"),readJson("global-universe.json")
 ]);
 const nasdaqUrl="https://www.nasdaqtrader.com/dynamic/SymDir/TradingSystemAddsDeletes.txt";
-const nasdaqEvents=parseNasdaqTradingAdds(await publicText(nasdaqUrl,1_500_000));
+const {events:nasdaqEvents,unsupportedAddRows}=parseNasdaqTradingAddsWithDiagnostics(
+  await publicText(nasdaqUrl,1_500_000)
+);
 // A valid quiet session may contain zero Add rows; the Nasdaq header and trailer remain mandatory.
 
 const secDate=priorWeekdayNewYork(now),quarter=Math.floor((Number(secDate.slice(5,7))-1)/3)+1;
@@ -63,7 +65,8 @@ try {
 const report=makeOfficialListingResearch({
   nasdaqEvents,secEvents,instrumentMaster:master,globalUniverse,generatedAt,
   sourceStatus:{
-    nasdaq:{status:"OK",sourceUrl:nasdaqUrl},
+    nasdaq:{status:unsupportedAddRows?"PARTIAL_UNSUPPORTED_ADD_ROWS":"OK",
+      unsupportedAddRows,sourceUrl:nasdaqUrl},
     sec:{status:secStatus,sourceUrl:secUrl,requestedDate:secDate}
   }
 });
