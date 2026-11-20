@@ -54,7 +54,11 @@ const secUrl="https://www.sec.gov/Archives/edgar/daily-index/"+
 let secEvents=[],secStatus="UNAVAILABLE";
 try {
   const secRaw=await publicText(secUrl,12_000_000,{
-    "user-agent":"FeniceOneGlobal-Research/1.0 (+https://github.com/romitoorazio/fenice-investment-system/issues)"
+    // SEC requests should carry a contactable institutional User-Agent. The
+    // configured value remains in the protected Actions environment and is
+    // never written into the public research report.
+    "user-agent":String(process.env.SEC_USER_AGENT||"").trim() ||
+      "FeniceInvestmentSystem/2.3 (contact: romitoorazio@users.noreply.github.com)"
   });
   secEvents=parseSecEdgarMaster(secRaw);secStatus="OK";
 } catch(error) {
