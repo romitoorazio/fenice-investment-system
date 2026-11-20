@@ -18,8 +18,7 @@ assert.equal(added[0].firstTradeAt,null);
 assert.equal(added[0].classification,"LISTING_ADD_NOT_IPO_OR_FIRST_TRADE_PROOF");
 assert.deepEqual(parseNasdaqTradingAdds(nasdaq),parseNasdaqTradingAdds(nasdaq));
 const unsupported=nasdaq.replace("DEL|Removed issuer|Delete",
-  "X$Y|Unsupported exchange symbol|Add|Add|Add|11/19/2026|Q\
-DEL|Removed issuer|Delete");
+  "X$Y|Unsupported exchange symbol|Add|Add|Add|11/19/2026|Q\nDEL|Removed issuer|Delete");
 const diagnostics=parseNasdaqTradingAddsWithDiagnostics(unsupported);
 assert.equal(diagnostics.unsupportedAddRows,1);
 assert.deepEqual(diagnostics.events.map(x=>x.symbol).sort(),["ANT","CGBI"]);
