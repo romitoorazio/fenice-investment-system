@@ -52,6 +52,8 @@ jobs:
         with:
           node-version: 22
       - name: Fetch official US listing actions and SEC registrations (never trade)
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: node scripts/collect-official-listing-discovery.mjs
       - name: Validate generated research-only output
         shell: bash
