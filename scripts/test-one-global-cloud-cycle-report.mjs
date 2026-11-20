@@ -109,7 +109,9 @@ console.log('PASS GitHub Actions PAPER outcome: visible blocked warning, NO_FILL
 const euProspectiveBlocked={state:'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE',
   newSignals:0,sourcePairsAttempted:2,canonicalSignalCommitted:false,
   sourceEvidenceArchived:false,paperFillsCreated:0,liveTradingAllowed:false,
-  brokerConnectivityAllowed:false,privateRawQuote:'PRIVATE_EU_PRICE'};
+  brokerConnectivityAllowed:false,privateRawQuote:'PRIVATE_EU_PRICE',
+  validatedCandidatePairs:0,agreedCandidatePairs:0,uptrendCandidatePairs:0,
+  eligibleBuyCandidates:0,eligibleExitCandidates:0};
 const euBlockedSummary=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:euProspectiveBlocked});
 assert.equal(euBlockedSummary.status,'PAPER_BLOCKED','Old settlement and EU research statuses are independent');
 assert.equal(euBlockedSummary.report.euSignalCycle.state,'EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE');
@@ -118,7 +120,8 @@ assert.match(euBlockedSummary.euAnnotation,/^::warning title=FENICE EU SIGNAL BL
 assert.doesNotMatch(JSON.stringify(euBlockedSummary),/PRIVATE_EU_PRICE|privateRawQuote/);
 const euProspectiveCommitted={...euProspectiveBlocked,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',
   newSignals:1,canonicalSignalCommitted:true,sourceEvidenceArchived:true,
-  rightsAndNextSessionEvidenceConnected:true};
+  rightsAndNextSessionEvidenceConnected:true,validatedCandidatePairs:1,
+  agreedCandidatePairs:1,uptrendCandidatePairs:1,eligibleBuyCandidates:1};
 const euCommitSummary=oneGlobalActionsCycleSummary({...fixture,
   state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
   pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,sourceEvidenceArchived:true,
@@ -133,6 +136,7 @@ assert.match(euCommitSummary.markdown,/EU next-session evidence \| CONNECTED/);
 // original journal. The public allowlist MUST accept it without leaking
 // holdings, prices, original receipts or declaring it a completed FILL.
 const euExitCommitted={...euProspectiveCommitted,state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',
+  uptrendCandidatePairs:0,eligibleBuyCandidates:0,eligibleExitCandidates:1,
   privatePosition:{key:'XMIL:ENEL',cashEuro:999},rawPrice:123456};
 const exitReport={...fixture,
   state:'EU_PROSPECTIVE_EXIT_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
@@ -153,6 +157,32 @@ const alreadyHeld=publicReport({...fixture,euSignalCycle:{
 assert.equal(alreadyHeld.euSignalCycle.state,'EU_ALL_CANDIDATES_ALREADY_HELD_OR_PENDING');
 assert.equal(alreadyHeld.euSignalCycle.canonicalSignalCommitted,false);
 assert.equal(alreadyHeld.paperFillsCreated,0);
+const countedNoSignal=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
+  ...euProspectiveBlocked,state:'EU_NO_DUAL_VENUE_UPTREND',
+  validatedCandidatePairs:2,agreedCandidatePairs:2,uptrendCandidatePairs:1,
+  eligibleBuyCandidates:0,eligibleExitCandidates:0,
+  secretQuote:12345,privateIsin:'IT0000000000'
+}});
+assert.equal(countedNoSignal.report.euSignalCycle.uptrendCandidatePairs,1,
+  'UPTREND can exist but be ineligible for BUY or SELL');
+assert.match(countedNoSignal.markdown,/EU uptrend research candidates \\| 1/);
+assert.match(countedNoSignal.markdown,/EU eligible prospective BUYs \\| 0/);
+assert.doesNotMatch(JSON.stringify(countedNoSignal),/secretQuote|privateIsin|12345|IT0000000000/);
+for(const delta of [
+  {validatedCandidatePairs:3},
+  {agreedCandidatePairs:3},
+  {uptrendCandidatePairs:3},
+  {eligibleBuyCandidates:1},
+  {eligibleExitCandidates:1},
+  {validatedCandidatePairs:0},
+  {eligibleBuyCandidates:'SECRET'},
+  {uptrendCandidatePairs:undefined},
+]){
+  assert.throws(()=>oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
+    ...countedNoSignal.report.euSignalCycle,...delta
+  }}),/NOT_VERIFIED/,'Reject misleading, incomplete or unbounded public candidate counts');
+}
+assert.equal(countedNoSignal.report.paperFillsCreated,0);
 console.log('PASS ONE GLOBAL EU SELL Actions report: exit signal, held-position no-op, strict matching, no fake FILL or private leakage.');
 
 for(const q of [
