@@ -19,6 +19,9 @@ on:
       - "lib/market/one-global-alpaca-sip-eod.mjs"
       - "lib/market/one-global-alpaca-iex-eod.mjs"
       - "lib/market/one-global-eu-delayed-eod.mjs"
+      - "lib/market/one-global-eu-research-screen.mjs"
+      - "scripts/run-one-global-eu-research-screen.mjs"
+      - "scripts/test-one-global-eu-research-screen.mjs"
       - "lib/trading/one-global-eu-evidence-context.mjs"
       - "scripts/test-one-global-alpaca-sip-eod.mjs"
       - "scripts/test-one-global-alpaca-iex-eod.mjs"
@@ -126,6 +129,9 @@ on:
       - "lib/market/one-global-alpaca-sip-eod.mjs"
       - "lib/market/one-global-alpaca-iex-eod.mjs"
       - "lib/market/one-global-eu-delayed-eod.mjs"
+      - "lib/market/one-global-eu-research-screen.mjs"
+      - "scripts/run-one-global-eu-research-screen.mjs"
+      - "scripts/test-one-global-eu-research-screen.mjs"
       - "lib/trading/one-global-eu-evidence-context.mjs"
       - "scripts/test-one-global-alpaca-sip-eod.mjs"
       - "scripts/test-one-global-alpaca-iex-eod.mjs"
@@ -321,6 +327,7 @@ jobs:
           node scripts/test-one-global-alpaca-sip-eod.mjs
           node scripts/test-one-global-alpaca-iex-eod.mjs
           node scripts/test-one-global-eu-delayed-eod.mjs
+          node scripts/test-one-global-eu-research-screen.mjs
           node scripts/test-one-global-cloud-source-access.mjs
           node scripts/test-one-global-cloud-us-admissibility.mjs
           node scripts/test-one-global-us-owner-mapping.mjs
@@ -417,6 +424,39 @@ jobs:
           if-no-files-found: ignore
           path: ${{ runner.temp }}/fenice-cba-next-eod-status.json
 
+
+  eu-research-screen:
+    # Research-only: reuse the pre-existing 00:15Z Tue-Sat EOD schedule.
+    # This job never sees private owner credentials, Blob or broker secrets.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout canonical research code without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Reject invalid/delayed-data synthetic fixtures
+        run: node scripts/test-one-global-eu-research-screen.mjs
+      - name: Scan six exact Milan ISINs using only official delayed venue observations
+        env:
+          FENICE_EU_RESEARCH_REPORT: ${{ runner.temp }}/fenice-milan-research-only.json
+        run: node scripts/run-one-global-eu-research-screen.mjs
+      - name: Archive sanitized research counters; never vendor quote bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-milan-six-research-only
+          retention-days: 7
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/fenice-milan-research-only.json
+
   cloud-dual-eod-research:
     # Secrets are accessible only on trusted default-branch schedule or manual
     # dispatch; never on pull requests, no publisher payloads leave this runner.
@@ -502,6 +542,7 @@ jobs:
           node scripts/test-one-global-alpaca-sip-eod.mjs
           node scripts/test-one-global-alpaca-iex-eod.mjs
           node scripts/test-one-global-eu-delayed-eod.mjs
+          node scripts/test-one-global-eu-research-screen.mjs
           node scripts/test-one-global-cloud-source-access.mjs
           node scripts/test-one-global-cloud-us-admissibility.mjs
           node scripts/test-one-global-us-owner-mapping.mjs
