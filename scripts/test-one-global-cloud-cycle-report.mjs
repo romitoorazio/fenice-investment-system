@@ -165,8 +165,8 @@ const countedNoSignal=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
 }});
 assert.equal(countedNoSignal.report.euSignalCycle.uptrendCandidatePairs,1,
   'UPTREND can exist but be ineligible for BUY or SELL');
-assert.match(countedNoSignal.markdown,/EU uptrend research candidates \\| 1/);
-assert.match(countedNoSignal.markdown,/EU eligible prospective BUYs \\| 0/);
+assert.match(countedNoSignal.markdown,/EU uptrend research candidates \| 1/);
+assert.match(countedNoSignal.markdown,/EU eligible prospective BUYs \| 0/);
 assert.doesNotMatch(JSON.stringify(countedNoSignal),/secretQuote|privateIsin|12345|IT0000000000/);
 for(const delta of [
   {validatedCandidatePairs:3},
