@@ -21,7 +21,7 @@ assert.equal((await probe(response(zip,{"content-type":"text/html"}))).ok,false)
 assert.equal((await probe(response(zip,{"content-range":"bytes 0-15/100"}))).ok,false);
 assert.equal((await probe(response(zip,{"content-range":"not-verified"}))).ok,false);
 assert.equal((await probe(response(zip,{},404))).ok,false);
-assert.equal((await probe(response(zip),"https://evil.example/imf.xlsx")).detail,"IMF_WEO_URL_NOT_PINN");
+assert.equal((await probe(response(zip),"https://evil.example/imf.xlsx")).detail,"IMF_WEO_URL_NOT_PINNED");
 const failure=await probeOfficialImfWeoWorkbook({
   fetcher:async()=>{throw new Error("no network");},now:()=>1000
 });
