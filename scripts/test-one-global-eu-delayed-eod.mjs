@@ -328,6 +328,28 @@ assert.equal(invalidVenueCycle.paperFillsCreated,0);
 assert.equal(invalidVenueStore.writes,0);
 assert.equal(invalidVenueStore.artifacts,0);
 assert.equal(invalidVenueStore.observations,0);
+// Valid independent venue files can still disagree materially on the exact
+// close. A rejected BUY is then a source-consensus blocker, NOT "no uptrend".
+const divergentStore=memory();
+const divergentFetcher=async(url,init)=>String(url)===discoveryUrl
+  ?new Response(Buffer.from(cboeCsv({price:'9.0000'})))
+  :fetcher(url,init);
+const divergentCycle=await runOneGlobalCloudEuProspectiveCycle({
+  storage:divergentStore,clock:()=>cycleNow,fetcher:divergentFetcher,
+  ensureEvidenceContext:async()=>{throw Error('Divergent sources must not reach consent/context writes');},
+});
+assert.equal(divergentCycle.state,'EU_DUAL_VENUE_CLOSE_DIVERGENCE');
+assert.equal(divergentCycle.validatedCandidatePairs,1);
+assert.equal(divergentCycle.agreedCandidatePairs,0);
+assert.equal(divergentCycle.uptrendCandidatePairs,1);
+assert.equal(divergentCycle.eligibleBuyCandidates,0);
+assert.equal(divergentCycle.eligibleExitCandidates,0);
+assert.equal(divergentCycle.newSignals,0);
+assert.equal(divergentCycle.paperFillsCreated,0);
+assert.equal(divergentStore.writes,0,'Disagreement cannot commit a SIGNAL');
+assert.equal(divergentStore.artifacts,0,'No divergent raw files promoted to a paper archive');
+assert.equal(divergentStore.observations,0);
+
 const weekendStore=memory();
 const weekend=await runOneGlobalCloudEuProspectiveCycle({storage:weekendStore,clock:()=>'2026-11-14T17:15:00.000Z',
   fetcher:async()=>{throw Error('weekend must not fetch');},ensureEvidenceContext});
