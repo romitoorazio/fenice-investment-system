@@ -249,8 +249,10 @@ on:
     # SIGNAL without reading its artifacts or relaxing the strict 48h window.
     # Independent DIRECT scheduled jobs improve delivery resilience without
     # launching extra schedules: hourly CI, Foundation and unified PAPER audit.
-    # All three require scheduled origin, main repo and strict EOD preflight.
-    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence"]
+    # All scheduled backups require scheduled origin, main repo and strict EOD preflight.
+    # World Market Collection is already hourly; its *scheduled* success only
+    # retries the ORIGINAL OIDC/CAS writer inside the same EOD time windows.
+    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence", "Fenice World Market Collection"]
     types: [completed]
     branches: [main]
 
@@ -345,7 +347,8 @@ jobs:
          github.event.workflow_run.name == 'Fenice World V7 EOD Research' ||
          ((github.event.workflow_run.name == 'Fenice Production CI' ||
            github.event.workflow_run.name == 'Fenice Foundation' ||
-           github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence') &&
+           github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence' ||
+           github.event.workflow_run.name == 'Fenice World Market Collection') &&
           github.event.workflow_run.event == 'schedule'))))
     permissions:
       contents: read

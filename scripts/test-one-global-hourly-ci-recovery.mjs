@@ -37,11 +37,16 @@ for(const [upstreamName,upstreamEvent] of [
   ['Fenice ONE GLOBAL — Unified PAPER Evidence','push'],
   ['Fenice ONE GLOBAL — Unified PAPER Evidence','workflow_dispatch'],
   ['Fenice ONE GLOBAL — Unified PAPER Evidence','pull_request'],
+  ['Fenice World Market Collection','push'],
+  ['Fenice World Market Collection','workflow_run'],
+  ['Fenice World Market Collection','workflow_dispatch'],
+  ['Fenice World Market Collection','pull_request'],
+  ['Fenice World Market Collectio','schedule'],
 ]){
   const result=gate({nowIso:date,workflowEvent:'workflow_run',upstreamName,upstreamEvent});
   assert.equal(result.shouldInvoke,false,'Untrusted hourly fallback must never invoke private PAPER');
 }
-for(const upstreamName of ['Fenice Foundation','Fenice ONE GLOBAL — Unified PAPER Evidence']){
+for(const upstreamName of ['Fenice Foundation','Fenice ONE GLOBAL — Unified PAPER Evidence','Fenice World Market Collection']){
   for(const instant of [
     '2026-11-20T18:51:00.000Z','2026-11-20T21:50:00.000Z',
     '2026-07-20T16:52:00.000Z','2026-07-20T20:52:00.000Z',
@@ -68,16 +73,20 @@ const header=yaml.split('\njobs:\n')[0];
 const writer=yaml.split('\n  cloud-original-private-signal-cycle:\n')[1]
   ?.split(/\n  (?:cloud-|safe-)[a-z-]+:\n/)[0];
 assert(writer,'Only existing original private OIDC writer can be triggered');
-assert.match(header,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence"\]/);
+assert.match(header,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence", "Fenice World Market Collection"\]/);
 const foundation=readFileSync('.github/workflows/autonomy.yml','utf8');
 const unified=readFileSync('.github/workflows/fenice-unica-paper-cycle.yml','utf8');
+const worldCollection=readFileSync('.github/workflows/world-market-collection.yml','utf8');
 assert.match(foundation,/name: Fenice Foundation/);
 assert.match(foundation,/- cron: "17 \*\/3 \* \* \*"/);
 assert.match(unified,/name: Fenice ONE GLOBAL — Unified PAPER Evidence/);
 assert.match(unified,/- cron: "25 22 \* \* \*"/);
+assert.match(worldCollection,/name: Fenice World Market Collection/);
+assert.match(worldCollection,/- cron: "23 \* \* \* \*"/);
 assert.match(writer,/github\.event\.workflow_run\.name == 'Fenice Production CI'/);
 assert.match(writer,/github\.event\.workflow_run\.name == 'Fenice Foundation'/);
 assert.match(writer,/github\.event\.workflow_run\.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence'/);
+assert.match(writer,/github\.event\.workflow_run\.name == 'Fenice World Market Collection'/);
 assert.match(writer,/github\.event\.workflow_run\.event == 'schedule'/);
 assert.match(writer,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
 assert.match(writer,/github\.event\.workflow_run\.head_branch == 'main'/);
@@ -86,4 +95,4 @@ assert.match(writer,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
 assert.match(writer,/scripts\/invoke-one-global-cloud-signal-cycle\.mjs/);
 assert.match(writer,/id-token: write/);
 assert.doesNotMatch(writer,/secrets\.|ALPHA_VANTAGE_API_KEY|EODHD_API_TOKEN|DIRECTA/);
-console.log('PASS original PAPER recovery: existing CI/Foundation/unified scheduled origins only, exchange-local windows, no private writes or expanded windows.');
+console.log('PASS original PAPER recovery: existing CI/Foundation/unified/hourly-world scheduled origins only, exchange-local windows, no private writes or expanded windows.');
