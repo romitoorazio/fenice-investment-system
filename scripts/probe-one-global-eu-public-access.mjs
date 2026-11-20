@@ -47,6 +47,51 @@ console.log('FENICE_EU_PUBLIC_SOURCE_DIAGNOSTIC='+JSON.stringify({
   originalJournalAccess:false,brokerConnectivityAllowed:false,
   liveTradingAllowed:false
 }));
+
+async function euronextZipMetadataOnly(){
+  const endpoint='https://marketdata.euronext.com/data-reporting-service/trades-file/download/EQUITIES/CURRENT_TRADING_DAY/MIL';
+  const response=await fetch(endpoint,{redirect:'error',cache:'no-store',
+    signal:AbortSignal.timeout(20000),headers:{Accept:'application/zip, application/octet-stream'}});
+  if(!response.ok) return {fetchState:'OFFICIAL_HTTP_UNAVAILABLE',status:response.status};
+  const reader=response.body?.getReader();
+  if(!reader)return {fetchState:'OFFICIAL_BODY_MISSING'};
+  let size=0;const parts=[];
+  for(;;){
+    const {value,done}=await reader.read();if(done)break;
+    size+=value.length;
+    if(size>8_000_000){await reader.cancel();return {fetchState:'OVERSIZED_ZIP'};}
+    parts.push(Buffer.from(value));
+  }
+  const zip=Buffer.concat(parts);
+  let eocd=-1;
+  for(let i=zip.length-22;i>=Math.max(0,zip.length-65557);i--){
+    if(zip.readUInt32LE(i)===0x06054b50){eocd=i;break;}
+  }
+  if(eocd<0)return {fetchState:'ZIP_DIRECTORY_NOT_FOUND',zipBytes:size};
+  const entries=zip.readUInt16LE(eocd+10),offset=zip.readUInt32LE(eocd+16);
+  const centralBytes=zip.readUInt32LE(eocd+12);
+  let cursor=offset;const rows=[];
+  for(let i=0;i<Math.min(entries,12);i++){
+    if(cursor+46>zip.length||zip.readUInt32LE(cursor)!==0x02014b50)
+      return {fetchState:'ZIP_CENTRAL_INVALID',zipBytes:size,entries};
+    const fileNameLength=zip.readUInt16LE(cursor+28);
+    const extraLength=zip.readUInt16LE(cursor+30),commentLength=zip.readUInt16LE(cursor+32);
+    const filename=zip.subarray(cursor+46,cursor+46+fileNameLength).toString('utf8');
+    rows.push({filename:/^[A-Za-z0-9._/-]{1,90}$/.test(filename)?filename:'UNSUPPORTED_FILENAME',
+      method:zip.readUInt16LE(cursor+10),flags:zip.readUInt16LE(cursor+8),
+      compressedBytes:zip.readUInt32LE(cursor+20),uncompressedBytes:zip.readUInt32LE(cursor+24)});
+    cursor+=46+fileNameLength+extraLength+commentLength;
+  }
+  return {fetchState:'ZIP_DIRECTORY_OBSERVED',zipBytes:size,entries,centralBytes,rows};
+}
+
+if(results[0].safeReason==='EU_DELAYED_EOD_ZIP_ENTRY_INVALID'){
+  try{
+    console.log('FENICE_EURONEXT_ZIP_METADATA='+JSON.stringify(await euronextZipMetadataOnly()));
+  }catch{
+    console.log('FENICE_EURONEXT_ZIP_METADATA='+JSON.stringify({fetchState:'ZIP_METADATA_DIAGNOSTIC_UNAVAILABLE'}));
+  }
+}
 // An unavailable exchange file remains unavailable. This script has no output
 // that can ever be used as positive PAPER evidence or an approval.
 if(results.some(x=>x.status!=='PUBLIC_OFFICIAL_FILE_AVAILABLE'))process.exitCode=2;
