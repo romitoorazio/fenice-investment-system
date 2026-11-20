@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
-  parseNasdaqTradingAdds,parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch
+  parseNasdaqTradingAdds,parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch,
+  requireSecMasterTransport,recentUsWeekdaysBefore
 } from "../lib/research/official-listing-discovery.mjs";
 
 const nasdaq=[
@@ -37,6 +38,20 @@ const edgar=[
 "123456|Prospective Issuer Inc.|S-1/A|2026-11-18|edgar/data/123456/0000123456-26-000002.txt",
 "999999|Public Issuer|10-K|2026-11-18|edgar/data/999999/0000999999-26-000001.txt"
 ].join("\n");
+assert.equal(requireSecMasterTransport({body:edgar,contentType:'text/plain; charset=UTF-8'}),edgar);
+assert.equal(requireSecMasterTransport({body:edgar,contentType:'application/octet-stream'}),edgar);
+for(const [body,contentType] of [
+  ['<!DOCTYPE html><html><body>Access Denied</body></html>','text/html; charset=UTF-8'],
+  ['<html><body>Blocked</body></html>','text/plain'],
+  ['<?xml version="1.0"?><Error>Unavailable</Error>','application/xml']
+])assert.throws(()=>requireSecMasterTransport({body,contentType}),/SEC_SOURCE_HTML_RESPONSE_NOT_INDEX/);
+assert.throws(()=>requireSecMasterTransport({body:'Non-EDGAR error page',contentType:'text/html'}),/SEC_SOURCE_HTML_RESPONSE_NOT_INDEX/);
+assert.throws(()=>parseSecEdgarMaster(requireSecMasterTransport({body:'Invalid file',contentType:'text/plain'})),/SEC_SOURCE_HEADER_MISMATCH/);
+assert.deepEqual(recentUsWeekdaysBefore('2026-11-20T12:00:00.000Z'),['2026-11-19','2026-11-18','2026-11-17','2026-11-16','2026-11-13']);
+assert.deepEqual(recentUsWeekdaysBefore('2026-11-23T12:00:00.000Z',3),['2026-11-20','2026-11-19','2026-11-18']);
+assert.deepEqual(recentUsWeekdaysBefore('2026-11-22T12:00:00.000Z',2),['2026-11-20','2026-11-19']);
+assert.throws(()=>recentUsWeekdaysBefore('invalid'),/SEC_SOURCE_LOOKBACK_INPUT_INVALID/);
+assert.throws(()=>recentUsWeekdaysBefore('2026-11-20T12:00:00Z',6),/SEC_SOURCE_LOOKBACK_INPUT_INVALID/);
 const filings=parseSecEdgarMaster(edgar);
 assert.equal(filings.length,2);
 assert.equal(filings[0].symbol,null);
