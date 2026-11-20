@@ -1,14 +1,14 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-19T16:35:02.281Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-20T16:10:00.733Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
 
 | Posizione | Borsa | Strumento | Punteggio | Stato |
 |---:|---|---|---:|---|
-| 1 | XNSE | XNSE:RELIANCE | 5.6912 | Virtuale aperta |
-| 2 | XTKS | XTKS:7203 | 1.6059 | Virtuale aperta |
+| 1 | XNSE | XNSE:RELIANCE | 6.2130 | Virtuale aperta |
+| 2 | XTKS | XTKS:7203 | 1.7908 | Virtuale aperta |
 
 ## Portafoglio forward (simulazione non certificata)
 - Posizioni aperte: **3**; chiuse: **3**
@@ -18,7 +18,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 - Rischio: **ACTIVE**; nuove posizioni virtuali: sottoposte ai limiti
 
 ## Backtest distinto dal forward
-- Risultato storico: **−€1,97** (non va sommato al forward)
+- Risultato storico: **−€5,37** (non va sommato al forward)
 
 ## Trasparenza
 - Fonte: Yahoo Finance pubblico non attestato; cambi BCE indicativi
@@ -26,8 +26,7 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 - Prezzi non eseguibili; nessun fill PAPER certificato e nessun ordine Directa
 
 ## Avvisi
-- UNSETTLED_DAILY_SIGNAL_AT_CAPTURE_EXCLUDED
-- STALE_ENTRY_BAR
+- WAITING_FOR_FIVE_LATER_SETTLED_SESSIONS
 
 ## Registri originali
 - [Registro forward](phase5-forward-ledger.json)
