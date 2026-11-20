@@ -247,9 +247,10 @@ on:
     # Independent late-night fallback: existing EOD research runs at 23:40Z.
     # Its successful completion retries settlement for an already pending
     # SIGNAL without reading its artifacts or relaxing the strict 48h window.
-    # A successful scheduled hourly Production CI is an independent fallback
-    # if GitHub does not deliver the native EOD schedule; never CI push or PR.
-    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI"]
+    # Independent DIRECT scheduled jobs improve delivery resilience without
+    # launching extra schedules: hourly CI, Foundation and unified PAPER audit.
+    # All three require scheduled origin, main repo and strict EOD preflight.
+    workflows: ["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence"]
     types: [completed]
     branches: [main]
 
@@ -342,7 +343,9 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository &&
         (github.event.workflow_run.name == 'Fenice Production Deploy' ||
          github.event.workflow_run.name == 'Fenice World V7 EOD Research' ||
-         (github.event.workflow_run.name == 'Fenice Production CI' &&
+         ((github.event.workflow_run.name == 'Fenice Production CI' ||
+           github.event.workflow_run.name == 'Fenice Foundation' ||
+           github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence') &&
           github.event.workflow_run.event == 'schedule'))))
     permissions:
       contents: read
@@ -358,7 +361,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-      - name: Bound hourly CI recovery to existing exchange-local postclose windows
+      - name: Bound scheduled independent recovery to existing exchange-local postclose windows
         id: ci_recovery
         env:
           FENICE_WORKFLOW_EVENT: ${{ github.event_name }}
