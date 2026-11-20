@@ -118,6 +118,24 @@ assert.equal(euBlockedSummary.report.euSignalCycle.state,'EU_OFFICIAL_SOURCE_PAI
 assert.match(euBlockedSummary.markdown,/European signal research \| EU_OFFICIAL_SOURCE_PAIR_UNAVAILABLE/);
 assert.match(euBlockedSummary.euAnnotation,/^::warning title=FENICE EU SIGNAL BLOCKED::/);
 assert.doesNotMatch(JSON.stringify(euBlockedSummary),/PRIVATE_EU_PRICE|privateRawQuote/);
+// The sanitized Actions report must preserve the difference between an
+// absent source pair, a divergent valid pair and a genuine no-signal day.
+const divergentEu={...euProspectiveBlocked,state:'EU_DUAL_VENUE_CLOSE_DIVERGENCE',
+  validatedCandidatePairs:1,agreedCandidatePairs:0,uptrendCandidatePairs:1};
+const divergentSummary=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:divergentEu});
+assert.equal(divergentSummary.report.euSignalCycle.state,'EU_DUAL_VENUE_CLOSE_DIVERGENCE');
+assert.equal(divergentSummary.report.euSignalCycle.agreedCandidatePairs,0);
+assert.match(divergentSummary.euAnnotation,/Independent EU venue closes disagree/);
+assert.equal(divergentSummary.report.paperFillsCreated,0);
+assert.doesNotMatch(JSON.stringify(divergentSummary),/PRIVATE_EU_PRICE|privateRawQuote/);
+for(const invalid of [
+  {...divergentEu,agreedCandidatePairs:1},
+  {...divergentEu,validatedCandidatePairs:0},
+  {...divergentEu,eligibleBuyCandidates:1},
+  {state:'EU_DUAL_VENUE_CLOSE_DIVERGENCE',sourcePairsAttempted:2,
+   newSignals:0,canonicalSignalCommitted:false},
+])assert.throws(()=>publicReport({...fixture,euSignalCycle:invalid}),/NOT_VERIFIED/);
+
 const euProspectiveCommitted={...euProspectiveBlocked,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',
   newSignals:1,canonicalSignalCommitted:true,sourceEvidenceArchived:true,
   rightsAndNextSessionEvidenceConnected:true,validatedCandidatePairs:1,
