@@ -1,6 +1,15 @@
 name: Fenice Global Sources
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/intelligence/imf-weo-workbook-probe.mjs"
+      - "scripts/test-imf-weo-workbook-probe.mjs"
+      - "scripts/probe-imf-weo-workbook-live.mjs"
+      - "scripts/check-global-sources.mjs"
+      - "data/global-source-registry.json"
+      - ".github/workflows/global-sources.yml"
   workflow_dispatch:
   schedule:
     - cron: "23 */6 * * *"
@@ -8,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "scripts/check-global-sources.mjs"
+      - "lib/intelligence/imf-weo-workbook-probe.mjs"
       - "data/global-source-registry.json"
       - ".github/workflows/global-sources.yml"
 
@@ -20,7 +30,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  imf-source-preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Verify bounded official IMF workbook probe rejects untrusted data
+        run: node scripts/test-imf-weo-workbook-probe.mjs
+      - name: Verify current official IMF WEO workbook is publicly reachable
+        run: node scripts/probe-imf-weo-workbook-live.mjs
+      - name: Verify repository contains no committed secrets
+        run: node scripts/scan-repository-secrets.mjs
+
   check-sources:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
