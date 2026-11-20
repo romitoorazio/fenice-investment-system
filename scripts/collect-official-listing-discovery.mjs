@@ -2,22 +2,13 @@ import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch
+  parseNasdaqTradingAddsWithDiagnostics,parseSecEdgarMaster,makeOfficialListingResearch,
+  requireSecMasterTransport,recentUsWeekdaysBefore
 } from "../lib/research/official-listing-discovery.mjs";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const dataFile=name=>path.join(root,"data",name);
 const readJson=async name=>JSON.parse(await readFile(dataFile(name),"utf8"));
-
-function priorWeekdayNewYork(now) {
-  const parts=Object.fromEntries(new Intl.DateTimeFormat("en-US",{
-    timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"
-  }).formatToParts(now).filter(x=>x.type!=="literal").map(x=>[x.type,x.value]));
-  const current=new Date(Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day)));
-  do {current.setUTCDate(current.getUTCDate()-1);}
-  while ([0,6].includes(current.getUTCDay()));
-  return current.toISOString().slice(0,10);
-}
 
 async function publicText(url,maxLength,headers={}) {
   const controller=new AbortController();
@@ -34,7 +25,7 @@ async function publicText(url,maxLength,headers={}) {
     if (length>maxLength) throw Error("PUBLIC_SOURCE_OVERSIZED");
     const body=await response.text();
     if (body.length>maxLength) throw Error("PUBLIC_SOURCE_OVERSIZED");
-    return body;
+    return {body,contentType:String(response.headers.get('content-type')||'')};
   } finally {clearTimeout(timer);}
 }
 
@@ -44,34 +35,44 @@ const [master,globalUniverse]=await Promise.all([
 ]);
 const nasdaqUrl="https://www.nasdaqtrader.com/dynamic/SymDir/TradingSystemAddsDeletes.txt";
 const {events:nasdaqEvents,unsupportedAddRows}=parseNasdaqTradingAddsWithDiagnostics(
-  await publicText(nasdaqUrl,1_500_000)
+  (await publicText(nasdaqUrl,1_500_000)).body
 );
 // A valid quiet session may contain zero Add rows; the Nasdaq header and trailer remain mandatory.
 
-const secDate=priorWeekdayNewYork(now),quarter=Math.floor((Number(secDate.slice(5,7))-1)/3)+1;
-const secUrl="https://www.sec.gov/Archives/edgar/daily-index/"+
-  secDate.slice(0,4)+"/QTR"+quarter+"/master."+secDate.replace(/-/g,"")+".idx";
-let secEvents=[],secStatus="UNAVAILABLE";
-try {
-  const secRaw=await publicText(secUrl,12_000_000,{
-    // SEC requests should carry a contactable institutional User-Agent. The
-    // configured value remains in the protected Actions environment and is
-    // never written into the public research report.
-    "user-agent":String(process.env.SEC_USER_AGENT||"").trim() ||
-      "FeniceInvestmentSystem/2.3 (contact: romitoorazio@users.noreply.github.com)"
-  });
-  secEvents=parseSecEdgarMaster(secRaw);secStatus="OK";
-} catch(error) {
-  // Report source failure, never synthesize missing registrations from other data.
-  const safe=String(error?.message||"UNKNOWN");
-  secStatus=/^[A-Z0-9_]+$/.test(safe)?safe:"SOURCE_UNAVAILABLE";
+const secDates=recentUsWeekdaysBefore(now,5);
+const secStatusRows=[],secEvents=[];
+for(const secDate of secDates){
+  const quarter=Math.floor((Number(secDate.slice(5,7))-1)/3)+1;
+  const secUrl="https://www.sec.gov/Archives/edgar/daily-index/"+
+    secDate.slice(0,4)+"/QTR"+quarter+"/master."+secDate.replace(/-/g,"")+".idx";
+  try{
+    // Distinguish authentic EDGAR master-index rows from a 200 HTML response
+    // or an access-interstitial page. Never manufacture missing registrations.
+    const response=await publicText(secUrl,12_000_000,{
+      "user-agent":String(process.env.SEC_USER_AGENT||"").trim() ||
+        "FeniceInvestmentSystem/2.3 (contact: romitoorazio@users.noreply.github.com)"
+    });
+    const rows=parseSecEdgarMaster(requireSecMasterTransport(response));
+    if(rows.some(e=>e.filedDate!==secDate))throw Error('SEC_SOURCE_DATE_MISMATCH');
+    secEvents.push(...rows);
+    secStatusRows.push({date:secDate,status:"OK",filings:rows.length});
+  }catch(error){
+    const code=String(error?.message||"");
+    secStatusRows.push({date:secDate,status:/^[A-Z0-9_]{3,100}$/.test(code)
+      ?code:"SEC_SOURCE_UNAVAILABLE",filings:0});
+  }
 }
+const secValidated=secStatusRows.filter(x=>x.status==="OK").length;
+const secStatus=secValidated===secDates.length?"OK":
+  secValidated?"SEC_PARTIAL_OFFICIAL_INDEX_VALIDATION":"SEC_INDICES_UNAVAILABLE";
+
 const report=makeOfficialListingResearch({
   nasdaqEvents,secEvents,instrumentMaster:master,globalUniverse,generatedAt,
   sourceStatus:{
     nasdaq:{status:unsupportedAddRows?"PARTIAL_UNSUPPORTED_ADD_ROWS":"OK",
       unsupportedAddRows,sourceUrl:nasdaqUrl},
-    sec:{status:secStatus,sourceUrl:secUrl,requestedDate:secDate}
+    sec:{status:secStatus,source:"SEC_EDGAR_DAILY_MASTER_INDICES",
+      requestedDates:secDates,validatedDays:secValidated,diagnostics:secStatusRows}
   }
 });
 await writeFile(dataFile("official-listing-discovery.json"),JSON.stringify(report,null,2)+"\n");
