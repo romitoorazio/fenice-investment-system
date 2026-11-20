@@ -6,6 +6,8 @@ import {
   buildOneGlobalEuDualVenueReport,
   CBOE_POLICY_URL,
   ONE_GLOBAL_EU_RIGHTS_DOCUMENTS,
+  MAX_ONE_GLOBAL_EURONEXT_CSV_BYTES,
+  oneGlobalEuronextZipExpansionSafe,
   discoverOneGlobalCboeCeuxMinute,
   extractOneGlobalEuronextCsv,
   fetchOneGlobalCboeCeuxFile,
@@ -70,6 +72,16 @@ function cboeCsv({venue='CEUX',condition='',price='9.9900'}={}){
 
 const csv=euronextCsv(),zip=zipCsv(csv),cboe=Buffer.from(cboeCsv());
 assert.equal(extractOneGlobalEuronextCsv(zip).toString(),csv);
+// Real 20 November official Milan ZIP metadata (no private prices or data).
+// Prior hard cap rejected a legitimate file BEFORE its CRC/venue verification.
+assert.equal(MAX_ONE_GLOBAL_EURONEXT_CSV_BYTES,70_000_000);
+assert.equal(oneGlobalEuronextZipExpansionSafe(6_369_738,63_569_009),true);
+assert.equal(oneGlobalEuronextZipExpansionSafe(6_369_738,70_000_001),false);
+assert.equal(oneGlobalEuronextZipExpansionSafe(1_000_000,63_569_009),false,
+  'Never admit a highly expanded ZIP bomb solely because it is below the size ceiling');
+assert.equal(oneGlobalEuronextZipExpansionSafe(7_900_001,63_569_009),false);
+assert.equal(oneGlobalEuronextZipExpansionSafe(6_369_738,-1),false);
+
 assert.deepEqual(oneGlobalMilanSession(sessionDate),{
   sessionDate,sessionOpenedAt:'2026-11-13T08:00:00.000Z',continuousEndedAt:'2026-11-13T16:30:00.000Z',
   closingAuctionNominalAt:'2026-11-13T16:35:00.000Z',sessionClosedAt:'2026-11-13T16:35:30.000Z',
