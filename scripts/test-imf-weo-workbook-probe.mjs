@@ -16,6 +16,21 @@ const ok=await probe(response(zip));
 assert.equal(ok.ok,true,JSON.stringify(ok));
 assert.equal(ok.httpStatus,206);
 assert.equal(ok.bytes,16);
+// IMF's real file CDN may return 200 without Content-Length instead of 206.
+// Accept only a bounded, completely inspected XLSX ZIP in that case.
+const workbook=Buffer.concat([
+  Buffer.from([0x50,0x4b,0x03,0x04]),
+  Buffer.alloc(105000),
+  Buffer.from("[Content_Types].xml xl/workbook.xml"),
+  Buffer.from([0x50,0x4b,0x05,0x06,0,0,0,0])
+]);
+const full=await probe(response(workbook,{},200));
+assert.equal(full.ok,true,JSON.stringify(full));
+assert.equal(full.bytes,workbook.length);
+assert.equal((await probe(response(Buffer.concat([
+  Buffer.from([0x50,0x4b,0x03,0x04]),Buffer.alloc(105000)
+]),{},200))).ok,false);
+
 assert.equal((await probe(response(new TextEncoder().encode("<html>bad</html>")))).ok,false);
 assert.equal((await probe(response(zip,{"content-type":"text/html"}))).ok,false);
 assert.equal((await probe(response(zip,{"content-range":"bytes 0-15/100"}))).ok,false);
