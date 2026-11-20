@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { probeOfficialImfWeoWorkbook } from "../lib/intelligence/imf-weo-workbook-probe.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registryPath = path.join(root, "data", "global-source-registry.json");
@@ -112,6 +113,10 @@ function previousSuccessfulSource(sourceId) {
 }
 
 async function request(source, endpoint, attempt) {
+  // IMF legacy DataMapper endpoint returns 404. WEO is now published on the
+  // official IMF Data Portal. Check only pinned workbook availability,
+  // never parse its values as fresh execution quotes or PAPER evidence.
+  if (source.id === "imf") return probeOfficialImfWeoWorkbook({endpoint,attempt});
   const startedAt = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
