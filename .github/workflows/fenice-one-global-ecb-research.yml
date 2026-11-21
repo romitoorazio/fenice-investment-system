@@ -1,0 +1,37 @@
+name: Fenice ONE GLOBAL ECB Research Coverage (read-only)
+on:
+  pull_request:
+    paths:
+      - "lib/global/ecb-daily-fx-reference.mjs"
+      - "scripts/probe-fenice-global-ecb.mjs"
+      - "scripts/test-fenice-one-global-ecb-fx.mjs"
+      - ".github/workflows/fenice-one-global-ecb-research.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fenice-ecb-reference-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  public-ecb-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test offline ECB reference isolation
+        run: node scripts/test-fenice-one-global-ecb-fx.mjs
+      - name: Probe public ECB daily FX references (one request; no secrets or PAPER credit)
+        run: node scripts/probe-fenice-global-ecb.mjs > fenice-global-ecb-research.json
+      - name: Upload sanitized public research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-global-ecb-research
+          path: fenice-global-ecb-research.json
+          if-no-files-found: ignore
+          retention-days: 7
