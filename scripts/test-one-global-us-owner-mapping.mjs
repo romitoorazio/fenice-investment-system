@@ -5,8 +5,20 @@ import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal} from '../lib/tradin
 import {inspectOneGlobalUsOwnerMapping,connectOneGlobalUsOwnerMapping} from '../lib/trading/one-global-us-owner-mapping.mjs';
 import {handleOneGlobalUsOwnerMappingRequest} from '../lib/trading/one-global-us-owner-mapping-http.mjs';
 import {validateOneGlobalSettlementContext} from '../lib/trading/one-global-cloud-settlement.mjs';
+import {oneGlobalNextReviewedNasdaqRegularSession2026} from '../lib/market/one-global-nasdaq-regular-session-2026.mjs';
 
 const sha=b=>createHash('sha256').update(b).digest('hex');
+const reviewedNext=oneGlobalNextReviewedNasdaqRegularSession2026;
+assert.equal(reviewedNext('2026-11-20'),'2026-11-23');
+assert.equal(reviewedNext('2026-11-25'),'2026-11-30',
+  'Thanksgiving closure and early-close Friday are not normal settlement sessions');
+assert.equal(reviewedNext('2026-11-26'),'2026-11-30');
+assert.equal(reviewedNext('2026-11-27'),'2026-11-30');
+assert.equal(reviewedNext('2026-12-23'),'2026-12-28');
+assert.equal(reviewedNext('2026-12-31'),null,'2027 calendar not reviewed: fail closed');
+assert.equal(reviewedNext('2027-01-04'),null,'no unverified calendar expansion');
+assert.equal(reviewedNext('2026-02-31'),null,'reject rollover invalid calendar dates');
+
 const now='2026-11-17T00:55:00.000Z';
 const consent={mode:'ONE_GLOBAL_FORWARD_EOD_PRIVATE_PAPER',ownerConsent:true,
   approvedForVirtualSimulation:true,approvalEvidence:{kind:'EXPLICIT_OWNER_CONSENT',reviewedCommit:'a'.repeat(40)},
