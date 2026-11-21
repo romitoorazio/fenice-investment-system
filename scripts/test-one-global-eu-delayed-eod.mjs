@@ -4,6 +4,7 @@ import {deflateRawSync} from 'node:zlib';
 import {readFileSync} from 'node:fs';
 import {
   buildOneGlobalEuDualVenueReport,
+  ONE_GLOBAL_MILAN_INSTRUMENTS,
   CBOE_POLICY_URL,
   ONE_GLOBAL_EU_RIGHTS_DOCUMENTS,
   MAX_ONE_GLOBAL_EURONEXT_CSV_BYTES,
@@ -108,6 +109,29 @@ const report=buildOneGlobalEuDualVenueReport({euronextRaw:zip,cboeRaw:cboe,symbo
   observedAt:'2026-11-13T17:00:00.000Z'});
 assert.equal(report.researchIndicator,'UPTREND_RESEARCH_ONLY');assert(report.closeDifferencePct<.5);
 assert.equal(report.paperSettlementEligible,false);assert.equal(report.certifiedVirtualFills,0);
+// Regression: additional official Milan identities reuse the SAME unchanged
+// dual-venue parser and never become signals from the radar by themselves.
+// Synthetic observations are not license/owner/session evidence.
+assert.deepEqual(Object.keys(ONE_GLOBAL_MILAN_INSTRUMENTS).sort(),
+  ['BAMI','ENEL','ENI','ISP','TRN','UCG']);
+for(const [symbol,expectedIsin] of [
+  ['UCG','IT0005239360'],['ENI','IT0003132476'],
+  ['ISP','IT0000072618'],['TRN','IT0003242622'],
+]){
+  const item=ONE_GLOBAL_MILAN_INSTRUMENTS[symbol];
+  assert.equal(item.isin,expectedIsin);
+  assert.equal(item.key,'XMIL:'+symbol);
+  const candidate=buildOneGlobalEuDualVenueReport({
+    euronextRaw:zipCsv(csv.replaceAll(isin,expectedIsin)),
+    cboeRaw:Buffer.from(cboeCsv().replaceAll(isin,expectedIsin)),
+    symbol,sessionDate,observedAt:'2026-11-13T17:00:00.000Z',
+  });
+  assert.equal(candidate.key,item.key);
+  assert.equal(candidate.primary.observedVenueMic,'MTAA');
+  assert.equal(candidate.secondary.observedVenueMic,'CEUX');
+  assert.equal(candidate.paperSettlementEligible,false);
+  assert.equal(candidate.researchIndicator,'UPTREND_RESEARCH_ONLY');
+}
 const signal={key:'XMIL:ENEL',mic:'XMIL',currency:'EUR'};
 const primaryReceipt=oneGlobalEuReceipt({source:{providerId:'euronext-mifir',sourceFamily:'euronext-mtaa-primary',symbol:isin},
   signal,sessionDate,raw:zip,observedAt:'2026-11-13T17:00:00.000Z'});
@@ -471,8 +495,8 @@ assert.equal(tuesdayAgain.liveTradingAllowed,false);
 const heldTuesday=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore,
   clock:()=>'2026-11-17T17:20:00.000Z',fetcher:tuesdayFetcher,
   ensureEvidenceContext:async()=>{throw Error('Held instrument must not archive another signal');}});
-assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,2,
-  'Held ENEL must be observed for SELL while unheld BAMI remains an independent BUY candidate');
+assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,6,
+  'Held ENEL must be observed for SELL while five other Milan candidates remain eligible for research');
 assert.equal(heldTuesday.state,'EU_NO_DUAL_VENUE_UPTREND',
   'Valid held ENEL uptrend is not a SELL and cannot duplicate an existing BUY');
 assert(heldTuesday.validatedCandidatePairs>=1,'A valid venue pair was parsed');
