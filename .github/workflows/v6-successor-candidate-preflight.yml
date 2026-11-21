@@ -1,0 +1,114 @@
+name: Fenice V6 Successor Candidate Preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/prepare-v6-successor-candidate.mjs"
+      - "scripts/issue-successor-paper-approval.mjs"
+      - "scripts/test-successor-approval-issuer.mjs"
+      - "data/paper-successor-operational-approval.json"
+      - "data/paper-validation-campaign.json"
+      - "data/paper-history/v6-20260925-campaign.json"
+      - "data/paper-oms-state.json"
+      - "data/paper-validation-approval.json"
+      - "data/paper-successor-operator-authorization.json"
+      - "data/global-source-health.json"
+      - "data/intelligence-quality.json"
+      - "data/execution-market-evidence.json"
+      - "data/execution-market-coverage.json"
+      - "data/decision-governance.json"
+      - "data/paper-fx-evidence.json"
+      - ".github/workflows/v6-successor-candidate-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Verify issuer rejects missing explicit confirmation
+        run: node scripts/test-successor-approval-issuer.mjs
+      - name: Check prospective candidate is not activated
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-successor-candidate.json
+          node - <<'NODE'
+          const fs=require("node:fs");
+          const c=JSON.parse(fs.readFileSync("/tmp/fenice-successor-candidate.json","utf8"));
+          const lines=[
+            "## Fenice PAPER successor — readiness report",
+            "",
+            "| Gate | Status |",
+            "| --- | --- |",
+            `| Fresh PAPER approval | ${c.approvalPreflight.eligible?"PASS":"BLOCKED"} |`,
+            `| Independent market / FX / governance | ${c.marketDataPreflight.eligible?"PASS":"BLOCKED"} |`,
+            `| Operator PAPER consent | ${c.operatorConsent.recorded?"RECORDED":"BLOCKED"} |`,
+            "| Baseline transition | NOT ACTIVATED |",
+            "",
+            "### Actual blockers",
+            ...c.transitionReadiness.blockers.map(x=>`- ${String(x).replace(/[|\\r\\n]/g," ")}`),
+            "",
+            "No real orders, no broker access, no historical evidence transfer."
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || "/tmp/fenice-readiness-summary.md",lines.join("\n")+"\n");
+          NODE
+          cp data/paper-successor-operator-authorization.json /tmp/fenice-operator-consent-backup.json
+          node - <<'NODE'
+          const fs=require("node:fs");
+          const p="data/paper-successor-operator-authorization.json";
+          const a=JSON.parse(fs.readFileSync(p,"utf8"));
+          a.authorized=false;
+          fs.writeFileSync(p,JSON.stringify(a));
+          NODE
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-consent-denied.json 2>/tmp/fenice-consent-denied-error; then
+            echo "ERROR: modified operator consent was accepted"
+            exit 1
+          fi
+          grep -q CANDIDATE_WORKTREE_DIRTY /tmp/fenice-consent-denied-error
+          mv /tmp/fenice-operator-consent-backup.json data/paper-successor-operator-authorization.json
+          cp data/paper-history/v6-20260925-campaign.json /tmp/fenice-v6-archive-backup.json
+          printf 'TAMPER' >> data/paper-history/v6-20260925-campaign.json
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-tamper-candidate.json 2>/tmp/fenice-tamper-error; then
+            echo "ERROR: tampered V6 archive was accepted"
+            exit 1
+          fi
+          grep -q HISTORICAL_V6_ARCHIVE_MISMATCH /tmp/fenice-tamper-error
+          rm data/paper-history/v6-20260925-campaign.json
+          if node scripts/prepare-v6-successor-candidate.mjs > /tmp/fenice-missing-candidate.json 2>/tmp/fenice-missing-error; then
+            echo "ERROR: missing V6 archive was accepted"
+            exit 1
+          fi
+          grep -q ENOENT /tmp/fenice-missing-error
+          mv /tmp/fenice-v6-archive-backup.json data/paper-history/v6-20260925-campaign.json
+          node -e '
+            const fs=require("node:fs");
+            const c=JSON.parse(fs.readFileSync("/tmp/fenice-successor-candidate.json","utf8"));
+            if(c.kind!=="PAPER_V6_SUCCESSOR_CANDIDATE_NOT_ACTIVATED") process.exit(1);
+            if(c.historicalCampaign.records!==42 || c.liveTradingAllowed!==false || c.brokerConnectivityAllowed!==false) process.exit(1);
+            if(c.candidate.startedAt!==null || c.candidate.approved!==false || c.candidate.certified!==false || c.candidate.dailyEvidence.length!==0) process.exit(1);
+            if(c.candidate.baselineFingerprint.complete!==true || c.candidate.baselineFingerprint.files.length!==92) process.exit(1);
+            if(c.approvalPreflight.eligible!==false || c.approvalPreflight.requiresFreshSuccessorApproval!==true) process.exit(1);
+            if(typeof c.marketDataPreflight.eligible!=="boolean" || !Array.isArray(c.marketDataPreflight.reasons) || !c.marketDataPreflight.gates || !c.marketDataPreflight.metrics) process.exit(1);
+            if(c.transitionReadiness?.readyForActivation!==false || !Array.isArray(c.transitionReadiness.blockers)) process.exit(1);
+            if(!c.transitionReadiness.blockers.includes("SUCCESSOR_BASELINE_TRANSITION_NOT_ACTIVATED")) process.exit(1);
+            if(!c.transitionReadiness.blockers.includes("FRESH_TIME_BOUND_PAPER_APPROVAL_REQUIRED")) process.exit(1);
+            if(c.operatorConsent?.recorded!==true || c.transitionReadiness.blockers.includes("OPERATOR_PAPER_CONSENT_REQUIRED")) process.exit(1);
+            if(c.geographicCoverage?.globalVenueParityProven!==false || !Array.isArray(c.geographicCoverage.paperEligibleSymbols)) process.exit(1);
+            if(c.geographicCoverage.paperEligibleCount!==c.marketDataPreflight.metrics.paperEligibleSymbols) process.exit(1);
+            if(!Array.isArray(c.geographicCoverage.nonUsProxySymbolsInUniverse)) process.exit(1);
+            if(c.geographicCoverage.nonUsProxySymbolsInUniverse.some(x=>typeof x.paperEligible!=="boolean" || !Array.isArray(x.reasons))) process.exit(1);
+            if(c.marketDataPreflight.eligible===false && !c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
+            if(c.marketDataPreflight.eligible===true && c.transitionReadiness.blockers.includes("MARKET_DATA_BASELINE_INELIGIBLE")) process.exit(1);
+            console.log("PASS: candidate prepared without activation, certification, broker connectivity, or history reset");
+          '
