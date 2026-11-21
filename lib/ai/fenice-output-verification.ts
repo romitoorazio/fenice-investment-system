@@ -20,9 +20,16 @@ function simplify(text: string): string {
 function canonicalNumber(value: string): number {
   return Number(value.replace(",", "."));
 }
-function numericTokens(text: string, suffix: "%" | "EUR"): number[] {
+function numericTokens(text: string, suffix: "%" | "EUR" | "USD"): number[] {
   if (suffix === "%") {
     return [...text.matchAll(/\b(\d+(?:[.,]\d{1,3})?)\s*%/gu)].map(m => canonicalNumber(m[1]));
+  }
+  if (suffix === "USD") {
+    const dollars: number[] = [];
+    for (const m of text.matchAll(/\$\s*(\d+(?:[.,]\d{1,2})?)|\b(\d+(?:[.,]\d{1,2})?)\s*(?:USD|dollari)\b/giu)) {
+      dollars.push(canonicalNumber(m[1] || m[2]));
+    }
+    return dollars;
   }
   const tokens: number[] = [];
   for (const m of text.matchAll(/€\s*(\d+(?:[.,]\d{1,2})?)|\b(\d+(?:[.,]\d{1,2})?)\s*€/gu)) {
@@ -50,7 +57,10 @@ export function verifyFeniceExplanation(
     /(?<![\p{L}\p{N}])(?:ti\s+(?:consiglio|suggerisco)|conviene|dovresti|devi|raccomando|sarebbe\s+opportuno|è\s+il\s+momento\s+di)\s+(?:di\s+)?(?:comprare|acquistare|vendere|investire|entrare|aprire\s+una\s+posizione)\b/iu.test(plain)
     || /\b(?:compra|acquista|vendi|investi)\s+(?:subito|adesso|oggi|ora|[A-Z]{2,8})\b/iu.test(output)
     || /\b(?:buy|sell)\s+(?:now|today|[A-Z]{2,8})\b/iu.test(output);
-  if (imperative) return { accepted: false, reason: "UNAUTHORIZED_TRADE" };
+  // Bare quantity orders were not covered by the "buy now/TICKER" patterns.
+  // Keep a negative instruction ("non compra 100 azioni") permissible.
+  const quantityOrder = /(?<!non\s)\b(?:compra|acquista|vendi|investi)\s+\d+(?:[.,]\d+)?\s+(?:azioni|titoli|quote|contratti)\b/iu.test(plain);
+  if (imperative || quantityOrder) return { accepted: false, reason: "UNAUTHORIZED_TRADE" };
 
   const evidenceCorpus = simplify([
     ...grounded.paragraphs, ...grounded.blockers,
@@ -59,7 +69,7 @@ export function verifyFeniceExplanation(
 
   // Prevent unsupported percentage and euro amounts: source-backed values
   // must already exist in the deterministic explanation or evidence.
-  for (const unit of ["%", "EUR"] as const) {
+  for (const unit of ["%", "EUR", "USD"] as const) {
     const allowed = numericTokens(evidenceCorpus, unit);
     for (const value of numericTokens(output, unit)) {
       if (!Number.isFinite(value) || !allowed.some(n => Math.abs(n - value) < 0.0001)) {
@@ -67,6 +77,10 @@ export function verifyFeniceExplanation(
       }
     }
   }
+
+  // The model has no browsing. An external web address is never a verified
+  // citation in this explanation-only channel, even if formatted as a source.
+  if (/https?:\/\/\S+/iu.test(output)) return { accepted: false, reason: "UNSUPPORTED_SOURCE" };
 
   const allowedFiles = new Set(grounded.evidence.map(e => e.source).filter(x => /^data\/[a-z0-9-]+\.json$/iu.test(x)));
   for (const match of output.matchAll(/\bdata\/[a-z0-9-]+\.json\b/giu)) {
