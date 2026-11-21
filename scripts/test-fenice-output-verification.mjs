@@ -27,6 +27,9 @@ const scenarios = [
   ["Il guadagno previsto è pari al 15,5% annuo.", "UNSUPPORTED_NUMERIC_CLAIM"],
   ["Ci sono 250 € di guadagno PAPER.", "UNSUPPORTED_NUMERIC_CLAIM"],
   ["La fonte è data/fantasy-equity.json.", "UNSUPPORTED_SOURCE"],
+  ["Compra 100 azioni ASML alla prossima apertura.", "UNAUTHORIZED_TRADE"],
+  ["ASML avrà sicuramente un valore di $990.", "UNSUPPORTED_NUMERIC_CLAIM"],
+  ["La prova ufficiale è https://unverified.example/quotes.", "UNSUPPORTED_SOURCE"],
 ];
 for (const [sentence, reason] of scenarios) {
   assert.deepEqual(verifyFeniceExplanation(sentence, evidence), { accepted: false, reason }, sentence);
@@ -34,6 +37,12 @@ for (const [sentence, reason] of scenarios) {
 // Negative instructions and existing grounded values remain accepted.
 assert.equal(verifyFeniceExplanation("Non comprare ASML. La qualità è 93/100 secondo data/intelligence-quality.json.", evidence).accepted, true);
 assert.equal(verifyFeniceExplanation("Il comitato conferma ATTENDERE e non vi sono ordini autorizzati.", evidence).accepted, true);
+assert.equal(verifyFeniceExplanation("Non compra 100 azioni ASML: mancano prove.", evidence).accepted, true);
+const withProvenDollars = {
+  ...evidence,
+  paragraphs: [...evidence.paragraphs, "Costo teorico 12 USD, ancora senza ordine."],
+};
+assert.equal(verifyFeniceExplanation("Costo teorico 12 USD, ancora senza ordine.", withProvenDollars).accepted, true);
 const withProvenAmount = {
   ...evidence,
   paragraphs: [...evidence.paragraphs, "Slippage PAPER stimato: 0,5%; costi teorici 9,90 €."],
