@@ -1,0 +1,70 @@
+name: Fenice ONE GLOBAL Existing World Market Hints (read-only)
+on:
+  pull_request:
+    paths:
+      - "lib/global/world-market-observation-bridge.mjs"
+      - "scripts/test-fenice-one-global-world-hints.mjs"
+      - "scripts/probe-fenice-one-global-world-hints.mjs"
+      - ".github/workflows/fenice-one-global-world-hints.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fenice-one-global-world-hints-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  reconcile-main-world-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test exchange and operating-MIC safety
+        run: node scripts/test-fenice-one-global-world-hints.mjs
+      - name: Retrieve latest successful main world-market observation (no provider API or secret)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=world-market-observation&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | max_by(.created_at).workflow_run.id // empty')
+          if [[ ! "$ref" =~ ^[0-9]+$ ]]; then echo "NO_MAIN_WORLD_OBSERVATION_ARTIFACT"; exit 2; fi
+          check=$(gh run view "$ref" --repo "$GITHUB_REPOSITORY" --json conclusion,headBranch,name)
+          jq -e '.conclusion=="success" and .headBranch=="main" and .name=="Fenice World Market Collection"' <<< "$check" >/dev/null
+          mkdir -p "$RUNNER_TEMP/world-observation"
+          gh run download "$ref" --repo "$GITHUB_REPOSITORY" --name world-market-observation --dir "$RUNNER_TEMP/world-observation"
+          test -s "$RUNNER_TEMP/world-observation/world-market-observation.json"
+      - name: Reconcile existing world-state hints against nine exact ONE GLOBAL MICs
+        shell: bash
+        run: |
+          node scripts/probe-fenice-one-global-world-hints.mjs \
+            "$RUNNER_TEMP/world-observation/world-market-observation.json" \
+            > "$RUNNER_TEMP/fenice-global-world-hints.json"
+      - name: Enforce no calendar or PAPER certification by this diagnostic
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from "node:fs";
+          const report=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/fenice-global-world-hints.json","utf8"));
+          if(!report.ok || report.paperEligible!==false || report.countsTowardRealPaper!==false ||
+             report.liveTradingAllowed!==false || report.brokerConnectivityAllowed!==false ||
+             report.totals?.requested!==9 || report.totals?.authoritativeSessions!==0 ||
+             report.totals?.verifiedQuotes!==0 || report.totals?.certifiedPaperFills!==0 ||
+             report.rows?.some(row=>row.paperEligible!==false||row.authoritativeSessionVerified!==false))
+            throw Error("UNSAFE_GLOBAL_MARKET_STATE_PROMOTION");
+          console.log("Read-only world-state coverage:",JSON.stringify(report.totals));
+          NODE
+      - name: Upload sanitized real main market-state coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fenice-global-world-hints
+          path: ${{ runner.temp }}/fenice-global-world-hints.json
+          retention-days: 7
+          if-no-files-found: ignore

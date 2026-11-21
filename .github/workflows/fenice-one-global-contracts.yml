@@ -1,0 +1,59 @@
+name: Fenice ONE GLOBAL Contract Tests
+on:
+  push:
+    branches: [architecture/fenice-one-global-v1]
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  pull_request:
+    paths:
+      - "lib/global/**"
+      - "scripts/test-fenice-one-global-*.mjs"
+      - ".github/workflows/fenice-one-global-contracts.yml"
+  workflow_dispatch:
+  # GitHub executes scheduled workflows only from the default branch.
+  # Once merged, this read-only check will run every five minutes (best effort).
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: fenice-one-global-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Repository secret scan (same gate as Production CI)
+        run: node scripts/scan-repository-secrets.mjs
+      - run: node scripts/test-fenice-one-global-registry.mjs
+      - run: node scripts/test-fenice-one-global-world-hints.mjs
+      - run: node scripts/test-fenice-one-global-instrument.mjs
+      - run: node scripts/test-fenice-one-global-calendar.mjs
+      - run: node scripts/test-fenice-one-global-ledger.mjs
+      - run: node scripts/test-fenice-one-global-accounting.mjs
+      - run: node scripts/test-fenice-one-global-durable-ledger.mjs
+      - run: node scripts/test-fenice-one-global-durable-shadow.mjs
+      - run: node scripts/test-fenice-one-global-pipeline.mjs
+      - run: node scripts/test-fenice-one-global-fx.mjs
+      - run: node scripts/test-fenice-one-global-ecb-fx.mjs
+      - run: node scripts/test-fenice-one-global-evidence-bundle.mjs
+      - run: node scripts/test-fenice-one-global-quote-provider.mjs
+      - run: node scripts/test-fenice-one-global-twelve-data-source.mjs
+      - run: node scripts/test-fenice-one-global-provider-probe.mjs
+      - run: node scripts/test-fenice-one-global-readiness-audit.mjs
+      - name: Generate read-only A-Z readiness diagnostics
+        if: always()
+        run: node scripts/audit-fenice-one-global-readiness.mjs > fenice-one-global-readiness.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fenice-one-global-readiness
+          path: fenice-one-global-readiness.json
+          retention-days: 14
