@@ -133,6 +133,17 @@ const partial=await auditOneGlobalLatestPrivateRoundTrip({storage:store,nowIso,
   auditFill:async args=>({...await syntheticTenCheckAudit(args),checks:[{name:'only-1',verified:true}]})});
 assert.equal(partial.state,'ROUNDTRIP_FORENSIC_EVIDENCE_INCOMPLETE');
 assert.equal(partial.roundTripForensicallyVerified,false);
+assert.equal(partial.entryChecksPassed,1);
+assert.equal(partial.exitChecksPassed,1);
+// A nominal 10-row report with one failed check must never display 10/10.
+const nineOfTen=await auditOneGlobalLatestPrivateRoundTrip({storage:store,nowIso,
+  auditFill:async args=>({...await syntheticTenCheckAudit(args),
+    checks:Array.from({length:10},(_,i)=>({name:'synthetic-'+i,verified:i!==9}))})});
+assert.equal(nineOfTen.state,'ROUNDTRIP_FORENSIC_EVIDENCE_INCOMPLETE');
+assert.equal(nineOfTen.entryChecksPassed,9);
+assert.equal(nineOfTen.exitChecksPassed,9);
+assert.equal(nineOfTen.roundTripForensicallyVerified,false);
+assert.equal(nineOfTen.lastRoundTripNetEuro,undefined);
 let revision=0;
 const moved={...store,async read(){return {body,etag:'rev-'+(++revision)};}};
 const concurrent=await auditOneGlobalLatestPrivateRoundTrip({storage:moved,nowIso,
