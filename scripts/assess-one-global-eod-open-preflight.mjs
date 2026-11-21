@@ -15,6 +15,23 @@ const VENUES=Object.freeze([
   {mic:"XNYS",zone:"America/New_York",open:9*60+30,close:16*60},
   {mic:"XNAS",zone:"America/New_York",open:9*60+30,close:16*60},
 ]);
+
+/** Published closures in the 23–27 Nov 2026 operational readiness window.
+ * Only a negative schedule hint: dates NOT listed never prove exchange OPEN.
+ * JPX: https://www.jpx.co.jp/english/corporate/about-jpx/calendar/index.html
+ * NYSE: https://www.nyse.com/trade/hours-calendars
+ * Nasdaq: https://www.nasdaqtrader.com/Trader.aspx?id=Calendar
+ */
+const KNOWN_PUBLISHED_2026_CLOSED = Object.freeze({
+  XTKS: new Set(["2026-11-23"]),
+  XNYS: new Set(["2026-11-26"]),
+  XNAS: new Set(["2026-11-26"]),
+});
+const KNOWN_PUBLISHED_2026_EARLY_CLOSE = Object.freeze({
+  XNYS: new Map([["2026-11-27", 13*60]]),
+  XNAS: new Map([["2026-11-27", 13*60]]),
+});
+
 const at=iso=>typeof iso==="string"&&
   /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(iso)&&
   Number.isFinite(Date.parse(iso))?Date.parse(iso):null;
@@ -44,7 +61,12 @@ export function assessOneGlobalEodOpenPreflight({nowIso,eod,provider,committee,o
     const point=local(new Date(now),spec.zone);
     const minute=Number(point.hour)*60+Number(point.minute);
     const weekday=!["Sat","Sun"].includes(point.weekday);
-    const withinRegularHours=weekday && minute>=spec.open && minute<spec.close
+    const localDate=point.year+"-"+point.month+"-"+point.day;
+    const publishedClosed=KNOWN_PUBLISHED_2026_CLOSED[spec.mic]?.has(localDate)===true;
+    const publishedEarlyClose=KNOWN_PUBLISHED_2026_EARLY_CLOSE[spec.mic]?.get(localDate);
+    const effectiveClose=publishedEarlyClose??spec.close;
+    const withinRegularHours=weekday && !publishedClosed
+      && minute>=spec.open && minute<effectiveClose
       &&(!spec.lunchStart||minute<spec.lunchStart||minute>=spec.lunchEnd);
     const row=eod.records?.[spec.mic]||null;
     const access=provider.records?.[spec.mic]||null;
@@ -54,6 +76,9 @@ export function assessOneGlobalEodOpenPreflight({nowIso,eod,provider,committee,o
     // regular business weekday a holiday or exchange halt can occur.
     blockers.push("EXCHANGE_SESSION_NOT_INDEPENDENTLY_CONFIRMED");
     if(!withinRegularHours)blockers.push("OUTSIDE_REGULAR_SESSION_WINDOW");
+    if(publishedClosed)blockers.push("PUBLISHED_2026_VENUE_HOLIDAY");
+    if(publishedEarlyClose!==undefined && minute>=publishedEarlyClose)
+      blockers.push("PUBLISHED_2026_EARLY_CLOSE");
     if(row?.exactMicCertified!==true)
       blockers.push("EXACT_MIC_AND_PROVIDER_SYMBOL_NOT_CERTIFIED");
     if(!row || !["COMPLETE_EOD_RESEARCH","TENTATIVE_COMPLETED_DAILY_RESEARCH"].includes(row.status))
