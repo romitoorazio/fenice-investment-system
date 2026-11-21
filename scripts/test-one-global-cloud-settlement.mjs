@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {oneGlobalReviewSubjectSha256} from '../lib/trading/one-global-technical-review.mjs';
 import {createHash} from 'node:crypto';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
-import {runOneGlobalCloudSettlementCycle as run,collectOneGlobalSettlementPair} from '../lib/trading/one-global-cloud-settlement.mjs';
+import {runOneGlobalCloudSettlementCycle as run,collectOneGlobalSettlementPair,validateOneGlobalSettlementContext} from '../lib/trading/one-global-cloud-settlement.mjs';
 import {fetchOneGlobalSettlementSource} from '../lib/market/one-global-cloud-settlement-sources.mjs';
 import {selectOneGlobalEcbCurrencyReference} from '../lib/market/one-global-cloud-ecb-reference.mjs';
 import {runOneGlobalCloudPaperCycle} from '../lib/trading/one-global-cloud-paper-cycle.mjs';
@@ -445,3 +445,37 @@ event.authoritySnapshotHash='d'.repeat(64);
 const unhashed=Object.fromEntries(Object.entries(event).filter(([key])=>key!=='hash'));event.hash=sha(JSON.stringify(unhashed));
 assert.throws(()=>replayOneGlobalEodPaperLedger(transplanted));
 console.log('PASS delegated settlement: synthetic original evidence supports attributed source/rights/session review, strict replay and CAS preserved; edits and consent transplantation fail closed.');
+
+// STRICT XNAS HOLIDAY REGRESSION — SYNTHETIC documents, never an owner ledger.
+// Previously US owner mapping selected 2026-11-30 but settlement and FILL
+// replay selected the closed Thanksgiving Thursday 2026-11-26.
+{
+  const f=fixture({mic:'XNAS',currency:'USD',symbol:'AAPL',providers:['alpha-vantage','alpaca-iex']});
+  const signalAt='2026-11-25T22:10:00.000Z';
+  const prospective=recordOneGlobalEodSignal({
+    previousLedger:newOneGlobalEodPaperLedger(),nowIso:signalAt,signal:{
+      signalId:'synthetic-us-thanksgiving-session-2026',key:'XNAS:AAPL',
+      mic:'XNAS',currency:'USD',side:'BUY',decisionAt:signalAt,
+      referenceSessionDate:'2026-11-25',referenceCloseAt:'2026-11-25T21:00:00.000Z',
+      referencePublishedAt:'2026-11-25T21:15:00.000Z',
+      sourceSnapshotHash:'b'.repeat(64),maxNotionalEuro:50,
+      strategyReason:'UPTREND_CONFIRMATION'
+    }
+  });
+  const context=structuredClone(f.context);
+  context.sessions[0].sessionDate='2026-11-30';
+  context.sessions[0].sessionOpenedAt='2026-11-30T14:30:00.000Z';
+  context.sessions[0].sessionClosedAt='2026-11-30T21:00:00.000Z';
+  const check=validateOneGlobalSettlementContext({
+    context,signal:prospective.ledger.events[0],nowIso:'2026-11-30T22:00:00.000Z'
+  });
+  assert.equal(check.session.sessionDate,'2026-11-30');
+  const closedDay=structuredClone(context);
+  closedDay.sessions[0].sessionDate='2026-11-26';
+  closedDay.sessions[0].sessionOpenedAt='2026-11-26T14:30:00.000Z';
+  closedDay.sessions[0].sessionClosedAt='2026-11-26T21:00:00.000Z';
+  assert.throws(()=>validateOneGlobalSettlementContext({
+    context:closedDay,signal:prospective.ledger.events[0],nowIso:'2026-11-30T22:00:00.000Z'
+  }),/CLOUD_SETTLEMENT_EXACT_NEXT_EXCHANGE_SESSION_ORIGINAL_EVIDENCE_MISSING/);
+  console.log('PASS synthetic XNAS Thanksgiving official-session boundary: Nov 25 -> Nov 30, no holiday FILL.');
+}
