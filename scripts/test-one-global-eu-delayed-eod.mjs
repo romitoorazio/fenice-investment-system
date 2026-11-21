@@ -263,6 +263,14 @@ const ensureEvidenceContext=async input=>{evidenceCalls++;assert.equal(input.ses
 const cycleStore=memory();
 const cycle=await runOneGlobalCloudEuProspectiveCycle({storage:cycleStore,clock:()=>cycleNow,fetcher,ensureEvidenceContext});
 assert.equal(cycle.state,'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE');assert.equal(cycle.newSignals,1);
+// SYNTHETIC partial coverage: only ENEL exists in fixture; the other five
+// official identities fail parsing. The successful SIGNAL must still account
+// for ALL six attempted pairs, or the strict public forensic report rejects
+// the result after the original journal CAS has already committed.
+assert.equal(cycle.validatedCandidatePairs,1);
+assert.equal(cycle.rejectedCandidatePairs,5);
+assert.equal(cycle.sourcePairsAttempted,Object.keys(ONE_GLOBAL_MILAN_INSTRUMENTS).length);
+assert.equal(cycle.sourcePairsAttempted,cycle.validatedCandidatePairs+cycle.rejectedCandidatePairs);
 assert.equal(cycle.paperFillsCreated,0);assert.equal(cycleStore.writes,1);assert.equal(cycleStore.observations,1);
 assert.equal(cycleStore.artifacts,3);assert.equal(evidenceCalls,1);
 assert.deepEqual(cycleStore.ledger.events.slice(0,existing.events.length),existing.events);
