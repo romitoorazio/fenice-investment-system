@@ -34,6 +34,9 @@ jobs:
       - name: Verify fresh provider statuses reconcile without false green or stale FINRA 403
         run: node --experimental-strip-types scripts/test-source-status-reconciliation.mjs
 
+      - name: Verify original BUY SELL forensic round-trip and loss-inclusive EUR accounting (synthetic only)
+        run: node scripts/test-one-global-private-roundtrip-audit.mjs
+
       - name: Verify fail-closed PAPER evidence UI states
         run: node --experimental-strip-types scripts/test-paper-evidence-state.mjs
 
