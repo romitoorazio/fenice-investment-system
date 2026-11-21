@@ -91,6 +91,9 @@ jobs:
       - name: Verify V7 promotion needs independent benchmark days and positive hypothetical edge
         run: node scripts/test-shadow-promotion-gate.mjs
 
+      - name: Verify mission public research refresh is bounded, read-only and fail-closed
+        run: node scripts/test-mission-live-snapshot.mjs
+
       - name: Verify Fenice home keeps the 10x economic goal separate from verified profits
         run: node --experimental-strip-types scripts/test-mission-profit-target.mjs
 
