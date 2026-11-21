@@ -1,6 +1,7 @@
 import Link from "next/link";
 import MissionControl from "../components/MissionControl";
 import snapshot from "@/data/latest-snapshot.json";
+import {readLatestPublicMissionSnapshot} from "@/lib/ui/public-mission-snapshot-runtime.mjs";
 import type { AutonomySnapshot } from "@/lib/autonomy";
 import { buildMissionControl } from "@/lib/mission";
 import {getWorldTacticalEvidence} from "@/lib/ui/one-global-world-radar-evidence";
@@ -9,8 +10,21 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function Home() {
-  const mission = buildMissionControl(snapshot as AutonomySnapshot);
-  const worldEvidence=await getWorldTacticalEvidence();
+  const [latest,worldEvidence]=await Promise.all([
+    readLatestPublicMissionSnapshot({fallback:snapshot}),
+    getWorldTacticalEvidence(),
+  ]);
+  let mission;
+  let bundled=latest.source==='BUNDLED';
+  try{
+    mission=buildMissionControl(latest.snapshot as AutonomySnapshot);
+  }catch{
+    mission=buildMissionControl(snapshot as AutonomySnapshot);
+    bundled=true;
+  }
+  if(bundled)mission.warnings=[...new Set([...mission.warnings,
+    "Snapshot incorporato nel sito: aggiornamento GitHub non verificabile."
+  ])];
 
   return (
     <>
