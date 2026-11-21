@@ -339,6 +339,11 @@ const heldNeutral=memory(settled.ledger);
 const neutralCycle=await runOneGlobalCloudEuProspectiveCycle({storage:heldNeutral,
   clock:()=>cycleNow,fetcher,ensureEvidenceContext});
 assert.equal(neutralCycle.newSignals,0,'An uptrend cannot generate a duplicate BUY for holdings');
+assert.equal(neutralCycle.state,'EU_PARTIAL_SOURCE_PAIR_UNAVAILABLE',
+  'One usable venue pair cannot prove no uptrend across all six candidates');
+assert(neutralCycle.validatedCandidatePairs>0&&neutralCycle.rejectedCandidatePairs>0);
+assert.equal(neutralCycle.sourcePairsAttempted,
+  neutralCycle.validatedCandidatePairs+neutralCycle.rejectedCandidatePairs);
 assert.equal(heldNeutral.writes,0);
 assert.equal(heldNeutral.artifacts,0);
 assert.equal(heldNeutral.observations,0);
@@ -504,8 +509,8 @@ const heldTuesday=await runOneGlobalCloudEuProspectiveCycle({storage:mondayStore
   ensureEvidenceContext:async()=>{throw Error('Held instrument must not archive another signal');}});
 assert.equal(heldTuesday.newSignals,0);assert.equal(heldTuesday.sourcePairsAttempted,6,
   'Held ENEL must be observed for SELL while five other Milan candidates remain eligible for research');
-assert.equal(heldTuesday.state,'EU_NO_DUAL_VENUE_UPTREND',
-  'Valid held ENEL uptrend is not a SELL and cannot duplicate an existing BUY');
+assert.equal(heldTuesday.state,'EU_PARTIAL_SOURCE_PAIR_UNAVAILABLE',
+  'Held ENEL uptrend cannot duplicate a BUY; remaining candidates require valid source pairs');
 assert(heldTuesday.validatedCandidatePairs>=1,'A valid venue pair was parsed');
 assert(heldTuesday.uptrendCandidatePairs>=1,'Measured uptrend must be distinguishable from eligible BUY');
 assert.equal(heldTuesday.eligibleBuyCandidates,0,'Already held cannot count as qualified BUY');
