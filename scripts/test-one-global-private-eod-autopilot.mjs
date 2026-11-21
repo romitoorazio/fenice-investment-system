@@ -26,6 +26,27 @@ const summer='2026-07-10T21:45:00.000Z'; // Fri 17:45 EDT
 assert.equal(privateEodNewYorkClock(summer).sessionDate,'2026-07-10');
 assert.equal(planPrivateEodSignalCycle({nowIso:summer,originalLedger:initial})
   .expectedPostcloseWindow,true,'NY DST must preserve the same session-local window');
+// NasdaqTrader 2026: Thanksgiving closed on Thu 26 Nov; Fri 27 Nov closes
+// at 13:00 ET. The original next-weekday settlement and US 16:00 signal
+// reference are not holiday/early-close qualified. Do not create orphan
+// SIGNALs on Wed 25, a closed-day SIGNAL on Thu 26, or a misdated close on
+// Fri 27. These synthetic planner checks read no private journal.
+for(const [date,reason] of [
+  ['2026-11-25','NEXT_REGULAR_WEEKDAY_US_EXCHANGE_CLOSED'],
+  ['2026-11-26','US_EXCHANGE_HOLIDAY_CLOSED'],
+  ['2026-11-27','US_EARLY_CLOSE_UNSUPPORTED_BY_1600_EOD_BRIDGE'],
+]){
+  const plan=planPrivateEodSignalCycle({
+    nowIso:date+'T22:45:00.000Z',originalLedger:initial});
+  assert.equal(plan.expectedPostcloseWindow,false,date);
+  assert.equal(plan.actualExchangeSessionProven,false,date);
+  assert.equal(plan.paperFillsCreated,0,date);
+  assert.equal(plan.liveTradingAllowed,false,date);
+  assert(plan.candidates.every(row=>row.eligible===false&&row.reason===reason),date);
+}
+assert.equal(planPrivateEodSignalCycle({
+  nowIso:'2026-11-30T22:45:00.000Z',originalLedger:initial})
+  .expectedPostcloseWindow,true,'Normal Monday after Thanksgiving must recover');
 assert.throws(()=>planPrivateEodSignalCycle({nowIso:friday,originalLedger:initial,
   symbols:['AAPL','AAPL']}),/SYMBOL_UNIVERSE_INVALID/);
 assert.throws(()=>planPrivateEodSignalCycle({nowIso:friday,originalLedger:initial,
