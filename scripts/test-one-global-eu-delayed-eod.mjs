@@ -15,6 +15,7 @@ import {
   fetchOneGlobalEuronextMilanFile,
   oneGlobalEuReceipt,
   oneGlobalMilanSession,
+  oneGlobalNextReviewedMilanSession2026,
   parseOneGlobalCboeCeux,
   parseOneGlobalEuronextMilan,
 } from '../lib/market/one-global-eu-delayed-eod.mjs';
@@ -83,6 +84,12 @@ assert.equal(oneGlobalEuronextZipExpansionSafe(1_000_000,63_569_009),false,
 assert.equal(oneGlobalEuronextZipExpansionSafe(7_900_001,63_569_009),false);
 assert.equal(oneGlobalEuronextZipExpansionSafe(6_369_738,-1),false);
 
+// Shared 2026 reviewed calendar; no inference across holiday or into 2027.
+assert.equal(oneGlobalNextReviewedMilanSession2026('2026-04-02'),'2026-04-07');
+assert.equal(oneGlobalNextReviewedMilanSession2026('2026-12-23'),'2026-12-28');
+assert.equal(oneGlobalNextReviewedMilanSession2026('2026-04-03'),null);
+assert.equal(oneGlobalNextReviewedMilanSession2026('2026-12-30'),null);
+assert.equal(oneGlobalNextReviewedMilanSession2026('2027-01-04'),null);
 assert.deepEqual(oneGlobalMilanSession(sessionDate),{
   sessionDate,sessionOpenedAt:'2026-11-13T08:00:00.000Z',continuousEndedAt:'2026-11-13T16:30:00.000Z',
   closingAuctionNominalAt:'2026-11-13T16:35:00.000Z',sessionClosedAt:'2026-11-13T16:35:30.000Z',

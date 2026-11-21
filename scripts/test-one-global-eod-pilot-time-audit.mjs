@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {auditOneGlobalEodPilotSignalWindow as audit} from "../lib/trading/one-global-eod-pilot-time-audit.mjs";
+import {auditOneGlobalEodPilotSignalWindow as audit,oneGlobalRegularNextSessionCutoff} from "../lib/trading/one-global-eod-pilot-time-audit.mjs";
 
 const witness=JSON.parse(readFileSync("data/one-global-first-paper-cba-signal-witness.json","utf8"));
 const cba=audit({mic:witness.exchangeMic,referenceSessionDate:witness.researchBarSession,
@@ -49,6 +49,24 @@ const friToMon=audit({mic:"XMIL",referenceSessionDate:"2026-11-13",
  recordedAt:"2026-11-13T18:10:00.000Z"});
 assert.equal(friToMon.firstNextNormalWeekday,"2026-11-16");
 assert.equal(friToMon.eligibleBySchedule,true);
+// Thursday before Good Friday and Easter Monday: the reviewed Milan next
+// ordinary session is Tuesday, not the unverified Friday/Monday weekdays.
+const easter=audit({mic:"XMIL",referenceSessionDate:"2026-04-02",
+ referenceCloseAt:"2026-04-02T15:35:00.000Z",
+ referencePublishedAt:"2026-04-02T15:45:00.000Z",
+ recordedAt:"2026-04-02T16:05:00.000Z"});
+assert.equal(easter.eligibleBySchedule,true);
+assert.equal(easter.firstNextNormalWeekday,"2026-04-07");
+assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2026-04-02"}).targetSessionDate,"2026-04-07");
+assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2026-12-30"}),null);
+assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2027-01-04"}),null,
+  'No unreviewed 2027 Milan calendar can produce an expiry target');
+const unknownYear=audit({mic:"XMIL",referenceSessionDate:"2027-01-04",
+ referenceCloseAt:"2027-01-04T16:35:00.000Z",
+ referencePublishedAt:"2027-01-04T17:00:00.000Z",
+ recordedAt:"2027-01-04T18:00:00.000Z"});
+assert.equal(unknownYear.eligibleBySchedule,false);
+assert.equal(unknownYear.status,"REFERENCE_EXCHANGE_SESSION_NOT_VERIFIED");
 const unknown=audit({mic:"XHKG",referenceSessionDate:"2026-11-12",
  referenceCloseAt:"2026-11-12T16:30:00.000Z",
  referencePublishedAt:"2026-11-12T17:00:00.000Z",

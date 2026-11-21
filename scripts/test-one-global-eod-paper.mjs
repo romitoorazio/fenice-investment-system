@@ -454,17 +454,20 @@ for(const [mic,currency,open,close,openDayOffset] of venues){
   for(const [refDate,targetDate,lateDate] of [
     ['2026-11-12','2026-11-13','2026-11-16'],
     ['2026-11-13','2026-11-16','2026-11-17'],
+    ...(mic==='XMIL'?[['2026-04-02','2026-04-07','2026-04-08']]:[]),
   ]){
-    const refClose=refDate+'T'+close+':00.000Z';
+    const easter=refDate==='2026-04-02';
+    const venueClose=easter?'15:35':close,venueOpen=easter?'07:00':open;
+    const refClose=refDate+'T'+venueClose+':00.000Z';
     const decisionAt=shifted(refClose,30),key=mic+':FIXTURE';
     const originalSignal=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedger(),
       nowIso:decisionAt,signal:{...signal(decisionAt),signalId:'synthetic-next-'+mic.toLowerCase()+'-'+refDate,
         key,mic,currency,referenceSessionDate:refDate,referenceCloseAt:refClose,
         referencePublishedAt:shifted(refClose,20)}});
     const makeEvidence=day=>{
-      const sessionClosedAt=day+'T'+close+':00.000Z';
+      const sessionClosedAt=day+'T'+venueClose+':00.000Z';
       return {sessionDate:day,
-        sessionOpenedAt:shifted(day+'T'+open+':00.000Z',openDayOffset*1440),sessionClosedAt,
+        sessionOpenedAt:shifted(day+'T'+venueOpen+':00.000Z',openDayOffset*1440),sessionClosedAt,
         providerReceipts:evidence().providerReceipts.map(q=>({...q,key,mic,currency,
           sessionDate:day,publishedAt:shifted(sessionClosedAt,10)}))};
     };
@@ -472,8 +475,9 @@ for(const [mic,currency,open,close,openDayOffset] of venues){
       source:'ECB_REFERENCE_ONLY',referenceDate:'2026-11-11',
       publishedAt:'2026-11-11T15:00:00.000Z',currency,series:'EXR.D.'+currency+'.EUR.SP00.A'};
     const inputFor=day=>({previousLedger:originalSignal.ledger,
-      signalHash:originalSignal.signalHash,nowIso:shifted(day+'T'+close+':00.000Z',30),
-      marketEvidence:makeEvidence(day),authority,fxEvidence,
+      signalHash:originalSignal.signalHash,nowIso:shifted(day+'T'+venueClose+':00.000Z',30),
+      marketEvidence:makeEvidence(day),authority:easter?{...authority,
+        approvedAt:'2026-04-01T10:00:00.000Z',expiresAt:'2026-05-01T00:00:00.000Z'}:authority,fxEvidence,
       ownerReviewedRights:rights().map(r=>({...r,mic,currency}))});
     const first=settleOneGlobalEodSignal(inputFor(targetDate));
     assert.equal(first.accounting.virtualBuys,1,mic+' immediate next session remains viable');
