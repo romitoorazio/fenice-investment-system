@@ -258,7 +258,7 @@ for(const q of [
   {...euProspectiveBlocked,state:'EU_FAKE_SIGNAL_COMMITTED'},
   {...euProspectiveBlocked,newSignals:1},
   {...euProspectiveBlocked,canonicalSignalCommitted:true},
-  {...euProspectiveBlocked,sourcePairsAttempted:3},
+  {...euProspectiveBlocked,sourcePairsAttempted:7},
   {...euProspectiveBlocked,rightsAndNextSessionEvidenceConnected:true},
   {...euProspectiveCommitted,sourceEvidenceArchived:false},
   {...euProspectiveCommitted,rightsAndNextSessionEvidenceConnected:false},
