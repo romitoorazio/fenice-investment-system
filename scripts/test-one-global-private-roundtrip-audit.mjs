@@ -119,7 +119,7 @@ assert.equal(checked.certifiedTrades,0);
 assert.equal(checked.phase9Credit,0);
 assert.equal(forensicCalls,2);
 assert.equal(writes,0);
-assert(reads>=4);
+assert.equal(reads,2,'outer auditor reads the original before and after the two isolated synthetic attestations');
 const noExitStore={...store,async read(){return {body:JSON.stringify(first),etag:'only-buy'};}};
 const none=await auditOneGlobalLatestPrivateRoundTrip({storage:noExitStore,nowIso,auditFill:syntheticTenCheckAudit});
 assert.equal(none.state,'NO_CLOSED_VIRTUAL_ROUNDTRIP');
