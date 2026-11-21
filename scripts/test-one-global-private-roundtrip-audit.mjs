@@ -4,6 +4,25 @@ import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,
   from '../lib/trading/one-global-eod-paper.mjs';
 import {findOneGlobalPrivateClosedRoundTrips,auditOneGlobalLatestPrivateRoundTrip}
   from '../lib/trading/one-global-private-roundtrip-audit.mjs';
+import {oneGlobalMilanForensicName} from '../lib/trading/one-global-private-forensic-audit.mjs';
+import {ONE_GLOBAL_MILAN_INSTRUMENTS} from '../lib/market/one-global-eu-delayed-eod.mjs';
+import {readFileSync} from 'node:fs';
+
+const expectedTitles={ENEL:'Enel',BAMI:'Banco BPM',UCG:'UniCredit',
+  ENI:'Eni',ISP:'Intesa Sanpaolo',TRN:'Terna'};
+assert.deepEqual(Object.keys(ONE_GLOBAL_MILAN_INSTRUMENTS).sort(),
+  Object.keys(expectedTitles).sort(),'forensic titles cover every configured Milan security');
+for(const [symbol,name] of Object.entries(expectedTitles))
+  assert.equal(oneGlobalMilanForensicName(symbol),name);
+assert.throws(()=>oneGlobalMilanForensicName('UNKNOWN'),/TITLE_NOT_REVIEWED/);
+const forensicSource=readFileSync(new URL('../lib/trading/one-global-private-forensic-audit.mjs',import.meta.url),'utf8');
+assert(forensicSource.includes('title:oneGlobalMilanForensicName(instrument.symbol)'));
+const ownerRoute=readFileSync(new URL('../app/api/paper/one-global-private-roundtrip/route.js',import.meta.url),'utf8');
+assert(ownerRoute.includes('verifyFeniceOwnerSession'));
+assert(ownerRoute.includes('pinOneGlobalRecoveredOriginalStore'));
+assert(ownerRoute.includes('auditOneGlobalLatestPrivateRoundTrip'));
+assert(!/export async function (?:POST|PUT|PATCH|DELETE)/.test(ownerRoute));
+assert(!/submitDirectaOrder|connectDirectaNetwork|marketDataRightsIndependentlyCertified:true/.test(ownerRoute));
 
 // ALL source receipts, owner reviews, values, dates and original events below
 // are synthetic regression fixtures. This test never accesses Vercel Blob,
