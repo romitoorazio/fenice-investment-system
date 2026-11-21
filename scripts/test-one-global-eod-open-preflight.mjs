@@ -74,6 +74,39 @@ assert.equal(early.venues.find(v=>v.mic==="XNYS").regularWindowExpected,false);
 const saturday=check({nowIso:"2026-11-14T13:50:00.000Z",eod,provider,committee,
   ownerPaperConsent:true});
 assert.equal(saturday.marketWindowsExpected.length,0,"weekday calendars fail closed");
+
+// Official 23–27 Nov 2026 timetable must not advertise ordinary sessions
+// on the JPX holiday, US Thanksgiving or after the 13:00 ET early close.
+// These are read-only clock diagnostics, not authorization or live evidence.
+const holidayTokyo=check({nowIso:"2026-11-23T01:30:00.000Z",
+  eod,provider,committee,ownerPaperConsent:true});
+const tokyoHoliday=holidayTokyo.venues.find(v=>v.mic==="XTKS");
+assert.equal(tokyoHoliday.regularWindowExpected,false);
+assert(tokyoHoliday.blockers.includes("PUBLISHED_2026_VENUE_HOLIDAY"));
+assert.equal(tokyoHoliday.paperSignalCommitted,false);
+const tokyoFollowingDay=check({nowIso:"2026-11-24T01:30:00.000Z",
+  eod,provider,committee,ownerPaperConsent:true});
+assert.equal(tokyoFollowingDay.venues.find(v=>v.mic==="XTKS").regularWindowExpected,true);
+assert.equal(tokyoFollowingDay.venues.find(v=>v.mic==="XTKS").actualExchangeOpenProven,false);
+const usThanksgiving=check({nowIso:"2026-11-26T15:30:00.000Z",
+  eod,provider,committee,ownerPaperConsent:true});
+for(const mic of ["XNYS","XNAS"]){
+  const closed=usThanksgiving.venues.find(v=>v.mic===mic);
+  assert.equal(closed.regularWindowExpected,false);
+  assert(closed.blockers.includes("PUBLISHED_2026_VENUE_HOLIDAY"));
+}
+const beforeEarlyClose=check({nowIso:"2026-11-27T17:15:00.000Z",
+  eod,provider,committee,ownerPaperConsent:true});
+const afterEarlyClose=check({nowIso:"2026-11-27T18:15:00.000Z",
+  eod,provider,committee,ownerPaperConsent:true});
+for(const mic of ["XNYS","XNAS"]){
+  assert.equal(beforeEarlyClose.venues.find(v=>v.mic===mic).regularWindowExpected,true);
+  const early=afterEarlyClose.venues.find(v=>v.mic===mic);
+  assert.equal(early.regularWindowExpected,false);
+  assert(early.blockers.includes("PUBLISHED_2026_EARLY_CLOSE"));
+  assert.equal(early.actualExchangeOpenProven,false);
+}
+
 const unauthorised=check({nowIso:time,eod,provider,committee,ownerPaperConsent:false});
 assert(unauthorised.venues.every(v=>v.blockers.includes("OWNER_PAPER_CONSENT_NOT_PRESENT")));
 assert(unauthorised.marketWindowsExpected.length===2);
