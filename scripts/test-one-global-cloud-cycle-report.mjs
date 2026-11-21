@@ -4,6 +4,9 @@ import {publicOneGlobalCloudCycleReport as publicReport,oneGlobalActionsCycleSum
   publicOneGlobalSecondFillForensicSummary as secondForensicSummary,publicOneGlobalLatestFillForensicSummary as latestSummary,
   validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
+import {ONE_GLOBAL_MILAN_INSTRUMENTS} from '../lib/market/one-global-eu-delayed-eod.mjs';
+assert.equal(Object.keys(ONE_GLOBAL_MILAN_INSTRUMENTS).length,6,
+  'Report cap must track the reviewed original Milan PAPER identity count');
 const fixture={state:'ORIGINAL_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:true,originalEventsPreserved:true,
   journalEventCount:3,pendingSignalCount:1,virtualFillCount:0,paperFillsCreated:0,newSignals:0,sourcePairsAttempted:0,
   settlementState:'SETTLEMENT_BLOCKED',settlementSourceRequests:0,
@@ -69,7 +72,13 @@ const euBlocked=publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessC
  state:'EU_SOURCE_ACCESS_NOT_CONFIRMED',sourcePairsReceived:0,sourcePairsAgree:0,uptrendCandidates:0,
  rawArtifactsVerified:false,rightsEvidenceConnected:false,blocker:'EU_DELAYED_EOD_CBOE_DISCOVERY_JSON_INVALID'}});
 assert.equal(euBlocked.euSourceAccessCheck.blocker,'EU_DELAYED_EOD_CBOE_DISCOVERY_JSON_INVALID');
-for(const delta of [{sourcePairsReceived:3},{sourcePairsAgree:2,sourcePairsReceived:1},{rightsEvidenceConnected:'SECRET'},
+const sixSourceSafe=publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,
+  sourcePairsReceived:6,sourcePairsAgree:5,uptrendCandidates:3,rawPayload:'PRIVATE_RAW'}});
+assert.equal(sixSourceSafe.euSourceAccessCheck.sourcePairsReceived,6);
+assert.equal(sixSourceSafe.euSourceAccessCheck.sourcePairsAgree,5);
+assert.doesNotMatch(JSON.stringify(sixSourceSafe),/PRIVATE_RAW|rawPayload/);
+for(const delta of [{sourcePairsReceived:7},{sourcePairsAgree:7},{uptrendCandidates:7},
+  {sourcePairsAgree:2,sourcePairsReceived:1},{rightsEvidenceConnected:'SECRET'},
  {blocker:'private URL = SECRET'},{state:'EU_FAKE_PASS'}])
  assert.throws(()=>publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,...delta}}),/NOT_VERIFIED/);
 
@@ -157,6 +166,31 @@ const euProspectiveCommitted={...euProspectiveBlocked,state:'EU_PROSPECTIVE_SIGN
   newSignals:1,canonicalSignalCommitted:true,sourceEvidenceArchived:true,
   rightsAndNextSessionEvidenceConnected:true,validatedCandidatePairs:1,
   agreedCandidatePairs:1,uptrendCandidatePairs:1,eligibleBuyCandidates:1};
+// A genuine six-candidate EUROPEAN prospective signal does not invalidate a
+// technically successful OIDC cycle at the Actions report boundary.
+const sixEuSignal={...euProspectiveCommitted,sourcePairsAttempted:6,
+  validatedCandidatePairs:6,agreedCandidatePairs:5,uptrendCandidatePairs:3,
+  eligibleBuyCandidates:2,eligibleExitCandidates:0,rejectedCandidatePairs:0};
+const sixCommittedRun={...fixture,state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',
+  journalEventCount:4,pendingSignalCount:2,newSignals:1,sourcePairsAttempted:6,
+  sourceEvidenceArchived:true,euSignalCycle:sixEuSignal};
+const sixSummary=oneGlobalActionsCycleSummary(sixCommittedRun);
+assert.equal(sixSummary.report.euSignalCycle.validatedCandidatePairs,6);
+assert.equal(sixSummary.report.euSignalCycle.sourcePairsAttempted,6);
+assert.equal(sixSummary.status,'PAPER_BLOCKED');
+assert.doesNotMatch(JSON.stringify(sixSummary),/PRIVATE_RAW|rawPayload|SECRET/);
+for(const change of [
+  {sourcePairsAttempted:7},
+  {euSignalCycle:{...sixEuSignal,sourcePairsAttempted:7}},
+  {euSignalCycle:{...sixEuSignal,validatedCandidatePairs:7}},
+])assert.throws(()=>publicReport({...sixCommittedRun,...change}),/NOT_VERIFIED/,
+  'Seven EU PAPER candidates must still be rejected without a reviewed universe change');
+const sixNeutral=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
+  ...euProspectiveBlocked,state:'EU_NO_DUAL_VENUE_UPTREND',sourcePairsAttempted:6,
+  validatedCandidatePairs:6,agreedCandidatePairs:6,uptrendCandidatePairs:0,
+  eligibleBuyCandidates:0,eligibleExitCandidates:0,rejectedCandidatePairs:0}});
+assert.equal(sixNeutral.report.euSignalCycle.state,'EU_NO_DUAL_VENUE_UPTREND');
+assert.equal(sixNeutral.status,'PAPER_BLOCKED');
 const euCommitSummary=oneGlobalActionsCycleSummary({...fixture,
   state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
   pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,sourceEvidenceArchived:true,
