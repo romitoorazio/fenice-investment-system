@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {derivePhase3ResearchFromCloses} from "../lib/global/phase3-historical-research-adapter.mjs";
+import {generatePhase3GlobalResearchReport} from "../lib/global/phase3-research-report.mjs";
+const nowIso="2026-11-10T10:00:00.000Z";
+const closes=Array.from({length:21},(_,i)=>({observedAt:new Date(Date.parse(nowIso)-(20-i)*3600000).toISOString(),close:100+i+Math.sin(i)}));
+const mk=(mic,instrumentId)=>({mic,instrumentId,synthetic:false,provenanceVerified:true,sourceId:"verified-source-1",sourceUrl:"https://example.org/history",closes});
+const source=derivePhase3ResearchFromCloses({series:[mk("XTKS","XTKS:7203"),mk("XMIL","XMIL:TEST"),mk("XETR","XETR:SAP"),{...mk("XNYS","XNYS:TEST"),provenanceVerified:false}],fxToEur:1,nowIso});
+assert.equal(source.accepted.length,3);
+assert.equal(source.rejected[0].reason,"UNVERIFIED_HISTORY_SOURCE");
+assert(source.accepted.every(x=>x.spreadEstimateOnly===true));
+assert(source.accepted.every(x=>x.classification==="HISTORICAL_RESEARCH_NOT_EXECUTABLE"));
+const report=generatePhase3GlobalResearchReport({observations:source.accepted,capitalEur:1000,nowIso});
+assert.equal(report.acceptedObservations,3);
+assert.equal(report.ordersGenerated,0);
+assert.equal(report.portfolio.liveTradingAllowed,false);
+assert.equal(report.realPaperCertified,false);
+console.log("FENICE phase 3 historical closes to global radar: PASS");

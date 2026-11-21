@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import {evaluatePhase4ForwardOutcomes} from "../lib/global/phase4-forward-outcomes.mjs";
+const dates=Array.from({length:24},(_,i)=>new Date(Date.parse("2026-10-01T12:00:00Z")+i*86400000).toISOString());
+const closes=dates.map((observedAt,i)=>({observedAt,close:100+i}));
+const signal={mic:"XTKS",instrumentId:"XTKS:7203",observedAt:dates[20],score:4,dataVerified:false,executable:false};
+const history={mic:"XTKS",instrumentId:"XTKS:7203",synthetic:false,provenanceVerified:false,closes};
+const r=evaluatePhase4ForwardOutcomes({signals:[signal],histories:[history],nowIso:dates.at(-1),horizons:[2,5,10,40]});
+assert.equal(r.outcomes.length,1);
+assert.equal(r.outcomes[0].results[0].status,"OBSERVED");
+assert.equal(r.outcomes[0].results[0].returnPct,Number((100*(122/120-1)).toFixed(4)));
+assert.deepEqual(r.outcomes[0].results.slice(1).map(x=>x.status),["PENDING","PENDING","PENDING"]);
+assert.equal(r.ordersGenerated,0);assert.equal(r.liveTradingAllowed,false);
+const future=evaluatePhase4ForwardOutcomes({signals:[{...signal,observedAt:"2026-11-10T12:00:00Z"}],histories:[history],nowIso:dates.at(-1)});
+assert.equal(future.rejected[0].reason,"INVALID_SIGNAL_TIME");
+console.log("FENICE phase 4 forward research outcome: PASS");
