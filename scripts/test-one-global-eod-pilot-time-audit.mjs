@@ -59,6 +59,14 @@ assert.equal(easter.eligibleBySchedule,true);
 assert.equal(easter.firstNextNormalWeekday,"2026-04-07");
 assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2026-04-02"}).targetSessionDate,"2026-04-07");
 assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2026-12-30"}),null);
+assert.equal(oneGlobalRegularNextSessionCutoff({mic:"XMIL",referenceSessionDate:"2027-01-04"}),null,
+  'No unreviewed 2027 Milan calendar can produce an expiry target');
+const unknownYear=audit({mic:"XMIL",referenceSessionDate:"2027-01-04",
+ referenceCloseAt:"2027-01-04T16:35:00.000Z",
+ referencePublishedAt:"2027-01-04T17:00:00.000Z",
+ recordedAt:"2027-01-04T18:00:00.000Z"});
+assert.equal(unknownYear.eligibleBySchedule,false);
+assert.equal(unknownYear.status,"REFERENCE_EXCHANGE_SESSION_NOT_VERIFIED");
 const unknown=audit({mic:"XHKG",referenceSessionDate:"2026-11-12",
  referenceCloseAt:"2026-11-12T16:30:00.000Z",
  referencePublishedAt:"2026-11-12T17:00:00.000Z",
