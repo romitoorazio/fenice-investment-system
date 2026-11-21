@@ -132,6 +132,24 @@ rerun.total_count=checkNames.length+1;
 rerun.check_runs.push({...rerun.check_runs[0],id:999,conclusion:"failure",
   completed_at:new Date(Date.now()-20000).toISOString()});
 assert.equal(verify(rerun),"authorized=false","new failed CI rerun invalidates old success");
+const skipDuplicate=sampleChecks();
+skipDuplicate.total_count=checkNames.length+1;
+skipDuplicate.check_runs.push({...skipDuplicate.check_runs.at(-1),id:1001,conclusion:"skipped",
+  completed_at:new Date(Date.now()-20_000).toISOString()});
+assert.equal(verify(skipDuplicate),"authorized=true",
+  "new workflow_run skipped duplicate cannot hide a green exact-SHA push regression");
+const onlySkipped=sampleChecks();
+onlySkipped.check_runs.at(-1).conclusion="skipped";
+assert.equal(verify(onlySkipped),"authorized=false",
+  "a required job that never ran cannot authorize production");
+const failedThenSkipped=sampleChecks();
+failedThenSkipped.total_count=checkNames.length+2;
+failedThenSkipped.check_runs.push({...failedThenSkipped.check_runs.at(-1),id:1002,conclusion:"failure",
+  completed_at:new Date(Date.now()-30_000).toISOString()});
+failedThenSkipped.check_runs.push({...failedThenSkipped.check_runs.at(-1),id:1003,conclusion:"skipped",
+  completed_at:new Date(Date.now()-20_000).toISOString()});
+assert.equal(verify(failedThenSkipped),"authorized=false",
+  "skipped duplicates cannot conceal a newer failed exact-SHA regression");
 assert.equal(verify({check_runs:[],total_count:0}),"authorized=false","data-only commit has no checks");
 assert.equal(verify(sampleChecks(),"INVALID_SHA"),"authorized=false","invalid SHA blocks release");
 const invalidPayload=spawnSync("node",["scripts/verify-production-ci-before-deploy.mjs"],{
