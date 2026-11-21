@@ -191,6 +191,19 @@ const sixNeutral=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
   eligibleBuyCandidates:0,eligibleExitCandidates:0,rejectedCandidatePairs:0}});
 assert.equal(sixNeutral.report.euSignalCycle.state,'EU_NO_DUAL_VENUE_UPTREND');
 assert.equal(sixNeutral.status,'PAPER_BLOCKED');
+const partialEu=oneGlobalActionsCycleSummary({...fixture,euSignalCycle:{
+  ...euProspectiveBlocked,state:'EU_PARTIAL_SOURCE_PAIR_UNAVAILABLE',sourcePairsAttempted:6,
+  validatedCandidatePairs:5,agreedCandidatePairs:5,uptrendCandidatePairs:0,
+  eligibleBuyCandidates:0,eligibleExitCandidates:0,rejectedCandidatePairs:1}});
+assert.equal(partialEu.report.euSignalCycle.rejectedCandidatePairs,1);
+assert.match(partialEu.euAnnotation,/EU SOURCE INCOMPLETE/);
+assert.throws(()=>publicReport({...fixture,euSignalCycle:{
+  ...partialEu.report.euSignalCycle,state:'EU_NO_DUAL_VENUE_UPTREND'}}),/NOT_VERIFIED/,
+  'Partial evidence must not be reported as no opportunity');
+assert.throws(()=>publicReport({...fixture,euSignalCycle:{
+  ...partialEu.report.euSignalCycle,rejectedCandidatePairs:0}}),/NOT_VERIFIED/,
+  'Partial diagnostic requires at least one rejected pair');
+assert.doesNotMatch(JSON.stringify(partialEu),/rawPrice|SECRET|privateJournal/);
 const euCommitSummary=oneGlobalActionsCycleSummary({...fixture,
   state:'EU_PROSPECTIVE_SIGNAL_COMMITTED_PRIVATE',journalEventCount:4,
   pendingSignalCount:2,newSignals:1,sourcePairsAttempted:2,sourceEvidenceArchived:true,
