@@ -2,6 +2,18 @@
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
 import {oneGlobalActionsCycleSummary,validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
 import {appendFileSync} from 'node:fs';
+// Public Actions logs may contain ONLY a fixed phase plus a bounded HTTP
+// status category. No response body, JWT, provider error, private URL or hash.
+let failurePhase='START',failureStatus=0;
+const safeTransportFailure=()=>(
+  failurePhase==='OIDC_REQUEST'?'OIDC_REQUEST':
+  failurePhase==='OIDC_RESPONSE'?'OIDC_RESPONSE':
+  failurePhase==='CYCLE_REQUEST'?'CYCLE_REQUEST':
+  failurePhase==='CYCLE_RESPONSE'?'CYCLE_RESPONSE':
+  failurePhase==='CYCLE_REPORT'?'CYCLE_REPORT':
+  failurePhase==='AUDIT'?'AUDIT':'SETUP')+
+  '_'+([400,401,403,404,408,409,422,429,500,502,503,504].includes(failureStatus)
+    ?'HTTP_'+failureStatus:failureStatus?'HTTP_OTHER':'NO_HTTP_RESPONSE');
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
     ||process.env.GITHUB_REF!=='refs/heads/main')throw Error('SCOPE');
@@ -9,16 +21,20 @@ try{
   if(identityUrl.protocol!=='https:'||!identityUrl.hostname.endsWith('.actions.githubusercontent.com'))
     throw Error('OIDC_ORIGIN');
   identityUrl.searchParams.set('audience',SIGNAL_CYCLE_AUDIENCE);
+  failurePhase='OIDC_REQUEST';
   const identity=await fetch(identityUrl,{redirect:'error',signal:AbortSignal.timeout(10000),
     headers:{Authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}});
+  failurePhase='OIDC_RESPONSE';failureStatus=identity.status;
   if(!identity.ok)throw Error('OIDC');
   const {value}=await identity.json();
   if(typeof value!=='string'||value.length<100||value.length>16000)throw Error('OIDC');
+  failurePhase='CYCLE_REQUEST';failureStatus=0;
   const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
     signal:AbortSignal.timeout(70000),headers:{Authorization:'Bearer '+value,
       'Content-Type':'application/json'},body:JSON.stringify({action:'RESEARCH_SIGNAL_CYCLE'})});
+  failurePhase='CYCLE_RESPONSE';failureStatus=response.status;
   const text=await response.text();if(text.length>10000)throw Error('RESPONSE_SIZE');
-  const report=JSON.parse(text);
+  const report=JSON.parse(text);failurePhase='CYCLE_REPORT';
   if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
   const visible=oneGlobalActionsCycleSummary(report);
@@ -33,6 +49,7 @@ try{
   // bound to the ordinal observed by this cycle before rendering any output.
   const targets=[['FIRST',1],['SECOND',2]];
   if(visible.report.virtualFillCount>2)targets.push(['LATEST',visible.report.virtualFillCount]);
+  failurePhase='AUDIT';failureStatus=0;
   const audits=await Promise.allSettled(targets.map(async ([which,ordinal])=>{
     const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
       signal:AbortSignal.timeout(52000),headers:{Authorization:'Bearer '+value,
@@ -70,5 +87,7 @@ try{
   }
 
 }catch{
-  console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');process.exitCode=1;
+  console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');
+  console.error('ONE_GLOBAL_PRIVATE_CLOUD_FAILURE_CLASS='+safeTransportFailure());
+  process.exitCode=1;
 }
