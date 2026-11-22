@@ -38,6 +38,19 @@ assert.equal(
   "2026-01-21T15:00:00.000Z",
   "Stooq winter timestamps must respect Warsaw standard time",
 );
+// Critical wall-clock provenance: do not manufacture a UTC instant from an
+// impossible DST time, an ambiguous repeated hour, or an invalid calendar day.
+assert.equal(parseStooqTimestamp("2026-03-29", "02:30:00", "Europe/Warsaw"), null,
+  "Spring DST gap is not a real exchange-local observation");
+assert.equal(parseStooqTimestamp("2026-10-25", "02:30:00", "Europe/Warsaw"), null,
+  "Fall DST repeated wall time cannot be assigned an arbitrary offset");
+assert.equal(parseStooqTimestamp("2026-02-30", "16:00:00", "Europe/Warsaw"), null,
+  "Invalid calendar day must not silently overflow to another session");
+assert.equal(parseStooqTimestamp("2026-03-29", "03:30:00", "Europe/Warsaw"),
+  "2026-03-29T01:30:00.000Z", "Real post-switch spring clock remains valid");
+assert.equal(parseStooqTimestamp("2026-10-25", "03:30:00", "Europe/Warsaw"),
+  "2026-10-25T02:30:00.000Z", "Real post-switch autumn clock remains valid");
+
 assert.equal(parseStooqTimestamp("2026-09-23", "bad", "Europe/Warsaw"), null);
 assert.equal(parseStooqTimestamp("bad", "16:00:00", "Europe/Warsaw"), null);
 assert.equal(parseStooqTimestamp("2026-09-23", "16:00:00", "Not/AZone"), null);
