@@ -60,12 +60,13 @@ for(const fields of [{technicalReviewsConnected:3},{technicalReviewsConnected:1,
  assert.throws(()=>publicReport({...fixture,sourceAccessCheck:{...sourceAccessCheck,...fields}}),/NOT_VERIFIED/);
 
 const euSourceAccessCheck={state:'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED',sessionDate:'2026-11-13',
- sourcePairsReceived:2,sourcePairsAgree:2,uptrendCandidates:2,rawArtifactsVerified:true,rightsEvidenceConnected:true,
+ sourcePairsReceived:6,sourcePairsAgree:6,uptrendCandidates:2,rawArtifactsVerified:true,rightsEvidenceConnected:true,
  paperFillsCreated:0,certifiedTrades:0,liveTradingAllowed:false,brokerConnectivityAllowed:false};
 const euQualified=publicReport({...fixture,euSourceAccessCheck,
  sourceOutcomes:[{providerId:'euronext-mifir',state:'EXACT_DAILY_ROW_RECEIVED'},
   {providerId:'cboe-eu-mifir',state:'EXACT_DAILY_ROW_RECEIVED'}]});
 assert.equal(euQualified.euSourceAccessCheck.rightsEvidenceConnected,true);
+assert.equal(euQualified.euSourceAccessCheck.state,'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED');
 assert.deepEqual(euQualified.sourceOutcomes.map(x=>x.providerId),['euronext-mifir','cboe-eu-mifir']);
 assert.doesNotMatch(JSON.stringify(euQualified),/rawArtifactsSha|payloadSha|price/);
 const euBlocked=publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,
@@ -76,9 +77,14 @@ const sixSourceSafe=publicReport({...fixture,euSourceAccessCheck:{...euSourceAcc
   sourcePairsReceived:6,sourcePairsAgree:5,uptrendCandidates:3,rawPayload:'PRIVATE_RAW'}});
 assert.equal(sixSourceSafe.euSourceAccessCheck.sourcePairsReceived,6);
 assert.equal(sixSourceSafe.euSourceAccessCheck.sourcePairsAgree,5);
+assert.equal(sixSourceSafe.euSourceAccessCheck.state,'EU_SOURCE_PAIR_DIVERGES_OR_INCOMPLETE');
+const legacyPartial=publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,
+  sourcePairsReceived:1,sourcePairsAgree:1,uptrendCandidates:0}});
+assert.equal(legacyPartial.euSourceAccessCheck.state,'EU_SOURCE_PAIR_DIVERGES_OR_INCOMPLETE');
 assert.doesNotMatch(JSON.stringify(sixSourceSafe),/PRIVATE_RAW|rawPayload/);
 for(const delta of [{sourcePairsReceived:7},{sourcePairsAgree:7},{uptrendCandidates:7},
   {sourcePairsAgree:2,sourcePairsReceived:1},{rightsEvidenceConnected:'SECRET'},
+  {rawArtifactsVerified:false},{rightsEvidenceConnected:false},
  {blocker:'private URL = SECRET'},{state:'EU_FAKE_PASS'}])
  assert.throws(()=>publicReport({...fixture,euSourceAccessCheck:{...euSourceAccessCheck,...delta}}),/NOT_VERIFIED/);
 
