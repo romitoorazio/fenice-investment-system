@@ -154,6 +154,28 @@ const staleCriticalHealth = computeIntelligenceConfidence({
 assert.equal(staleCriticalHealth.metrics.criticalHealthFresh, false);
 assert(staleCriticalHealth.confidence <= 74, `stale critical health must cap confidence, got ${staleCriticalHealth.confidence}`);
 
+// Regression-first: a future-dated critical health report must NEVER be
+// considered fresh or lift intelligence confidence above the fail-closed cap.
+// Fixture timestamps are synthetic; no market data or PAPER state is written.
+for (const futureOffsetMs of [1, 15 * 60_000, 48 * 3_600_000]) {
+  const futureCriticalHealth = computeIntelligenceConfidence({
+    sourceQuality: [{ state: "operativo", qualityScore: 100 }],
+    criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
+    healthReportGeneratedAt: new Date(now + futureOffsetMs).toISOString(),
+    validations: Array.from({ length: 20 }, () => ({ status: "confermato" })),
+    sourceCount: 5,
+    assetClassCount: 5,
+    concentration: 0.2,
+    now,
+  });
+  assert.equal(futureCriticalHealth.metrics.criticalHealthFresh, false,
+    "A critical report timestamped in the future is not fresh");
+  assert.equal(futureCriticalHealth.metrics.criticalGreen, false,
+    "A future critical report cannot satisfy the GREEN confidence gate");
+  assert(futureCriticalHealth.confidence <= 74,
+    "Future critical health cannot bypass the existing confidence safety cap");
+}
+
 const missingHealthTimestamp = computeIntelligenceConfidence({
   sourceQuality: [{ state: "operativo", qualityScore: 100 }],
   criticalHealth: { gate: "GREEN", ready: 9, total: 9 },
