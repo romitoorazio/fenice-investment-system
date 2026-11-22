@@ -18,6 +18,12 @@ export type CommitteeAsset = {
   invalidation?: string[];
   reviewTriggers?: string[];
   entryPlan?: { orderMode?: string; firstTrancheEuro?: number; maxEntryPrice?: number | null };
+  buyGapEvidence?: {
+    scope?: string;
+    status?: string;
+    paperExecutionEligible?: boolean;
+    gaps?: Array<{ code?: string }>;
+  };
 };
 export type CommitteeSnapshot = {
   generatedAt?: string;
@@ -280,6 +286,20 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
     const bear = cleanLines(asset.bearCase);
     const bull = cleanLines(asset.bullCase);
     const invalidations = cleanLines(asset.invalidation);
+    // Diagnostic-only, explicit allowlist: never echo arbitrary committee JSON
+    // or treat research score reasons as settlement rights or PAPER authority.
+    const allowedGapReasons: Record<string, string> = {
+      COMMITTEE_SCORE_BELOW_78: "Punteggio comitato inferiore alla soglia di ricerca",
+      RISK_ABOVE_58: "Rischio superiore alla soglia di ricerca",
+      VALUATION_BELOW_55: "Valutazione inferiore alla soglia di ricerca",
+      TERMINAL_NOT_ACCUMULA: "Segnale tecnico diverso da ACCUMULA",
+    };
+    const gapProof = asset.buyGapEvidence;
+    const decisionGaps = gapProof?.scope === "RESEARCH_RULES_ONLY"
+      && gapProof.status === "NOT_QUALIFIED" && gapProof.paperExecutionEligible === false
+      && Array.isArray(gapProof.gaps)
+      ? [...new Set(gapProof.gaps.map(g => allowedGapReasons[g?.code ?? ""]).filter((s): s is string => Boolean(s)))].slice(0, 4)
+      : [];
     const paragraphs = [
       `${asset.symbol} (${plain(asset.name)}): decisione finale ${validSymbol ? decision : "NON VERIFICATA"}; tecnico ${plain(asset.terminalDecision)}. Sono valutazioni di ricerca, non quotazioni eseguibili.`,
       buy
@@ -293,12 +313,16 @@ export function answerFeniceResearch(question: string, input: AnalystContext, no
     ];
     const blockers = [
       ...commonBlockers,
+      ...decisionGaps.map(reason => "Comitato (sola ricerca): " + reason + "."),
       ...(!isBuyResearch ? ["Comitato: nessun piano di ingresso verificato per questo titolo."] : []),
       ...(sell ? ["Posizione reale, quantità e prezzo di carico non attestati."] : []),
     ];
     return go("SYMBOL", isBuyResearch ? "SOLO STUDIO" : "ATTENDERE", `Fenice analizza ${asset.symbol}`,
       paragraphs, blockers,
       [
+        ...decisionGaps.slice(0, 3).map((reason, index) => ({
+          label: "Filtro di ricerca " + (index + 1), value: reason, source: sources.committee,
+        })),
         { label: "Decisione finale", value: decision, source: sources.committee },
         { label: "Segnale tecnico (non autorizzativo)", value: plain(asset.terminalDecision), source: sources.committee },
         { label: "Punteggio comitato", value: showNumber(asset.committeeScore, "/100"), source: sources.committee },
