@@ -62,7 +62,9 @@ export function assessCompatibility(rows) {
       otherPushLines: row.otherGitPush.map(p => p.line),
       privilegedOperationLines: row.privilegedOperations.map(p => p.line),
     })),
-    rulesetReady: direct.length === 0 && unclassified.length === 0,
+    staticYamlBlockersAbsent: direct.length === 0 && unclassified.length === 0,
+    // Intentionally NEVER infer activation readiness from static YAML alone.
+    rulesetReady: false,
     approvalToActivateRuleset: false,
     evidenceType: "STATIC_SOURCE_ONLY",
     restrictions: [
@@ -79,6 +81,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   console.log(JSON.stringify(report, null, 2));
   // Diagnostic-only by default: must not block CURRENT PAPER collection.
   // --require-compatible is for a future, explicitly authorized pre-activation gate.
-  if (process.argv.includes("--require-compatible") && !report.rulesetReady)
+  if (process.argv.includes("--require-compatible"))
     process.exitCode = 1;
 }
