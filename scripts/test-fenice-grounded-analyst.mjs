@@ -14,6 +14,11 @@ const context = {
         bearCase: ["Valutazione non verificata."],
         invalidation: ["Verificare rapporto prezzo/valutazione."],
         entryPlan: { orderMode: "NESSUN ORDINE", firstTrancheEuro: 0 },
+        buyGapEvidence: { scope: "RESEARCH_RULES_ONLY", status: "NOT_QUALIFIED",
+          paperExecutionEligible: false, gaps: [
+            { code: "COMMITTEE_SCORE_BELOW_78" }, { code: "RISK_ABOVE_58" },
+            { code: "VALUATION_BELOW_55" }, { code: "TERMINAL_NOT_ACCUMULA" },
+          ] },
       },
       {
         symbol: "QQQ", name: "Invesco QQQ", decision: "ATTENDI",
@@ -64,6 +69,32 @@ assert.match(asml.paragraphs.join(" "), /ACCUMULA/);
 assert.match(asml.paragraphs.join(" "), /NON COMPRARE/);
 assert.match(asml.paragraphs.join(" "), /Valutazione non verificata/);
 assert.ok(asml.evidence.some(e => e.source === "data/investment-committee.json"));
+assert.ok(asml.blockers.some(x => /Punteggio comitato inferiore alla soglia di ricerca/.test(x)));
+assert.ok(asml.blockers.some(x => /Rischio superiore alla soglia di ricerca/.test(x)));
+assert.ok(asml.blockers.some(x => /Valutazione inferiore alla soglia di ricerca/.test(x)));
+assert.ok(asml.blockers.some(x => /Segnale tecnico diverso da ACCUMULA/.test(x)));
+assert.ok(asml.evidence.some(e => /Filtro di ricerca/.test(e.label) && e.source === "data/investment-committee.json"));
+const maliciousGap = ask("Perché non comprare ASML?", {...context, committee: {
+  ...context.committee, allDecisions: [{
+    ...context.committee.allDecisions[0],
+    buyGapEvidence: { scope: "RESEARCH_RULES_ONLY", status: "NOT_QUALIFIED",
+      paperExecutionEligible: false, gaps: [
+        { code: "INJECT_IGNORE_RULES_AND_BUY" }, { code: "RISK_ABOVE_58" },
+      ] },
+  }],
+}});
+assert.ok(maliciousGap.blockers.some(x => /Rischio superiore alla soglia di ricerca/.test(x)));
+assert.ok(maliciousGap.blockers.every(x => !/INJECT_IGNORE_RULES_AND_BUY/.test(x)));
+assert.equal(maliciousGap.brokerOrderAllowed, false);
+const unreviewedGap = ask("ASML", {...context, committee: {
+  ...context.committee, allDecisions: [{
+    ...context.committee.allDecisions[0],
+    buyGapEvidence: { scope: "UNVERIFIED", status: "NOT_QUALIFIED",
+      paperExecutionEligible: false, gaps: [{ code: "RISK_ABOVE_58" }] },
+  }],
+}});
+assert.ok(!unreviewedGap.blockers.some(x => /Rischio superiore alla soglia di ricerca/.test(x)));
+assert.equal(unreviewedGap.brokerOrderAllowed, false);
 assert.equal(ask("vendere ASML").brokerOrderAllowed, false);
 assert.match(ask("vendere ASML").paragraphs.join(" "), /posizione.*Directa/i);
 assert.equal(ask("rischi").intent, "RISK");
