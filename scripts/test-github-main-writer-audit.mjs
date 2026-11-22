@@ -51,7 +51,8 @@ test("does not treat a read-only workflow as a writer", () => {
   ].join("\n"));
   assert.equal(row.directMainPush.length, 0);
   assert.equal(row.otherGitPush.length, 0);
-  assert.equal(assessCompatibility([row]).rulesetReady, true);
+  assert.equal(assessCompatibility([row]).staticYamlBlockersAbsent, true);
+  assert.equal(assessCompatibility([row]).rulesetReady, false);
 });
 
 test("inventory scans current workflow source without changing it", () => {
