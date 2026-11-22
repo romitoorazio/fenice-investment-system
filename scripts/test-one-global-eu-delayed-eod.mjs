@@ -23,7 +23,7 @@ import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPa
   settleOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle,
   isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
-import {refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
+import {ensureOneGlobalEuEvidenceContext,refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
 import {oneGlobalReviewSubjectSha256,validOneGlobalEvidenceReview} from '../lib/trading/one-global-technical-review.mjs';
 import {fetchOneGlobalSettlementSource} from '../lib/market/one-global-cloud-settlement-sources.mjs';
 import {runOneGlobalCloudSettlementCycle} from '../lib/trading/one-global-cloud-settlement.mjs';
@@ -41,8 +41,8 @@ function crc32(bytes){
   crcTable??=Array.from({length:256},(_,n)=>{let c=n;for(let i=0;i<8;i++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;return c>>>0;});
   let c=0xffffffff;for(const byte of bytes)c=crcTable[(c^byte)&255]^(c>>>8);return (c^0xffffffff)>>>0;
 }
-function zipCsv(csv){
-  const name=Buffer.from('Trades_Equities.csv'),data=Buffer.from(csv),compressed=deflateRawSync(data),crc=crc32(data);
+function zipCsv(csv,options){
+  const name=Buffer.from('Trades_Equities.csv'),data=Buffer.from(csv),compressed=deflateRawSync(data,options),crc=crc32(data);
   const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(20,4);local.writeUInt16LE(8,8);
   local.writeUInt32LE(crc,14);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(data.length,22);local.writeUInt16LE(name.length,26);
   const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50);central.writeUInt16LE(20,4);central.writeUInt16LE(20,6);
@@ -203,9 +203,28 @@ const accessStore={
 };
 const access=await inspectOneGlobalEuSourceAccess({storage:accessStore,clock:()=>'2026-11-14T17:15:00.000Z',fetcher,
   ensureEvidenceContext:async input=>{assert.equal(input.rawEvidence.sessionDate,sessionDate);accessContexts++;return {changed:true};}});
-assert.equal(access.state,'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED');assert.equal(access.sourcePairsReceived,1);
+assert.equal(access.state,'EU_SOURCE_PAIR_DIVERGES_OR_INCOMPLETE');assert.equal(access.sourcePairsReceived,1);
 assert.equal(access.rawArtifactsVerified,true);assert.equal(access.rightsEvidenceConnected,true);
 assert.equal(accessArtifacts,3);assert.equal(accessObservations,1);assert.equal(accessContexts,1);
+const symbols=Object.keys(ONE_GLOBAL_MILAN_INSTRUMENTS);
+const primaryRows=csv.trimEnd().split('\n').slice(2).join('\n');
+const allPrimary=zipCsv(csv.split('\n').slice(0,2).join('\n')+'\n'
+  +symbols.map(s=>primaryRows.replaceAll(isin,ONE_GLOBAL_MILAN_INSTRUMENTS[s].isin)).join('\n')+'\n',{level:0});
+const allSecondary=Buffer.from(symbols.map(s=>cboeCsv().replaceAll(isin,ONE_GLOBAL_MILAN_INSTRUMENTS[s].isin)).join(''));
+for(const [secondary,expectedSymbols,expectedState] of [
+  [allSecondary,symbols,'EU_TWO_INDEPENDENT_VENUE_OBSERVATIONS_VERIFIED'],
+  [cboe,['ENEL'],'EU_SOURCE_PAIR_DIVERGES_OR_INCOMPLETE'],
+  [Buffer.from(cboeCsv({price:'8.0000'})),[],'EU_SOURCE_PAIR_DIVERGES_OR_INCOMPLETE'],
+]){
+  const contextCalls=[];
+  const screen=await inspectOneGlobalEuSourceAccess({storage:accessStore,clock:()=>'2026-11-14T17:15:00.000Z',
+    fetcher:async(url,init)=>String(url).includes('marketdata.euronext.com')?new Response(allPrimary)
+      :String(url)===discoveryUrl?new Response(secondary):fetcher(url,init),
+    ensureEvidenceContext:async input=>{contextCalls.push(input.observedSymbols);return {changed:true};}});
+  assert.equal(screen.state,expectedState);assert.equal(screen.sourcePairsAgree,expectedSymbols.length);
+  assert.equal(screen.rightsEvidenceConnected,expectedSymbols.length>0);
+  assert.deepEqual(contextCalls,expectedSymbols.length?[expectedSymbols]:[]);
+}
 const blockedAccess=await inspectOneGlobalEuSourceAccess({storage:accessStore,clock:()=>'2026-11-14T17:15:00.000Z',
   fetcher:async()=>{throw Error('synthetic network failure');}});
 assert.equal(blockedAccess.state,'EU_SOURCE_ACCESS_NOT_CONFIRMED');
@@ -259,6 +278,7 @@ function memory(ledger=existing){
 }
 const cycleNow='2026-11-13T17:15:00.000Z';let evidenceCalls=0;
 const ensureEvidenceContext=async input=>{evidenceCalls++;assert.equal(input.sessionDate,'2026-11-16');
+  assert.deepEqual(input.observedSymbols,['ENEL']);
   assert.equal(input.rawEvidence.sessionDate,sessionDate);assert.match(input.rawEvidence.euronextHash,/^[a-f0-9]{64}$/);return {changed:true};};
 const cycleStore=memory();
 const cycle=await runOneGlobalCloudEuProspectiveCycle({storage:cycleStore,clock:()=>cycleNow,fetcher,ensureEvidenceContext});
@@ -481,6 +501,29 @@ const mondayOriginalContext={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',author
     evidenceSha256:originalDoc('ORIGINAL_EXCHANGE_SESSION','SYNTHETIC ONLY exact Tuesday exchange session')}],
 };
 const originalContextBody=JSON.stringify(mondayOriginalContext);
+// An authenticating storage double exercises the context importer. Only the
+// instrument with two agreeing reports may receive a new provenance mapping.
+{
+  const capturedPolicies=Object.values(ONE_GLOBAL_EU_RIGHTS_DOCUMENTS).map(policy=>{
+    const body=Buffer.from(JSON.stringify({providerId:policy.providerId,
+      originalDocumentSha256:policy.sha256,usageScope:'PRIVATE_PERSONAL_PAPER_SIMULATION'}));
+    return {kind:'OFFICIAL_PROVIDER_USAGE_RIGHTS_CAPTURE',sha256:createHash('sha256').update(body).digest('hex'),
+      bodyBase64:body.toString('base64')};
+  });
+  let snapshot={etag:'initial',body:JSON.stringify({...mondayOriginalContext,markets:[],sessions:[],
+    documents:[docs.find(doc=>doc.sha256===authorityEvidenceSha256),...capturedPolicies]})};
+  const storage={privateAccess:true,durable:true,atomicCompareAndSwap:true,
+    read:async()=>({body:JSON.stringify(existing),etag:'journal'}),
+    readSettlementContext:async()=>snapshot,
+    createSourceArtifact:async()=>{throw Error('Existing policies require no download');},
+    createResearchObservation:async()=>({created:true}),
+    async writeSettlementContext({expectedEtag,body}){
+      assert.equal(expectedEtag,snapshot.etag);snapshot={body,etag:'updated'};return {committed:true,etag:snapshot.etag};
+    }};
+  const rawEvidence={sessionDate:monday,euronextHash:'a'.repeat(64),cboeHash:'b'.repeat(64),cboeDiscoveryHash:'c'.repeat(64)};
+  await ensureOneGlobalEuEvidenceContext({storage,nowIso:mondayClock,observedSymbols:['ENEL'],rawEvidence});
+  assert.deepEqual(JSON.parse(snapshot.body).markets.map(m=>m.key),['XMIL:ENEL']);
+}
 mondayStore.readSettlementContext=async()=>({body:originalContextBody,etag:'"synthetic-monday-context"'});
 const tuesdayDiscoveryUrl=discoveryUrl.replaceAll('20261113','20261117');
 const tuesdayFetcher=async url=>{
