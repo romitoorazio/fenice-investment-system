@@ -68,6 +68,20 @@ assert.equal(aliasReport.status,"RETURNED_SYMBOL_MISMATCH");
 assert.equal(aliasReport.providerIdentityMismatchKind,"SAME_TICKER_DIFFERENT_SYMBOL");
 assert.equal(aliasReport.providerReportedSymbol,"BAMI.MI");
 assert.equal(aliasReport.paperFillCount,0);
+// Regression: an absent Alpha daily-series identity is an incomplete payload,
+ // NOT evidence that the returned instrument is a different issuer.
+for(const incomplete of [
+  {"Time Series (Daily)":recent},
+  {"Meta Data":{},"Time Series (Daily)":recent},
+  {"Meta Data":{"2. Symbol":"   "},"Time Series (Daily)":recent},
+]){
+  const missing=evaluateEodResearch("XMIL",target,incomplete,now);
+  assert.equal(missing.status,"MISSING_DAILY_SYMBOL_METADATA",
+    "A missing provider symbol must not masquerade as a returned issuer mismatch");
+  assert.equal(missing.providerSymbolConfirmed,false);
+  assert.equal(missing.paperFillCount,0);
+  assert.equal(missing.liveTradingAllowed,false);
+}
 const invalidMeta=evaluateEodResearch("XMIL",target,{
   ...payload,"Meta Data":{"2. Symbol":"<script>alert(1)</script>"},
 },now);
