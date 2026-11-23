@@ -26,7 +26,7 @@ import {inspectOneGlobalEuSourceAccess,runOneGlobalCloudEuProspectiveCycle,
 import {ensureOneGlobalEuEvidenceContext,refreshExistingEuRights} from '../lib/trading/one-global-eu-evidence-context.mjs';
 import {oneGlobalReviewSubjectSha256,validOneGlobalEvidenceReview} from '../lib/trading/one-global-technical-review.mjs';
 import {fetchOneGlobalSettlementSource} from '../lib/market/one-global-cloud-settlement-sources.mjs';
-import {runOneGlobalCloudSettlementCycle} from '../lib/trading/one-global-cloud-settlement.mjs';
+import {runOneGlobalCloudSettlementCycle,validateOneGlobalSettlementContext} from '../lib/trading/one-global-cloud-settlement.mjs';
 
 // Every value in this file is synthetic. The test validates the strict parser
 // and official-interface contract; it does not claim a real market observation.
@@ -501,6 +501,23 @@ const mondayOriginalContext={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',author
     evidenceSha256:originalDoc('ORIGINAL_EXCHANGE_SESSION','SYNTHETIC ONLY exact Tuesday exchange session')}],
 };
 const originalContextBody=JSON.stringify(mondayOriginalContext);
+// A valid ISIN from the same venue can still identify the wrong instrument.
+// Check both provider mappings before the next session or any price request.
+for(const providerId of ['euronext-mifir','cboe-eu-mifir']){
+  const context=structuredClone(mondayOriginalContext);
+  const source=context.markets[0].sources.find(item=>item.providerId===providerId);
+  source.symbol=ONE_GLOBAL_MILAN_INSTRUMENTS.BAMI.isin;
+  for(const nowIso of ['2026-11-17T17:15:00.000Z',mondayClock]){
+    assert.throws(()=>validateOneGlobalSettlementContext({
+      context,signal:mondayStore.ledger.events.at(-1),nowIso,
+    }),/CLOUD_SETTLEMENT_MILAN_SOURCE_ISIN_MISMATCH/,providerId);
+  }
+}
+{
+  assert.throws(()=>validateOneGlobalSettlementContext({
+    context:mondayOriginalContext,signal:mondayStore.ledger.events.at(-1),nowIso:mondayClock,
+  }),/CLOUD_SETTLEMENT_NEXT_SESSION_NOT_COMPLETED/);
+}
 // An authenticating storage double exercises the context importer. Only the
 // instrument with two agreeing reports may receive a new provenance mapping.
 {
