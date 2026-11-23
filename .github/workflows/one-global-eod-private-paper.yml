@@ -407,7 +407,7 @@ jobs:
   cloud-asx-cba-next-session:
     # Historical 13 Nov CBA evidence window expired. Keep explicit replay
     # available without starting a keyed historical probe on new market days.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.journal_status_read_only != true
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -420,6 +420,7 @@ jobs:
         with:
           node-version: "22"
       - name: Compare actual CBA AU EOD vendor rows without prices in public logs
+        if: inputs.journal_status_read_only != true
         env:
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           EODHD_API_TOKEN: ${{ secrets.EODHD_API_TOKEN }}
