@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeniceAnalystConsole from "@/components/FeniceAnalystConsole";
-import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
+import { answerFeniceResearch, type CommitteeAsset } from "@/lib/ui/fenice-grounded-analyst";
 import { getFeniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function FeniceAnalystPage({
   // Deep links may select only a uniquely matched symbol already reviewed by
   // the committee. Unknown input never becomes an autonomous or paid AI request.
   const tracked = Array.isArray(context.committee.allDecisions)
-    && context.committee.allDecisions.filter(item => item.symbol.toUpperCase() === symbol).length === 1;
+    && context.committee.allDecisions.filter((item: CommitteeAsset) => item.symbol.toUpperCase() === symbol).length === 1;
   const initialQuestion = /^[A-Z0-9][A-Z0-9._-]{0,24}$/.test(symbol) && tracked
     ? `Analizza ${symbol}` : "Stato Fenice oggi";
   const initialReply = answerFeniceResearch(initialQuestion,

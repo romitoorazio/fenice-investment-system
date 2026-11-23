@@ -32,13 +32,11 @@ function response(object,{ok=true,length}={}){
     text:async()=>raw};
 }
 const read=(overrides={},config={})=>{
-  let calls=0;
   const fn=async (url,opts)=>{
     assert.ok(url.startsWith('https://api.github.com/repos/romitoorazio/fenice-investment-system/contents/data/'));
     assert.equal(opts.cache,'no-store');
     assert.equal(opts.redirect,'error');
     assert.equal(opts.headers.Accept,'application/vnd.github+json');
-    calls++;
     const name=url.split('/').at(-1),kind=Object.keys(filename).find(k=>filename[k]===name);
     assert.ok(kind);
     if(config.offline)throw Error('offline');
@@ -92,7 +90,5 @@ const denied=answerFeniceResearch('ASML',
 assert.equal(denied.sourceTimestamp,null);
 assert.equal(denied.evidenceQualityVerified,false);
 assert.equal(denied.brokerOrderAllowed,false);
-const files=['app/analista/page.tsx','app/api/analista/route.ts',
-  'app/api/analista-generativa/route.ts'];
 // Original entry-point checks remain in the parent regression script.
 console.log('PASS current public committee: changed verdict between requests, SHA integrity, schema, provenance, age, privacy and fail-closed safety');
