@@ -1,6 +1,8 @@
 /** Fixed trusted workflow only. Never accepts journals, source data, consent or orders. */
 import {authorizeOneGlobalCloudWorkflow} from '../../../../lib/trading/one-global-cloud-workflow-auth.mjs';
 import {createVercelPrivateEodBlobStore} from '../../../../lib/trading/one-global-vercel-private-blob-store.mjs';
+import {inspectOneGlobalPrivateEodCloudStatus} from '../../../../lib/trading/one-global-cloud-private-status.mjs';
+import {publicOneGlobalJournalReadOnlySummary} from '../../../../lib/trading/one-global-cloud-journal-readonly-summary.mjs';
 import {pinOneGlobalRecoveredOriginalStore} from '../../../../lib/trading/one-global-cloud-prospective-cycle.mjs';
 import {runOneGlobalCloudPaperCycle} from '../../../../lib/trading/one-global-cloud-paper-cycle.mjs';
 import {auditOneGlobalFirstPrivateFill} from '../../../../lib/trading/one-global-private-forensic-audit.mjs';
@@ -29,9 +31,17 @@ export async function POST(request){
     const text=await request.text();if(text.length>80)return json('CYCLE_REQUEST_INVALID',400);
     const input=JSON.parse(text);
     if(!input||Object.keys(input).length!==1
-      ||!['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY'].includes(input.action))
+      ||!['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY',
+        'AUDIT_JOURNAL_STATUS_READ_ONLY'].includes(input.action))
       return json('CYCLE_REQUEST_INVALID',400);
     const storage=pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore());
+    if(input.action==='AUDIT_JOURNAL_STATUS_READ_ONLY'){
+      // Fixed, signed main-workflow identity has already passed the original
+      // GitHub OIDC verifier. No market call, write, broker, token or journal
+      // byte/hash disclosure. Never weaken the independent owner GET route.
+      const status=await inspectOneGlobalPrivateEodCloudStatus({storage});
+      return Response.json(publicOneGlobalJournalReadOnlySummary(status),{headers});
+    }
     if(input.action==='AUDIT_FIRST_FILL_READ_ONLY'){
       // Trusted workflow identity already passed the existing OIDC guard.
       // Read private originals; return only a strict, hash-free attestation.

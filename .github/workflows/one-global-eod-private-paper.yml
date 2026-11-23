@@ -80,6 +80,8 @@ on:
       - "lib/market/one-global-cloud-dual-eod-fetch.mjs"
       - "app/api/paper/one-global-private-signal-cycle/route.js"
       - "scripts/invoke-one-global-cloud-signal-cycle.mjs"
+      - "scripts/invoke-one-global-private-status.mjs"
+      - "scripts/test-one-global-journal-oidc-status.mjs"
       - "scripts/test-one-global-cloud-prospective-cycle.mjs"
       - "scripts/test-one-global-cloud-workflow-auth.mjs"
       - "scripts/test-one-global-cloud-dual-eod-fetch.mjs"
@@ -193,6 +195,8 @@ on:
       - "lib/market/one-global-cloud-dual-eod-fetch.mjs"
       - "app/api/paper/one-global-private-signal-cycle/route.js"
       - "scripts/invoke-one-global-cloud-signal-cycle.mjs"
+      - "scripts/invoke-one-global-private-status.mjs"
+      - "scripts/test-one-global-journal-oidc-status.mjs"
       - "scripts/test-one-global-cloud-prospective-cycle.mjs"
       - "scripts/test-one-global-cloud-workflow-auth.mjs"
       - "scripts/test-one-global-cloud-dual-eod-fetch.mjs"
@@ -255,6 +259,12 @@ on:
     # This neither extends the 48h receipt deadline nor admits stale quotes.
     - cron: "15 21-22 * * 1-5"
   workflow_dispatch:
+    inputs:
+      journal_status_read_only:
+        description: "Verify original private journal via signed OIDC; zero writes"
+        required: false
+        default: false
+        type: boolean
   workflow_run:
     # Independent late-night fallback: existing EOD research runs at 23:40Z.
     # Its successful completion retries settlement for an already pending
@@ -322,6 +332,7 @@ jobs:
           node scripts/test-one-global-cloud-private-ledger.mjs
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
+          node scripts/test-one-global-journal-oidc-status.mjs
           node scripts/test-one-global-private-forensic-audit.mjs
           node scripts/test-one-global-private-roundtrip-audit.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
@@ -380,14 +391,18 @@ jobs:
           node-version: "22"
       - name: Bound scheduled independent recovery to existing exchange-local postclose windows
         id: ci_recovery
+        if: github.event_name != 'workflow_dispatch' || inputs.journal_status_read_only != true
         env:
           FENICE_WORKFLOW_EVENT: ${{ github.event_name }}
           FENICE_UPSTREAM_WORKFLOW: ${{ github.event.workflow_run.name }}
           FENICE_UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
         run: node scripts/check-one-global-hourly-ci-recovery.mjs
       - name: Verify original private journal, settle admissible PAPER and run bounded research
-        if: steps.ci_recovery.outputs.should_invoke == 'true'
+        if: steps.ci_recovery.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
+      - name: Inspect original journal from trusted OIDC (strictly read-only)
+        if: github.event_name == 'workflow_dispatch' && inputs.journal_status_read_only == true
+        run: node scripts/invoke-one-global-private-status.mjs
 
   cloud-asx-cba-next-session:
     # Historical 13 Nov CBA evidence window expired. Keep explicit replay
@@ -405,6 +420,7 @@ jobs:
         with:
           node-version: "22"
       - name: Compare actual CBA AU EOD vendor rows without prices in public logs
+        if: inputs.journal_status_read_only != true
         env:
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           EODHD_API_TOKEN: ${{ secrets.EODHD_API_TOKEN }}
@@ -467,7 +483,7 @@ jobs:
   cloud-dual-eod-research:
     # Secrets are accessible only on trusted default-branch schedule or manual
     # dispatch; never on pull requests, no publisher payloads leave this runner.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6')
+    if: (github.event_name == 'workflow_dispatch' && inputs.journal_status_read_only != true) || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6')
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -509,7 +525,7 @@ jobs:
   safe-diagnostic-only:
     # Main merges can immediately probe the free ECB reference with no key,
     # but MUST NOT import or publish any licensed equity source.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.journal_status_read_only != true) || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -541,6 +557,7 @@ jobs:
           node scripts/test-one-global-cloud-private-ledger.mjs
           node scripts/test-one-global-vercel-private-blob-store.mjs
           node scripts/test-one-global-cloud-private-status.mjs
+          node scripts/test-one-global-journal-oidc-status.mjs
           node scripts/test-one-global-private-forensic-audit.mjs
           node scripts/test-one-global-private-roundtrip-audit.mjs
           node scripts/test-one-global-cloud-private-recovery.mjs
