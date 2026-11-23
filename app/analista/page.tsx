@@ -1,7 +1,7 @@
 import Link from "next/link";
 import FeniceAnalystConsole from "@/components/FeniceAnalystConsole";
-import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
-import { feniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
+import { answerFeniceResearch, type CommitteeAsset } from "@/lib/ui/fenice-grounded-analyst";
+import { getFeniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,16 +14,17 @@ export default async function FeniceAnalystPage({
 }: {
   searchParams: Promise<{ symbol?: string | string[] }>;
 }) {
+  const context = await getFeniceAnalystContext();
   const requested = (await searchParams).symbol;
   const symbol = typeof requested === "string" ? requested.trim().toUpperCase() : "";
   // Deep links may select only a uniquely matched symbol already reviewed by
   // the committee. Unknown input never becomes an autonomous or paid AI request.
-  const tracked = Array.isArray(feniceAnalystContext.committee.allDecisions)
-    && feniceAnalystContext.committee.allDecisions.filter(item => item.symbol.toUpperCase() === symbol).length === 1;
+  const tracked = Array.isArray(context.committee.allDecisions)
+    && context.committee.allDecisions.filter((item: CommitteeAsset) => item.symbol.toUpperCase() === symbol).length === 1;
   const initialQuestion = /^[A-Z0-9][A-Z0-9._-]{0,24}$/.test(symbol) && tracked
     ? `Analizza ${symbol}` : "Stato Fenice oggi";
   const initialReply = answerFeniceResearch(initialQuestion,
-    feniceAnalystContext, serverRequestTime());
+    context, serverRequestTime());
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-24 pt-8 text-white sm:px-8">

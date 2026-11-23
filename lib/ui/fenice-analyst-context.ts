@@ -12,3 +12,12 @@ export const feniceAnalystContext = {
   committee, quality, sources: sourceHealth, campaign, calibration,
   world: { funnel: worldFunnel, providers: worldProviders, eod: worldEod },
 };
+
+import {readCurrentPublicCommitteeContext} from "./fenice-analyst-context-runtime.mjs";
+
+// Request-time read of three already-public GitHub main snapshots. No archive,
+// credentials, broker execution or write access. Invalid reads fail closed.
+export async function getFeniceAnalystContext() {
+  const current = await readCurrentPublicCommitteeContext();
+  return {...feniceAnalystContext, ...current};
+}

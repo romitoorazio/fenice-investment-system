@@ -1,14 +1,14 @@
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
-import { feniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
+import { getFeniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const context = feniceAnalystContext;
 const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff" };
 
 export async function GET() {
+  const context = await getFeniceAnalystContext();
   return Response.json(answerFeniceResearch("stato Fenice oggi", context, Date.now()), { headers });
 }
 
@@ -45,5 +45,6 @@ export async function POST(request: Request) {
     || payload.question.length < 2 || payload.question.length > 240) {
     return Response.json({ error: "DOMANDA_NON_VALIDA" }, { status: 400, headers });
   }
+  const context = await getFeniceAnalystContext();
   return Response.json(answerFeniceResearch(payload.question, context, Date.now()), { headers });
 }
