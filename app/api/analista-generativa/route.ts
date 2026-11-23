@@ -1,13 +1,12 @@
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
 import { feniceSameOrigin, feniceSessionCookieFromRequest, verifyFeniceOwnerSession } from "@/lib/ai/fenice-owner-session";
 import { generateGroundedExplanation, generativeAvailability, isOwnerAuthorized, FENICE_GENERATIVE_MODEL, FENICE_AI_MAX_REQUEST_BYTES } from "@/lib/ai/fenice-generative-research";
-import { feniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
+import { getFeniceAnalystContext } from "@/lib/ui/fenice-analyst-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const context = feniceAnalystContext;
 const headers = { "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
 const json = (payload: unknown, status = 200) => Response.json(payload, { status, headers });
 const environment = () => ({
@@ -82,6 +81,7 @@ export async function POST(request: Request) {
     return json({ error: "QUESTION_INVALID", brokerOrderAllowed: false }, 400);
   }
   const now = Date.now();
+  const context = await getFeniceAnalystContext();
   const grounded = answerFeniceResearch(data.question, context, now);
   const openaiToken = env.OPENAI_API_KEY || "";
   const result = await generateGroundedExplanation({

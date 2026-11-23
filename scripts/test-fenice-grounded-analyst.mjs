@@ -166,4 +166,5 @@ for(const path of ["app/analista/page.tsx","app/api/analista/route.ts","app/api/
   const source=readFileSync(new URL("../"+path,import.meta.url),"utf8");
   assert.ok(source.includes("await getFeniceAnalystContext("),path+" must read the current committee before answering");
 }
+await import("./test-fenice-analyst-context.mjs");
 console.log("Fenice grounded analyst regression: PASS");
