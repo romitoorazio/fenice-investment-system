@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { isGdeltProviderBlock } from "../lib/intelligence/gdelt-recovery-policy.mjs";
+import { shouldOpenGdeltThemeCircuit, normalizeGdeltResearchArticles } from "../lib/intelligence/gdelt-recovery-policy.mjs";
 import { collectThemesWithCircuit } from "../lib/intelligence/gdelt-theme-collector.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -98,10 +98,12 @@ function parseRssItems(xml, theme) {
 
 async function fetchGdeltTheme(theme) {
   const url = `${endpoint}?query=${encodeURIComponent(theme.query)}&mode=ArtList&maxrecords=50&format=json&sort=HybridRel`;
-  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "FeniceInvestmentSystem/1.0" } });
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { accept: "application/json", "user-agent": "FeniceInvestmentSystem/1.0" } });
   if (!response.ok) throw new Error(`${theme.id}: HTTP ${response.status}`);
   const data = await response.json();
-  return (data?.articles ?? []).map((article, index) => ({
+  const articles = normalizeGdeltResearchArticles(data, { nowMs: Date.now() });
+  if (!articles.length) throw new Error(`${theme.id}: GDELT senza articoli recenti verificabili`);
+  return articles.map((article, index) => ({
     id: `broad-${theme.id}-${article.seendate || index}-${index}`,
     name: article.title || "Notizia senza titolo",
     category: theme.category,
@@ -120,6 +122,7 @@ async function fetchGdeltTheme(theme) {
 async function fetchRssTheme(theme) {
   const url = `${rssEndpoint}?q=${encodeURIComponent(theme.query)}&hl=en-US&gl=US&ceid=US:en`;
   const response = await fetch(url, {
+    signal: AbortSignal.timeout(8000),
     headers: {
       accept: "application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5",
       "user-agent": "FeniceInvestmentSystem/1.0",
@@ -135,7 +138,7 @@ const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
 const { results, circuitOpen, skippedPrimary } = await collectThemesWithCircuit(themes, {
   fetchPrimary: fetchGdeltTheme,
   fetchFallback: fetchRssTheme,
-  isProviderBlocked: isGdeltProviderBlock,
+  isProviderBlocked: shouldOpenGdeltThemeCircuit,
 });
 const inheritedWarnings = [...(snapshot.warnings ?? [])];
 const coreGdeltFailures = inheritedWarnings.filter((warning) => /^GDELT .* non acquisit[oa]:/i.test(String(warning)));

@@ -19,7 +19,7 @@ async function run(responses, previous, id = "gdelt") {
       return responses.shift() ?? {ok:false,httpStatus:429,bytes:100,detail:"HTTP 429"};
     },
     redactString: x => x,
-    isTransientFailure: (_source, result) => result.httpStatus === 429 || result.httpStatus >= 500,
+    isTransientFailure: (_source, result) => result.httpStatus == null || result.httpStatus === 429 || result.httpStatus >= 500,
     previousSuccessfulSource: () => previous,
     sleep: async ms => { sleeps.push(ms); },
   };
@@ -48,6 +48,22 @@ assert.equal(d.calls.length,2);
 assert.equal(d.sleeps[0],30000);
 assert.equal(d.result.status,"degraded");
 const e = await run([{ok:false,httpStatus:503,bytes:999,detail:"HTTP 503"},limited],prior);
-assert.equal(e.calls.length,2);
-assert.equal(e.result.httpStatus,429);
+assert.equal(e.calls.length,1);
+assert.equal(e.result.httpStatus,503);
+for (const failure of [
+  {ok:false,httpStatus:null,bytes:0,detail:"fetch failed"},
+  {ok:false,httpStatus:null,bytes:0,detail:"timeout"},
+]) {
+  const observed = await run([failure,success],prior);
+  assert.equal(observed.calls.length,1);
+  assert.equal(observed.sleeps.length,0);
+  assert.equal(observed.result.lastSuccessfulAt,lastSuccessfulAt);
+  assert.equal(observed.result.stale,true);
+}
+const refused = await run([{ok:false,httpStatus:403,bytes:100,detail:"HTTP 403"},success],prior);
+assert.equal(refused.calls.length,1);
+assert.equal(refused.result.status,"failed");
+assert.equal(refused.result.httpStatus,403);
+const otherTransport = await run([{ok:false,httpStatus:null,bytes:0,detail:"fetch failed"},success],prior,"other");
+assert.equal(otherTransport.calls.length,2);
 console.log("GDELT shared-quota regression: PASS");

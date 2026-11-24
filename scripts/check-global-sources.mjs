@@ -280,9 +280,9 @@ async function probe(source) {
           regions: source.regions, endpointUsed: redactString(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
       }
-      // GDELT fallback queries share the same provider quota. Do not retry
-      // or switch queries after throttling; the next scheduled probe can recover.
-      if (source.id === "gdelt" && result.httpStatus === 429) {
+      // GDELT queries share one provider. A transport failure or explicit
+      // provider refusal ends this probe; retry only at the next scheduled cycle.
+      if (source.id === "gdelt" && (result.httpStatus == null || [403, 429, 503].includes(result.httpStatus))) {
         best = { ...result, endpoint };
         break endpointLoop;
       }
