@@ -28,3 +28,16 @@ assert.equal(result.liveTradingAllowed,false);
 assert.equal(calibrationSampleDiagnostics([null],opts).counts.otherDecision,1);
 assert.equal(calibrationSampleDiagnostics([record],{...opts,asOfMs:Date.parse(record.createdAt)}).counts.rejectedOutcomeEvidence,1);
 console.log("PASS calibration sample diagnostics: mutually exclusive blockers, point-in-time, evaluator parity and fail-closed flags");
+
+assert.deepEqual(result.inventory,{matchingDecisionRecords:7,recordsWithForecastField:7,
+  recordsWithoutForecastField:1,verifiedForecastAtRecordTime:6,verifiedForecastForHorizon:5});
+const noBuys=calibrationSampleDiagnostics([{decision:"ATTENDI"},{decision:"EVITA"},{decision:"OSSERVA"}],opts);
+assert.equal(noBuys.counts.otherDecision,3);
+assert.equal(noBuys.counts.missingForecast,0);
+assert.deepEqual(noBuys.inventory,{matchingDecisionRecords:0,recordsWithForecastField:0,
+  recordsWithoutForecastField:3,verifiedForecastAtRecordTime:0,verifiedForecastForHorizon:0});
+const beforeRecord=calibrationSampleDiagnostics([record],{...opts,asOfMs:Date.parse(record.createdAt)-1});
+assert.equal(beforeRecord.inventory.verifiedForecastAtRecordTime,0);
+assert.equal(beforeRecord.inventory.recordsWithForecastField,1);
+assert.equal(calibrationSampleDiagnostics(rows,{...opts,asOfMs:NaN}).inventory.verifiedForecastForHorizon,0);
+console.log("PASS independent forecast inventory exposes missing producer even when all decisions are excluded");
