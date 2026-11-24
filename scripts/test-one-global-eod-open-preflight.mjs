@@ -3,10 +3,14 @@ import {readFileSync} from "node:fs";
 import {execFileSync} from "node:child_process";
 import {assessOneGlobalEodOpenPreflight as check}
   from "./assess-one-global-eod-open-preflight.mjs";
-const eod=JSON.parse(readFileSync("data/world-v7-eod-research.json","utf8"));
-const provider=JSON.parse(readFileSync("data/world-v7-provider-observation.json","utf8"));
-const committee=JSON.parse(readFileSync("data/investment-committee.json","utf8"));
 const time="2026-11-12T13:50:00.000Z"; // 14:50 Rome; 08:50 New York
+const eod={mode:"WORLD_V7_EOD_RESEARCH_ONLY",liveTradingAllowed:false,
+  generatedAt:time,records:{
+    XMIL:{status:"MISSING_DAILY_SYMBOL_METADATA",yahooFallbackStatus:"YAHOO_INVALID_OHLC"},
+    XTKS:{status:"TENTATIVE_COMPLETED_DAILY_RESEARCH"},
+  }};
+const provider={mode:"PROVIDER_ACCESS_DIAGNOSTIC_ONLY",liveTradingAllowed:false,records:{}};
+const committee={engine:"Fenice Investment Committee v1",generatedAt:time,buyCandidateCount:0};
 const r=check({nowIso:time,eod,provider,committee,ownerPaperConsent:true});
 assert.deepEqual(r.marketWindowsExpected,["XMIL","XETR"],
   "14:50 CET is a European regular session window, NOT a New York opening");
@@ -30,15 +34,22 @@ for(const item of r.venues){
   assert(item.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
   assert(item.blockers.includes("NO_COMMITTEE_COMPRA_SIGNAL"));
 }
-const madrid=r.venues.find(x=>x.mic==="XMIL");
-assert.equal(madrid.exchangeLocalTime,"14:50");
-// A successful Yahoo EOD research fallback can improve the Milan research
-// status, but cannot remove exchange, rights or independent-price gates.
-assert.equal(madrid.sourceStatus,eod.records.XMIL.status);
-assert(["RETURNED_SYMBOL_MISMATCH","TENTATIVE_COMPLETED_DAILY_RESEARCH","COMPLETE_EOD_RESEARCH"].includes(madrid.sourceStatus));
-assert(madrid.blockers.includes("EOD_DATA_USAGE_RIGHTS_NOT_CERTIFIED"));
-assert(madrid.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
-assert(madrid.blockers.includes("EXACT_MIC_AND_PROVIDER_SYMBOL_NOT_CERTIFIED"));
+assert.equal(r.venues.find(v=>v.mic==="XMIL").exchangeLocalTime,"14:50");
+for(const [status,hasCompletedResearch] of [
+  ["MISSING_DAILY_SYMBOL_METADATA",false],["YAHOO_INVALID_OHLC",false],
+  ["RETURNED_SYMBOL_MISMATCH",false],["TENTATIVE_COMPLETED_DAILY_RESEARCH",true],
+  ["COMPLETE_EOD_RESEARCH",true],
+]){
+  const snapshot={...eod,records:{...eod.records,XMIL:{status}}};
+  const observed=check({nowIso:time,eod:snapshot,provider,committee,
+    ownerPaperConsent:true}).venues.find(v=>v.mic==="XMIL");
+  assert.equal(observed.sourceStatus,status);
+  assert.equal(observed.blockers.includes("COMPLETED_EOD_PROVIDER_DATA_MISSING"),!hasCompletedResearch);
+  assert(observed.blockers.includes("EOD_DATA_USAGE_RIGHTS_NOT_CERTIFIED"));
+  assert(observed.blockers.includes("TWO_INDEPENDENT_PUBLISHED_CLOSE_RECEIPTS_MISSING"));
+  assert(observed.blockers.includes("EXACT_MIC_AND_PROVIDER_SYMBOL_NOT_CERTIFIED"));
+  assert.equal(observed.eodPaperFillRecorded,false);
+}
 const tokyo=r.venues.find(x=>x.mic==="XTKS");
 assert.equal(tokyo.regularWindowExpected,false);
 // Research observations are refreshed on main. Tokyo may now have a valid
@@ -128,6 +139,9 @@ const raw=execFileSync(process.execPath,[
   "scripts/assess-one-global-eod-open-preflight.mjs","--paper-only-owner-consent"
 ],{encoding:"utf8"});
 const cli=JSON.parse(raw);
+const latestEod=JSON.parse(readFileSync("data/world-v7-eod-research.json","utf8"));
+assert.equal(cli.venues.find(v=>v.mic==="XMIL").sourceStatus,
+  latestEod.records?.XMIL?.status??"NOT_OBSERVED");
 assert.equal(cli.noRawPricesPublished,true);
 assert.equal(cli.liveTradingAllowed,false);
 assert.equal(cli.brokerConnectivityAllowed,false);
