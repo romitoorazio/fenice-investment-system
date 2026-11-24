@@ -21,6 +21,8 @@ export type WorldRadarResearchRow = {
   brokerOrderAllowed:false;
   paperEligible:false;
 };
+type SampleDependenceCounts = {measured:number;distinctInstruments:number;distinctWindows:number;
+  disjointWithinInstrument:number;overlappingOrRepeatedWindows:number;decisionUtcDays:number;exitUtcDays:number};
 type ForwardGroup = {eligible:number;measured:number;pending:number;up:number;down:number;flat:number;
   meanGrossLocalChangePct:number|null;meanSampledMaxDrawdownPct:number|null};
 export type WorldRadarResearchView = {
@@ -43,6 +45,9 @@ export type WorldRadarResearchView = {
       latestGroups:Record<string,{decisions:number;priorOutcomes:number;probability:number|null}>;
       minimumPriorGroupOutcomes:number;overlappingSamplesPossible:true;recordedLiveForecast:false;
       researchOnly:true;executionEligible:false;liveTradingAllowed:false};
+    sampleDependence:{overall:SampleDependenceCounts;byAttention:Record<string,SampleDependenceCounts>;
+      method:"STRICT_DISJOINT_INSTRUMENT_CURRENCY_CAPTURED_BAR_WINDOWS";independentSamplesProven:false;
+      effectiveSampleSize:null;researchOnly:true;changesForecastEligibility:false;strategyPromotionAllowed:false};
     persistedForecastEvaluation:{issued:number;scored:number;pending:number;brier:number|null;
       researchOnly:true;netReturnCertified:false;executionEligible:false;liveTradingAllowed:false}}>;
     netReturnPct:null;portfolioDrawdownPct:null;strategyPromotionAllowed:false};
