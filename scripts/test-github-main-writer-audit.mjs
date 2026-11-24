@@ -61,3 +61,15 @@ test("inventory scans current workflow source without changing it", () => {
   assert.ok(rows.every(r => r.path.startsWith(".github/workflows/")));
   assert.equal(assessCompatibility(rows).workflowCount, rows.length);
 });
+
+test("flags indirect writes and write-all without explicit git commands", () => {
+  const indirect = classifyWorkflowText("permissions:\n  contents: write\nsteps:\n  - run: node scripts/publish.mjs", "indirect.yml");
+  const broad = classifyWorkflowText("permissions: write-all\nsteps:\n  - run: node scripts/publish.mjs", "broad.yml");
+  assert.equal(indirect.contentsWrite, true);
+  assert.equal(broad.contentsWrite, true);
+  const report = assessCompatibility([indirect, broad]);
+  assert.equal(report.directMainWriterCount, 0);
+  assert.equal(report.requiresManualReview.length, 2);
+  assert.equal(report.staticYamlBlockersAbsent, false);
+  assert.equal(report.rulesetReady, false);
+});
