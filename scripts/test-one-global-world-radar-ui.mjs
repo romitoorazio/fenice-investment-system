@@ -66,3 +66,25 @@ assert(page.includes("radar.measuredNegative"));
 assert(page.includes("Momentum: approfondire")||page.includes("item.shortAttention"));
 assert(!/submitOrder|sendOrder|executeTrade|brokerWritesAuthorized:\s*true/.test(page));
 console.log("PASS ONE GLOBAL public dashboard: 12 balanced research candidates, genuine forward outcomes, source age, no market prices or PAPER/LIVE trading");
+
+const intraday=structuredClone(terminal);
+const enel=intraday.assets.find(a=>a.symbol==="ENEL");
+assert(enel);
+enel.technical.worldIntradayResearchQuote={
+  price:enel.price*1.03,currency:enel.currency,exchangeMic:enel.technical.exchangeMic,
+  observedAt:new Date(Date.parse(intraday.generatedAt)-60000).toISOString(),
+  evidenceType:"YAHOO_WORLD_REGULAR_TRADE_RESEARCH_ONLY",feedCount:1,
+  exactMicExecutionVerified:false,executionEligible:false,paperCertificationEligible:false,
+  brokerSubmissionAllowed:false,liveTradingAllowed:false,
+};
+const displayed=run(intraday).intradayAttention.find(a=>a.symbol==="ENEL");
+assert(displayed);
+assert(displayed.evidence.some(x=>x.includes("2% sopra")));
+assert.deepEqual(Object.keys(displayed).sort(),["symbol","venueMic","observedAt","evidence","paperEligible","brokerOrderAllowed","liveTradingAllowed"].sort());
+assert.equal(displayed.paperEligible,false);
+assert.equal(displayed.liveTradingAllowed,false);
+assert.equal(displayed.brokerOrderAllowed,false);
+assert.equal(run(intraday,ledger,new Date(Date.parse(intraday.generatedAt)+31*60000).toISOString()).intradayAttention.length,0);
+assert(page.includes("radar.intradayAttention.map"));
+assert(page.includes("Volumi e breakout non confermati"));
+console.log("PASS public intraday research alerts, no prices or execution permissions");
