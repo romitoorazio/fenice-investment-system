@@ -42,7 +42,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
       });
       if (!res.ok) throw new Error("Revisione non disponibile o sessione non autorizzata.");
       const result = await res.json();
-      if (result.head !== reviewHead || result.mergeAllowed !== false || result.liveTradingAllowed !== false)
+      if (result.pr !== Number(reviewPr) || result.head !== reviewHead || result.mergeAllowed !== false || result.liveTradingAllowed !== false || (result.state === "ADVISORY" && !/^[a-f0-9]{40}$/.test(result.base ?? "")))
         throw new Error("Risposta di revisione non valida.");
       setReviewReport(JSON.stringify(result,null,2));
     } catch (e) {
@@ -201,9 +201,9 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
           <h3 className="font-bold text-violet-200">IA ingegneristica · Revisione consultiva</h3>
           <p className="text-xs text-slate-300">Diff pubblico ristretto, SHA esatto, nessun merge automatico. Una richiesta manuale può consumare crediti OpenAI. Il parere non sostituisce i test o il revisore indipendente.</p>
           <label className="block text-sm" htmlFor="fenice-review-pr">Numero PR</label>
-          <input id="fenice-review-pr" inputMode="numeric" value={reviewPr} onChange={e=>setReviewPr(e.target.value.slice(0,7))} className="w-full rounded-lg bg-slate-900 p-2" />
+          <input id="fenice-review-pr" inputMode="numeric" value={reviewPr} disabled={generating} onChange={e=>{setReviewPr(e.target.value.slice(0,7));setReviewReport("");}} className="w-full rounded-lg bg-slate-900 p-2" />
           <label className="block text-sm" htmlFor="fenice-review-head">SHA completo del commit head</label>
-          <input id="fenice-review-head" value={reviewHead} onChange={e=>setReviewHead(e.target.value.trim().slice(0,40))} className="w-full rounded-lg bg-slate-900 p-2 font-mono" />
+          <input id="fenice-review-head" value={reviewHead} disabled={generating} onChange={e=>{setReviewHead(e.target.value.trim().slice(0,40));setReviewReport("");}} className="w-full rounded-lg bg-slate-900 p-2 font-mono" />
           <button type="button" disabled={generating || !/^[0-9]{1,7}$/.test(reviewPr) || !/^[a-f0-9]{40}$/.test(reviewHead)} onClick={()=>void reviewCode()} className="rounded-xl bg-violet-300 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-40">Conferma revisione IA a consumo</button>
           {reviewReport && <pre className="whitespace-pre-wrap break-all text-xs text-slate-200" aria-live="polite">{reviewReport}</pre>}
         </div>
