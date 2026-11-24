@@ -76,7 +76,7 @@ export default async function GlobalOpportunitiesPage(){
         </div>
         <p className="text-xs text-slate-400" aria-label="Fonte e data del radar">
           Fonte: {latest.source}. Snapshot mondiale: {radar?.terminalAsOf??"non verificato"}.
-          Solo dati storici giornalieri, non prezzi in tempo reale.
+          Classifica basata su dati giornalieri; eventuali alert intraday separati, non prezzi eseguibili.
         </p>
         {radar?<>
           <div className="grid gap-3 sm:grid-cols-4">
@@ -90,6 +90,18 @@ export default async function GlobalOpportunitiesPage(){
               <p className="mt-1 text-xl font-bold">{value}</p>
             </div>)}
           </div>
+          <section className="rounded-xl border border-cyan-300/25 bg-black/20 p-4" aria-label="Alert intraday di ricerca">
+            <h3 className="font-bold text-cyan-200">Movimenti recenti da approfondire</h3>
+            <p className="mt-1 text-xs text-slate-400">Osservazioni di un solo fornitore, valide per massimo 30 minuti. Confronto con il riferimento giornaliero rettificato, non rendimento di seduta. Volumi e breakout non confermati.</p>
+            {radar.intradayAttention.length===0?<p className="mt-3 text-sm text-slate-300">Nessun alert recente verificabile nello snapshot. Non significa che il mercato sia fermo.</p>:<div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {radar.intradayAttention.map(item=><article key={(item.venueMic??"UNKNOWN")+":"+item.symbol} className="rounded-lg border border-white/10 p-3 text-sm">
+                <p className="font-bold">{item.symbol} · {item.venueMic??"USA"}</p>
+                <p className="mt-1 text-cyan-200">{item.evidence.join(" · ")}</p>
+                <p className="mt-1 text-xs text-slate-400">Osservazione: {item.observedAt}</p>
+                <p className="mt-1 text-xs text-amber-200">Solo ricerca · nessun ordine autorizzato</p>
+              </article>)}
+            </div>}
+          </section>
           {radar.stale?<p className="rounded-lg border border-amber-400/25 p-3 text-sm text-amber-200">
             Le candele disponibili non sono abbastanza recenti: nessun candidato tecnico viene mostrato come attuale.
           </p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
