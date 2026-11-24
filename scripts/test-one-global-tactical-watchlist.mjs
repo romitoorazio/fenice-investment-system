@@ -50,3 +50,33 @@ assert.throws(()=>worldTacticalResearchRadar({terminal,nowIso:"BAD"}),
 assert.deepEqual(worldTacticalResearchRadar({terminal,nowIso:at}),result,
   "Global ranking is deterministic: no randomness or US-first tie promotion");
 console.log("PASS ONE GLOBAL worldwide tactical radar: research-only 2-10 day / 2-8 week attention, global balance and fail-closed stale/evidence gate");
+
+const sample=structuredClone(terminal);
+const italian=sample.assets.find(a=>a.symbol==="ENEL");
+assert(italian,"Existing Italian listing fixture required");
+const qAt=new Date(Date.parse(sample.generatedAt)-60000).toISOString();
+italian.technical.worldIntradayResearchQuote={
+  price:italian.price*1.03,currency:italian.currency,exchangeMic:italian.technical.exchangeMic,
+  observedAt:qAt,evidenceType:"YAHOO_WORLD_REGULAR_TRADE_RESEARCH_ONLY",feedCount:1,
+  exactMicExecutionVerified:false,executionEligible:false,paperCertificationEligible:false,
+  brokerSubmissionAllowed:false,liveTradingAllowed:false,
+};
+const updated=worldTacticalResearchRadar({terminal:sample,nowIso:at});
+const alert=updated.intradayAttention.find(a=>a.symbol==="ENEL");
+assert(alert);
+assert(alert.codes.includes("ABOVE_DAILY_REFERENCE_2PCT"));
+assert.equal(alert.breakoutConfirmed,false);
+assert.equal(alert.volumeConfirmed,false);
+assert.equal(alert.paperEligible,false);
+assert.equal(Object.hasOwn(alert,"price"),false);
+assert.deepEqual(updated.balancedGlobalWatchlist,result.balancedGlobalWatchlist);
+assert.deepEqual(updated.topAcrossAllVenues,result.topAcrossAllVenues);
+const staleQuote=structuredClone(sample);
+staleQuote.assets.find(a=>a.symbol==="ENEL").technical.worldIntradayResearchQuote.observedAt=new Date(Date.parse(at)-31*60000).toISOString();
+assert(!worldTacticalResearchRadar({terminal:staleQuote,nowIso:at}).intradayAttention.some(a=>a.symbol==="ENEL"));
+for(const patch of [{currency:"USD"},{executionEligible:true},{feedCount:2},{observedAt:at}]){
+  const bad=structuredClone(sample);
+  Object.assign(bad.assets.find(a=>a.symbol==="ENEL").technical.worldIntradayResearchQuote,patch);
+  assert(!worldTacticalResearchRadar({terminal:bad,nowIso:at}).intradayAttention.some(a=>a.symbol==="ENEL"));
+}
+console.log("PASS intraday attention is fresh, isolated, non-executable, and never alters daily ranking");
