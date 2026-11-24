@@ -46,3 +46,9 @@ for (const [price, returnPercent] of [[101,-1],[99,1],[101,20]]) {
 // The writer independently rounds the stored price and percentage.
 assert.deepEqual(samples([{...vintage,entryReferencePrice:3,checkpoints:{"7d":{...checkpoint,price:3.01,returnPercent:0.17}}}]),[{confidence:0.6,outcome:1}]);
 console.log("PASS inconsistent outcome rejection with independent rounding tolerance");
+
+for(const [entryReferencePrice,price,returnPercent] of [[100,100,0],[100,100,0.01],[0.01,0.01,20],[1000,1000.01,0]]) {
+  assert.deepEqual(samples([{...vintage,entryReferencePrice,checkpoints:{"7d":{...checkpoint,price,returnPercent}}}]),[]);
+}
+assert.deepEqual(samples([{...vintage,checkpoints:{"7d":{...checkpoint,price:99,returnPercent:-1}}}]),[{confidence:0.6,outcome:0}]);
+console.log("PASS ambiguous direction excluded, clear negative retained");
