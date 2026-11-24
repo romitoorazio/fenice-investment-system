@@ -29,7 +29,7 @@ export function classifyWorkflowText(text, path = "<fixture>") {
   }
   return {
     path,
-    contentsWrite: /^\s*contents:\s*write\s*$/m.test(text),
+    contentsWrite: /^\s*contents:\s*write\s*(?:#.*)?$/m.test(text) || /^\s*permissions:\s*write-all\s*(?:#.*)?$/m.test(text),
     directMainPush,
     otherGitPush,
     privilegedOperations,
@@ -47,7 +47,8 @@ export function inventoryWorkflows(directory = workflowDir) {
 export function assessCompatibility(rows) {
   const direct = rows.filter(row => row.directMainPush.length > 0);
   const unclassified = rows.filter(row =>
-    row.otherGitPush.length > 0 || row.privilegedOperations.length > 0);
+    row.otherGitPush.length > 0 || row.privilegedOperations.length > 0 ||
+    (row.contentsWrite && row.directMainPush.length === 0));
   return {
     mode: "READ_ONLY_DIAGNOSTIC",
     workflowCount: rows.length,
@@ -59,6 +60,7 @@ export function assessCompatibility(rows) {
     })),
     requiresManualReview: unclassified.map(row => ({
       path: row.path,
+      contentsWrite: row.contentsWrite,
       otherPushLines: row.otherGitPush.map(p => p.line),
       privilegedOperationLines: row.privilegedOperations.map(p => p.line),
     })),
