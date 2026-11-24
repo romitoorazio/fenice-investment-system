@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { yahooRegularSessionResearchQuote } from "../lib/intelligence/yahoo-regular-research-quote.mjs";
+import { yahooRegularSessionResearchQuote, yahooWorldIntradayResearchQuote } from "../lib/intelligence/yahoo-regular-research-quote.mjs";
 
 const now = new Date("2026-10-13T15:01:00.000Z");
 const ts = value => Math.floor(Date.parse(value) / 1000);
@@ -64,3 +64,33 @@ assert.match(yaml,/Fenice V7 Horizon Split/);
 assert.ok(yaml.includes('cron: "22 23 * * 1-5"'), "Keep daily shadow fallback");
 assert.doesNotMatch(yaml,/      - Fenice World Terminal/);
 console.log("FENICE100K Yahoo regular-market quote provenance, V7 isolation and terminal hook: PASS");
+
+const { WORLD_YAHOO_RESEARCH_SYMBOLS } = await import("../lib/intelligence/world-terminal-universe.mjs");
+for (const [key, mapping] of Object.entries(WORLD_YAHOO_RESEARCH_SYMBOLS)) {
+  const [exchangeMic, ticker] = key.split(":");
+  const definition = [ticker,mapping.query,ticker,"Azioni",exchangeMic,{
+    exchangeMic,currency:mapping.currency,providerTicker:mapping.query,
+    providerCurrency:mapping.providerCurrency ?? mapping.currency,
+    priceScaleToListing:mapping.priceScaleToListing ?? 1,
+    researchOnly:true,paperExecutionAllowed:false,brokerSubmissionAllowed:false,
+    exactMicExecutionVerified:false,
+  }];
+  const foreign = {...meta,symbol:mapping.query,currency:definition[5].providerCurrency,regularMarketPrice:1000};
+  const q = yahooWorldIntradayResearchQuote(foreign,definition,now);
+  assert.equal(q.price,1000*(mapping.priceScaleToListing ?? 1),key);
+  assert.equal(q.currency,mapping.currency,key);
+  assert.equal(q.exchangeMic,exchangeMic,key);
+  assert.equal(q.evidenceType,"YAHOO_WORLD_REGULAR_TRADE_RESEARCH_ONLY");
+  for(const flag of ["executionEligible","paperCertificationEligible","brokerSubmissionAllowed","liveTradingAllowed","exactMicExecutionVerified"]) assert.equal(q[flag],false);
+  assert.equal(yahooWorldIntradayResearchQuote({...foreign,symbol:"WRONG"},definition,now),null);
+  assert.equal(yahooWorldIntradayResearchQuote({...foreign,currency:"XXX"},definition,now),null);
+  assert.equal(yahooWorldIntradayResearchQuote({...foreign,regularMarketPrice:"1000"},definition,now),null);
+  assert.equal(yahooWorldIntradayResearchQuote({...foreign,regularMarketTime:undefined},definition,now),null);
+  assert.equal(yahooWorldIntradayResearchQuote(foreign,definition,new Date("2026-10-13T15:31:00Z")),null);
+  assert.equal(yahooWorldIntradayResearchQuote(foreign,definition,new Date("2026-10-13T14:58:00Z")),null);
+  const forged=structuredClone(definition);forged[5].priceScaleToListing=2;
+  assert.equal(yahooWorldIntradayResearchQuote(foreign,forged,now),null);
+}
+assert.match(terminal,/worldIntradayResearchQuote: worldResearch\?\.researchOnly === true/);
+assert.match(terminal,/const researchQuote = worldResearch\?\.researchOnly===true \? null/);
+console.log("Worldwide intraday research isolation: PASS");
