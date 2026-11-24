@@ -53,7 +53,6 @@ assert.equal(e.result.httpStatus,503);
 for (const failure of [
   {ok:false,httpStatus:null,bytes:0,detail:"fetch failed"},
   {ok:false,httpStatus:null,bytes:0,detail:"timeout"},
-  {ok:false,httpStatus:403,bytes:100,detail:"HTTP 403"},
 ]) {
   const observed = await run([failure,success],prior);
   assert.equal(observed.calls.length,1);
@@ -61,6 +60,10 @@ for (const failure of [
   assert.equal(observed.result.lastSuccessfulAt,lastSuccessfulAt);
   assert.equal(observed.result.stale,true);
 }
+const refused = await run([{ok:false,httpStatus:403,bytes:100,detail:"HTTP 403"},success],prior);
+assert.equal(refused.calls.length,1);
+assert.equal(refused.result.status,"failed");
+assert.equal(refused.result.httpStatus,403);
 const otherTransport = await run([{ok:false,httpStatus:null,bytes:0,detail:"fetch failed"},success],prior,"other");
 assert.equal(otherTransport.calls.length,2);
 console.log("GDELT shared-quota regression: PASS");
