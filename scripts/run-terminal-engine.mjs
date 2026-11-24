@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { yahooRegularSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
+import { yahooRegularSessionResearchQuote, yahooWorldIntradayResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
 import { selectCompletedYahooDailyCandles } from '../lib/intelligence/yahoo-completed-daily-candles.mjs';
 import { worldResearchTerminalDefinitions,verifiesWorldYahooResearchMeta,normalizeWorldYahooResearchPrice } from '../lib/intelligence/world-terminal-universe.mjs';
 
@@ -395,6 +395,8 @@ async function fetchTechnical(definition) {
       paperEligible:false,brokerOrderAllowed:false,liveTradingAllowed:false,
     },
     researchQuote,
+    worldIntradayResearchQuote: worldResearch?.researchOnly === true
+      ? yahooWorldIntradayResearchQuote(result.meta, definition, now) : null,
     status: dataCompleteness >= 80 ? 'operativo' : 'parziale',
     price: round(price, price < 1 ? 6 : 2),
     returns: {
