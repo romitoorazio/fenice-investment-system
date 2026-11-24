@@ -80,3 +80,23 @@ for(const patch of [{currency:"USD"},{executionEligible:true},{feedCount:2},{obs
   assert(!worldTacticalResearchRadar({terminal:bad,nowIso:at}).intradayAttention.some(a=>a.symbol==="ENEL"));
 }
 console.log("PASS intraday attention is fresh, isolated, non-executable, and never alters daily ranking");
+
+const {completedBarResearch}=await import("../lib/intelligence/one-global-emerging-research.mjs");
+const candles=Array.from({length:21},(_,i)=>({timestamp:1_700_000_000+i*86400,adjustedResearchClose:100,volume:100}));
+candles[0].adjustedResearchClose=105;
+candles[20].adjustedResearchClose=104;
+candles[20].volume=200;
+assert.equal(completedBarResearch(candles).stage,"APPROACHING_HIGH");
+candles[20].adjustedResearchClose=106;
+assert.equal(completedBarResearch(candles).stage,"CLOSE_BREAKOUT");
+assert.equal(completedBarResearch(candles).unusualVolume,true);
+delete candles[10].volume;
+assert.equal(completedBarResearch(candles).unusualVolume,null);
+assert.equal(completedBarResearch(candles,{split:{date:candles[18].timestamp}}),null);
+assert.equal(completedBarResearch(candles.slice(1)),null);
+const badDaily=structuredClone(sample);
+badDaily.assets.find(a=>a.symbol==="ENEL").technical.dailyBarCompletion.status="UNSETTLED";
+assert(!worldTacticalResearchRadar({terminal:badDaily,nowIso:at}).screenedResearch.some(x=>x.symbol==="ENEL"));
+const afterSnapshot=structuredClone(sample);
+afterSnapshot.assets.find(a=>a.symbol==="ENEL").technical.observedAt=at;
+assert(!worldTacticalResearchRadar({terminal:afterSnapshot,nowIso:at}).screenedResearch.some(x=>x.symbol==="ENEL"));

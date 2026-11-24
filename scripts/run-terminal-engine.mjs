@@ -1,3 +1,4 @@
+import { completedBarResearch } from '../lib/intelligence/one-global-emerging-research.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -308,7 +309,8 @@ async function fetchTechnical(definition) {
     const high = normalizeWorldYahooResearchPrice(quote.high?.[index] ?? rawClose,definition);
     const low = normalizeWorldYahooResearchPrice(quote.low?.[index] ?? rawClose,definition);
     if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(high) || !Number.isFinite(low)) continue;
-    rows.push({ timestamp: Number(timestamps[index]), close, high, low });
+    rows.push({ timestamp: Number(timestamps[index]), close, high, low, volume: quote.volume?.[index],
+      adjustedResearchClose: normalizeWorldYahooResearchPrice(result.indicators?.adjclose?.[0]?.adjclose?.[index], definition) });
   }
   // Prevent in-progress worldwide market candles from entering momentum,
   // daily RSI, later-bar research outcomes or valuation/committee signals.
@@ -394,6 +396,7 @@ async function fetchTechnical(definition) {
       independentExchangeCloseCertified:false,
       paperEligible:false,brokerOrderAllowed:false,liveTradingAllowed:false,
     },
+    completedBarResearch: completedBarResearch(rows, result.events?.splits),
     researchQuote,
     worldIntradayResearchQuote: worldResearch?.researchOnly === true
       ? yahooWorldIntradayResearchQuote(result.meta, definition, now) : null,

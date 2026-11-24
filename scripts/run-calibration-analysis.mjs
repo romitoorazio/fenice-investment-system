@@ -9,14 +9,14 @@ const ledger = JSON.parse(await readFile(path.join(dataDir, "decision-ledger.jso
 const records = Array.isArray(ledger?.records) ? ledger.records : [];
 
 function analyse(checkpoint) {
-  const samples = buildCalibrationSamplesFromLedger(records, { checkpoint, decision: "COMPRA" });
+  const samples = buildCalibrationSamplesFromLedger(records, { checkpoint, decision: "COMPRA", asOfMs:Date.parse(ledger.generatedAt) });
   return evaluateCalibration(samples, { bins: 10, minSamples: 30 });
 }
 
 const report = {
   version: 1,
   generatedAt: new Date().toISOString(),
-  purpose: "Measure whether Fenice BUY confidence is calibrated to realised positive outcomes. Diagnostic only; never increases execution permission.",
+  purpose: "Measure explicit point-in-time BUY probability forecasts against matured research outcomes. Diagnostic only; never increases execution permission.",
   policy: {
     decisionClass: "COMPRA",
     positiveOutcomeDefinition: "checkpoint returnPercent > 0",

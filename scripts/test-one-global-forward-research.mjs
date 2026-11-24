@@ -59,14 +59,14 @@ const at=new Date(Date.parse(terminal.generatedAt)+60_000).toISOString();
 // Read-only safety check on ACTUAL generated provider observations: no future
 // bucket, old Friday/holiday close or unselected venue may be admitted.
 const actualWatch=worldTacticalResearchRadar({terminal:actualTerminal,nowIso:at});
-const actualSelected=new Set(actualWatch.balancedGlobalWatchlist.map(
+const actualSelected=new Set(actualWatch.screenedResearch.map(
   row=>String(row.venueMic||"UNVERIFIED")+":"+row.symbol));
 const actualScan=advanceWorldForwardResearchLedger({
   terminal:actualTerminal,nowIso:at,previousLedger:newWorldForwardResearchLedger()});
 assert(actualScan.ledger.events.filter(e=>e.kind==="BAR_OBSERVATION").every(e=>
   actualSelected.has(e.key)&&Date.parse(e.barBucketAt)<=Date.parse(at)
   &&Date.parse(at)-Date.parse(e.barBucketAt)<=3*86400000),
-  "Actual snapshots must never append expired/future or non-selected bars");
+  "Actual snapshots must never append expired/future or ineligible bars");
 assert.equal(actualScan.performance.paperFills,0);
 // A tactical radar may legitimately show 4-day-old Friday candles, but the
 // prospective ledger must reject them even when the synthetic research window
@@ -161,3 +161,35 @@ assert.equal(blockedNoEvidence.newObservations,0,
   "Never append today's chart as a final daily close if provider session gate is missing");
 assert.equal(blockedNoEvidence.newSetups,0);
 console.log("PASS ONE GLOBAL prospective worldwide research: immutable sessions, no backfill, positive/negative outcomes, stale safety, zero PAPER/Directa");
+
+const controls=first.ledger.events.filter(e=>e.screen?.selection==="COMPARISON");
+assert(controls.length>0);
+assert(controls.every(c=>!first.ledger.events.some(s=>s.observationHash===c.sha256)));
+assert.deepEqual(summarizeWorldForwardResearchLedger(third.ledger,{asOf:at}),first.performance,
+  "An as-of replay cannot see events beyond the cutoff");
+assert.equal(third.performance.pointInTime.horizons[2].measured,0,
+  "A bucket already underway when the setup was logged cannot be a forward entry");
+const fourth=moveDays(3,third.ledger);
+const fifth=moveDays(4,fourth.ledger);
+const pit=fifth.performance.pointInTime.horizons[2];
+assert(pit.measured>0);
+assert(pit.byAttention.OUTSIDE_WATCHLIST.measured>0);
+assert.equal(pit.measured,pit.up+pit.down+pit.flat);
+assert.equal(pit.pastFrequencyBenchmark.brier,null);
+assert.equal(fifth.performance.pointInTime.horizons[40].measured,0);
+assert.equal(fifth.performance.pointInTime.strategyPromotionAllowed,false);
+assert.equal(fifth.performance.pointInTime.netReturnPct,null);
+
+const {summarizeForwardDecisions}=await import("../lib/intelligence/one-global-forward-diagnostics.mjs");
+const instant=n=>new Date(Date.UTC(2026,0,1)+n*60000).toISOString();
+const observations=new Map(), predictions=[];
+for(let i=0;i<32;i++){
+  const key="TEST:"+i,offset=i*10;
+  // For case 30 the label is only received when case 31 starts.
+  const marks=[100,105,i<30?90:110].map((close,j)=>({close,barBucketAt:instant(offset+j+1),
+    recordedAt:instant(i===30&&j===2?310:offset+j+2)}));
+  observations.set(key,new Map([["USD",marks]]));
+  predictions.push({key,at:instant(offset),currency:"USD",selected:true,short:"MOMENTUM_WATCH",medium:"TREND_WATCH"});
+}
+const bench=summarizeForwardDecisions(predictions,observations).horizons[2].pastFrequencyBenchmark;
+assert.deepEqual(bench,{tested:2,minPriorGroupOutcomes:30,brier:1,pooledBaselineBrier:1});

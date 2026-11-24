@@ -102,6 +102,12 @@ export default async function GlobalOpportunitiesPage(){
               </article>)}
             </div>}
           </section>
+          {radar.emergingResearch.length>0 && <section className="space-y-2 rounded-xl border border-cyan-300/25 p-4">
+            <h3 className="font-bold text-cyan-200">Titoli vicini o oltre i massimi recenti</h3>
+            {radar.emergingResearch.map(item=><p className="text-sm" key={(item.venueMic??"USA")+":"+item.symbol}>
+              <strong>{item.symbol} · {item.venueMic??"USA"}</strong> — {item.evidence.join(" · ")}
+            </p>)}
+          </section>}
           {radar.stale?<p className="rounded-lg border border-amber-400/25 p-3 text-sm text-amber-200">
             Le candele disponibili non sono abbastanza recenti: nessun candidato tecnico viene mostrato come attuale.
           </p>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,14 +137,20 @@ export default async function GlobalOpportunitiesPage(){
             </article>)}
           </div>}
           <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm">
-            <h3 className="font-bold">Risultati osservati dopo i segnali, non guadagni di trading</h3>
+            <h3 className="font-bold">Risultati delle liste di ricerca</h3>
             <p className="mt-2 text-slate-300">
-              {radar.forwardSignals} segnali prospettici registrati · {radar.forwardObservations} candele osservate.
+              {radar.forwardSignals} valutazioni registrate · {radar.forwardObservations} candele osservate.
               Dopo almeno due <strong>nuove osservazioni effettive</strong> sul medesimo titolo:
               {" "}{radar.measuredPositive} variazioni positive,
               {" "}{radar.measuredNegative} negative,
               {" "}{radar.measuredUnchanged} invariate
               su {radar.measuredAfterTwoNewDailySnapshots} misurazioni completate.
+            </p>
+            <p className="mt-2 text-slate-300">
+              Dalla prima chiusura raccolta su una barra iniziata dopo la valutazione,
+              le due barre successive mostrano {radar.pointInTime.horizons[2].up} rialzi,
+              {" "}{radar.pointInTime.horizons[2].down} ribassi e {radar.pointInTime.horizons[2].flat} casi invariati.
+              Le misure sono lorde, nella valuta di quotazione.
             </p>
             <p className="mt-2 text-xs text-slate-400">
               I giorni di Borsa non osservati non vengono inventati. Questi conteggi non sono
