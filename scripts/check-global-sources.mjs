@@ -265,7 +265,7 @@ async function probe(source) {
 
   let best = null;
   let attempts = 0;
-  for (const endpoint of endpoints) {
+  endpointLoop: for (const endpoint of endpoints) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       attempts += 1;
       const result = await request(source, endpoint, attempt);
@@ -279,6 +279,12 @@ async function probe(source) {
           detail: attempt === 1 ? result.detail : `${result.detail} Recuperata al tentativo ${attempt}.`,
           regions: source.regions, endpointUsed: redactString(endpoint), attempts, bytes: result.bytes, contentType: result.contentType,
         };
+      }
+      // GDELT fallback queries share the same provider quota. Do not retry
+      // or switch queries after throttling; the next scheduled probe can recover.
+      if (source.id === "gdelt" && result.httpStatus === 429) {
+        best = { ...result, endpoint };
+        break endpointLoop;
       }
       if (attempt < 3 && isTransientFailure(source, result)) {
         const baseDelay = source.id === "sec" ? 2500 : 700;
