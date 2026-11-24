@@ -167,6 +167,10 @@ jobs:
               | [.[].jobs[]]
               | if length == 0 then error("CI_JOB_METADATA_EMPTY") else . end
               | map(select(.conclusion == "failure" or .conclusion == "timed_out"))
+              | if length == 0 then error("NO_FAILED_JOB_EVIDENCE") else . end
+              | if any(.[]; (.id | type) != "number" or (.id <= 0) or (.id != (.id|floor))) then error("INVALID_JOB_ID") else . end
+              | if any(.[]; (.steps // []) | type != "array") then error("INVALID_STEP_METADATA") else . end
+              | if any(.[]; any((.steps // [])[]; (.conclusion == "failure" or .conclusion == "timed_out") and ((.number|type) != "number" or (.number <= 0) or (.number != (.number|floor))))) then error("INVALID_STEP_ID") else . end
               | map({jobId: (.id | numbers), conclusion,
                 failedSteps: [(.steps // [])[] | select(.conclusion == "failure" or .conclusion == "timed_out")
                   | {number: (.number | numbers), conclusion}]})
@@ -178,6 +182,6 @@ jobs:
             echo '```json'
             cat "$RUNNER_TEMP/fenice-ci-failure.json"
             echo '```'
-            echo 'Root cause and repair are NOT verified. Review exact job logs in GitHub with authorized access; reproduce in an isolated branch and require independent review.'
+            echo 'Incident capture is best-effort (workflow concurrency may supersede pending runs). Root cause and repair are NOT verified. Review exact job logs in GitHub with authorized access; reproduce in an isolated branch and require independent review.'
             echo 'No retry, write, deployment, PAPER or LIVE authority granted.'
           } >> "$GITHUB_STEP_SUMMARY"
