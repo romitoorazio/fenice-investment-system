@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   shouldAttemptGdeltRecovery,
   isGdeltProviderBlock,
+  shouldOpenGdeltThemeCircuit,
   parseGdeltSeenAt,
   normalizeGdeltResearchArticles,
 } from "../lib/intelligence/gdelt-recovery-policy.mjs";
@@ -87,6 +88,18 @@ assert.equal(bounded.circuitOpen, true);
 assert.equal(bounded.skippedPrimary, 2);
 assert.deepEqual(bounded.results.map(row => row.status), ["fulfilled", "fulfilled", "fulfilled", "fulfilled"]);
 assert.deepEqual(bounded.results.map(row => row.value.primary), [true, false, false, false]);
+for (const error of [new Error("fetch failed"), new DOMException("deadline", "TimeoutError"), new DOMException("aborted", "AbortError")]) {
+  const attempted = [];
+  const result = await collectThemesWithCircuit(["a", "b", "c"], {
+    fetchPrimary: async theme => { attempted.push(theme); throw error; },
+    fetchFallback: async theme => [{ theme, discoveryOnly: true }],
+    isProviderBlocked: shouldOpenGdeltThemeCircuit,
+  });
+  assert.deepEqual(attempted, ["a"], "transport failures must not multiply primary requests");
+  assert.equal(result.skippedPrimary, 2);
+  assert(result.results.every(row => row.value?.primary === false));
+}
+assert(!shouldOpenGdeltThemeCircuit(new Error("HTTP 404")));
 const nonBlockingCalls = [];
 const nonBlocking = await collectThemesWithCircuit(["a", "b"], {
   fetchPrimary: async theme => {
@@ -111,5 +124,8 @@ const broadNews = await readFile(new URL("./enrich-broad-news.mjs", import.meta.
 assert.match(broadNews, /collectThemesWithCircuit\(themes/);
 assert.doesNotMatch(broadNews, /Promise\.allSettled\(themes\.map\(fetchThemeWithFallback\)\)/);
 assert.match(broadNews, /providerCircuitOpen: circuitOpen/);
+assert.equal((broadNews.match(/signal: AbortSignal\.timeout\(8000\)/g) ?? []).length, 2);
+assert.match(broadNews, /normalizeGdeltResearchArticles\(data, \{ nowMs: Date\.now\(\) \}\)/);
+assert.match(broadNews, /isProviderBlocked: shouldOpenGdeltThemeCircuit/);
 
 console.log("Fenice GDELT optional research budget, validity and no-execution regression: PASS");
