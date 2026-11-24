@@ -166,6 +166,8 @@ jobs:
 
       - name: Source checker security invariants
         run: node scripts/test-source-health-security.mjs
+      - name: GDELT shared quota regression
+        run: node scripts/test-gdelt-rate-limit.mjs
 
       - name: Source-status reconciliation invariants
         run: node --experimental-strip-types scripts/test-data-hub-source-overlay.mjs
