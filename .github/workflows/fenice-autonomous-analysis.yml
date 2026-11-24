@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   analyze:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -38,6 +39,9 @@ jobs:
         run: npm install --no-audit --no-fund --package-lock=false
 
       - name: Refresh authoritative source health
+        env:
+          FINRA_CLIENT_ID: ${{ secrets.FINRA_CLIENT_ID }}
+          FINRA_CLIENT_SECRET: ${{ secrets.FINRA_CLIENT_SECRET }}
         run: npm run sources:check
 
       - name: Run Fenice autonomous analysis

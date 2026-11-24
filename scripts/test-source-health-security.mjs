@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 
 const checker = await readFile(new URL("./check-global-sources.mjs", import.meta.url), "utf8");
 const reliability = await readFile(new URL("./run-reliability-layer.mjs", import.meta.url), "utf8");
@@ -40,6 +41,17 @@ if (!/status:\s*"unconfigured"/.test(checker) || !/nessun outage dichiarato/.tes
 if (!/authorization:\s*`Basic \$\{basic\}`/.test(checker) || !/authorization:\s*`Bearer \$\{token\}`/.test(checker)) {
   throw new Error("FINRA health probe must implement OAuth client_credentials and Bearer data access.");
 }
+
+// This writer publishes global-source-health.json, just like Global Sources.
+const autonomous = await readFile(new URL("../.github/workflows/fenice-autonomous-analysis.yml", import.meta.url), "utf8");
+const probeStep = autonomous.split(/^      - name: /m).find(step => step.includes("run: npm run sources:check"));
+assert.ok(probeStep, "Autonomous Analysis must probe sources before publishing their health");
+for (const key of ["FINRA_CLIENT_ID", "FINRA_CLIENT_SECRET"]) {
+  assert.ok(probeStep.includes(key + ": ${{ secrets." + key + " }}"),
+    "The authoritative probe must receive its existing FINRA OAuth binding: " + key);
+}
+assert.match(autonomous, /analyze:\n    if: github\.ref == 'refs\/heads\/main'/,
+  "Only trusted main may run the credentialed autonomous writer");
 
 const bis = registry.sources?.find((source) => source?.id === "bis");
 if (!bis || typeof bis.endpoint !== "string") {
