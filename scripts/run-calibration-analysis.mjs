@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildCalibrationSamplesFromLedger, evaluateCalibration } from "../lib/intelligence/calibration-engine.mjs";
+import { calibrationSampleDiagnostics } from "../lib/intelligence/calibration-sample-diagnostics.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = path.join(root, "data");
@@ -10,7 +11,9 @@ const records = Array.isArray(ledger?.records) ? ledger.records : [];
 
 function analyse(checkpoint) {
   const samples = buildCalibrationSamplesFromLedger(records, { checkpoint, decision: "COMPRA", asOfMs:Date.parse(ledger.generatedAt) });
-  return evaluateCalibration(samples, { bins: 10, minSamples: 30 });
+  const diagnostics = calibrationSampleDiagnostics(records, { checkpoint, decision: "COMPRA", asOfMs: Date.parse(ledger.generatedAt) });
+  const evaluation = evaluateCalibration(samples, { bins: 10, minSamples: 30 });
+  return { ...evaluation, sampleDiagnostics: { ...diagnostics, matchesEvaluator: diagnostics.counts.admitted === evaluation.sampleSize } };
 }
 
 const report = {
