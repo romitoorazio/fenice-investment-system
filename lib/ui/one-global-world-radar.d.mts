@@ -30,6 +30,7 @@ export type WorldRadarResearchView = {
   screenSize:number;
   researchEligible:number;
   watchlist:WorldRadarResearchRow[];
+  intradayAttention:{symbol:string;venueMic:string|null;observedAt:string;evidence:string[];paperEligible:false;brokerOrderAllowed:false;liveTradingAllowed:false}[];
   momentumCount:number;
   trendCount:number;
   forwardObservations:number;
