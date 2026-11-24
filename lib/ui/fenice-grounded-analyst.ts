@@ -26,6 +26,7 @@ export type CommitteeAsset = {
   };
 };
 export type CommitteeSnapshot = {
+  proposedFirstTrancheEuro?: number;
   generatedAt?: string;
   executionGate?: string;
   buyCandidateCount?: number;
