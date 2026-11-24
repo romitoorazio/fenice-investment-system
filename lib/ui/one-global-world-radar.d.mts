@@ -37,7 +37,12 @@ export type WorldRadarResearchView = {
   sampledByAttention:Record<string,{up:number;down:number;flat:number}>;
   pointInTime:{horizons:Record<2|10|40,ForwardGroup & {byAttention:Record<string,ForwardGroup>;
     byStage:Record<string,ForwardGroup>;byRegime:Record<string,ForwardGroup>;
-    pastFrequencyBenchmark:{tested:number;brier:number|null;pooledBaselineBrier:number|null}}>;
+    pastFrequencyBenchmark:{tested:number;minPriorGroupOutcomes:number;brier:number|null;pooledBaselineBrier:number|null};
+    researchForecastCoverage:{model:string;basis:string;totalDecisions:number;available:number;pending:number;
+      scored:number;withheld:number;latestDecisionAt:string|null;
+      latestGroups:Record<string,{decisions:number;priorOutcomes:number;probability:number|null}>;
+      minimumPriorGroupOutcomes:number;overlappingSamplesPossible:true;recordedLiveForecast:false;
+      researchOnly:true;executionEligible:false;liveTradingAllowed:false}}>;
     netReturnPct:null;portfolioDrawdownPct:null;strategyPromotionAllowed:false};
   momentumCount:number;
   trendCount:number;
