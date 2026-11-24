@@ -257,3 +257,21 @@ for(let i=corruptIndex;i<corruptVintage.events.length;i++){
 corruptVintage.lastHash=corruptVintage.events.at(-1).sha256;
 assert.throws(()=>replayWorldForwardResearchLedger(corruptVintage),/FORWARD_RESEARCH_FORECAST_VINTAGE_INVALID/);
 console.log("PASS prospective research forecast persistence, strict prior training, scoring and semantic vintage replay");
+
+const dependenceBars=Array.from({length:9},(_,i)=>({close:100+i,barBucketAt:instant(1000+i*10),recordedAt:instant(1001+i*10)}));
+const dependenceObservations=new Map([["TEST:dependent",new Map([["USD",dependenceBars],["EUR",dependenceBars]])]]);
+const dependenceRow=(offset,currency="USD")=>({key:"TEST:dependent",at:instant(1000+offset),
+  currency,selected:true,short:"MOMENTUM_WATCH",medium:"TREND_WATCH"});
+const dependenceRows=[dependenceRow(-1),dependenceRow(-1),dependenceRow(0),dependenceRow(20),
+  dependenceRow(30),dependenceRow(-1,"EUR"),dependenceRow(100)];
+const dependence=summarizeForwardDecisions(dependenceRows,dependenceObservations).horizons[2].sampleDependence;
+assert.deepEqual(dependence.overall,{measured:6,distinctInstruments:2,distinctWindows:5,
+  disjointWithinInstrument:3,overlappingOrRepeatedWindows:3,decisionUtcDays:1,exitUtcDays:1});
+assert.deepEqual(dependence.byAttention.MOMENTUM_WATCH,dependence.overall);
+assert.equal(dependence.independentSamplesProven,false);
+assert.equal(dependence.effectiveSampleSize,null);
+assert.equal(dependence.changesForecastEligibility,false);
+assert.equal(dependence.strategyPromotionAllowed,false);
+assert.deepEqual(summarizeForwardDecisions([...dependenceRows].reverse(),dependenceObservations).horizons[2].sampleDependence,dependence);
+assert.equal(summarizeForwardDecisions([],new Map()).horizons[2].sampleDependence.overall.measured,0);
+console.log("PASS overlapping and duplicate research windows are distinguished without claims of sample independence");
