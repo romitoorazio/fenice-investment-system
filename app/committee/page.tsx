@@ -1,3 +1,4 @@
+import { readCurrentPublicCommitteeContext } from "@/lib/ui/fenice-analyst-context-runtime.mjs";
 import Link from "next/link";
 import report from "@/data/investment-committee.json";
 import horizonReport from "@/data/v7-horizon-split.json";
@@ -223,7 +224,10 @@ function horizonStrategicClass(state: string) {
   return "border-slate-500/30 bg-slate-500/10 text-slate-300";
 }
 
-export default function CommitteePage() {
+export default async function CommitteePage() {
+  const { committee: current } = await readCurrentPublicCommitteeContext();
+  const currentAt = current.generatedAt;
+  const sameReport = !!currentAt && currentAt === data.generatedAt;
   return (
     <main className="min-h-screen bg-slate-950 px-4 pb-28 pt-6 text-slate-100">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -245,17 +249,24 @@ export default function CommitteePage() {
         </header>
 
         <section className="grid gap-3 md:grid-cols-4">
-          <Metric label="Gate operativo" value={data.executionGate.replaceAll("_", " ")} className={gateClass(data.executionGate)} />
-          <Metric label="Qualità dati" value={`${data.dataQuality}/100`} />
-          <Metric label="BUY verificati" value={String(data.buyCandidateCount)} />
-          <Metric label="Prima tranche" value={money(data.proposedFirstTrancheEuro)} />
+          <Metric label="Gate operativo" value={current.executionGate?.replaceAll("_", " ") ?? "N/D"} className={gateClass(current.executionGate ?? "")} />
+          <Metric label="Qualità dati" value={current.dataQuality == null ? "N/D" : `${current.dataQuality}/100`} />
+          <Metric label="BUY verificati" value={String(current.buyCandidateCount ?? "N/D")} />
+          <Metric label="Prima tranche" value={money(current.proposedFirstTrancheEuro)} />
         </section>
 
+        <section className="rounded-3xl border border-white/10 p-5">
+          <h2 className="font-bold">Decisioni correnti del Comitato</h2>
+          <p>{currentAt ? `Rapporto del ${currentAt} (UTC)` : "Dati correnti non disponibili"}</p>
+          {!sameReport && current.allDecisions?.map(row => (
+            <p key={row.symbol}>{row.symbol} · {row.decision} · punteggio {row.committeeScore ?? "N/D"}</p>
+          ))}
+        </section>
         <section className="rounded-3xl border border-violet-400/20 bg-violet-400/[0.05] p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Fenice V7 · Horizon Split</p>
-              <h2 className="mt-1 text-xl font-black">Tattico oggi, strategico 7–30 giorni</h2>
+              <h2 className="mt-1 text-xl font-black">Tattico e strategico · rilevazione {horizon.generatedAt}</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
                 Strato diagnostico separato dal Comitato: conserva la prudenza di breve ma segnala dove i dati storici indicano
                 che Fenice tende ad attendere troppo nel medio periodo. Non crea ordini e non modifica PAPER V6.
@@ -305,14 +316,14 @@ export default function CommitteePage() {
           <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">Validazione forward-only</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">Validazione forward-only · {shadowEvaluation.generatedAt}</p>
                 <p className="mt-1 text-sm leading-6 text-slate-300">
                   Fenice misura da ora in avanti se la strategia shadow a tranche batte il semplice ATTENDERE. Nessun backfill storico:
                   i risultati compaiono solo quando maturano davvero.
                 </p>
               </div>
               <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${shadowEvaluation.sourceState.sourceFresh ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
-                {shadowEvaluation.sourceState.sourceFresh ? "SOURCE FRESH" : "SOURCE STALE"}
+                {shadowEvaluation.sourceState.sourceFresh ? "Fonte aggiornata alla rilevazione" : "Fonte in ritardo alla rilevazione"}
               </span>
             </div>
 
@@ -459,6 +470,7 @@ export default function CommitteePage() {
         </section>
 
         <section className="space-y-4">
+          <h2 className="font-bold">{sameReport ? "Dettaglio delle decisioni" : "Dettaglio storico del Comitato"} · {data.generatedAt ?? "data sconosciuta"}</h2>
           {data.topDecisions.length === 0 ? (
             <div className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-6 text-amber-100">
               Il primo ciclo Investment Committee non è ancora stato pubblicato. Il gate resta bloccato fino alla generazione dei dati.

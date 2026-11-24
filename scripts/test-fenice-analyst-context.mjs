@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readCurrentPublicCommitteeContext} from '../lib/ui/fenice-analyst-context-runtime.mjs';
@@ -6,7 +7,7 @@ import {answerFeniceResearch} from '../lib/ui/fenice-grounded-analyst.ts';
 const now=Date.parse('2026-11-23T22:00:00.000Z');
 const committee={
   generatedAt:'2026-11-23T21:30:00.000Z',executionGate:'ATTENDERE',
-  marketRegime:'PROTEGGERE CAPITALE',sourceGate:'GREEN',buyCandidateCount:0,
+  dataQuality:97,marketRegime:'PROTEGGERE CAPITALE',sourceGate:'GREEN',buyCandidateCount:0,
   privateSecret:'NEVER_ECHO_THIS_SECRET',allDecisions:[{
     symbol:'ASML',name:'ASML Holding',decision:'OSSERVA',
     terminalDecision:'ATTENDI',committeeScore:70,confidence:91,riskScore:52,
@@ -51,6 +52,10 @@ const read=(overrides={},config={})=>{
 };
 const first=await read();
 assert.equal(first.committee.allDecisions[0].decision,'OSSERVA');
+assert.equal(first.committee.dataQuality,97);
+const committeePage=readFileSync(new URL('../app/committee/page.tsx',import.meta.url),'utf8');
+assert.match(committeePage,/await readCurrentPublicCommitteeContext\(/);
+assert.match(committeePage,/current\.dataQuality/);
 assert.equal(first.quality.intelligenceConfidence,95);
 assert.equal(first.sources.critical.ready,9);
 assert.ok(!JSON.stringify(first).includes('NEVER_ECHO_THIS_SECRET'));
