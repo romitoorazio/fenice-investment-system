@@ -157,4 +157,32 @@ const invalidPayload=spawnSync("node",["scripts/verify-production-ci-before-depl
 assert.equal(invalidPayload.status,0);
 assert.equal(invalidPayload.stdout.trim(),"authorized=false","malformed response never deploys");
 
+// Execute the exact production triage filter, not a duplicated implementation.
+const triage=engineering.split("\n  triage_failed_ci:")[1];
+assert.ok(triage,"CI failure triage must exist");
+assert.match(triage,/actions: read/);
+assert.match(triage,/contents: read/);
+assert.doesNotMatch(triage,/uses: actions\/checkout|contents: write|actions: write|VERCEL_TOKEN|OPENAI_API_KEY/);
+assert.match(triage,/head_repository\.full_name == github\.repository/);
+assert.match(triage,/head_branch == 'main'/);
+assert.match(triage,/attempts\/\$RUN_ATTEMPT\/jobs/);
+const triageShell=triage.match(/run: \|\n([\s\S]+)$/)?.[1];
+assert.ok(triageShell);
+const syntax=spawnSync("bash",["-n"],{input:triageShell,encoding:"utf8"});
+assert.equal(syntax.status,0,syntax.stderr);
+const filter=triage.match(/jq -e '([\s\S]+?)' > "\$RUNNER_TEMP\/fenice-ci-failure\.json"/)?.[1];
+assert.ok(filter,"exact jq filter must be executable");
+const runFilter=payload=>spawnSync("jq",["-e",filter],{input:JSON.stringify(payload),encoding:"utf8"});
+const failJob={id:21,conclusion:"failure",name:"UNTRUSTED_NAME",steps:[{number:1,conclusion:"success"},{number:2,conclusion:"failure",name:"UNTRUSTED_STEP"}]};
+const timeoutJob={id:22,conclusion:"timed_out",steps:[]};
+const valid=runFilter([{jobs:[{id:20,conclusion:"success"},failJob]},{jobs:[timeoutJob]}]);
+assert.equal(valid.status,0,valid.stderr);
+assert.deepEqual(JSON.parse(valid.stdout),[{jobId:21,conclusion:"failure",failedSteps:[{number:2,conclusion:"failure"}]},{jobId:22,conclusion:"timed_out",failedSteps:[]}]);
+for(const payload of [[],[{}],[{jobs:[]}],[{jobs:[{id:1,conclusion:"success"}]}],
+  [{jobs:[{...failJob,id:null}]}],[{jobs:[{...failJob,id:1.5}]}],
+  [{jobs:[{...failJob,steps:{}}]}],[{jobs:[{...failJob,steps:[{number:0,conclusion:"failure"}]}]}],
+  [{jobs:[{...failJob,steps:[{number:"2",conclusion:"failure"}]}]}]]) {
+  assert.notEqual(runFilter(payload).status,0,"invalid incident evidence must fail closed");
+}
+console.log("Fenice exact CI incident filter: PASS (10 cases; no untrusted names or write authority)");
 console.log("Fenice Vercel deployment throttling and exact-CI gate: PASS");
