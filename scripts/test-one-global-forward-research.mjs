@@ -193,3 +193,24 @@ for(let i=0;i<32;i++){
 }
 const bench=summarizeForwardDecisions(predictions,observations).horizons[2].pastFrequencyBenchmark;
 assert.deepEqual(bench,{tested:2,minPriorGroupOutcomes:30,brier:1,pooledBaselineBrier:1});
+
+const pendingPrediction={key:"TEST:pending",at:instant(320),currency:"USD",selected:true,
+  short:"MOMENTUM_WATCH",medium:"TREND_WATCH"};
+const untrainedPrediction={...pendingPrediction,key:"TEST:untrained",short:"CAUTION_REVIEW"};
+const completeCoverage=summarizeForwardDecisions([...predictions,pendingPrediction,untrainedPrediction],observations).horizons[2];
+const coverage=completeCoverage.researchForecastCoverage;
+assert.equal(coverage.totalDecisions,34);
+assert.equal(coverage.available,3);
+assert.equal(coverage.pending,1);
+assert.equal(coverage.scored,2);
+assert.equal(coverage.withheld,31);
+assert.equal(coverage.latestDecisionAt,instant(320));
+assert.deepEqual(coverage.latestGroups.MOMENTUM_WATCH,{decisions:1,priorOutcomes:32,probability:0.0625});
+assert.deepEqual(coverage.latestGroups.CAUTION_REVIEW,{decisions:1,priorOutcomes:0,probability:null});
+assert.equal(coverage.recordedLiveForecast,false);
+assert.equal(coverage.executionEligible,false);
+assert.equal(coverage.liveTradingAllowed,false);
+assert.deepEqual(summarizeForwardDecisions([untrainedPrediction,pendingPrediction,...predictions.slice().reverse()],observations).horizons[2].researchForecastCoverage,
+  {...coverage,latestGroups:{CAUTION_REVIEW:coverage.latestGroups.CAUTION_REVIEW,MOMENTUM_WATCH:coverage.latestGroups.MOMENTUM_WATCH}});
+assert.deepEqual(completeCoverage.pastFrequencyBenchmark,bench);
+console.log("PASS research benchmark coverage includes pending decisions, withholds untrained groups and excludes future labels");
