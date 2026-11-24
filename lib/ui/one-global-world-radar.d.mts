@@ -42,7 +42,9 @@ export type WorldRadarResearchView = {
       scored:number;withheld:number;latestDecisionAt:string|null;
       latestGroups:Record<string,{decisions:number;priorOutcomes:number;probability:number|null}>;
       minimumPriorGroupOutcomes:number;overlappingSamplesPossible:true;recordedLiveForecast:false;
-      researchOnly:true;executionEligible:false;liveTradingAllowed:false}}>;
+      researchOnly:true;executionEligible:false;liveTradingAllowed:false};
+    persistedForecastEvaluation:{issued:number;scored:number;pending:number;brier:number|null;
+      researchOnly:true;netReturnCertified:false;executionEligible:false;liveTradingAllowed:false}}>;
     netReturnPct:null;portfolioDrawdownPct:null;strategyPromotionAllowed:false};
   momentumCount:number;
   trendCount:number;
