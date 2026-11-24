@@ -21,6 +21,8 @@ export type WorldRadarResearchRow = {
   brokerOrderAllowed:false;
   paperEligible:false;
 };
+type ForwardGroup = {eligible:number;measured:number;pending:number;up:number;down:number;flat:number;
+  meanGrossLocalChangePct:number|null;meanSampledMaxDrawdownPct:number|null};
 export type WorldRadarResearchView = {
   mode:"ONE_GLOBAL_PUBLIC_TACTICAL_RESEARCH_ONLY";
   generatedAt:string;
@@ -31,6 +33,12 @@ export type WorldRadarResearchView = {
   researchEligible:number;
   watchlist:WorldRadarResearchRow[];
   intradayAttention:{symbol:string;venueMic:string|null;observedAt:string;evidence:string[];paperEligible:false;brokerOrderAllowed:false;liveTradingAllowed:false}[];
+  emergingResearch:{symbol:string;venueMic:string|null;stage:string;evidence:string[]}[];
+  sampledByAttention:Record<string,{up:number;down:number;flat:number}>;
+  pointInTime:{horizons:Record<2|10|40,ForwardGroup & {byAttention:Record<string,ForwardGroup>;
+    byStage:Record<string,ForwardGroup>;byRegime:Record<string,ForwardGroup>;
+    pastFrequencyBenchmark:{tested:number;brier:number|null;pooledBaselineBrier:number|null}}>;
+    netReturnPct:null;portfolioDrawdownPct:null;strategyPromotionAllowed:false};
   momentumCount:number;
   trendCount:number;
   forwardObservations:number;

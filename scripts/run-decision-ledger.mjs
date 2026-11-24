@@ -1,3 +1,4 @@
+import {verifiedReturnForecast} from "../lib/intelligence/shadow-calibration.mjs";
 import { readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -83,6 +84,7 @@ for (const decision of committee.allDecisions || []) {
   const key = `${decision.symbol}:${decision.decision}`;
   if (existingCycleKeys.has(key)) continue;
   const price = Number(decision.currentPrice);
+  const forecast = verifiedReturnForecast(decision.positiveReturnForecast,cycleId);
   records.push({
     id: `${cycleId}:${decision.symbol}:${decision.decision}`,
     cycleId,
@@ -93,6 +95,7 @@ for (const decision of committee.allDecisions || []) {
     committeeScore: decision.committeeScore,
     // Research vintage at decision time, never a BUY signal.
     strategyResearch: decision.strategyResearch ?? null,
+    ...(forecast ? {positiveReturnForecast:forecast} : {}),
     confidence: decision.confidence,
     riskScore: decision.riskScore,
     positionType: decision.positionType,
