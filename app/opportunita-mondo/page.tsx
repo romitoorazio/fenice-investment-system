@@ -103,7 +103,7 @@ export default async function GlobalOpportunitiesPage(){
             </div>}
           </section>
           {radar.emergingResearch.length>0 && <section className="space-y-2 rounded-xl border border-cyan-300/25 p-4">
-            <h3 className="font-bold text-cyan-200">Titoli vicini o oltre i massimi recenti</h3>
+            <h3 className="font-bold text-cyan-200">Accelerazioni e massimi recenti</h3>
             {radar.emergingResearch.map(item=><p className="text-sm" key={(item.venueMic??"USA")+":"+item.symbol}>
               <strong>{item.symbol} · {item.venueMic??"USA"}</strong> — {item.evidence.join(" · ")}
             </p>)}

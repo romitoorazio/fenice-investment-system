@@ -88,3 +88,14 @@ assert.equal(run(intraday,ledger,new Date(Date.parse(intraday.generatedAt)+31*60
 assert(page.includes("radar.intradayAttention.map"));
 assert(page.includes("Volumi e breakout non confermati"));
 console.log("PASS public intraday research alerts, no prices or execution permissions");
+
+const emergingTerminal=structuredClone(terminal);
+const emergingAsset=emergingTerminal.assets.find(a=>a.symbol==="ENEL");
+emergingAsset.technical.completedBarResearch={stage:"VOLUME_BACKED_ACCELERATION",accelerating:true,
+  unusualVolume:true,upVolumeDominant:true,barBucketAt:emergingAsset.technical.observedAt};
+const emergingView=run(emergingTerminal);
+const emerging=emergingView.emergingResearch.find(row=>row.symbol==="ENEL");
+assert.equal(emerging?.stage,"VOLUME_BACKED_ACCELERATION");
+assert(emerging.evidence.some(label=>label.includes("sotto i massimi recenti")));
+assert.deepEqual(emergingView.watchlist.map(row=>row.symbol),result.watchlist.map(row=>row.symbol));
+assert.equal(emergingView.policy.liveTradingAllowed,false);
