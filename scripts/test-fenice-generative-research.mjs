@@ -61,7 +61,7 @@ assert.match(messages[1].content, /investment-committee/);
 assert.match(messages[1].content, /ATTENDERE/);
 assert.doesNotMatch(messages[1].content, /FENICE_AI_OWNER_TOKEN/);
 assert.equal(FENICE_GENERATIVE_MODEL, "gpt-4o-mini");
-assert.ok(FENICE_AI_MAX_RESPONSE_TOKENS <= 600);
+assert.equal(FENICE_AI_MAX_RESPONSE_TOKENS, 1024);
 assert.equal(cleanGenerativeExplanation({ choices: [{ message: { content: "short" } }] }), null);
 assert.equal(cleanGenerativeExplanation({ choices: [{ message: { content: "Il comitato vede ASML come OSSERVA. Le due fonti confermano che i dati non bastano a comprare." } }] }).startsWith("Il comitato"), true);
 
@@ -74,7 +74,7 @@ const fakeFetch = async (url, init) => {
     choices: [{ message: { content: "Fenice mantiene ASML in OSSERVA e non lo compra. Le prove data/investment-committee.json e data/calibration-analysis.json sono insufficienti per il trading." } }],
   }) };
 };
-const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, openaiToken, now, fetchImpl: fakeFetch });
+const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
 assert.equal(calls, 1);
 assert.equal(generated.state, "GENERATED");
 assert.equal(generated.committeeVerdict, "ATTENDERE");
@@ -84,7 +84,7 @@ assert.equal(outgoing.url, "https://api.openai.com/v1/chat/completions");
 assert.equal(outgoing.init.method, "POST");
 const body = JSON.parse(outgoing.init.body);
 assert.equal(body.model, FENICE_GENERATIVE_MODEL);
-assert.equal(body.max_tokens, 220);
+assert.equal(body.max_tokens, 1024);
 assert.equal(body.store, false);
 assert.equal(body.messages.length, 2);
 assert.equal(body.tools, undefined);
@@ -92,19 +92,40 @@ assert.equal(body.stream, undefined);
 
 const qualityBlocked = await generateGroundedExplanation({
   question: "ASML", grounded: { ...grounded, evidenceQualityVerified: false },
-  openaiToken, now, fetchImpl: fakeFetch,
+  openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch,
 });
 assert.equal(qualityBlocked.state, "UNAVAILABLE");
 assert.equal(calls, 1, "untrusted source data must not call paid provider");
 
-const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, openaiToken, now, fetchImpl: fakeFetch });
+const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
 assert.equal(blocked.state, "UNAVAILABLE");
 assert.equal(calls, 1, "stale/invalid research must NEVER spend credits");
 const bad = await generateGroundedExplanation({ question: "ASML", grounded, openaiToken, now,
-  fetchImpl: async () => ({ ok: false, status: 402 }) });
+  reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: false, status: 402 }) });
 assert.equal(bad.state, "UNAVAILABLE");
 assert.equal(bad.brokerOrderAllowed, false);
 const modelFailure = await generateGroundedExplanation({ question: "ASML", grounded, openaiToken, now,
-  fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [] }) }) });
+  reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [] }) }) });
 assert.equal(modelFailure.state, "BAD_RESPONSE");
 console.log("Fenice generative explanation, owner access and budget safety: PASS");
+
+const before = calls;
+for (const reserveBudget of [undefined, async () => ({allowed:false,reservedCents:500,warning:true}), async () => {throw Error("storage unavailable");}]) {
+  const result = await generateGroundedExplanation({question:"ASML", grounded, openaiToken, now, fetchImpl:fakeFetch, reserveBudget});
+  assert.equal(result.state,"UNAVAILABLE");
+}
+assert.equal(calls,before);
+const { reserveAiBudget } = await import("../lib/ai/fenice-monthly-budget.ts");
+let stored = null; let version = 0;
+const store = {async read(){return stored ? {...stored}:null;}, async write(body,etag){if(etag !== (stored?.etag??null))return false;stored={body,etag:String(++version)};return true;}};
+assert.equal((await reserveAiBudget(store,now,null)).allowed,false);
+assert.equal((await reserveAiBudget(store,now,{month:"2026-10",reservedCents:398})).warning,true);
+const results=await Promise.all(Array.from({length:10},()=>reserveAiBudget(store,now,null)));
+assert.equal(results.filter(x=>x.allowed).length,1);
+for(let i=0;i<60;i++) await reserveAiBudget(store,now,null);
+assert.equal(JSON.parse(stored.body).reservedCents,500);
+assert.equal((await reserveAiBudget(store,now,null)).allowed,false);
+assert.equal((await reserveAiBudget(store,Date.parse("2026-10-31T23:59:30Z"),null)).allowed,false);
+assert.equal((await reserveAiBudget(store,Date.parse("2026-11-01T01:00:00Z"),null)).reservedCents,2);
+stored.body="broken";assert.equal((await reserveAiBudget(store,now,null)).allowed,false);
+console.log("Monthly budget reservation, concurrent conflict and fail-closed regression: PASS");
