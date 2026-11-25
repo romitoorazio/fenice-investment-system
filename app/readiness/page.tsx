@@ -445,6 +445,7 @@ export default async function ReadinessPage() {
           </section>
         )}
 
+        {!paperOwnerCheckpoint.legacyRetired && (
         <section className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4" aria-label="Autorizzazione e durata PAPER">
           <p className="text-sm font-bold text-amber-200">
             {calendar.ownerActionRequired ? "Nuovi probe PAPER: intervento necessario" : "Nuovi probe PAPER e maturazione: finestre separate"}
@@ -478,6 +479,7 @@ export default async function ReadinessPage() {
             Nessuna modifica automatica alla V6; trading reale sempre bloccato.
           </p>
         </section>
+        )}
 
         {!temporalRiskSafety.coreVerified && (
           <section className="rounded-2xl border border-rose-400/30 bg-rose-400/[0.04] p-4" aria-label="Integrità temporale del rischio">
@@ -587,8 +589,9 @@ export default async function ReadinessPage() {
             </p>
           )}
           <p className="mt-2 text-xs text-slate-400">
-            La correzione per distinguere le tre cause al momento di ogni futuro tentativo
-            richiede una nuova baseline approvata: l&apos;esecuzione V6 rimane invariata.
+            {paperOwnerCheckpoint.legacyRetired
+              ? "Diagnostica della V6 ritirata: nessuna nuova baseline o esecuzione V6 richiesta."
+              : "La correzione per distinguere le tre cause al momento di ogni futuro tentativo richiede una nuova baseline approvata: l'esecuzione V6 rimane invariata."}
           </p>
           <p className="mt-2 text-xs text-slate-500">Diagnosi read-only; nessun refresh provider, ordine, rilascio LIVE o rinnovo PAPER.</p>
         </section>
