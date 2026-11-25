@@ -4,7 +4,7 @@ import type { BudgetDecision } from "./fenice-monthly-budget.ts";
 const ROOT="https://api.github.com/repos/romitoorazio/fenice-investment-system";
 const REPO="romitoorazio/fenice-investment-system";
 const SHA=/^[a-f0-9]{40}$/;
-const ALLOWED=/^(?:lib\/intelligence\/[A-Za-z0-9_./-]+\.(?:mjs|ts)|scripts\/test-[A-Za-z0-9_-]+\.mjs|\.github\/workflows\/[A-Za-z0-9_.-]+\.ya?ml)$/;
+const ALLOWED=/^(?:lib\/intelligence\/[A-Za-z0-9_./-]+\.(?:mjs|ts)|scripts\/test-[A-Za-z0-9_-]+\.mjs|scripts\/run-decision-ledger\.mjs|\.github\/workflows\/[A-Za-z0-9_.-]+\.ya?ml)$/;
 const MAX_PATCH_BYTES=12000;
 type Input={pr:number;head:string;confirmMeteredReview:true};
 type Finding={path:string;severity:"HIGH"|"MEDIUM"|"LOW";reason:string};

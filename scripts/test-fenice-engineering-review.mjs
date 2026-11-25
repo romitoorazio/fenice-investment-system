@@ -9,6 +9,19 @@ assert.deepEqual(reviewInput(input),input);
 assert.equal(reviewInput({...input,confirmMeteredReview:false}),null);
 assert.equal(reviewInput({...input,head:"main"}),null);
 assert.equal(reviewComparison(metadata,comparison,head).length,1);
+
+// The actual #683 file scope: exact research runner, research helper and test.
+// Other runners, private data, broker code and self-review remain forbidden.
+const ledgerFiles=[
+  {...file,filename:"lib/intelligence/decision-ledger-price-evidence.mjs"},
+  {...file,filename:"scripts/run-decision-ledger.mjs"},
+  {...file,filename:"scripts/test-decision-ledger-retention.mjs"}
+];
+assert.equal(reviewComparison({...metadata,changed_files:3},{...comparison,files:ledgerFiles},head)?.length,3);
+for(const filename of ["scripts/run-paper-oms.mjs","scripts/run-directa-readonly.mjs","scripts/run-decision-ledger-extra.mjs","lib/ai/fenice-engineering-review.ts","data/decision-ledger.json"]){
+  assert.equal(reviewComparison(metadata,{...comparison,files:[{...file,filename}]},head),null);
+}
+
 assert.equal(reviewComparison({...metadata,head:{sha:base,repo}},comparison,head),null);
 assert.equal(reviewComparison(metadata,{...comparison,files:[{...file,filename:"data/private.json"}]},head),null);
 assert.equal(reviewComparison(metadata,{...comparison,files:[{...file,additions:2}]},head),null);
