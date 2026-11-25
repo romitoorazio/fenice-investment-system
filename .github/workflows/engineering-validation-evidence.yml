@@ -134,3 +134,54 @@ jobs:
 
           echo "::error::Unable to publish engineering validation evidence after 3 safe attempts."
           exit 1
+
+  # Read-only incident evidence: do not execute code from a failed workflow.
+  triage_failed_ci:
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'schedule') &&
+      (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Record failed CI job and step evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ && "$RUN_ATTEMPT" =~ ^[0-9]+$ && "$TESTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          # The jobs endpoint is scoped to this exact attempt, not a later retry.
+          # No checkout, full logs, artifact execution, repository writes or broker access.
+          gh api --paginate --slurp "/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs?per_page=100" |
+            jq -e '
+              if type != "array" or length == 0 or any(.[]; (.jobs | type) != "array")
+                then error("CI_JOB_METADATA_UNAVAILABLE") else . end
+              | [.[].jobs[]]
+              | if length == 0 then error("CI_JOB_METADATA_EMPTY") else . end
+              | map(select(.conclusion == "failure" or .conclusion == "timed_out"))
+              | if length == 0 then error("NO_FAILED_JOB_EVIDENCE") else . end
+              | if any(.[]; (.id | type) != "number" or (.id <= 0) or (.id != (.id|floor))) then error("INVALID_JOB_ID") else . end
+              | if any(.[]; (.steps // []) | type != "array") then error("INVALID_STEP_METADATA") else . end
+              | if any(.[]; any((.steps // [])[]; (.conclusion == "failure" or .conclusion == "timed_out") and ((.number|type) != "number" or (.number <= 0) or (.number != (.number|floor))))) then error("INVALID_STEP_ID") else . end
+              | map({jobId: (.id | numbers), conclusion,
+                failedSteps: [(.steps // [])[] | select(.conclusion == "failure" or .conclusion == "timed_out")
+                  | {number: (.number | numbers), conclusion}]})
+              ' > "$RUNNER_TEMP/fenice-ci-failure.json"
+          {
+            echo "## CI incident evidence — diagnostic only"
+            printf 'Source run %s, attempt %s, tested SHA %s.\n\n' "$RUN_ID" "$RUN_ATTEMPT" "$TESTED_SHA"
+            echo 'Failed job and step identifiers (no names or raw logs):'
+            echo '```json'
+            cat "$RUNNER_TEMP/fenice-ci-failure.json"
+            echo '```'
+            echo 'Incident capture is best-effort (workflow concurrency may supersede pending runs). Root cause and repair are NOT verified. Review exact job logs in GitHub with authorized access; reproduce in an isolated branch and require independent review.'
+            echo 'No retry, write, deployment, PAPER or LIVE authority granted.'
+          } >> "$GITHUB_STEP_SUMMARY"
