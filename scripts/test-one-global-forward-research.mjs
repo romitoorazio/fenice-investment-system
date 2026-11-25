@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {advanceWorldForwardResearchLedger,replayWorldForwardResearchLedger,
   newWorldForwardResearchLedger,summarizeWorldForwardResearchLedger}
@@ -193,3 +194,84 @@ for(let i=0;i<32;i++){
 }
 const bench=summarizeForwardDecisions(predictions,observations).horizons[2].pastFrequencyBenchmark;
 assert.deepEqual(bench,{tested:2,minPriorGroupOutcomes:30,brier:1,pooledBaselineBrier:1});
+
+const pendingPrediction={key:"TEST:pending",at:instant(320),currency:"USD",selected:true,
+  short:"MOMENTUM_WATCH",medium:"TREND_WATCH"};
+const untrainedPrediction={...pendingPrediction,key:"TEST:untrained",short:"CAUTION_REVIEW"};
+const completeCoverage=summarizeForwardDecisions([...predictions,pendingPrediction,untrainedPrediction],observations).horizons[2];
+const coverage=completeCoverage.researchForecastCoverage;
+assert.equal(coverage.totalDecisions,34);
+assert.equal(coverage.available,3);
+assert.equal(coverage.pending,1);
+assert.equal(coverage.scored,2);
+assert.equal(coverage.withheld,31);
+assert.equal(coverage.latestDecisionAt,instant(320));
+assert.deepEqual(coverage.latestGroups.MOMENTUM_WATCH,{decisions:1,priorOutcomes:32,probability:0.0625});
+assert.deepEqual(coverage.latestGroups.CAUTION_REVIEW,{decisions:1,priorOutcomes:0,probability:null});
+assert.equal(coverage.recordedLiveForecast,false);
+assert.equal(coverage.executionEligible,false);
+assert.equal(coverage.liveTradingAllowed,false);
+assert.deepEqual(summarizeForwardDecisions([untrainedPrediction,pendingPrediction,...predictions.slice().reverse()],observations).horizons[2].researchForecastCoverage,
+  {...coverage,latestGroups:{CAUTION_REVIEW:coverage.latestGroups.CAUTION_REVIEW,MOMENTUM_WATCH:coverage.latestGroups.MOMENTUM_WATCH}});
+assert.deepEqual(completeCoverage.pastFrequencyBenchmark,bench);
+console.log("PASS research benchmark coverage includes pending decisions, withholds untrained groups and excludes future labels");
+
+const {buildResearchFrequencyTraining,issueResearchFrequencyForecasts}=await import("../lib/intelligence/one-global-forward-diagnostics.mjs");
+const strictTraining=buildResearchFrequencyTraining(predictions,observations,instant(310));
+const issued=issueResearchFrequencyForecasts(strictTraining,pendingPrediction,instant(310),"fixture-tip");
+assert.equal(issued.length,1);
+assert.equal(issued[0].horizon,2);
+assert.equal(issued[0].priorOutcomes,30);
+assert.equal(issued[0].priorPositive,0);
+assert.equal(issued[0].probability,0);
+assert.equal(issued[0].trainingTip,"fixture-tip");
+assert.deepEqual(issueResearchFrequencyForecasts(strictTraining,untrainedPrediction,instant(310),"fixture-tip"),[]);
+assert.deepEqual(issueResearchFrequencyForecasts(buildResearchFrequencyTraining(predictions,observations,instant(100)),pendingPrediction,instant(100),"fixture-tip"),[]);
+const scoredFixture=summarizeForwardDecisions([{...predictions[31],researchForecasts:issued}],observations).horizons[2].persistedForecastEvaluation;
+assert.equal(scoredFixture.issued,1);
+assert.equal(scoredFixture.scored,1);
+assert.equal(scoredFixture.brier,1);
+assert.equal(scoredFixture.executionEligible,false);
+assert.equal(summarizeForwardDecisions([{...pendingPrediction,researchForecasts:issued}],observations).horizons[2].persistedForecastEvaluation.pending,1);
+
+// Extend only a synthetic ledger with subsequent snapshots; never rewrite real history.
+let extended=fifth;
+for(let day=5;day<=22;day++)extended=moveDays(day,extended.ledger);
+const forecastEvents=extended.ledger.events.filter(e=>e.researchForecasts?.length);
+assert(forecastEvents.length>0,"Sufficient matured prior outcomes should produce prospective forecast vintages");
+assert.deepEqual(extended.ledger.events.slice(0,fifth.ledger.events.length),fifth.ledger.events);
+assert.equal(replayWorldForwardResearchLedger(extended.ledger).valid,true);
+assert(forecastEvents.every(e=>e.researchForecasts.every(f=>f.generatedAt===e.recordedAt&&
+  f.priorOutcomes>=30&&f.researchOnly&&!f.executionEligible&&!f.liveTradingAllowed)));
+assert(extended.performance.pointInTime.horizons[2].persistedForecastEvaluation.issued>0);
+assert(extended.performance.pointInTime.horizons[2].persistedForecastEvaluation.scored>0);
+assert.equal(extended.performance.paperFills,0);
+const corruptVintage=structuredClone(extended.ledger);
+const corruptIndex=corruptVintage.events.findIndex(e=>e.researchForecasts?.length);
+corruptVintage.events[corruptIndex].researchForecasts[0].priorPositive++;
+for(let i=corruptIndex;i<corruptVintage.events.length;i++){
+  const {sha256,...payload}=corruptVintage.events[i];
+  payload.prevHash=i===0?"GENESIS":corruptVintage.events[i-1].sha256;
+  corruptVintage.events[i]={...payload,sha256:createHash("sha256").update(JSON.stringify(payload)).digest("hex")};
+}
+corruptVintage.lastHash=corruptVintage.events.at(-1).sha256;
+assert.throws(()=>replayWorldForwardResearchLedger(corruptVintage),/FORWARD_RESEARCH_FORECAST_VINTAGE_INVALID/);
+console.log("PASS prospective research forecast persistence, strict prior training, scoring and semantic vintage replay");
+
+const dependenceBars=Array.from({length:9},(_,i)=>({close:100+i,barBucketAt:instant(1000+i*10),recordedAt:instant(1001+i*10)}));
+const dependenceObservations=new Map([["TEST:dependent",new Map([["USD",dependenceBars],["EUR",dependenceBars]])]]);
+const dependenceRow=(offset,currency="USD")=>({key:"TEST:dependent",at:instant(1000+offset),
+  currency,selected:true,short:"MOMENTUM_WATCH",medium:"TREND_WATCH"});
+const dependenceRows=[dependenceRow(-1),dependenceRow(-1),dependenceRow(0),dependenceRow(20),
+  dependenceRow(30),dependenceRow(-1,"EUR"),dependenceRow(100)];
+const dependence=summarizeForwardDecisions(dependenceRows,dependenceObservations).horizons[2].sampleDependence;
+assert.deepEqual(dependence.overall,{measured:6,distinctInstruments:2,distinctWindows:5,
+  disjointWithinInstrument:3,overlappingOrRepeatedWindows:3,decisionUtcDays:1,exitUtcDays:1});
+assert.deepEqual(dependence.byAttention.MOMENTUM_WATCH,dependence.overall);
+assert.equal(dependence.independentSamplesProven,false);
+assert.equal(dependence.effectiveSampleSize,null);
+assert.equal(dependence.changesForecastEligibility,false);
+assert.equal(dependence.strategyPromotionAllowed,false);
+assert.deepEqual(summarizeForwardDecisions([...dependenceRows].reverse(),dependenceObservations).horizons[2].sampleDependence,dependence);
+assert.equal(summarizeForwardDecisions([],new Map()).horizons[2].sampleDependence.overall.measured,0);
+console.log("PASS overlapping and duplicate research windows are distinguished without claims of sample independence");
