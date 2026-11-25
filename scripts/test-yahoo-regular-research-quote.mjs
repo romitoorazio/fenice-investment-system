@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { yahooRegularSessionResearchQuote, yahooWorldIntradayResearchQuote } from "../lib/intelligence/yahoo-regular-research-quote.mjs";
+import { yahooRegularSessionResearchQuote, yahooWorldIntradayResearchQuote, committeeSessionResearchQuote } from "../lib/intelligence/yahoo-regular-research-quote.mjs";
 
 const now = new Date("2026-10-13T15:01:00.000Z");
 const ts = value => Math.floor(Date.parse(value) / 1000);
@@ -53,7 +53,7 @@ const shadow = await readFile(new URL("../lib/intelligence/horizon-shadow-evalua
 const yaml = await readFile(new URL("../.github/workflows/v7-horizon-shadow-evaluation.yml",import.meta.url),"utf8");
 assert.match(terminal,/yahooRegularSessionResearchQuote\(result\.meta/);
 assert.match(terminal,/DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE/);
-assert.match(committee,/priceEvidence: asset\.technical\?\.researchQuote/);
+assert.match(committee,/priceEvidence: committeeSessionResearchQuote\(asset, terminalGeneratedAt, now\.getTime\(\)\)/);
 assert.match(committee,/NO_VERIFIED_REGULAR_TRADE/);
 assert.match(shadow,/quote\?\.evidenceType !== "YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY"/);
 assert.match(shadow,/Math\.abs\(current - observed\)/);
@@ -64,6 +64,18 @@ assert.match(yaml,/Fenice V7 Horizon Split/);
 assert.ok(yaml.includes('cron: "22 23 * * 1-5"'), "Keep daily shadow fallback");
 assert.doesNotMatch(yaml,/      - Fenice World Terminal/);
 console.log("FENICE100K Yahoo regular-market quote provenance, V7 isolation and terminal hook: PASS");
+
+
+const usAsset = {symbol:"SPY", currency:"USD", technical:{symbol:"SPY", currency:"USD", market:"USA",
+  timestampSemantics:"DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE", researchQuote:good}};
+const atDecision = (asset, snapshotAt = now.toISOString(), decisionMs = now.getTime()) =>
+  committeeSessionResearchQuote(asset, snapshotAt, decisionMs);
+assert.deepEqual(atDecision(usAsset), {...good, referencePriceSemantics:"DAILY_ADJUSTED_CANDLE_CLOSE"});
+assert.equal(atDecision(usAsset, "2026-10-13T14:58:59.000Z"), null);
+assert.equal(atDecision(usAsset, "2026-10-13T15:02:00.000Z"), null);
+assert.equal(atDecision(usAsset, now.toISOString(), Date.parse(good.observedAt) + 30*60_000 + 1), null);
+assert.equal(atDecision(usAsset, "2026-02-30T15:01:00.000Z"), null);
+assert.equal(atDecision({...usAsset, symbol:"QQQ"}), null);
 
 const { WORLD_YAHOO_RESEARCH_SYMBOLS } = await import("../lib/intelligence/world-terminal-universe.mjs");
 for (const [key, mapping] of Object.entries(WORLD_YAHOO_RESEARCH_SYMBOLS)) {
@@ -81,6 +93,18 @@ for (const [key, mapping] of Object.entries(WORLD_YAHOO_RESEARCH_SYMBOLS)) {
   assert.equal(q.currency,mapping.currency,key);
   assert.equal(q.exchangeMic,exchangeMic,key);
   assert.equal(q.evidenceType,"YAHOO_WORLD_REGULAR_TRADE_RESEARCH_ONLY");
+  const asset = {symbol:ticker, currency:mapping.currency, technical:{symbol:ticker, yahooSymbol:mapping.query,
+    currency:mapping.currency, exchangeMic, researchOnly:true, worldIntradayResearchQuote:q}};
+  assert.deepEqual(atDecision(asset), {...q, referencePriceSemantics:null}, key);
+  for (const changes of [{exchangeMic:"XXXX"}, {currency:"XXX"}, {feedCount:2}, {source:"unidentified"},
+    {exactMicExecutionVerified:true}, {executionEligible:true}, {brokerSubmissionAllowed:true},
+    {liveTradingAllowed:true}, {paperCertificationEligible:true}, {observedAt:"invalid"}, {price:0},
+    {evidenceType:"YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY"}]) {
+    assert.equal(atDecision({...asset, technical:{...asset.technical, worldIntradayResearchQuote:{...q, ...changes}}}), null, key);
+  }
+  assert.equal(atDecision({...asset, technical:{...asset.technical, yahooSymbol:"WRONG"}}), null, key);
+  assert.equal(atDecision({...asset, technical:{...asset.technical, worldIntradayResearchQuote:null, researchQuote:good}}), null, key);
+
   for(const flag of ["executionEligible","paperCertificationEligible","brokerSubmissionAllowed","liveTradingAllowed","exactMicExecutionVerified"]) assert.equal(q[flag],false);
   assert.equal(yahooWorldIntradayResearchQuote({...foreign,symbol:"WRONG"},definition,now),null);
   assert.equal(yahooWorldIntradayResearchQuote({...foreign,currency:"XXX"},definition,now),null);
