@@ -11,9 +11,10 @@ const BOT="coderabbitai[bot]";
 const isBot=(user,login)=>user?.login===login&&user?.type==="Bot";
 const isRateLimited=comment=>isBot(comment?.user,BOT)
   &&typeof comment.body==="string"
-  &&comment.body.includes("<!-- coderabbit-ai-generated:v1 -->")
-  &&(comment.body.split(/\r?\n/).includes("Review rate limited.")
-    ||comment.body.includes("<!-- This is an auto-generated comment: rate limited by coderabbit.ai -->"));
+  &&((comment.body.includes("<!-- coderabbit-ai-generated:v1 -->")
+    &&comment.body.includes("<!-- This is an auto-generated comment: rate limited by coderabbit.ai -->"))
+    ||(comment.body.includes("<!-- This is an auto-generated reply by CodeRabbit -->")
+      &&comment.body.split(/\r?\n/).some(line=>line.trim()==="Review rate limited.")));
 const validPr=pr=>pr?.state==="open"&&pr.draft===false&&pr.base?.ref==="main"
   &&pr.base?.repo?.full_name===REPO&&pr.base.repo.private===false
   &&pr.head?.repo?.full_name===REPO&&pr.head.repo.private===false
