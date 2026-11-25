@@ -92,3 +92,64 @@ try {
   globalThis.fetch=previousFetch;
   for(const [k,v] of Object.entries(previousEnv)) {if(v===undefined)delete process.env[k];else process.env[k]=v;}
 }
+
+
+/* Independent fallback: real provider quota fixture, bounded request-only plan,
+   no model calls, no authorization by a PR author or untrusted comment. */
+import {reviewFallbackPlan,routeIndependentReview} from "./route-independent-review.mjs";
+const routerRepo={full_name:"romitoorazio/fenice-investment-system",private:false};
+const routerHead="d".repeat(40),routerTime=Date.parse("2026-11-25T21:28:00Z");
+const rabbit={login:"coderabbitai[bot]",type:"Bot"};
+const quotaComment={id:101,user:rabbit,created_at:new Date(routerTime-1000).toISOString(),
+  body:"<!-- coderabbit-ai-generated:v1 -->\nReview rate limited."};
+const routerEvent={action:"created",repository:routerRepo,issue:{number:685,pull_request:{}},
+  sender:rabbit,comment:quotaComment};
+const routerPr={number:685,state:"open",draft:false,head:{sha:routerHead,repo:routerRepo},
+  base:{ref:"main",repo:routerRepo}};
+const plan=reviewFallbackPlan(routerEvent,routerPr,[quotaComment],[],routerTime);
+assert.equal(plan.action,"REQUEST_CUBIC");
+assert.equal(plan.head,routerHead);assert.equal(plan.mergeAllowed,false);assert.equal(plan.liveTradingAllowed,false);
+assert.match(plan.body,/^@cubic-dev-ai review this PR/);
+const blockedFixtures=[
+  [{...routerEvent,sender:{login:"attacker",type:"User"}},routerPr,[quotaComment],[]],
+  [{...routerEvent,comment:{...quotaComment,user:{login:"coderabbitai[bot]",type:"User"}}},routerPr,[quotaComment],[]],
+  [routerEvent,{...routerPr,draft:true},[quotaComment],[]],
+  [routerEvent,{...routerPr,head:{...routerPr.head,repo:{...routerRepo,full_name:"fork/fenice"}}},[quotaComment],[]],
+  [routerEvent,{...routerPr,base:{...routerPr.base,ref:"other"}},[quotaComment],[]],
+  [routerEvent,routerPr,[{...quotaComment,created_at:new Date(routerTime-3600000).toISOString()}],[]],
+  [routerEvent,routerPr,[quotaComment,{body:plan.body}],[]],
+  [routerEvent,routerPr,[quotaComment,{user:{login:"cubic-dev-ai[bot]",type:"Bot"},body:"started"}],[]],
+  [routerEvent,routerPr,[quotaComment],[{state:"CHANGES_REQUESTED"}]],
+  [routerEvent,routerPr,Array(100).fill(quotaComment),[]],
+  [routerEvent,routerPr,[],[]]
+];
+for(const fixture of blockedFixtures)assert.equal(reviewFallbackPlan(...fixture,routerTime).action,"SKIP");
+function fakeGithub({changeHead=false,duplicate=false,fail=false}={}){
+  let reads=0,commentReads=0;const requests=[];
+  return {requests,fetcher:async(url,opts)=>{
+    requests.push({url,opts});
+    if(fail)return Response.json({}, {status:403});
+    if(opts.method==="POST")return Response.json({id:987});
+    if(url.endsWith("/pulls/685"))return Response.json({...routerPr,head:{...routerPr.head,
+      sha:changeHead&&++reads>1?"e".repeat(40):routerHead}});
+    if(url.includes("/comments?"))return Response.json(duplicate&&++commentReads>1?[quotaComment,{body:plan.body}]:[quotaComment]);
+    if(url.includes("/reviews?"))return Response.json([]);
+    throw Error("unexpected request");
+  }};
+}
+const goodRoute=fakeGithub();
+const posted=await routeIndependentReview(routerEvent,"fixture-token",goodRoute.fetcher,()=>routerTime);
+assert.equal(posted.action,"REQUEST_POSTED");assert.equal(posted.commentId,987);
+const writes=goodRoute.requests.filter(c=>c.opts.method==="POST");
+assert.equal(writes.length,1);
+assert.match(writes[0].url,/\/issues\/685\/comments$/);
+assert.deepEqual(JSON.parse(writes[0].opts.body),{body:plan.body});
+for(const options of [{changeHead:true},{duplicate:true}]){
+  const mock=fakeGithub(options);
+  assert.equal((await routeIndependentReview(routerEvent,"fixture-token",mock.fetcher,()=>routerTime)).action,"SKIP");
+  assert.equal(mock.requests.filter(c=>c.opts.method==="POST").length,0);
+}
+const failedRoute=fakeGithub({fail:true});
+await assert.rejects(routeIndependentReview(routerEvent,"fixture-token",failedRoute.fetcher,()=>routerTime));
+assert.equal(failedRoute.requests.filter(c=>c.opts.method==="POST").length,0);
+console.log("PASS independent review fallback: authenticated rate-limit evidence, no duplicate, no merge permissions, changed head fail closed");
