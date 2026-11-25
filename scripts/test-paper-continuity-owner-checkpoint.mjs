@@ -58,3 +58,22 @@ assert.doesNotMatch(page,/paperApproval\.approved\s*=/);
 const core = readFileSync(new URL("../data/paper-validation-approval.json",import.meta.url),"utf8");
 assert.equal(JSON.parse(core).liveTradingAllowed,false);
 console.log("FENICE100K PAPER V6 owner continuity advisory — PASS (no approval, no orders)");
+
+
+const retirement = JSON.parse(readFileSync(new URL("../data/one-global-legacy-retirement.json",import.meta.url),"utf8"));
+const retired = checkpoint(base,existingApproval,retirement);
+assert.equal(retired.status,"LEGACY_RETIRED");
+assert.equal(retired.legacyRetired,true);
+assert.equal(retired.missingAuthorizedPaperFills,3,"preserve historical counts");
+assert.equal(retired.illustrativeMinimumDailyProbeWindows,null);
+assert.equal(retired.humanDecisionNeededBeforeExpiry,false);
+for(const key of ["realProfitVerified","renewedByThisCheck","newPaperProbesAuthorizedByThisCheck","paperCertifiedByThisCheck","brokerOrdersAllowed","liveTradingAllowed"])assert.equal(retired[key],false);
+for(const invalid of [{...retirement,renewPreviousApprovals:true},{...retirement,certificationCredit:1},{...retirement,retiredCampaigns:[]}]){
+  assert.equal(checkpoint(base,existingApproval,invalid).legacyRetired,false);
+}
+assert.match(page,/buildPaperContinuityOwnerCheckpoint\(calendar, paperApproval, legacyRetirement\)/);
+assert.match(page,/!paperOwnerCheckpoint.legacyRetired && calendar.preExpiryOperatorAttentionRequired/);
+assert.match(page,/href="\/recupero-paper"/);
+assert.match(api,/paperCertificationWindowScope/);
+assert.match(api,/RETIRED_V6_HISTORICAL_ONLY/);
+console.log("PASS retired V6 historical-only presentation; original ONE GLOBAL audit remains separate, LIVE locked");
