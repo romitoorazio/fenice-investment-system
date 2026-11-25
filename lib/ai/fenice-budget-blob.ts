@@ -29,7 +29,7 @@ export function createAiBudgetStore(client: BlobClient, auth: Record<string, unk
       if (first === null) return null;
       const body = await readSmall(first);
       const meta = await client.head(PATH, auth);
-      if (!meta.etag || meta.size !== Buffer.byteLength(body)) throw Error("BUDGET_VERSION_INVALID");
+      if (!meta.etag || meta.etag !== first.blob.etag || meta.size !== Buffer.byteLength(body)) throw Error("BUDGET_VERSION_INVALID");
       const second = await client.get(PATH, { access: "private", useCache: false, ...auth });
       if (!second || second.blob.etag !== first.blob.etag || await readSmall(second) !== body) throw Error("BUDGET_CHANGED");
       return { body, etag: meta.etag };
