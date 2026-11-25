@@ -100,3 +100,20 @@ assert(!worldTacticalResearchRadar({terminal:badDaily,nowIso:at}).screenedResear
 const afterSnapshot=structuredClone(sample);
 afterSnapshot.assets.find(a=>a.symbol==="ENEL").technical.observedAt=at;
 assert(!worldTacticalResearchRadar({terminal:afterSnapshot,nowIso:at}).screenedResearch.some(x=>x.symbol==="ENEL"));
+
+// A recovery can gain momentum on a completed bar before it nears the prior high.
+const recoveryCloses = [120, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 92, 93, 94, 95, 97];
+const recovery = recoveryCloses.map((close, i) => ({
+  timestamp: candles[i].timestamp, adjustedResearchClose: close,
+  volume: i === 20 ? 300 : i >= 16 ? 100 : 10,
+}));
+assert.equal(completedBarResearch(recovery).stage, "VOLUME_BACKED_ACCELERATION");
+const withLast = patch => [...recovery.slice(0,-1), {...recovery.at(-1), ...patch}];
+assert.equal(completedBarResearch(withLast({volume:1})).stage, "NO_SETUP");
+assert.equal(completedBarResearch(withLast({volume:null})).stage, "NO_SETUP");
+assert.equal(completedBarResearch(withLast({adjustedResearchClose:94.5})).stage, "NO_SETUP");
+assert.equal(completedBarResearch(withLast({adjustedResearchClose:119})).stage, "APPROACHING_HIGH");
+assert.equal(completedBarResearch(withLast({adjustedResearchClose:121})).stage, "CLOSE_BREAKOUT");
+const distribution = recovery.map((r,i)=>({...r, volume:i===20 ? 300 : i<16 ? 100 : 1}));
+assert.equal(completedBarResearch(distribution).stage, "NO_SETUP");
+assert.equal(completedBarResearch(recovery,{split:{date:recovery[12].timestamp}}),null);
