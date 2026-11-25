@@ -29,6 +29,27 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<Result | null>(null);
   const [error, setError] = useState("");
+  const [reviewPr, setReviewPr] = useState("");
+  const [reviewHead, setReviewHead] = useState("");
+  const [reviewReport, setReviewReport] = useState("");
+  async function reviewCode() {
+    if (!authenticated || generating || !/^[0-9]{1,7}$/.test(reviewPr) || !/^[a-f0-9]{40}$/.test(reviewHead)) return;
+    setGenerating(true); setError(""); setReviewReport("");
+    try {
+      const res = await fetch("/api/analista-ingegneristica", {
+        method: "POST", headers: {"Content-Type":"application/json"}, cache:"no-store",
+        body: JSON.stringify({pr:Number(reviewPr),head:reviewHead,confirmMeteredReview:true}),
+      });
+      if (!res.ok) throw new Error("Revisione non disponibile o sessione non autorizzata.");
+      const result = await res.json();
+      if (result.pr !== Number(reviewPr) || result.head !== reviewHead || result.mergeAllowed !== false || result.liveTradingAllowed !== false || (result.state === "ADVISORY" && !/^[a-f0-9]{40}$/.test(result.base ?? "")))
+        throw new Error("Risposta di revisione non valida.");
+      setReviewReport(JSON.stringify(result,null,2));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Revisione non disponibile.");
+    } finally { setGenerating(false); }
+  }
+
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +103,7 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
     }
     setAuthenticated(false);
     setGenerated(null);
+    setReviewReport("");
     setAccessToken("");
   }
 
@@ -172,6 +194,18 @@ export default function FeniceGenerativePanel({ question, grounded }: { question
             Serve la configurazione privata delle API OpenAI e del codice proprietario nel progetto Fenice.
             L&apos;analista gratuito basato sui dati continua a funzionare.
           </p>
+        </div>
+      )}
+      {authenticated && status?.state === "READY" && (
+        <div className="mt-5 space-y-3 rounded-xl border border-violet-300/25 p-4">
+          <h3 className="font-bold text-violet-200">IA ingegneristica · Revisione consultiva</h3>
+          <p className="text-xs text-slate-300">Diff pubblico ristretto, SHA esatto, nessun merge automatico. Una richiesta manuale può consumare crediti OpenAI. Il parere non sostituisce i test o il revisore indipendente.</p>
+          <label className="block text-sm" htmlFor="fenice-review-pr">Numero PR</label>
+          <input id="fenice-review-pr" inputMode="numeric" value={reviewPr} disabled={generating} onChange={e=>{setReviewPr(e.target.value.slice(0,7));setReviewReport("");}} className="w-full rounded-lg bg-slate-900 p-2" />
+          <label className="block text-sm" htmlFor="fenice-review-head">SHA completo del commit head</label>
+          <input id="fenice-review-head" value={reviewHead} disabled={generating} onChange={e=>{setReviewHead(e.target.value.trim().slice(0,40));setReviewReport("");}} className="w-full rounded-lg bg-slate-900 p-2 font-mono" />
+          <button type="button" disabled={generating || !/^[0-9]{1,7}$/.test(reviewPr) || !/^[a-f0-9]{40}$/.test(reviewHead)} onClick={()=>void reviewCode()} className="rounded-xl bg-violet-300 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-40">Conferma revisione IA a consumo</button>
+          {reviewReport && <pre className="whitespace-pre-wrap break-all text-xs text-slate-200" aria-live="polite">{reviewReport}</pre>}
         </div>
       )}
       {error && <p role="alert" className="mt-3 text-sm text-rose-200">{error}</p>}
