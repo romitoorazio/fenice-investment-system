@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { retainDecisionLedgerRecords } from '../lib/intelligence/decision-ledger-retention.mjs';
-import { dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark } from '../lib/intelligence/decision-ledger-price-evidence.mjs';
+import { dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark, decisionLedgerPrice } from '../lib/intelligence/decision-ledger-price-evidence.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -51,7 +51,7 @@ function checkpoint(record, label, minimumDays, mark) {
   record.checkpoints ??= {};
   record.checkpoints[label] = {
     measuredAt: now.toISOString(),
-    price: round(mark.price),
+    price: decisionLedgerPrice(mark.price),
     priceObservedAt: mark.observedAt,
     priceEvidenceKind: mark.evidenceKind,
     returnPercent: round(((mark.price - record.entryReferencePrice) / record.entryReferencePrice) * 100),
@@ -63,7 +63,7 @@ for (const record of records) {
   if (!eligibleDecisionMark(record, mark, now.getTime())) continue;
   // Never regress to an older session bucket.
   if (record.lastPriceObservedAt && Date.parse(record.lastPriceObservedAt) > mark.observedMs) continue;
-  record.lastPrice = round(mark.price);
+  record.lastPrice = decisionLedgerPrice(mark.price);
   record.lastPriceObservedAt = mark.observedAt;
   record.lastPriceCurrency = mark.currency;
   record.lastPriceEvidenceKind = mark.evidenceKind;
@@ -83,7 +83,7 @@ const existingCycleKeys = new Set(records.filter((record) => record.cycleId === 
 for (const decision of committee.allDecisions || []) {
   const key = `${decision.symbol}:${decision.decision}`;
   if (existingCycleKeys.has(key)) continue;
-  const price = Number(decision.currentPrice);
+  const price = decisionLedgerPrice(decision.currentPrice);
   const forecast = verifiedReturnForecast(decision.positiveReturnForecast,cycleId);
   records.push({
     id: `${cycleId}:${decision.symbol}:${decision.decision}`,
@@ -100,13 +100,13 @@ for (const decision of committee.allDecisions || []) {
     riskScore: decision.riskScore,
     positionType: decision.positionType,
     maxWeightPercent: decision.maxWeightPercent,
-    entryReferencePrice: Number.isFinite(price) ? round(price) : null,
+    entryReferencePrice: price,
     currency: decision.currency,
     fairValueBase: decision.valuation?.fairValueBase ?? null,
     proposedFirstTrancheEuro: decision.entryPlan?.firstTrancheEuro ?? 0,
     sourceGate: committee.sourceGate,
     executionGate: committee.executionGate,
-    lastPrice: Number.isFinite(price) ? round(price) : null,
+    lastPrice: price,
     lastMarkedAt: now.toISOString(),
     markToMarketPercent: null, // not a return until a later candle is observed
     checkpoints: {},

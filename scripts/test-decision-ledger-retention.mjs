@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {MAX_DECISION_LEDGER_RECORDS,REQUIRED_CHECKPOINT_DAYS,retainDecisionLedgerRecords}
   from "../lib/intelligence/decision-ledger-retention.mjs";
-import {dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark}
+import {dailyResearchMark, eligibleDecisionCheckpoint, eligibleDecisionMark, decisionLedgerPrice}
   from "../lib/intelligence/decision-ledger-price-evidence.mjs";
 
 const now="2026-11-15T18:00:00.000Z";
@@ -116,5 +116,21 @@ assert.match(ledgerRunnerText,/eligibleDecisionCheckpoint\(record, mark, minimum
 assert.match(ledgerRunnerText,/lastPriceObservedAt/);
 assert.match(ledgerRunnerText,/markToMarketPercent: null/);
 assert.match(ledgerRunnerText,/typeof value !== 'number'/);
+
+// New records retain source precision rather than rounding the denominator.
+for (const bad of [null, undefined, '', '0.175', true, false, 0, -1, NaN, Infinity]) {
+  assert.equal(decisionLedgerPrice(bad), null);
+}
+for (const price of [0.175, 0.0001, 100, 87.15]) {
+  assert.equal(decisionLedgerPrice(price), price);
+}
+const unchangedLowPrice = decisionLedgerPrice(0.175);
+assert.equal((decisionLedgerPrice(0.175) - unchangedLowPrice) / unchangedLowPrice, 0);
+assert.match(ledgerRunnerText, /const price = decisionLedgerPrice\(decision\.currentPrice\)/);
+assert.match(ledgerRunnerText, /entryReferencePrice: price,/);
+assert.match(ledgerRunnerText, /lastPrice: price,/);
+assert.match(ledgerRunnerText, /price: decisionLedgerPrice\(mark\.price\)/);
+assert.match(ledgerRunnerText, /record\.lastPrice = decisionLedgerPrice\(mark\.price\)/);
+assert.doesNotMatch(ledgerRunnerText, /Number\(decision\.currentPrice\)|round\(mark\.price\)/);
 
 console.log("Decision ledger as-of provenance + retention: PASS; no fake horizon evidence, PAPER/LIVE untouched.");
