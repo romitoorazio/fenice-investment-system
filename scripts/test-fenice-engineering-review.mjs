@@ -17,24 +17,32 @@ assert.equal(parseReview({assessment:"FINDINGS",findings:[{path:"other",severity
 let calls=[];
 const fetcher=async(url,opts)=>{calls.push({url,opts});return Response.json(url.includes("/pulls/")?metadata:url.includes("/compare/")?comparison:{choices:[{finish_reason:"stop",message:{content:JSON.stringify({assessment:"NO_FINDINGS",findings:[]})}}]});};
 const key="sk-"+"x".repeat(30);
-const result=await reviewFenicePullRequest(input,key,fetcher);
+const reserve=async()=>({allowed:true,reservedCents:400,warning:true});
+const result=await reviewFenicePullRequest(input,key,fetcher,reserve);
 assert.equal(result.pr,666);assert.equal(result.base,base);assert.equal(result.mergeBase,base);
 assert.equal(reviewComparison({...metadata,head:{sha:head,repo:{...repo,private:true}}},comparison,head),null);
 assert.equal(reviewComparison(metadata,{...comparison,merge_base_commit:null},head),null);
 assert.equal(parseReview({assessment:["NO_FINDINGS"],findings:[]},[file.filename]),null);
 assert.equal(parseReview({assessment:"FINDINGS",findings:[{path:file.filename,severity:["HIGH"],reason:"x"}]},[file.filename]),null);
 assert.equal(reviewComparison({...metadata,changed_files:2},{...comparison,files:[file,file]},head),null);
-assert.equal(result.state,"ADVISORY");assert.equal(result.mergeAllowed,false);assert.equal(result.liveTradingAllowed,false);assert.equal(calls.length,3);
+assert.equal(result.state,"ADVISORY");assert.equal(result.budget.warning,true);assert.equal(result.budget.reservedCents,400);assert.equal(JSON.parse(calls[2].opts.body).max_tokens,1024);assert.equal(result.mergeAllowed,false);assert.equal(result.liveTradingAllowed,false);assert.equal(calls.length,3);
 assert.equal(calls[0].opts.headers.Authorization,undefined);
 assert.equal(JSON.parse(calls[2].opts.body).store,false);
 calls=[];const refused=await reviewFenicePullRequest({...input,confirmMeteredReview:false},key,fetcher);
 assert.equal(refused.state,"UNAVAILABLE");assert.equal(calls.length,0);
+for(const deny of [undefined,async()=>({allowed:false,reservedCents:500,warning:true}),async()=>{throw Error("storage down");}]){
+  calls=[];const blocked=await reviewFenicePullRequest(input,key,fetcher,deny);
+  assert.equal(blocked.state,"UNAVAILABLE");assert.equal(calls.filter(c=>c.url.includes("api.openai.com")).length,0);
+}
+calls=[];let ticks=[Date.parse("2026-11-30T23:58:00Z"),Date.parse("2026-12-01T00:00:01Z")];
+assert.equal((await reviewFenicePullRequest(input,key,fetcher,reserve,()=>ticks.shift())).state,"UNAVAILABLE");
+assert.equal(calls.filter(c=>c.url.includes("api.openai.com")).length,0);
 console.log("PASS integrated engineering review: explicit consent, exact SHA, restricted source, bounded diff, advisory only");
 
 /* Exercise the actual Next route with synthetic credentials, not real API access. */
 import {GET,POST} from "../app/api/analista-ingegneristica/route.ts";
 import {createFeniceOwnerSession,FENICE_AI_SESSION_COOKIE} from "../lib/ai/fenice-owner-session.ts";
-const testEnv={FENICE_GENERATIVE_AI_ENABLED:"true",FENICE_AI_MANUAL_ONLY:"true",FENICE_AI_OWNER_TOKEN:"fixture-owner-".repeat(4),OPENAI_API_KEY:key};
+const testEnv={VERCEL_ENV:"preview",FENICE_GENERATIVE_AI_ENABLED:"true",FENICE_AI_MANUAL_ONLY:"true",FENICE_AI_OWNER_TOKEN:"fixture-owner-".repeat(4),OPENAI_API_KEY:key};
 const previousEnv=Object.fromEntries(Object.keys(testEnv).map(k=>[k,process.env[k]]));
 const previousFetch=globalThis.fetch;
 const origin="https://example.invalid";
@@ -64,8 +72,8 @@ try {
   await locked(await POST(req(JSON.stringify(input))),503);
   assert.equal(calls.length,0,"no external calls on readiness or rejected requests");
   process.env.OPENAI_API_KEY=key;
-  assert.equal((await locked(await POST(req(JSON.stringify(input))),200)).state,"ADVISORY");
-  assert.equal(calls.length,3,"one bounded model call after authorized consent");
+  assert.equal((await locked(await POST(req(JSON.stringify(input))),200)).state,"UNAVAILABLE");
+  assert.equal(calls.length,2,"preview cannot reserve production budget or invoke paid API");
   console.log("PASS real route handlers with mocked upstream: session, origin, consent, request limits and invariant safety flags");
 } finally {
   globalThis.fetch=previousFetch;

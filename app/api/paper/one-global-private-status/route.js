@@ -40,7 +40,15 @@ export async function GET(request){
     liveTradingAllowed:false},401);
   try{
     const storage=await createVercelPrivateEodBlobStore();
-    const status=await inspectOneGlobalPrivateEodCloudStatus({storage});
+    // Owner dashboard only: replay one origin snapshot, without obtaining
+    // a control-plane CAS version. Keep the writer's strict reads untouched.
+    const status=await inspectOneGlobalPrivateEodCloudStatus({storage:{
+      privateAccess:storage.privateAccess,durable:storage.durable,
+      async read(){
+        const snapshot=await storage.readStatusSnapshot();
+        return snapshot===null?null:{body:snapshot.body,etag:snapshot.representationEtag};
+      },
+    }});
     return json(status);
   }catch{
     // Storage errors may include sensitive upstream details. Never return

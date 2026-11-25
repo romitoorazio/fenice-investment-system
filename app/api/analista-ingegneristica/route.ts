@@ -1,5 +1,6 @@
 import { generativeAvailability,FENICE_GENERATIVE_MODEL } from "../../../lib/ai/fenice-generative-research.ts";
 import { feniceSameOrigin,feniceSessionCookieFromRequest,verifyFeniceOwnerSession } from "../../../lib/ai/fenice-owner-session.ts";
+import { reserveProductionAiBudget } from "../../../lib/ai/fenice-budget-blob.ts";
 import { reviewInput,reviewFenicePullRequest } from "../../../lib/ai/fenice-engineering-review.ts";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -18,7 +19,7 @@ export async function POST(request:Request){
     while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>800)return json({error:"INVALID_REQUEST",mergeAllowed:false},400);chunks.push(Buffer.from(value));}
     const input=reviewInput(JSON.parse(Buffer.concat(chunks).toString("utf8")));
     if(!input)return json({error:"INVALID_REQUEST_OR_COST_CONFIRMATION",mergeAllowed:false},400);
-    const result=await reviewFenicePullRequest(input,process.env.OPENAI_API_KEY||"");
+    const result=await reviewFenicePullRequest(input,process.env.OPENAI_API_KEY||"",fetch,()=>reserveProductionAiBudget(Date.now()));
     return json(result);
   }catch{return json({error:"REVIEW_UNAVAILABLE",mergeAllowed:false},400);}
   finally{try{await reader.cancel();}catch{}}
