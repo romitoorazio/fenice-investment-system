@@ -7,7 +7,7 @@ import type { summarizePaperCertificationWindow } from "./paper-certification-wi
  */
 type PaperCalendar = ReturnType<typeof summarizePaperCertificationWindow>;
 type PaperApprovalScope = { maxOrdersPerDay?: number };
-type LegacyRetirement = { mode?: string; retiredCampaigns?: string[]; stopAutomaticLegacyWriters?: boolean; retainsHistory?: boolean; renewPreviousApprovals?: boolean; historicalFillsCreditedToV8?: number; certificationCredit?: number; liveTradingAllowed?: boolean; brokerConnectivityAllowed?: boolean };
+type LegacyRetirement = { version?: number; mode?: string; retiredCampaigns?: string[]; activeTechnicalPaper?: string; previousApprovedProofsUnchanged?: boolean; enableLiveTrading?: boolean; authorizePaidServices?: boolean; stopAutomaticLegacyWriters?: boolean; retainsHistory?: boolean; renewPreviousApprovals?: boolean; historicalFillsCreditedToV8?: number; certificationCredit?: number; liveTradingAllowed?: boolean; brokerConnectivityAllowed?: boolean };
 
 export type PaperContinuityCheckpoint = {
   status: "SAFETY_REVIEW_REQUIRED" | "APPROVAL_EXPIRED" | "OWNER_REVIEW_BEFORE_EXPIRY"
@@ -41,8 +41,13 @@ export function buildPaperContinuityOwnerCheckpoint(
   approval: PaperApprovalScope | null | undefined,
   retirement?: LegacyRetirement | null,
 ): PaperContinuityCheckpoint {
-  const legacyRetired = retirement?.mode === "ONE_GLOBAL_LEGACY_RETIREMENT_READ_ONLY"
-    && retirement.retiredCampaigns?.includes("V6") === true
+  const legacyRetired = retirement?.version === 1
+    && retirement.mode === "ONE_GLOBAL_LEGACY_RETIREMENT_READ_ONLY"
+    && Array.isArray(retirement.retiredCampaigns) && retirement.retiredCampaigns.length === 3
+    && ["V6", "V7_PHASE_B", "V7_B2"].every(campaign => retirement.retiredCampaigns!.includes(campaign))
+    && retirement.activeTechnicalPaper === "V8_TECHNICAL_ONLY"
+    && retirement.previousApprovedProofsUnchanged === true
+    && retirement.enableLiveTrading === false && retirement.authorizePaidServices === false
     && retirement.stopAutomaticLegacyWriters === true && retirement.retainsHistory === true
     && retirement.renewPreviousApprovals === false && retirement.historicalFillsCreditedToV8 === 0
     && retirement.certificationCredit === 0 && retirement.liveTradingAllowed === false
@@ -66,7 +71,8 @@ export function buildPaperContinuityOwnerCheckpoint(
   let message: string;
   if (legacyRetired) {
     status = "LEGACY_RETIRED";
-    message = "Campagna V6 ritirata: conteggi solo storici, nessun rinnovo o nuovo probe. Verificare il journal originale ONE GLOBAL nella pagina Recupero PAPER; nessun credito retroattivo o sblocco LIVE.";
+    message = "Campagna V6 ritirata: conteggi solo storici, nessun rinnovo o nuovo probe. Verificare il journal originale ONE GLOBAL nella pagina Recupero PAPER; nessun credito retroattivo o sblocco LIVE."
+      + (safetyReview ? " Attenzione: lo storico V6 presenta anomalie da verificare, senza riattivarlo." : "");
   } else if (safetyReview) {
     status = "SAFETY_REVIEW_REQUIRED";
     message = "Prove o autorizzazione non coerenti: verificare i registri originali prima di qualsiasi valutazione o nuovo test.";
