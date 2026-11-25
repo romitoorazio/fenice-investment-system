@@ -1,0 +1,69 @@
+name: Fenice V6 Historical Integrity Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/audit-v6-baseline-transition.mjs"
+      - "data/paper-validation-campaign.json"
+      - ".github/workflows/v6-historical-integrity-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check historical V6 baseline and explicitly report pre-existing drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          node scripts/audit-v6-baseline-transition.mjs > /tmp/fenice-v6-integrity.json
+          status=$?
+          set -e
+          cat /tmp/fenice-v6-integrity.json
+          node -e '
+            const fs=require("node:fs");
+            const x=JSON.parse(fs.readFileSync("/tmp/fenice-v6-integrity.json","utf8"));
+            if(x.mode!=="READ_ONLY_V6_TRANSITION_PREFLIGHT" || x.liveTradingAllowed!==false || x.brokerConnectivityAllowed!==false) process.exit(1);
+            if(!/^[a-f0-9]{64}$/.test(x.historicalCampaignSha256) || x.protectedFiles<90) process.exit(1);
+            if(!Array.isArray(x.drift)) process.exit(1);
+            console.log("Historical campaign audit structurally valid; pre-existing protected-core drift:", x.drift.length);
+          '
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Historical audit failed unexpectedly with exit $status" >&2
+            exit "$status"
+          fi
+          if [ "$status" -eq 2 ]; then
+            echo "::warning::Original V6 baseline drift remains unresolved; this job does not certify or approve a successor baseline."
+          fi
+      - name: Negative test - reject tampered historical campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp data/paper-validation-campaign.json /tmp/fenice-original-campaign.json
+          trap 'cp /tmp/fenice-original-campaign.json data/paper-validation-campaign.json' EXIT
+          node -e '
+            const fs=require("node:fs");
+            const path="data/paper-validation-campaign.json";
+            const c=JSON.parse(fs.readFileSync(path,"utf8"));
+            c.dailyEvidence=[];
+            fs.writeFileSync(path,JSON.stringify(c,null,2)+String.fromCharCode(10));
+          '
+          if node scripts/audit-v6-baseline-transition.mjs >/tmp/fenice-tamper-output.log 2>&1; then
+            echo "Tampered V6 history was incorrectly accepted" >&2
+            exit 1
+          fi
+          if ! grep -q "V6_HISTORICAL_CAMPAIGN_BYTES_CHANGED" /tmp/fenice-tamper-output.log; then
+            cat /tmp/fenice-tamper-output.log
+            echo "Unexpected failure; historical tamper check not verified" >&2
+            exit 1
+          fi
+          echo "PASS: tampered historical evidence rejected"
