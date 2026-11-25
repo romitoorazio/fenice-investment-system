@@ -1,3 +1,4 @@
+import { reserveProductionAiBudget } from "@/lib/ai/fenice-budget-blob";
 import { answerFeniceResearch } from "@/lib/ui/fenice-grounded-analyst";
 import { feniceSameOrigin, feniceSessionCookieFromRequest, verifyFeniceOwnerSession } from "@/lib/ai/fenice-owner-session";
 import { generateGroundedExplanation, generativeAvailability, isOwnerAuthorized, FENICE_GENERATIVE_MODEL, FENICE_AI_MAX_REQUEST_BYTES } from "@/lib/ai/fenice-generative-research";
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
   const openaiToken = env.OPENAI_API_KEY || "";
   const result = await generateGroundedExplanation({
     question: data.question, grounded, openaiToken, now,
+    reserveBudget: () => reserveProductionAiBudget(Date.now()),
   });
   return json({ ...result, grounded });
 }
