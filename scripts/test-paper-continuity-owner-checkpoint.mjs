@@ -68,9 +68,21 @@ assert.equal(retired.missingAuthorizedPaperFills,3,"preserve historical counts")
 assert.equal(retired.illustrativeMinimumDailyProbeWindows,null);
 assert.equal(retired.humanDecisionNeededBeforeExpiry,false);
 for(const key of ["realProfitVerified","renewedByThisCheck","newPaperProbesAuthorizedByThisCheck","paperCertifiedByThisCheck","brokerOrdersAllowed","liveTradingAllowed"])assert.equal(retired[key],false);
-for(const invalid of [{...retirement,renewPreviousApprovals:true},{...retirement,certificationCredit:1},{...retirement,retiredCampaigns:[]}]){
-  assert.equal(checkpoint(base,existingApproval,invalid).legacyRetired,false);
+for(const invalid of [
+  {...retirement,renewPreviousApprovals:true},{...retirement,certificationCredit:1},
+  {...retirement,retiredCampaigns:[]},{...retirement,retiredCampaigns:"V6"},
+  {...retirement,retiredCampaigns:["V6","V6","V7_B2"]},
+  {...retirement,version:2},{...retirement,activeTechnicalPaper:"OTHER"},
+  {...retirement,previousApprovedProofsUnchanged:false},
+  {...retirement,enableLiveTrading:true},{...retirement,authorizePaidServices:true},
+]){
+  const result=checkpoint(base,existingApproval,invalid);
+  assert.equal(result.legacyRetired,false);
+  assert.equal(result.status,"OWNER_REVIEW_BEFORE_EXPIRY");
+  assert.equal(result.liveTradingAllowed,false);
 }
+assert.match(checkpoint({...base,evidenceIntegrityReviewRequired:true},existingApproval,retirement).message,/anomalie da verificare/);
+assert.match(page,/!paperOwnerCheckpoint.legacyRetired && \(\s*<section[^>]+aria-label="Autorizzazione e durata PAPER"/);
 assert.match(page,/buildPaperContinuityOwnerCheckpoint\(calendar, paperApproval, legacyRetirement\)/);
 assert.match(page,/!paperOwnerCheckpoint.legacyRetired && calendar.preExpiryOperatorAttentionRequired/);
 assert.match(page,/href="\/recupero-paper"/);
