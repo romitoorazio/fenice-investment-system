@@ -18,7 +18,7 @@ let calls=[];
 const fetcher=async(url,opts)=>{calls.push({url,opts});return Response.json(url.includes("/pulls/")?metadata:url.includes("/compare/")?comparison:{choices:[{finish_reason:"stop",message:{content:JSON.stringify({assessment:"NO_FINDINGS",findings:[]})}}]});};
 const key="sk-"+"x".repeat(30);
 const reserve=async()=>({allowed:true,reservedCents:400,warning:true});
-const result=await reviewFenicePullRequest(input,key,fetcher,reserve);
+const result=await reviewFenicePullRequest(input,key,fetcher,reserve,()=>Date.parse("2026-11-15T12:00:00Z"));
 assert.equal(result.pr,666);assert.equal(result.base,base);assert.equal(result.mergeBase,base);
 assert.equal(reviewComparison({...metadata,head:{sha:head,repo:{...repo,private:true}}},comparison,head),null);
 assert.equal(reviewComparison(metadata,{...comparison,merge_base_commit:null},head),null);
