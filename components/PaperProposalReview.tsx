@@ -109,7 +109,7 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
     let refreshing = false;
     const controller = new AbortController();
     async function refresh() {
-      if (refreshing) return;
+      if (refreshing || document.hidden) return;
       refreshing = true;
       try {
         const next = await fetchProposals(AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
@@ -118,10 +118,18 @@ export default function PaperProposalReview({ initialData }: { initialData: Pape
         if (active) setError(reason instanceof Error ? reason.message : "Aggiornamento non riuscito.");
       } finally { refreshing = false; }
     }
+    const onVisible = () => {
+      if (!document.hidden) { setNow(Date.now()); void refresh(); }
+    };
+    document.addEventListener("visibilitychange", onVisible);
     void refresh();
     const refreshTimer = window.setInterval(() => void refresh(), 30_000);
-    const clockTimer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => { active = false; controller.abort(); window.clearInterval(refreshTimer); window.clearInterval(clockTimer); };
+    const clockTimer = window.setInterval(() => { if (!document.hidden) setNow(Date.now()); }, 1000);
+    return () => {
+      active = false; controller.abort();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(refreshTimer); window.clearInterval(clockTimer);
+    };
   }, []);
 
   const proposals = demo ? [demo] : data.proposals;
