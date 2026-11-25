@@ -107,7 +107,7 @@ function network(f,options={}){
 }
 const execute=(store,f=fixture(),opts={})=>{
   const net=network(f,opts);
-  return {net,promise:run({storage:store,clock:()=>now,fetcher:net.fetcher,
+  return {net,promise:run({storage:store,clock:opts.clock??(()=>now),wait:opts.wait??(async()=>{}),fetcher:net.fetcher,
     collect:args=>collectOneGlobalSettlementPair({...args,env})})};
 };
 const f=fixture(),store=memory(f),first=execute(store,f);
@@ -182,6 +182,28 @@ assert.equal(futureBlocked.state,'SETTLEMENT_BLOCKED');
 assert(futureBlocked.settlementBlockers.includes(
   'CLOUD_SETTLEMENT_PRECOMMIT_ARCHIVE_TIMESTAMP_AFTER_FILL_CLOCK'));
 assert.equal(futureClock.writes,0,'Clock skew must fail closed, never backdate an original FILL');
+// A small future control-plane timestamp may converge after a real bounded wait.
+const converging=memory(f),readConverging=converging.readResearchObservation.bind(converging);
+const archiveTime='2026-11-13T18:00:01.000Z';
+converging.readResearchObservation=async hash=>({...await readConverging(hash),uploadedAt:new Date(archiveTime)});
+let currentClock=now,waits=[];
+const convergence=await execute(converging,f,{clock:()=>currentClock,wait:async ms=>{
+  waits.push(ms);currentClock='2026-11-13T18:00:01.050Z';
+}}).promise;
+assert.deepEqual(waits,[1000]);
+assert.equal(convergence.paperFillsCreated,1);
+assert.equal(converging.writes,1);
+assert.equal(converging.ledger.events.at(-1).recordedAt,currentClock);
+assert(Date.parse(currentClock)>=Date.parse(archiveTime));
+// Large skew is refused without sleeping or entering CAS.
+const largeSkew=memory(f),readLarge=largeSkew.readResearchObservation.bind(largeSkew);
+largeSkew.readResearchObservation=async hash=>({...await readLarge(hash),uploadedAt:new Date('2026-11-13T18:00:05.001Z')});
+let largeWaits=0;
+const largeBlocked=await execute(largeSkew,f,{wait:async()=>{largeWaits++;}}).promise;
+assert.equal(largeWaits,0);
+assert.equal(largeBlocked.paperFillsCreated,0);
+assert.equal(largeSkew.writes,0);
+assert(largeBlocked.settlementBlockers.includes('CLOUD_SETTLEMENT_PRECOMMIT_ARCHIVE_TIMESTAMP_AFTER_FILL_CLOCK'));
 const equalClock=memory(f),readEqual=equalClock.readResearchObservation.bind(equalClock);
 equalClock.readResearchObservation=async hash=>({...await readEqual(hash),
   uploadedAt:new Date(now)});
