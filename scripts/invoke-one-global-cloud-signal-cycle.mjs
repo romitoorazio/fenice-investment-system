@@ -47,8 +47,17 @@ try{
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,visible.markdown,{encoding:'utf8'});
   // Fetch in parallel after settlement. Each read-only audit is isolated and
   // bound to the ordinal observed by this cycle before rendering any output.
-  const targets=[['FIRST',1],['SECOND',2]];
-  if(visible.report.virtualFillCount>2)targets.push(['LATEST',visible.report.virtualFillCount]);
+  const fillCount=visible.report.virtualFillCount;
+  // An absent or unknown policy keeps the previous full recheck behaviour.
+  const recheck=visible.report.paperFillsCreated===1 || process.env.FENICE_RECHECK_HISTORICAL_FILLS!=='false';
+  const targets=[];
+  if(recheck){
+    if(fillCount>=1)targets.push(['FIRST',1]);
+    if(fillCount>=2)targets.push(['SECOND',2]);
+    if(fillCount>2)targets.push(['LATEST',fillCount]);
+  }else{
+    console.log('ONE_GLOBAL_FILL_REPLAY=SKIPPED_NO_NEW_FILL');
+  }
   failurePhase='AUDIT';failureStatus=0;
   const audits=await Promise.allSettled(targets.map(async ([which,ordinal])=>{
     const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',

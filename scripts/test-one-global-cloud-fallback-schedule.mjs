@@ -67,6 +67,12 @@ assert.match(originalJob,/id-token: write/);
 assert.match(originalJob,/ref: main/);
 assert.match(originalJob,/persist-credentials: false/);
 assert.match(originalJob,/node scripts\/invoke-one-global-cloud-signal-cycle\.mjs/);
+const replayPolicy=originalJob.split('FENICE_RECHECK_HISTORICAL_FILLS: ')[1]?.split('\n')[0];
+assert(replayPolicy?.includes("github.event_name == 'workflow_dispatch'"));
+assert(replayPolicy.includes("github.event_name == 'workflow_run' && github.event.workflow_run.name == 'Fenice Production Deploy'"));
+assert(replayPolicy.includes("github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6'"));
+assert(workflow.includes('cron: "15 0 * * 2-6"'));
+
 assert.doesNotMatch(originalJob,/secrets\.|ALPHA_VANTAGE_API_KEY|EODHD_API_TOKEN|DIRECTA/);
 
 const runner=readFileSync('scripts/invoke-one-global-cloud-signal-cycle.mjs','utf8');

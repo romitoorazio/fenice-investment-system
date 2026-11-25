@@ -379,16 +379,18 @@ const rejection=oneGlobalActionsCycleSummary({...syntheticNoFill,sourcePairsAtte
 assert.deepEqual(rejection.report.usResearchReasons,['STRATEGY_CONDITIONS_NOT_MET','OTHER_RESEARCH_GATE']);
 assert.doesNotMatch(JSON.stringify(rejection),/SECRET_SYMBOL|PRIVATE_UNKNOWN_PROVIDER_ERROR/);
 const envKeys=['GITHUB_REPOSITORY','GITHUB_REF','ACTIONS_ID_TOKEN_REQUEST_URL',
-  'ACTIONS_ID_TOKEN_REQUEST_TOKEN','GITHUB_STEP_SUMMARY'];
+  'ACTIONS_ID_TOKEN_REQUEST_TOKEN','GITHUB_STEP_SUMMARY','FENICE_RECHECK_HISTORICAL_FILLS'];
 const previousEnv=Object.fromEntries(envKeys.map(k=>[k,process.env[k]]));
 const originalFetch=globalThis.fetch,originalLog=console.log;
-const syntheticLogs=[];
+const syntheticLogs=[], requestedActions=[];
+let syntheticCycle={...syntheticNoFill,journalEventCount:6,virtualFillCount:3};
 try{
   Object.assign(process.env,{GITHUB_REPOSITORY:'romitoorazio/fenice-investment-system',
     GITHUB_REF:'refs/heads/main',
     ACTIONS_ID_TOKEN_REQUEST_URL:'https://token.actions.githubusercontent.com/oidc',
     ACTIONS_ID_TOKEN_REQUEST_TOKEN:'SYNTHETIC_TEST_ONLY'});
   delete process.env.GITHUB_STEP_SUMMARY;
+  process.env.FENICE_RECHECK_HISTORICAL_FILLS='true';
   globalThis.fetch=async(url,init={})=>{
     const link=String(url);
     if(link.startsWith('https://token.actions.githubusercontent.com/'))
@@ -396,7 +398,8 @@ try{
     assert.equal(link,SIGNAL_CYCLE_AUDIENCE,'No other network origin');
     assert.equal(init.method,'POST');
     const action=JSON.parse(init.body).action;
-    if(action==='RESEARCH_SIGNAL_CYCLE')return Response.json({...syntheticNoFill,journalEventCount:6,virtualFillCount:3});
+    requestedActions.push(action);
+    if(action==='RESEARCH_SIGNAL_CYCLE')return Response.json(syntheticCycle);
     if(action==='AUDIT_LATEST_FILL_READ_ONLY')return Response.json(latestReceipt);
     if(action==='AUDIT_FIRST_FILL_READ_ONLY')return Response.json(firstHistoric);
     if(action==='AUDIT_SECOND_FILL_READ_ONLY')return Response.json(usOriginalSecond);
@@ -404,6 +407,22 @@ try{
   };
   console.log=(...values)=>syntheticLogs.push(values.map(String).join(' '));
   await import('./invoke-one-global-cloud-signal-cycle.mjs?synthetic-us-forensic-runner-regression');
+  const originalActions=['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY'];
+  assert.deepEqual(requestedActions.splice(0),originalActions);
+  process.env.FENICE_RECHECK_HISTORICAL_FILLS='false';
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?routine-no-fill');
+  assert.deepEqual(requestedActions.splice(0),['RESEARCH_SIGNAL_CYCLE']);
+  assert(syntheticLogs.includes('ONE_GLOBAL_FILL_REPLAY=SKIPPED_NO_NEW_FILL'));
+  syntheticCycle={...filled,journalEventCount:6,virtualFillCount:3};
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?new-fill');
+  assert.deepEqual(requestedActions.splice(0),originalActions);
+  delete process.env.FENICE_RECHECK_HISTORICAL_FILLS;
+  syntheticCycle={...syntheticNoFill,journalEventCount:6,virtualFillCount:1};
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?first-only');
+  assert.deepEqual(requestedActions.splice(0),originalActions.slice(0,2));
+  syntheticCycle={...syntheticNoFill,journalEventCount:6,virtualFillCount:0};
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?empty-journal');
+  assert.deepEqual(requestedActions.splice(0),['RESEARCH_SIGNAL_CYCLE']);
 }finally{
   globalThis.fetch=originalFetch;
   console.log=originalLog;
