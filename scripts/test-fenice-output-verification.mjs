@@ -66,7 +66,7 @@ const fake = async () => {
 const denied = await generateGroundedExplanation({
   question: "Perché non comprare ASML?", grounded, now,
   openaiToken: "sk-test-code-only-unused-1234567890",
-  fetchImpl: fake,
+  reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fake,
 });
 assert.equal(calls, 1);
 assert.equal(denied.state, "BAD_RESPONSE");
