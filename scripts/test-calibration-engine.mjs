@@ -38,3 +38,23 @@ assert.deepEqual(buildCalibrationSamplesFromLedger([vintage],{asOfMs:Date.parse(
 assert.equal(evaluateCalibration([{confidence:null,outcome:1},{confidence:0.5,outcome:null},
   {confidence:1.2,outcome:1},{confidence:0.7,outcome:0.5}]).sampleSize,0);
 console.log("PASS calibration admits only explicit point-in-time forecast probabilities and matured finite outcomes");
+
+// A plausible timestamp and price do not authenticate an inconsistent outcome.
+for (const [price, returnPercent] of [[101,-1],[99,1],[101,20]]) {
+  assert.deepEqual(samples([{...vintage,checkpoints:{"7d":{...checkpoint,price,returnPercent}}}]),[]);
+}
+// The writer independently rounds the stored price and percentage.
+assert.deepEqual(samples([{...vintage,entryReferencePrice:3,checkpoints:{"7d":{...checkpoint,price:3.01,returnPercent:0.17}}}]),[{confidence:0.6,outcome:1}]);
+console.log("PASS inconsistent outcome rejection with independent rounding tolerance");
+
+for(const [entryReferencePrice,price,returnPercent] of [[100,100,0],[100,100,0.01],[0.01,0.01,20],[1000,1000.01,0],[1000,999.99,0],[1000,999.99,-0]]) {
+  assert.deepEqual(samples([{...vintage,entryReferencePrice,checkpoints:{"7d":{...checkpoint,price,returnPercent}}}]),[]);
+}
+assert.deepEqual(samples([{...vintage,checkpoints:{"7d":{...checkpoint,price:99,returnPercent:-1}}}]),[{confidence:0.6,outcome:0}]);
+console.log("PASS ambiguous direction excluded, clear negative retained");
+
+// A small nonzero reported return is allowed only when the rounded price independently confirms its sign.
+for (const [price,returnPercent,outcome] of [[1000.1,0.01,1],[999.9,-0.01,0]]) {
+  assert.deepEqual(samples([{...vintage,entryReferencePrice:1000,checkpoints:{"7d":{...checkpoint,price,returnPercent}}}]),[{confidence:0.6,outcome}]);
+}
+console.log("PASS symmetric zero-rounded exclusion and nonzero sign confirmation");
