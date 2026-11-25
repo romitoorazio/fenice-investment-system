@@ -1,0 +1,38 @@
+name: Fenice Independent Review Fallback
+
+on:
+  issue_comment:
+    types: [created]
+
+# This token cannot push code, approve pull requests or merge.
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: fenice-review-fallback-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    if: >-
+      github.repository == 'romitoorazio/fenice-investment-system' &&
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.login == 'coderabbitai[bot]' &&
+      github.event.comment.user.type == 'Bot' &&
+      (contains(github.event.comment.body, 'Review rate limited.') ||
+       contains(github.event.comment.body, 'rate limited by coderabbit.ai'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # issue_comment runs on the trusted default branch, never a PR checkout.
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Request available independent reviewer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/route-independent-review.mjs
