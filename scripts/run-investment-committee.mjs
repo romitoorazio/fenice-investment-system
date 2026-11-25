@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { applyCalibrationToConfidence, selectCalibrationPolicy } from '../lib/intelligence/calibration-policy.mjs';
 import { evaluateCatalystEvidence } from '../lib/intelligence/catalyst-evidence-policy.mjs';
 import { scoreResearchFreshness, positiveResearchReferencePrice, researchStrategySnapshot, diagnoseResearchBuyRequirements } from '../lib/intelligence/committee-input-integrity.mjs';
+import { committeeSessionResearchQuote } from '../lib/intelligence/yahoo-regular-research-quote.mjs';
 import { optionalDcfNumber } from '../lib/intelligence/committee-valuation-numbers.mjs';
 import { assessEtfEconomicEvidence } from '../lib/intelligence/etf-economic-evidence.mjs';
 
@@ -95,7 +96,7 @@ function entryPlan(asset, dcf, decision, positionType, maxWeightPercent) {
   };
 }
 
-function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calibrationPolicy, strategies) {
+function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calibrationPolicy, strategies, terminalGeneratedAt) {
   const fundamentalScore = Math.round(clamp(fundamental?.scores?.overall ?? asset.fundamentalScore ?? asset.unifiedScore ?? 50));
   const qualityScore = Math.round(clamp(fundamental?.scores?.quality ?? fundamentalScore));
   const technicalScore = Math.round(clamp(asset.technicalScore ?? asset.technical?.scores?.technical ?? 50));
@@ -173,25 +174,11 @@ function buildCandidate(asset, fundamental, dcf, discoveries, dataQuality, calib
     sector: fundamental?.sector || asset.sector || asset.assetClass,
     positionType,
     currentPrice: referencePrice,
-    // A daily OHLC bar is NOT a live quote: separate self-reported regular
-    // session trade metadata. Keep asset.price unchanged for all Committee,
-    // valuation, risk and PAPER frozen logic. V7 research gates stay isolated.
-    priceEvidence: asset.technical?.researchQuote?.evidenceType === 'YAHOO_REGULAR_TRADE_META_RESEARCH_ONLY'
-      ? { ...asset.technical.researchQuote,
-          // Explicitly distinguish the Committee's daily adjusted candle price
-          // from the separately observed regular-session research trade.
-          referencePriceSemantics: asset.technical.timestampSemantics === 'DAILY_CANDLE_SESSION_BUCKET_NOT_LAST_TRADE'
-            ? 'DAILY_ADJUSTED_CANDLE_CLOSE' : null,
-          executionEligible: false, paperCertificationEligible: false,
-          brokerSubmissionAllowed: false, liveTradingAllowed: false }
-      : {
-          observedAt: null, source: null, price: null,
-          evidenceType: 'NO_VERIFIED_REGULAR_TRADE',
-          executionEligible: false,
-          paperCertificationEligible: false,
-          brokerSubmissionAllowed: false,
-          liveTradingAllowed: false,
-        },
+    priceEvidence: committeeSessionResearchQuote(asset, terminalGeneratedAt, now.getTime()) ?? {
+      observedAt: null, source: null, price: null, evidenceType: 'NO_VERIFIED_REGULAR_TRADE',
+      executionEligible: false, paperCertificationEligible: false,
+      brokerSubmissionAllowed: false, liveTradingAllowed: false,
+    },
     currency: asset.currency || dcf?.currency || fundamental?.financials?.currency || null,
     decision,
     committeeScore,
@@ -273,6 +260,7 @@ const candidates = (terminal.assets || [])
     dataQuality,
     calibrationPolicy,
     strategies,
+    terminal.generatedAt,
   ))
   .sort((a, b) => b.committeeScore - a.committeeScore || b.confidence - a.confidence || a.riskScore - b.riskScore)
   .map((item, index) => ({ ...item, rank: index + 1 }));
