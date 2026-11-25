@@ -1,0 +1,56 @@
+name: Fenice PAPER Next Activation Safety
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-next-activation-safety.yml"
+      - "scripts/paper-next-activation-preflight.mjs"
+      - "scripts/test-paper-next-activation-preflight.mjs"
+      - "scripts/paper-next-fingerprint.mjs"
+      - "scripts/test-paper-next-fingerprint.mjs"
+      - "scripts/test-paper-next-genesis.mjs"
+      - "scripts/check-paper-next-readiness.mjs"
+      - "scripts/diagnose-paper-next-candidates.mjs"
+      - "scripts/test-paper-next-candidate-diagnosis.mjs"
+      - "scripts/paper-next-market-evidence.mjs"
+      - "scripts/test-paper-next-market-evidence.mjs"
+      - "data/paper-next-forward-ledger.json"
+      - "data/paper-next-forward-days.json"
+      - "data/paper-next-approval.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fenice-paper-next-activation-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  paper-next-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout audited revision
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Test isolated PAPER-only activation gates
+        run: node scripts/test-paper-next-activation-preflight.mjs
+      - name: Test independent PAPER-next SHA256 fingerprint
+        run: node scripts/test-paper-next-fingerprint.mjs
+      - name: Test isolated PAPER-next genesis ledgers
+        run: node scripts/test-paper-next-genesis.mjs
+      - name: Verify unapproved campaign stays blocked
+        run: |
+          node scripts/check-paper-next-readiness.mjs | tee paper-next-readiness.json
+          grep -q '"state":"BLOCKED"' paper-next-readiness.json
+      - name: Diagnose PAPER candidate blockers (read only)
+        run: |
+          node scripts/diagnose-paper-next-candidates.mjs
+          node scripts/test-paper-next-candidate-diagnosis.mjs
+      - name: Test venue-specific market evidence
+        run: node scripts/test-paper-next-market-evidence.mjs
