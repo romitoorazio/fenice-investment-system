@@ -103,6 +103,7 @@ export async function generateGroundedExplanation(args: {
   openaiToken: string;
   now: number;
   fetchImpl?: typeof fetch;
+  clock?: () => number;
   reserveBudget?: () => Promise<BudgetDecision>;
 }): Promise<GenerativeResult> {
   const denied: GenerativeResult = {
@@ -118,6 +119,12 @@ export async function generateGroundedExplanation(args: {
     if (!args.reserveBudget) return { ...denied, note: "Budget non configurato: nessuna chiamata API." };
     budget = await args.reserveBudget();
     if (!budget.allowed) return { ...denied, budget, note: "Budget esaurito o non verificabile: nessuna chiamata API." };
+    const fresh = (args.clock ?? Date.now)();
+    const month = new Date(args.now).toISOString().slice(0, 7);
+    const next = new Date(month + "-01T00:00:00Z");
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    if (!Number.isFinite(fresh) || fresh < args.now || new Date(fresh).toISOString().slice(0, 7) !== month || next.getTime() - fresh < 60_000)
+      return { ...denied, budget, note: "Confine mensile non verificabile: riserva consumata, nessuna chiamata API." };
     const response = await fetcher("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
