@@ -74,7 +74,7 @@ const fakeFetch = async (url, init) => {
     choices: [{ message: { content: "Fenice mantiene ASML in OSSERVA e non lo compra. Le prove data/investment-committee.json e data/calibration-analysis.json sono insufficienti per il trading." } }],
   }) };
 };
-const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
+const generated = await generateGroundedExplanation({ question: "Perché non comprare ASML?", grounded, openaiToken, now, clock: () => now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
 assert.equal(calls, 1);
 assert.equal(generated.state, "GENERATED");
 assert.equal(generated.committeeVerdict, "ATTENDERE");
@@ -92,20 +92,20 @@ assert.equal(body.stream, undefined);
 
 const qualityBlocked = await generateGroundedExplanation({
   question: "ASML", grounded: { ...grounded, evidenceQualityVerified: false },
-  openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch,
+  openaiToken, now, clock: () => now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch,
 });
 assert.equal(qualityBlocked.state, "UNAVAILABLE");
 assert.equal(calls, 1, "untrusted source data must not call paid provider");
 
-const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, openaiToken, now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
+const blocked = await generateGroundedExplanation({ question: "ASML", grounded: { ...grounded, sourceTimestamp: null }, openaiToken, now, clock: () => now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: fakeFetch });
 assert.equal(blocked.state, "UNAVAILABLE");
 assert.equal(calls, 1, "stale/invalid research must NEVER spend credits");
 const bad = await generateGroundedExplanation({ question: "ASML", grounded, openaiToken, now,
-  reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: false, status: 402 }) });
+  clock: () => now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: false, status: 402 }) });
 assert.equal(bad.state, "UNAVAILABLE");
 assert.equal(bad.brokerOrderAllowed, false);
 const modelFailure = await generateGroundedExplanation({ question: "ASML", grounded, openaiToken, now,
-  reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [] }) }) });
+  clock: () => now, reserveBudget: async () => ({ allowed: true, reservedCents: 2, warning: false }), fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [] }) }) });
 assert.equal(modelFailure.state, "BAD_RESPONSE");
 console.log("Fenice generative explanation, owner access and budget safety: PASS");
 
@@ -129,3 +129,17 @@ assert.equal((await reserveAiBudget(store,Date.parse("2026-10-31T23:59:30Z"),nul
 assert.equal((await reserveAiBudget(store,Date.parse("2026-11-01T01:00:00Z"),null)).reservedCents,2);
 stored.body="broken";assert.equal((await reserveAiBudget(store,now,null)).allowed,false);
 console.log("Monthly budget reservation, concurrent conflict and fail-closed regression: PASS");
+
+const { createAiBudgetStore } = await import("../lib/ai/fenice-budget-blob.ts");
+const staleBody = JSON.stringify({month:"2026-10",reservedCents:498});
+let writes = 0;
+const staleStore = createAiBudgetStore({async get(){return {statusCode:200,blob:{etag:"old"},stream:new ReadableStream({start(c){c.enqueue(Buffer.from(staleBody));c.close();}})};},async head(){return {etag:"new",size:Buffer.byteLength(staleBody)};},async put(){writes++;return {etag:"newer"};}},{});
+assert.equal((await reserveAiBudget(staleStore,now,null)).allowed,false);
+assert.equal(writes,0);
+for (const fresh of ["2026-10-31T23:59:30Z","2026-11-01T00:01:00Z"]) {
+ const start=Date.parse("2026-10-31T23:58:00Z");
+ const result=await generateGroundedExplanation({question:"ASML",grounded:{...grounded,sourceTimestamp:new Date(start).toISOString()},openaiToken,now:start,clock:()=>Date.parse(fresh),reserveBudget:async()=>({allowed:true,reservedCents:2,warning:false}),fetchImpl:fakeFetch});
+ assert.equal(result.state,"UNAVAILABLE");assert.equal(result.budget.reservedCents,2);
+}
+assert.equal(calls,before);
+console.log("Stale ETag and delayed month rollover regression: PASS");
