@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import {appendVirtualFill,paperIdempotencyKey,replayVirtualLedger} from "../lib/global/virtual-ledger.mjs";
+const ledger={mode:"FENICE_ONE_GLOBAL_VIRTUAL_ONLY",liveTradingAllowed:false,brokerConnectivityAllowed:false,events:[]};
+const identity={campaignId:"global-shadow-1",mic:"XTKS",instrumentId:"XTKS:7203",sessionDate:"2026-11-06",strategyVersion:"v1",signalId:"signal-1"};
+const fill={occurredAt:"2026-11-06T01:30:00.000Z",side:"BUY",price:100,quantity:2,fees:1,fxToEur:0.006};
+const evidence={allowed:true,venue:"XTKS",instrumentId:"XTKS:7203"};
+assert.equal(replayVirtualLedger(ledger).valid,true);
+const one=appendVirtualFill({ledger,identity,fill,evidence});
+assert.equal(one.added,true);assert.equal(one.ledger.events.length,1);assert.equal(replayVirtualLedger(one.ledger).valid,true);
+const duplicate=appendVirtualFill({ledger:one.ledger,identity,fill,evidence});
+assert.equal(duplicate.added,false);assert.equal(duplicate.reason,"DUPLICATE_PAPER_SIGNAL");assert.equal(duplicate.ledger.events.length,1);
+for(const conflictingFill of [
+ {...fill,price:101},
+ {...fill,quantity:3},
+ {...fill,side:"SELL"},
+ {...fill,fees:2},
+ {...fill,fxToEur:.007},
+ {...fill,occurredAt:"2026-11-06T01:30:01.000Z"}
+]){
+ const conflict=appendVirtualFill({ledger:one.ledger,identity,fill:conflictingFill,evidence});
+ assert.equal(conflict.added,false,"Conflicting retry must not append");
+ assert.equal(conflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+ assert.equal(replayVirtualLedger(conflict.ledger).count,1);
+}
+const identityConflict=appendVirtualFill({ledger:one.ledger,identity:{...identity,metadata:"changed"},fill,evidence});
+assert.equal(identityConflict.reason,"PAPER_SIGNAL_IDEMPOTENCY_CONFLICT");
+assert.throws(()=>appendVirtualFill({ledger:one.ledger,identity,fill:{...fill,price:0},evidence}),/INVALID_VIRTUAL_FILL/);
+const two=appendVirtualFill({ledger:one.ledger,identity:{...identity,signalId:"signal-2"},fill,evidence});
+assert.equal(two.added,true);assert.equal(replayVirtualLedger(two.ledger).count,2);
+assert.equal(replayVirtualLedger({...two.ledger,events:[...two.ledger.events.slice(0,1),{...two.ledger.events[1],price:999}]}).valid,false);
+assert.equal(replayVirtualLedger({...ledger,liveTradingAllowed:true}).valid,false);
+assert.throws(()=>appendVirtualFill({ledger,identity,fill,evidence:{...evidence,allowed:false}}),/PAPER_EVIDENCE_NOT_ELIGIBLE/);
+assert.throws(()=>appendVirtualFill({ledger,identity,fill:{...fill,fxToEur:0},evidence}),/INVALID_VIRTUAL_FILL/);
+assert.equal(paperIdempotencyKey(identity),paperIdempotencyKey({...identity}));
+assert.throws(()=>appendVirtualFill({ledger,identity:{...identity,mic:"XMIL"},fill,evidence:{allowed:true,venue:"XMIL",instrumentId:"XTKS:7203"}}),/PAPER_INSTRUMENT_VENUE_MISMATCH/);
+assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],idempotencyKey:"forged"}]}).valid,false);
+assert.equal(replayVirtualLedger({...one.ledger,events:[{...one.ledger.events[0],identity:{...identity,mic:"XMIL"}}]}).valid,false);
+console.log("Fenice ONE GLOBAL virtual ledger contracts: PASS");

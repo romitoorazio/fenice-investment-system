@@ -1,6 +1,4 @@
 import path from "node:path";
-import { prioritizeMissingSecondSource } from "../lib/trading/paper-quote-probe-priority.mjs";
-import { validateFxTimestamp } from "../lib/trading/paper-fx-timestamp.mjs";
 import { fileURLToPath } from "node:url";
 import { readJsonState, writeJsonStateAtomic } from "../lib/trading/atomic-state-store.ts";
 import {
@@ -87,11 +85,9 @@ async function fetchFreshUsdEur() {
     }
 
     const observedAt = new Date(timestamp * 1000).toISOString();
-    const freshness = validateFxTimestamp(timestamp, Date.now(), fxFreshnessSeconds);
-    if (freshness.reason === "FUTURE_TIMESTAMP") throw new Error("PAPER_FX_FUTURE_PROVIDER_TIMESTAMP");
-    const ageSeconds = freshness.ageSeconds;
+    const ageSeconds = Math.max(0, (Date.now() - timestamp * 1000) / 1000);
     lastAge = ageSeconds;
-    if (freshness.valid) {
+    if (ageSeconds <= fxFreshnessSeconds) {
       return { rate, timestamp, observedAt, ageSeconds, freshnessAttempt: attempt + 1 };
     }
 
@@ -119,7 +115,7 @@ const masterByTicker = new Map(
 const probeUniverse = Array.isArray(evidence?.capabilities?.probeUniverse)
   ? evidence.capabilities.probeUniverse
   : Array.isArray(evidence?.requestedSymbols) ? evidence.requestedSymbols : [];
-const eligibleCandidates = probeUniverse
+const candidates = probeUniverse
   .map((symbol) => {
     const normalized = normalizeExecutionSymbol(symbol);
     const source = masterByTicker.get(normalized) || {};
@@ -132,8 +128,8 @@ const eligibleCandidates = probeUniverse
       country: source.country,
     };
   })
-  .filter((instrument) => instrument.symbol && isTwelveDataPaperCandidate(instrument));
-const candidates = prioritizeMissingSecondSource(eligibleCandidates, evidence.observations).slice(0, probeLimit);
+  .filter((instrument) => instrument.symbol && isTwelveDataPaperCandidate(instrument))
+  .slice(0, probeLimit);
 
 const withoutTwelve = (Array.isArray(evidence.observations) ? evidence.observations : [])
   .filter((item) => String(item?.sourceFamily || "").toLowerCase() !== "twelve-data");
@@ -247,9 +243,8 @@ const report = {
     liveTradingAllowed: false,
   },
 };
-// Do not publish refreshed PAPER quote evidence if the required FX preflight fails.
-// The quote and FX writes remain separate atomic files; downstream freshness
-// and FX gates still validate both snapshots before staging any PAPER order.
+await writeJsonStateAtomic(evidencePath, report);
+
 const fx = await fetchFreshUsdEur();
 const fxGeneratedAt = new Date().toISOString();
 await writeJsonStateAtomic(fxEvidencePath, {
@@ -267,6 +262,5 @@ await writeJsonStateAtomic(fxEvidencePath, {
   liveTradingAllowed: false,
   brokerConnectivityAllowed: false,
 });
-await writeJsonStateAtomic(evidencePath, report);
 
 console.log(`Fenice Twelve Data batch refresh: symbols=${candidates.length}, paperFresh=${capabilities.twelveDataPaperFreshObservations}/${twelveEvidence.length}, errors=${batchErrors.length}, 429=${rateLimitEvents}/${rateLimitRetries}, mode=${capabilities.twelveDataProbeMode}, USD/EUR=${fx.rate}, fxAge=${fx.ageSeconds.toFixed(1)}s, fxAttempt=${fx.freshnessAttempt}.`);
