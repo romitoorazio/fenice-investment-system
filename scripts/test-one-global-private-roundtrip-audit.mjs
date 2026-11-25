@@ -144,6 +144,26 @@ assert.equal(nineOfTen.entryChecksPassed,9);
 assert.equal(nineOfTen.exitChecksPassed,9);
 assert.equal(nineOfTen.roundTripForensicallyVerified,false);
 assert.equal(nineOfTen.lastRoundTripNetEuro,undefined);
+// Failed entry reports only allowlisted reason codes, never private evidence paths.
+const reasoned=await auditOneGlobalLatestPrivateRoundTrip({storage:store,nowIso,
+  auditFill:async args=>{
+    const a=await syntheticTenCheckAudit(args);
+    if(args.fillOrdinal!==1)return a;
+    return {...a,state:'FILL_NOT_YET_VERIFIABLE',checks:a.checks.slice(0,9),
+      missingEvidence:[{code:'SIGNAL_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN',path:'private-secret-path'},
+        {code:'untrusted-secret-text'}]};
+  }});
+assert.equal(reasoned.state,'ROUNDTRIP_FORENSIC_EVIDENCE_INCOMPLETE');
+assert.equal(reasoned.entryChecksPassed,9);
+assert.equal(reasoned.exitChecksPassed,10);
+assert.deepEqual(reasoned.entryFailureCodes,['SIGNAL_ARCHIVE_PRECOMMIT_TIMESTAMP_NOT_PROVEN']);
+assert.deepEqual(reasoned.exitFailureCodes,[]);
+assert(!JSON.stringify(reasoned).includes('private-secret-path'));
+assert(!JSON.stringify(reasoned).includes('untrusted-secret-text'));
+assert.equal(reasoned.lastRoundTripNetEuro,undefined);
+assert.equal(reasoned.certifiedTrades,0);
+assert.equal(reasoned.liveTradingAllowed,false);
+assert.deepEqual(nineOfTen.entryFailureCodes,['FINAL_CHRONOLOGY_CHECK_NOT_CONFIRMED']);
 let revision=0;
 const moved={...store,async read(){return {body,etag:'rev-'+(++revision)};}};
 const concurrent=await auditOneGlobalLatestPrivateRoundTrip({storage:moved,nowIso,
