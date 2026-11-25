@@ -400,9 +400,9 @@ jobs:
       - name: Verify original private journal, settle admissible PAPER and run bounded research
         if: steps.ci_recovery.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true
         env:
-          # A committed FILL always triggers replay in the runner. Recheck
-          # existing FILLs on release, explicit dispatch and one existing daily slot.
-          FENICE_RECHECK_HISTORICAL_FILLS: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.name == 'Fenice Production Deploy') || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6') }}
+          # A committed FILL always triggers immediate replay. Recheck
+          # historical FILLs only on explicit dispatch and one existing daily slot.
+          FENICE_RECHECK_HISTORICAL_FILLS: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6') }}
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
       - name: Inspect original journal from trusted OIDC (strictly read-only)
         if: github.event_name == 'workflow_dispatch' && inputs.journal_status_read_only == true
