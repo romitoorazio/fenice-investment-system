@@ -21,6 +21,19 @@ function provider(){
   return {sdk,objects,get writes(){return writes;},set mutateHead(x){mutateHead=x;},set badSize(x){badSize=x;},set headFail(x){headFail=x;}};
 }
 const p=provider(),storage=await createVercelPrivateEodBlobStore({storeId:'store_SYNTHETIC',token:'',sdk:p.sdk});
+// Diagnostic reads must not obtain a CAS token or perform HEAD/second GET.
+let diagnosticGets=0;
+const diagnostic=await createVercelPrivateEodBlobStore({storeId:'store_SYNTHETIC',token:'',sdk:{
+  async get(path,options){diagnosticGets++;return p.sdk.get(path,options);},
+  async head(){throw Error('DIAGNOSTIC_HEAD_FORBIDDEN');},
+  async put(){throw Error('DIAGNOSTIC_WRITE_FORBIDDEN');},
+}});
+const diagnosticSnapshot=await diagnostic.readStatusSnapshot();
+assert.equal(diagnosticGets,1);
+assert.equal(diagnosticSnapshot.body,body);
+assert.equal(diagnosticSnapshot.representationEtag,'"http-content-1"');
+assert.equal(Object.hasOwn(diagnosticSnapshot,'etag'),false);
+assert.equal(p.writes,0);
 const first=await storage.readSettlementContext();assert.equal(first.etag,'"control-version-1"');assert.equal(first.body,body);
 const saved=await storage.writeSettlementContext({expectedEtag:first.etag,body:body+'\n'});
 assert.equal(saved.etag,'"control-version-2"');assert.equal((await storage.readSettlementContext()).body,body+'\n');
