@@ -6,6 +6,7 @@ import executionCoverage from "@/data/execution-market-coverage.json";
 
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperApproval from "@/data/paper-validation-approval.json";
+import legacyRetirement from "@/data/one-global-legacy-retirement.json";
 import sourceHealth from "@/data/global-source-health.json";
 import investmentCommittee from "@/data/investment-committee.json";
 import forwardShadowEvidence from "@/data/v7-horizon-shadow-evaluation.json";
@@ -203,7 +204,7 @@ export default async function ReadinessPage() {
   const previousPaperEvidence = paperEvidence.at(-2);
   const evidenceBottlenecks = diagnosePaperEvidenceBottlenecks(executionMarket, executionCoverage, paperOms, serverRequestTime());
   const calendar = summarizePaperCertificationWindow(paperCampaignView, paperApproval, serverRequestTime());
-  const paperOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(calendar, paperApproval);
+  const paperOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(calendar, paperApproval, legacyRetirement);
   // The cloud deployment cannot inspect a localhost Directa/Darwin session.
   const directaContinuity = assessDirectaServiceContinuity();
   const releaseGate = assessFenice100KRelease({
@@ -313,6 +314,7 @@ export default async function ReadinessPage() {
             </div>
             <div className="rounded-xl border border-white/10 p-3">
               <p className="text-sm font-bold text-white">3. PAPER Certification</p>
+              {paperOwnerCheckpoint.legacyRetired && <p className="mt-1 text-xs text-amber-200">V6: archivio storico, non target ONE GLOBAL. <Link href="/recupero-paper" className="underline">Verifica journal originale</Link>.</p>}
               <p className="mt-1 text-xs font-semibold text-amber-200">NON CERTIFICATA</p>
               <p className="mt-1 text-xs text-slate-400">
                 {releaseGate.gates.paperCertification.verifiedEvidenceDays ?? "N/D"}/
@@ -397,24 +399,25 @@ export default async function ReadinessPage() {
         </section>
 
         <section aria-label="FENICE100K controllo decisione proprietario PAPER" className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-4">
-          <h2 className="font-black text-amber-200">FENICE100K · Decisione PAPER prima del 24 ottobre</h2>
+          <h2 className="font-black text-amber-200">{paperOwnerCheckpoint.legacyRetired ? "V6 · Campagna ritirata, storico conservato" : "FENICE100K · Decisione PAPER prima del 24 ottobre"}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-200">{paperOwnerCheckpoint.message}</p>
+          {paperOwnerCheckpoint.legacyRetired && <p className="mt-2 text-sm text-amber-100"><Link href="/recupero-paper" className="underline">Apri Recupero PAPER ONE GLOBAL</Link>. I conteggi V6 sottostanti non sono requisiti residui di ONE GLOBAL.</p>}
           <p className="mt-2 text-xs leading-5 text-slate-300">
             Stato <strong>{paperOwnerCheckpoint.status}</strong> ·
-            Fill mancanti nel registro: <strong>{paperOwnerCheckpoint.missingAuthorizedPaperFills ?? "N/D"}</strong> ·
+            {paperOwnerCheckpoint.legacyRetired ? "Fill mancanti al vecchio target V6:" : "Fill mancanti nel registro:"} <strong>{paperOwnerCheckpoint.missingAuthorizedPaperFills ?? "N/D"}</strong> ·
             Giornate verificate mancanti: <strong>{paperOwnerCheckpoint.missingVerifiedEvidenceDays ?? "N/D"}</strong> ·
-            Limite attuale di ordini PAPER al giorno: <strong>{paperOwnerCheckpoint.maxOrdersPerDay ?? "N/D"}</strong>.
+            {paperOwnerCheckpoint.legacyRetired ? "Limite storico V6 (non operativo):" : "Limite attuale di ordini PAPER al giorno:"} <strong>{paperOwnerCheckpoint.maxOrdersPerDay ?? "N/D"}</strong>.
           </p>
-          <p className="mt-2 text-xs leading-5 text-slate-400">
+          {!paperOwnerCheckpoint.legacyRetired && <p className="mt-2 text-xs leading-5 text-slate-400">
             Finestre giornaliere minime teoriche per i fill restanti (supponendo un fill per probe):
             <strong> {paperOwnerCheckpoint.illustrativeMinimumDailyProbeWindows ?? "N/D"}</strong>.
             È soltanto un calcolo di capacità, non una previsione di esecuzioni: mercati chiusi, dati non idonei e controlli di rischio
             possono ridurre i risultati fino a zero. Scadenza: <strong>{italianInstant(paperOwnerCheckpoint.expiryAt)}</strong>.
             Nessuna nuova autorizzazione è stata concessa e nessun test viene eseguito da questo riquadro.
-          </p>
+          </p>}
         </section>
 
-        {calendar.preExpiryOperatorAttentionRequired && (
+        {!paperOwnerCheckpoint.legacyRetired && calendar.preExpiryOperatorAttentionRequired && (
           <section aria-label="Revisione operatore prima della scadenza PAPER" className="rounded-2xl border border-amber-400/50 bg-amber-400/[0.08] p-4">
             <h2 className="text-base font-black text-amber-200">FENICE100K · Revisione umana prima della scadenza PAPER</h2>
             <p className="mt-2 text-sm leading-6 text-slate-200">
@@ -491,7 +494,7 @@ export default async function ReadinessPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Campagna PAPER certificante</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">{paperOwnerCheckpoint.legacyRetired ? "Archivio storico PAPER V6" : "Campagna PAPER certificante"}</p>
                 <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${campaignSafe ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}>
                   {campaignSafe ? "LIVE LOCK OK" : "SAFETY CHECK"}
                 </span>
@@ -501,8 +504,8 @@ export default async function ReadinessPage() {
                   </span>
                 )}
               </div>
-              <h2 className="mt-2 text-xl font-black">{paperCampaignView.startedAt ? "Evidenza operativa in maturazione" : "Nuova baseline PAPER da avviare"}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-300">La campagna non viene retrodatata: deve accumulare giorni reali, fill PAPER e qualità di esecuzione mantenendo fingerprint, audit, riconciliazione e blocco LIVE invariati.</p>
+              <h2 className="mt-2 text-xl font-black">{paperOwnerCheckpoint.legacyRetired ? "Evidenza storica conservata" : paperCampaignView.startedAt ? "Evidenza operativa in maturazione" : "Nuova baseline PAPER da avviare"}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{paperOwnerCheckpoint.legacyRetired ? "La V6 non deve accumulare nuovi fill: storico e fingerprint restano intatti; nessun credito per ONE GLOBAL." : "La campagna non viene retrodatata: deve accumulare giorni reali, fill PAPER e qualità di esecuzione mantenendo fingerprint, audit, riconciliazione e blocco LIVE invariati."}</p>
               <p className="mt-2 text-xs text-slate-500">Baseline: <span className="font-mono text-slate-400">{String(paperCampaignView.baselineCommit || "n/d").slice(0, 10)}</span> · SHA-256: <span className="font-mono text-slate-400">{baselineDigest ? `${baselineDigest.slice(0, 10)}…` : "n/d"}</span> · Execution quality: <strong className="text-slate-300">{executionQualityState}</strong> ({executionQualityFills}/{minPaperFills} fill campione)</p>
               {baselineMetrics && (
                 <p className="mt-2 text-xs leading-5 text-slate-500">Baseline fissata con intelligence <strong className="text-slate-300">{Number(baselineMetrics.intelligenceConfidence || 0)}/100</strong>, {Number(baselineMetrics.crossChecks || 0)} cross-check e copertura PAPER <strong className="text-slate-300">{Number(baselineMetrics.paperEligibleSymbols || 0)}/{Number(baselineMetrics.requestedExecutionSymbols || 0)} ({Number(baselineMetrics.paperEligiblePercent || 0)}%)</strong> su {Number(baselineMetrics.paperEligibleSourceFamilies || 0)} famiglie indipendenti.</p>
