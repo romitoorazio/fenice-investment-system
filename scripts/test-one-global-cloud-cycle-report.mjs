@@ -415,7 +415,14 @@ try{
   assert(syntheticLogs.includes('ONE_GLOBAL_FILL_REPLAY=SKIPPED_NO_NEW_FILL'));
   syntheticCycle={...filled,journalEventCount:6,virtualFillCount:3};
   await import('./invoke-one-global-cloud-signal-cycle.mjs?new-fill');
-  assert.deepEqual(requestedActions.splice(0),originalActions);
+  assert.deepEqual(requestedActions.splice(0),['RESEARCH_SIGNAL_CYCLE','AUDIT_LATEST_FILL_READ_ONLY']);
+  // A routine new fill must never skip its own independent replay.
+  syntheticCycle={...filled,journalEventCount:6,virtualFillCount:1};
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?routine-first-fill');
+  assert.deepEqual(requestedActions.splice(0),['RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY']);
+  syntheticCycle={...filled,journalEventCount:6,virtualFillCount:2};
+  await import('./invoke-one-global-cloud-signal-cycle.mjs?routine-second-fill');
+  assert.deepEqual(requestedActions.splice(0),['RESEARCH_SIGNAL_CYCLE','AUDIT_SECOND_FILL_READ_ONLY']);
   delete process.env.FENICE_RECHECK_HISTORICAL_FILLS;
   syntheticCycle={...syntheticNoFill,journalEventCount:6,virtualFillCount:1};
   await import('./invoke-one-global-cloud-signal-cycle.mjs?first-only');
