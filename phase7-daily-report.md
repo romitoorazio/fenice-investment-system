@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-24T18:54:19.159Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-25T17:59:13.461Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
@@ -10,23 +10,24 @@ Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le 
 | 1 | XNSE | XNSE:RELIANCE | 4.7827 | Virtuale aperta |
 
 ## Portafoglio forward (simulazione non certificata)
-- Posizioni aperte: **3**; chiuse: **6**
-- Esiti: **3 positivi / 3 negativi**
-- Risultato forward realizzato: **−€3,12**
-- Liquidità virtuale, esclusa valorizzazione posizioni aperte: **€696,88**
+- Posizioni aperte: **3**; chiuse: **7**
+- Esiti: **3 positivi / 4 negativi**
+- Risultato forward realizzato: **−€10,73**
+- Liquidità virtuale, esclusa valorizzazione posizioni aperte: **€689,27**
 - Rischio: **ACTIVE**; nuove posizioni virtuali: sottoposte ai limiti
 
 ## Backtest distinto dal forward
-- Risultato storico: **−€8,94** (non va sommato al forward)
+- Risultato storico: **−€9,24** (non va sommato al forward)
 
 ## Trasparenza
 - Fonte: Yahoo Finance pubblico non attestato; cambi BCE indicativi
-- Ledger forward: 18ba76e3e517ea8a43c8f1d0302384e1e6c5e7e5211be11a2fa7d1d252c9c353
+- Ledger forward: 9ae105d6fafab11d05a48cf7871521b683c3d875d87e836c17e0eb95d892618d
 - Prezzi non eseguibili; nessun fill PAPER certificato e nessun ordine Directa
 
 ## Avvisi
 - WAITING_FOR_FIVE_LATER_SETTLED_SESSIONS
-- WAIT_NEXT_POST_SIGNAL_SETTLED_BAR
+- UNSETTLED_DAILY_SIGNAL_AT_CAPTURE_EXCLUDED
+- STALE_ENTRY_BAR
 
 ## Registri originali
 - [Registro forward](phase5-forward-ledger.json)
