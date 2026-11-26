@@ -74,3 +74,14 @@ for(const fault of ['none','corrupt','ignore-conditions','no-delete','network','
  if(!['no-delete','late-write','delete-ignored'].includes(fault))assert.equal(value,null);
 }
 console.log('R2 conditional write diagnostic mock tests passed');
+
+// Owner page exposes the isolated POST only after explicit interaction.
+import {readFileSync} from 'node:fs';
+const ownerPage=readFileSync(new URL('../app/recupero-paper/page.tsx',import.meta.url),'utf8');
+assert.match(ownerPage,/const R2_PROBE="\/api\/paper\/one-global-r2-probe"/);
+assert.match(ownerPage,/if\(!authenticated\|\|r2InFlight\.current\|\|r2Uncertain\.current\)return/);
+assert.match(ownerPage,/fetch\(R2_PROBE,\{method:"POST",credentials:"same-origin",cache:"no-store",headers:\{"x-fenice-diagnostic":"r2-write"\}\}\)/);
+assert.match(ownerPage,/R2_CHECKS\.every\(key=>payload\.checks\?\.\[key\]===true\)/);
+assert.match(ownerPage,/onClick=\{\(\)=>void runR2Probe\(\)\}/);
+assert.equal((ownerPage.match(/fetch\(R2_PROBE/g)||[]).length,1);
+console.log('R2 owner page wiring checks passed');
