@@ -29,3 +29,48 @@ try{
  assert.equal(timeoutCalls,1);
 }finally{AbortSignal.timeout=originalTimeout;}
 console.log('R2 probe isolation tests passed');
+
+import {probePrivateR2Write} from '../lib/trading/one-global-r2-write-probe.mjs';
+import {createHash} from 'node:crypto';
+for(const fault of ['none','corrupt','ignore-conditions','no-delete','network','late-write','delete-ignored','ambiguous-http']){
+ let value=null, key=null, calls=0;
+ const etag=()=>'"'+createHash('md5').update(value).digest('hex')+'"';
+ const result=await probePrivateR2Write({env,clock:()=>now,fetcher:async(url,options)=>{
+  calls++;
+  assert.match(url.pathname,/^\/fenice-private-storage\/diagnostics\/r2-write-probe\/[a-f0-9-]{36}$/);
+  if(key)assert.equal(url.href,key);else key=url.href;
+  assert.equal(options.redirect,'error');
+  const headers=options.headers;
+  assert.match(headers.authorization,/^AWS4-HMAC-SHA256 /);
+  if(options.method==='PUT'){
+   assert.equal(headers['x-amz-content-sha256'],createHash('sha256').update(options.body).digest('hex'));
+   if(fault==='network'||fault==='late-write')throw Error('sensitive');
+   if(fault==='ambiguous-http')return new Response(null,{status:503});
+   if(headers['if-none-match'])assert.match(headers.authorization,/SignedHeaders=host;if-none-match;x-amz-content-sha256;x-amz-date/);
+   if(headers['if-match'])assert.match(headers.authorization,/SignedHeaders=host;if-match;x-amz-content-sha256;x-amz-date/);
+   if(fault!=='ignore-conditions'&&((headers['if-none-match']==='*'&&value!==null)||(headers['if-match']&&(!value||headers['if-match']!==etag()))))return new Response(null,{status:412});
+   value=options.body;return new Response(null,{status:200});
+  }
+  if(options.method==='GET')return new Response(fault==='corrupt'?'bad':value,{status:200,headers:{etag:etag()}});
+  if(options.method==='HEAD'){
+   // Simulate an unresolved PUT arriving after the absence observation.
+   if(fault==='late-write'){value='late diagnostic write';return new Response(null,{status:404});}
+   return new Response(null,{status:value===null?404:200});
+  }
+  assert.equal(options.method,'DELETE');
+  if(fault==='no-delete')return new Response(null,{status:403});
+  if(fault!=='delete-ignored')value=null;
+  return new Response(null,{status:204});
+ }});
+ assert.equal(result.state,fault==='none'?'R2_WRITE_PROBE_VERIFIED':'R2_WRITE_PROBE_FAILED');
+ if(fault==='none'){assert.ok(Object.values(result.checks).every(Boolean));assert.equal(calls,8);}
+ assert.ok(!JSON.stringify(result).includes('sensitive'));
+ if(['network','late-write','ambiguous-http','delete-ignored','no-delete'].includes(fault)){
+  assert.equal(result.checks.cleanup,false);
+  assert.equal(result.cleanupPending,true);
+  assert.match(result.diagnosticId,/^[a-f0-9-]{36}$/);
+ }
+ if(['network','late-write','ambiguous-http'].includes(fault))assert.equal(result.writeOutcomeAmbiguous,true);
+ if(!['no-delete','late-write','delete-ignored'].includes(fault))assert.equal(value,null);
+}
+console.log('R2 conditional write diagnostic mock tests passed');
