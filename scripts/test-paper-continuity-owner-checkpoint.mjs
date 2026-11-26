@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { buildInstitutionalEvidence } from "../lib/trading/readiness-evidence.ts";
 import { buildPaperContinuityOwnerCheckpoint as checkpoint } from "../lib/ui/paper-continuity-owner-checkpoint.ts";
 
 const base = {
@@ -89,3 +90,17 @@ assert.match(page,/href="\/recupero-paper"/);
 assert.match(api,/paperCertificationWindowScope/);
 assert.match(api,/RETIRED_V6_HISTORICAL_ONLY/);
 console.log("PASS retired V6 historical-only presentation; original ONE GLOBAL audit remains separate, LIVE locked");
+
+// Both production entry points must keep the V6 observations available without
+// passing them into the current institutional control score.
+for (const source of [page, api]) {
+  const currentInputs = source.match(/buildInstitutionalReadiness\(intelligence, \{([\s\S]*?)\}\)\)/)?.[1];
+  assert.ok(currentInputs, "current control scoring call present");
+  assert.doesNotMatch(currentInputs, /paperRuntimeEvidence|historicalAuditVerified|^\s*persistentAuditVerified,|engineeringEvidence\.persistentAuditImplementationVerified/m);
+}
+assert.match(api, /paperRuntimeEvidence,\s*paperRuntimeEvidenceScope: "V6_HISTORICAL_DIAGNOSTIC_ONLY"/);
+assert.match(page, /historicalAuditVerified \?/);
+const unproven = buildInstitutionalEvidence(null, {});
+assert.equal(unproven["market-session-controls"], "MISSING");
+assert.equal(unproven["fx-exposure"], "MISSING");
+assert.equal(unproven["persistent-audit"], "TESTING");

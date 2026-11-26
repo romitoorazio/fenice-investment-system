@@ -184,14 +184,12 @@ export default async function ReadinessPage() {
   };
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
-  const persistentAuditVerified = engineeringEvidence.persistentAuditImplementationVerified
+  const historicalAuditVerified = engineeringEvidence.persistentAuditImplementationVerified
     && paperRuntimeEvidence.persistentAuditRuntimeVerified;
   const { report, metrics, temporalRiskSafety } = applyTemporalRiskReadiness(buildInstitutionalReadiness(intelligence, {
     executionMarketQuorumVerified: executionReadiness.verified,
     recoveryVerified: engineeringEvidence.crashRecoveryVerified,
-    persistentAuditVerified,
-    marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
-    fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
+    // The V6 archive below cannot attest current ONE GLOBAL session, FX or audit controls.
     chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
   }));
   const pass = report.controls.filter((control) => control.status === "PASS").length;
@@ -513,7 +511,7 @@ export default async function ReadinessPage() {
                 <p className="mt-2 text-xs leading-5 text-slate-500">Baseline fissata con intelligence <strong className="text-slate-300">{Number(baselineMetrics.intelligenceConfidence || 0)}/100</strong>, {Number(baselineMetrics.crossChecks || 0)} cross-check e copertura PAPER <strong className="text-slate-300">{Number(baselineMetrics.paperEligibleSymbols || 0)}/{Number(baselineMetrics.requestedExecutionSymbols || 0)} ({Number(baselineMetrics.paperEligiblePercent || 0)}%)</strong> su {Number(baselineMetrics.paperEligibleSourceFamilies || 0)} famiglie indipendenti.</p>
               )}
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Evidenza runtime V6 persistita: sessioni <strong className="text-slate-300">{paperRuntimeEvidence.marketSessionControlsVerified ? `PASS (OPEN ${paperRuntimeEvidence.marketSessionOpenEvidenceDate || "n/d"} + blocco ${paperRuntimeEvidence.marketSessionBlockedEvidenceDate || "n/d"})` : "da verificare"}</strong> · FX exposure <strong className="text-slate-300">{paperRuntimeEvidence.fxExposureVerified ? `PASS (${paperRuntimeEvidence.fxTotalForeignExposurePercent ?? "n/d"}%)` : "da verificare"}</strong> · audit persistente <strong className="text-slate-300">{persistentAuditVerified ? `PASS (${paperRuntimeEvidence.auditChainEvents} eventi / ${paperRuntimeEvidence.auditEvidenceDays} giorni)` : "da verificare"}</strong>. Questi PASS aggiornano la completezza engineering senza aprire LIVE e senza modificare il fingerprint V6.
+                Evidenza runtime V6 persistita: sessioni <strong className="text-slate-300">{paperRuntimeEvidence.marketSessionControlsVerified ? `PASS (OPEN ${paperRuntimeEvidence.marketSessionOpenEvidenceDate || "n/d"} + blocco ${paperRuntimeEvidence.marketSessionBlockedEvidenceDate || "n/d"})` : "da verificare"}</strong> · FX exposure <strong className="text-slate-300">{paperRuntimeEvidence.fxExposureVerified ? `PASS (${paperRuntimeEvidence.fxTotalForeignExposurePercent ?? "n/d"}%)` : "da verificare"}</strong> · audit persistente <strong className="text-slate-300">{historicalAuditVerified ? `PASS (${paperRuntimeEvidence.auditChainEvents} eventi / ${paperRuntimeEvidence.auditEvidenceDays} giorni)` : "da verificare"}</strong>. Questi risultati documentano la campagna storica V6. I controlli ONE GLOBAL richiedono evidenze proprie.
               </p>
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-center">

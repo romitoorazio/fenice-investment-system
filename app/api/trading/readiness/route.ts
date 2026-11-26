@@ -61,11 +61,8 @@ export async function GET() {
     brokerReconciliationVerified: false,
     shadowExecutionVerified: false,
     recoveryVerified: engineeringEvidence.crashRecoveryVerified,
-    persistentAuditVerified: engineeringEvidence.persistentAuditImplementationVerified
-      && paperRuntimeEvidence.persistentAuditRuntimeVerified,
+    // Current control scores use the default unverified state until ONE GLOBAL provides evidence.
     heartbeatWatchdogVerified: false,
-    marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
-    fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
     paper30dVerified: false,
     chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
   }));
@@ -75,6 +72,7 @@ export async function GET() {
     ...readiness,
     executionReadiness,
     paperRuntimeEvidence,
+    paperRuntimeEvidenceScope: "V6_HISTORICAL_DIAGNOSTIC_ONLY",
     paperEvidenceBottlenecks: diagnosePaperEvidenceBottlenecks(executionMarket, executionCoverage, paperOms, now),
     paperCertificationWindow,
     paperCertificationWindowScope: paperContinuityOwnerCheckpoint.legacyRetired ? "RETIRED_V6_HISTORICAL_ONLY" : "V6_DIAGNOSTIC_ONLY",
