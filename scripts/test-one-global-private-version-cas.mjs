@@ -52,13 +52,15 @@ async function readStatusWithHeaders(headers,bytes=body){
 }
 assert.equal((await readStatusWithHeaders({})).body,body);
 assert.equal((await readStatusWithHeaders({'content-length':'12','content-encoding':'gzip'})).body,body);
+assert.equal((await readStatusWithHeaders({'content-length':'1500001','content-encoding':'gzip'})).body,body);
+await assert.rejects(readStatusWithHeaders({'content-length':'1500001'}),/TOO_LARGE/);
 assert.equal((await readStatusWithHeaders({'content-length':String(Buffer.byteLength(body))})).body,body);
 await assert.rejects(readStatusWithHeaders({'content-length':'0'}),/SIZE_MISMATCH/);
 await assert.rejects(readStatusWithHeaders({'content-length':'0','content-encoding':'identity'}),/SIZE_MISMATCH/);
 await assert.rejects(readStatusWithHeaders({'content-length':'10bad'}),/SIZE_MISMATCH/);
 await assert.rejects(readStatusWithHeaders({},new Uint8Array(1_500_001)),/TOO_LARGE/);
 await assert.rejects(readStatusWithHeaders({},new Uint8Array([0xff])),TypeError);
-assert.equal(transportGets,8);
+assert.equal(transportGets,10);
 const first=await storage.readSettlementContext();assert.equal(first.etag,'"control-version-1"');assert.equal(first.body,body);
 const saved=await storage.writeSettlementContext({expectedEtag:first.etag,body:body+'\n'});
 assert.equal(saved.etag,'"control-version-2"');assert.equal((await storage.readSettlementContext()).body,body+'\n');
