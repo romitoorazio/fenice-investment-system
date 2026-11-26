@@ -109,8 +109,10 @@ for(const [get,code] of [
  [async()=>({statusCode:200,blob:{etag:'e'},stream:new ReadableStream({start(c){c.error(Error('private stream secret'));}})}),'STREAM_FAILED'],
  [async()=>({statusCode:200,blob:{etag:'e'},stream:new ReadableStream({start(c){c.enqueue(Uint8Array.of(255));c.close();}})}),'UTF8_INVALID'],
 ]){
- const adapter=await createVercelPrivateEodBlobStore({storeId:'store_test123',sdk:{get,put(){throw Error('NO_WRITE');}}});
+ let writes=0;
+ const adapter=await createVercelPrivateEodBlobStore({storeId:'store_test123',sdk:{get,put(){writes++;throw Error('NO_WRITE');}}});
  await assert.rejects(()=>adapter.readStatusSnapshot(),{message:'CLOUD_BLOB_PRIVATE_STATUS_'+code});
+ assert.equal(writes,0);
 }
 const route=readFileSync('app/api/paper/one-global-private-status/route.js','utf8');
 assert.match(route,/export async function GET\(request\)/);
