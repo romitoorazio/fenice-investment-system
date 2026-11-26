@@ -131,11 +131,53 @@ stored.body="broken";assert.equal((await reserveAiBudget(store,now,null)).allowe
 console.log("Monthly budget reservation, concurrent conflict and fail-closed regression: PASS");
 
 const { createAiBudgetStore } = await import("../lib/ai/fenice-budget-blob.ts");
-const staleBody = JSON.stringify({month:"2026-10",reservedCents:498});
-let writes = 0;
-const staleStore = createAiBudgetStore({async get(){return {statusCode:200,blob:{etag:"old"},stream:new ReadableStream({start(c){c.enqueue(Buffer.from(staleBody));c.close();}})};},async head(){return {etag:"new",size:Buffer.byteLength(staleBody)};},async put(){writes++;return {etag:"newer"};}},{});
-assert.equal((await reserveAiBudget(staleStore,now,null)).allowed,false);
-assert.equal(writes,0);
+const budgetBody = JSON.stringify({month:"2026-10",reservedCents:498});
+const budgetAtLimit = JSON.stringify({month:"2026-10",reservedCents:500});
+function getBudget(body, etag) {
+  return {statusCode:200,blob:{etag},stream:new Response(body).body};
+}
+for (const changed of [getBudget(budgetBody, "http-b"), getBudget(budgetAtLimit, "http-a")]) {
+  let reads = 0;
+  let writes = 0;
+  const store = createAiBudgetStore({
+    async get(){return reads++ === 0 ? getBudget(budgetBody,"http-a") : changed;},
+    async head(){return {etag:"storage-a",size:Buffer.byteLength(budgetBody)};},
+    async put(){writes++;return {etag:"storage-b"};},
+  }, {});
+  assert.equal((await reserveAiBudget(store,now,null)).allowed,false);
+  assert.equal(writes,0);
+}
+
+let budgetVersion = 1;
+let currentBody = budgetBody;
+let budgetGets = 0;
+let budgetHeads = 0;
+const distinctTags = createAiBudgetStore({
+  async get(path,options){
+    budgetGets++;
+    assert.equal(options.access,"private");
+    assert.equal(options.useCache,false);
+    return getBudget(currentBody,"http-"+budgetVersion);
+  },
+  async head(){budgetHeads++;return {etag:"storage-"+budgetVersion,size:Buffer.byteLength(currentBody)};},
+  async put(path,body,options){
+    assert.equal(options.allowOverwrite,true);
+    if(options.ifMatch!=="storage-"+budgetVersion)throw Error("PRECONDITION_FAILED");
+    currentBody=body;
+    budgetVersion++;
+    return {etag:"storage-"+budgetVersion};
+  },
+},{});
+const reservations=await Promise.all([reserveAiBudget(distinctTags,now,null),reserveAiBudget(distinctTags,now,null)]);
+assert.equal(reservations.filter(result=>result.allowed).length,1);
+assert.equal(budgetVersion,2);
+assert.equal(budgetGets,4);
+assert.equal(budgetHeads,2);
+assert.equal(currentBody,budgetAtLimit);
+assert.equal((await reserveAiBudget(distinctTags,now,null)).allowed,false);
+assert.equal(budgetGets,6);
+assert.equal(budgetHeads,3);
+assert.equal(budgetVersion,2);
 for (const fresh of ["2026-10-31T23:59:30Z","2026-11-01T00:01:00Z"]) {
  const start=Date.parse("2026-10-31T23:58:00Z");
  const result=await generateGroundedExplanation({question:"ASML",grounded:{...grounded,sourceTimestamp:new Date(start).toISOString()},openaiToken,now:start,clock:()=>Date.parse(fresh),reserveBudget:async()=>({allowed:true,reservedCents:2,warning:false}),fetchImpl:fakeFetch});
