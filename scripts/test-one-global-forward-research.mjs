@@ -313,3 +313,43 @@ assert.equal(cohortLong.meanCohortGrossChangeGapPp,null);
 assert.deepEqual(summarizeForwardDecisions([...cohortRows].reverse(),cohortObservations).horizons[2].selectionComparison,cohortReport);
 assert.equal(summarizeForwardDecisions([],new Map()).horizons[2].selectionComparison.pairedCompleteCohorts,0);
 console.log("PASS matched research selection comparison: fully matured cohorts, same currency, equal cohort weights, no strategy promotion");
+
+// Prospective strength labels join only the already captured observation.
+// Historical decisions without a label must not be retrospectively classified.
+const strengthRows=cohortRows.map((row,i)=>({...row,relativeStrength:i===0?"LEADER_ACCELERATING":i===1?"LEADER":i===2?"OTHER":undefined}));
+const strengthReport=summarizeForwardDecisions(strengthRows,cohortObservations).horizons[2].byRelativeStrength;
+assert.equal(strengthReport.LEADER_ACCELERATING.up,1);
+assert.equal(strengthReport.LEADER.down,1);
+assert.equal(strengthReport.OTHER.up,1);
+assert.equal(Object.values(strengthReport).reduce((sum,g)=>sum+g.eligible,0),3);
+assert.equal(Object.keys(historicReport.pointInTime.horizons[2].byRelativeStrength).length,
+  new Set(actualLegacy.events.filter(e=>e.screen?.relativeStrength).map(e=>e.screen.relativeStrength)).size);
+const strengthTerminal=structuredClone(terminal);
+const strengthBase=strengthTerminal.assets.find(a=>a.symbol==="ENEL");
+assert(strengthBase);
+strengthTerminal.assets=[12,2,0,-4].map((ret,i)=>{
+  const a=structuredClone(strengthBase);
+  a.symbol="PEER"+i;a.currency="EUR";
+  a.technical.exchangeMic="XMIL";
+  a.technical.returns.oneMonthPercent=ret;
+  a.technical.returns.oneMonthResearchPercent=ret;
+  return a;
+});
+const strengthFirst=advanceWorldForwardResearchLedger({terminal:strengthTerminal,nowIso:at,previousLedger:newWorldForwardResearchLedger()});
+const newLabeled=strengthFirst.ledger.events.filter(e=>e.screen?.relativeStrength);
+assert.equal(newLabeled.length,4);
+assert(newLabeled.every(e=>e.kind==="BAR_OBSERVATION"));
+const firstClassified=strengthFirst.ledger.events.findIndex(e=>e.screen?.relativeStrength);
+assert(firstClassified>=0);
+{
+  const badStrength=structuredClone(strengthFirst.ledger);
+  badStrength.events[firstClassified].screen.relativeStrength="UNSUPPORTED_CLASS";
+  for(let i=firstClassified;i<badStrength.events.length;i++){
+    const {sha256,...payload}=badStrength.events[i];
+    payload.prevHash=i===0?"GENESIS":badStrength.events[i-1].sha256;
+    badStrength.events[i]={...payload,sha256:createHash("sha256").update(JSON.stringify(payload)).digest("hex")};
+  }
+  badStrength.lastHash=badStrength.events.at(-1).sha256;
+  assert.throws(()=>replayWorldForwardResearchLedger(badStrength),/FORWARD_RESEARCH_SCREEN_INVALID/);
+}
+console.log("PASS prospective relative-strength outcome grouping, immutable history and class validation");

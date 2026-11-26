@@ -404,6 +404,8 @@ async function fetchTechnical(definition) {
     price: round(price, price < 1 ? 6 : 2),
     returns: {
       oneMonthPercent: round(oneMonth, 1),
+      // Full-precision derived research input; never used to rerank or authorize orders.
+      oneMonthResearchPercent: Number.isFinite(oneMonth) ? oneMonth : undefined,
       threeMonthPercent: round(threeMonth, 1),
       sixMonthPercent: round(sixMonth, 1),
       oneYearPercent: round(oneYear, 1),

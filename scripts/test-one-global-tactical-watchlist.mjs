@@ -117,3 +117,46 @@ assert.equal(completedBarResearch(withLast({adjustedResearchClose:121})).stage, 
 const distribution = recovery.map((r,i)=>({...r, volume:i===20 ? 300 : i<16 ? 100 : 1}));
 assert.equal(completedBarResearch(distribution).stage, "NO_SETUP");
 assert.equal(completedBarResearch(recovery,{split:{date:recovery[12].timestamp}}),null);
+
+// Synthetic comparable peers: exact same completed bar and quote currency,
+// at least three other distinct peers. The old watchlist is not reranked.
+const peers=structuredClone(terminal);
+const base=peers.assets.find(a=>a.symbol==="ENEL");
+const bucket=new Date(Date.parse(peers.generatedAt)-86400000).toISOString();
+peers.assets=[12,2,0,-4].map((ret,i)=>{
+  const a=structuredClone(base);
+  a.symbol="PEER"+i;a.currency="EUR";
+  a.technical.exchangeMic="XMIL";a.technical.observedAt=bucket;
+  a.technical.returns.oneMonthPercent=ret;
+  a.technical.returns.oneMonthResearchPercent=ret;
+  a.technical.completedBarResearch={stage:"NO_SETUP",accelerating:i===0,barBucketAt:bucket};
+  return a;
+});
+const peerResult=()=>worldTacticalResearchRadar({terminal:peers,nowIso:at});
+const classification=()=>Object.fromEntries(peerResult().screenedResearch.map(r=>[r.symbol,r.relativeStrength]));
+assert.deepEqual(classification(),{PEER0:"LEADER_ACCELERATING",PEER1:"LEADER",PEER2:"OTHER",PEER3:"OTHER"});
+// A rounded 2.0 pp gap must not promote a true 1.991 pp excess.
+peers.assets[1].technical.returns.oneMonthResearchPercent=1.991;
+assert.equal(classification().PEER1,"OTHER");
+peers.assets[1].technical.returns.oneMonthResearchPercent=2;
+assert.equal(classification().PEER1,"LEADER");
+delete peers.assets[1].technical.returns.oneMonthResearchPercent;
+assert(Object.values(classification()).every(v=>v===null),"Legacy rounded returns cannot establish peer evidence");
+peers.assets[1].technical.returns.oneMonthResearchPercent=2;
+const ranks=peerResult().balancedGlobalWatchlist.map(r=>r.symbol);
+peers.assets[0].technical.completedBarResearch.accelerating=false;
+assert.equal(classification().PEER0,"LEADER");
+assert.deepEqual(peerResult().balancedGlobalWatchlist.map(r=>r.symbol),ranks);
+peers.assets[0].technical.completedBarResearch.accelerating=true;
+peers.assets[0].technical.completedBarResearch.barBucketAt=new Date(Date.parse(bucket)-86400000).toISOString();
+assert.equal(classification().PEER0,"LEADER","Stale acceleration may not qualify");
+peers.assets[3].currency="USD";
+assert(Object.values(classification()).every(v=>v===null),"Mixed currencies or insufficient peers abstain");
+peers.assets[3].currency="EUR";
+peers.assets[3].technical.observedAt=new Date(Date.parse(bucket)-86400000).toISOString();
+assert(Object.values(classification()).every(v=>v===null),"Different daily buckets abstain");
+peers.assets[3].technical.observedAt=bucket;
+peers.assets.push(structuredClone(peers.assets[3]));
+assert(Object.values(classification()).every(v=>v===null),"Duplicates cannot inflate peer count");
+assert(!JSON.stringify(peerResult()).includes("peerMonthReturn"));
+console.log("PASS prospective peer-strength research: comparable distinct peers, abstention, no reranking or raw input exposure");

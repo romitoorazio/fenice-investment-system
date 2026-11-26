@@ -102,6 +102,21 @@ export default async function GlobalOpportunitiesPage(){
               </article>)}
             </div>}
           </section>
+          <section className="space-y-2 rounded-xl border border-cyan-300/25 p-4">
+            <h3 className="font-bold text-cyan-200">Forza relativa e accelerazione</h3>
+            <p className="text-xs text-slate-400">Ipotesi di ricerca: rendimento mensile positivo e almeno 2 punti percentuali sopra la mediana di almeno tre altri titoli censiti nella stessa valuta e identica barra giornaliera. Non è un confronto con un indice. Nessun prezzo o segnale operativo.</p>
+            {radar.relativeStrengthResearch.length===0
+              ? <p className="text-sm">Nessun leader verificabile con questi criteri.</p>
+              : radar.relativeStrengthResearch.map(item=><p className="text-sm" key={(item.venueMic??"UNKNOWN")+":"+item.symbol}>
+                <strong>{item.symbol} · {item.venueMic??"Sede non verificata"}</strong> — {item.relativeStrength==="LEADER_ACCELERATING"?"Forza relativa con accelerazione":"Forza relativa positiva"}
+              </p>)}
+            {([2,10,40] as const).map(h=><p key={h} className="text-xs text-slate-400">Esiti prospettici dopo {h} barre: {(["LEADER_ACCELERATING","LEADER","OTHER"] as const).map((key,i)=>{
+              const g=radar.pointInTime.horizons[h].byRelativeStrength[key];
+              const label=["leader in accelerazione","leader","altri titoli confrontabili"][i];
+              return <span key={key}>{i>0?" · ":""}{label}: {g?.measured?g.up+"/"+g.measured+" rialzi":"nessun esito maturo"} ({g?.pending??0} in attesa)</span>;
+            })}.</p>)}
+            <p className="text-xs text-slate-400">Classi registrate solo da nuove osservazioni; risultati lordi, non certificati. Snapshot privi di rendimento non arrotondato non sono classificati.</p>
+          </section>
           {radar.emergingResearch.length>0 && <section className="space-y-2 rounded-xl border border-cyan-300/25 p-4">
             <h3 className="font-bold text-cyan-200">Accelerazioni e massimi recenti</h3>
             {radar.emergingResearch.map(item=><p className="text-sm" key={(item.venueMic??"USA")+":"+item.symbol}>

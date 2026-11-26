@@ -35,10 +35,11 @@ export type WorldRadarResearchView = {
   researchEligible:number;
   watchlist:WorldRadarResearchRow[];
   intradayAttention:{symbol:string;venueMic:string|null;observedAt:string;evidence:string[];paperEligible:false;brokerOrderAllowed:false;liveTradingAllowed:false}[];
+  relativeStrengthResearch:{symbol:string;venueMic:string|null;relativeStrength:"LEADER_ACCELERATING"|"LEADER"}[];
   emergingResearch:{symbol:string;venueMic:string|null;stage:string;evidence:string[]}[];
   sampledByAttention:Record<string,{up:number;down:number;flat:number}>;
   pointInTime:{horizons:Record<2|10|40,ForwardGroup & {byAttention:Record<string,ForwardGroup>;
-    byStage:Record<string,ForwardGroup>;byRegime:Record<string,ForwardGroup>;
+    byStage:Record<string,ForwardGroup>;byRegime:Record<string,ForwardGroup>;byRelativeStrength:Record<string,ForwardGroup>;
     pastFrequencyBenchmark:{tested:number;minPriorGroupOutcomes:number;brier:number|null;pooledBaselineBrier:number|null};
     researchForecastCoverage:{model:string;basis:string;totalDecisions:number;available:number;pending:number;
       scored:number;withheld:number;latestDecisionAt:string|null;
