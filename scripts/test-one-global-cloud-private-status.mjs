@@ -103,6 +103,15 @@ const max=await inspect({storage:store({
 assert.equal(max.state,'PRIVATE_STORE_SNAPSHOT_INVALID');
 assertNeverPrivateMaterial(max);
 
+const {createVercelPrivateEodBlobStore}=await import('../lib/trading/one-global-vercel-private-blob-store.mjs');
+for(const [get,code] of [
+ [async()=>{throw Error('private provider secret');},'PROVIDER_GET_FAILED'],
+ [async()=>({statusCode:200,blob:{etag:'e'},stream:new ReadableStream({start(c){c.error(Error('private stream secret'));}})}),'STREAM_FAILED'],
+ [async()=>({statusCode:200,blob:{etag:'e'},stream:new ReadableStream({start(c){c.enqueue(Uint8Array.of(255));c.close();}})}),'UTF8_INVALID'],
+]){
+ const adapter=await createVercelPrivateEodBlobStore({storeId:'store_test123',sdk:{get,put(){throw Error('NO_WRITE');}}});
+ await assert.rejects(()=>adapter.readStatusSnapshot(),{message:'CLOUD_BLOB_PRIVATE_STATUS_'+code});
+}
 const route=readFileSync('app/api/paper/one-global-private-status/route.js','utf8');
 assert.match(route,/export async function GET\(request\)/);
 assert.match(route,/isOwnerAuthorized/);
