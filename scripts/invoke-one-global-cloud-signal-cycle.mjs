@@ -49,12 +49,18 @@ try{
   // bound to the ordinal observed by this cycle before rendering any output.
   const fillCount=visible.report.virtualFillCount;
   // An absent or unknown policy keeps the previous full recheck behaviour.
-  const recheck=visible.report.paperFillsCreated===1 || process.env.FENICE_RECHECK_HISTORICAL_FILLS!=='false';
+  const recheck=process.env.FENICE_RECHECK_HISTORICAL_FILLS!=='false';
   const targets=[];
   if(recheck){
     if(fillCount>=1)targets.push(['FIRST',1]);
     if(fillCount>=2)targets.push(['SECOND',2]);
     if(fillCount>2)targets.push(['LATEST',fillCount]);
+  }else if(visible.report.paperFillsCreated===1){
+    // The new FILL must still be independently replayed immediately. Older
+    // ordinals are preserved and rechecked by the daily or explicit audit.
+    if(fillCount===1)targets.push(['FIRST',1]);
+    else if(fillCount===2)targets.push(['SECOND',2]);
+    else if(fillCount>2)targets.push(['LATEST',fillCount]);
   }else{
     console.log('ONE_GLOBAL_FILL_REPLAY=SKIPPED_NO_NEW_FILL');
   }

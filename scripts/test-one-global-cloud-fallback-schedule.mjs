@@ -69,7 +69,8 @@ assert.match(originalJob,/persist-credentials: false/);
 assert.match(originalJob,/node scripts\/invoke-one-global-cloud-signal-cycle\.mjs/);
 const replayPolicy=originalJob.split('FENICE_RECHECK_HISTORICAL_FILLS: ')[1]?.split('\n')[0];
 assert(replayPolicy?.includes("github.event_name == 'workflow_dispatch'"));
-assert(replayPolicy.includes("github.event_name == 'workflow_run' && github.event.workflow_run.name == 'Fenice Production Deploy'"));
+assert(!replayPolicy.includes("workflow_run"),"no workflow completion may trigger historical fill replay");
+assert.equal(replayPolicy.trim(),"${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6') }}","only explicit dispatch and the daily audit slot may replay historical fills");
 assert(replayPolicy.includes("github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6'"));
 assert(workflow.includes('cron: "15 0 * * 2-6"'));
 
