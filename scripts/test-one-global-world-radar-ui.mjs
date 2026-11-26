@@ -113,3 +113,10 @@ for(const h of [2,10,40]){
 }
 assert(page.includes("selectionComparison"));
 assert(page.includes("Dati comparabili non ancora disponibili"));
+
+assert(Array.isArray(result.relativeStrengthResearch));
+assert(result.relativeStrengthResearch.every(r=>["LEADER_ACCELERATING","LEADER"].includes(r.relativeStrength)
+  &&Object.keys(r).sort().join(",")==="relativeStrength,symbol,venueMic"));
+assert.equal(later.relativeStrengthResearch.length,0);
+assert(page.includes("Forza relativa e accelerazione"));
+assert(page.includes("byRelativeStrength"));
