@@ -79,9 +79,15 @@ console.log('R2 conditional write diagnostic mock tests passed');
 import {readFileSync} from 'node:fs';
 const ownerPage=readFileSync(new URL('../app/recupero-paper/page.tsx',import.meta.url),'utf8');
 assert.match(ownerPage,/const R2_PROBE="\/api\/paper\/one-global-r2-probe"/);
-assert.match(ownerPage,/if\(!authenticated\|\|r2InFlight\.current\|\|r2Uncertain\.current\)return/);
+assert.match(ownerPage,/if\(!authenticated\|\|r2InFlight\.current\|\|r2Blocked\)return/);
 assert.match(ownerPage,/fetch\(R2_PROBE,\{method:"POST",credentials:"same-origin",cache:"no-store",headers:\{"x-fenice-diagnostic":"r2-write"\}\}\)/);
 assert.match(ownerPage,/R2_CHECKS\.every\(key=>payload\.checks\?\.\[key\]===true\)/);
 assert.match(ownerPage,/onClick=\{\(\)=>void runR2Probe\(\)\}/);
 assert.equal((ownerPage.match(/fetch\(R2_PROBE/g)||[]).length,1);
 console.log('R2 owner page wiring checks passed');
+
+assert.match(ownerPage,/window\.localStorage\.setItem\(R2_PENDING_KEY,"pending"\)/);
+assert.ok(ownerPage.indexOf('window.localStorage.setItem(R2_PENDING_KEY,"pending")')<ownerPage.indexOf('await fetch(R2_PROBE'));
+assert.match(ownerPage,/restoreR2Guard\(\);\s*setAuthenticated\(true\)/);
+assert.match(ownerPage,/disabled=\{r2Busy\|\|r2Blocked\}/);
+assert.match(ownerPage,/window\.localStorage\.removeItem\(R2_PENDING_KEY\)/);
