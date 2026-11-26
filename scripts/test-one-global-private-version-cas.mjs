@@ -34,6 +34,31 @@ assert.equal(diagnosticSnapshot.body,body);
 assert.equal(diagnosticSnapshot.representationEtag,'"http-content-1"');
 assert.equal(Object.hasOwn(diagnosticSnapshot,'etag'),false);
 assert.equal(p.writes,0);
+// The SDK returns size 0 when Content-Length is absent, and a compressed
+// wire length when Fetch returns the decoded bytes.
+let transportGets=0;
+async function readStatusWithHeaders(headers,bytes=body){
+  const sdk={
+    async get(){
+      transportGets++;
+      return {statusCode:200,headers:new Headers(headers),
+        blob:{etag:'"http"',size:Number(headers['content-length']??0)},
+        stream:new Response(bytes).body};
+    },
+    async head(){throw Error('UNEXPECTED_STATUS_HEAD');},
+    async put(){throw Error('UNEXPECTED_STATUS_PUT');},
+  };
+  return (await createVercelPrivateEodBlobStore({storeId:'store_SYNTHETIC',sdk})).readStatusSnapshot();
+}
+assert.equal((await readStatusWithHeaders({})).body,body);
+assert.equal((await readStatusWithHeaders({'content-length':'12','content-encoding':'gzip'})).body,body);
+assert.equal((await readStatusWithHeaders({'content-length':String(Buffer.byteLength(body))})).body,body);
+await assert.rejects(readStatusWithHeaders({'content-length':'0'}),/SIZE_MISMATCH/);
+await assert.rejects(readStatusWithHeaders({'content-length':'0','content-encoding':'identity'}),/SIZE_MISMATCH/);
+await assert.rejects(readStatusWithHeaders({'content-length':'10bad'}),/SIZE_MISMATCH/);
+await assert.rejects(readStatusWithHeaders({},new Uint8Array(1_500_001)),/TOO_LARGE/);
+await assert.rejects(readStatusWithHeaders({},new Uint8Array([0xff])),TypeError);
+assert.equal(transportGets,8);
 const first=await storage.readSettlementContext();assert.equal(first.etag,'"control-version-1"');assert.equal(first.body,body);
 const saved=await storage.writeSettlementContext({expectedEtag:first.etag,body:body+'\n'});
 assert.equal(saved.etag,'"control-version-2"');assert.equal((await storage.readSettlementContext()).body,body+'\n');
