@@ -6,8 +6,11 @@ type BlobClient = {
   head(path: string, options: Record<string, unknown>): Promise<{ etag: string; size: number }>;
   put(path: string, body: string, options: Record<string, unknown>): Promise<{ etag: string }>;
 };
+function validEtag(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 256 && value.trim().length > 0;
+}
 async function readSmall(result: Read): Promise<string> {
-  if (result.statusCode !== 200 || !result.blob.etag || !result.stream || (result.blob.size ?? 0) > 1024) throw Error("BUDGET_READ_INVALID");
+  if (result.statusCode !== 200 || !validEtag(result.blob.etag) || !result.stream || (result.blob.size ?? 0) > 1024) throw Error("BUDGET_READ_INVALID");
   const reader = result.stream.getReader();
   const parts: Buffer[] = [];
   let size = 0;
@@ -29,7 +32,8 @@ export function createAiBudgetStore(client: BlobClient, auth: Record<string, unk
       if (first === null) return null;
       const body = await readSmall(first);
       const meta = await client.head(PATH, auth);
-      if (!meta.etag || meta.etag !== first.blob.etag || meta.size !== Buffer.byteLength(body)) throw Error("BUDGET_VERSION_INVALID");
+      // GET identifies the HTTP representation. HEAD supplies the version for conditional PUT.
+      if (!validEtag(meta.etag) || meta.size !== Buffer.byteLength(body)) throw Error("BUDGET_VERSION_INVALID");
       const second = await client.get(PATH, { access: "private", useCache: false, ...auth });
       if (!second || second.blob.etag !== first.blob.etag || await readSmall(second) !== body) throw Error("BUDGET_CHANGED");
       return { body, etag: meta.etag };
@@ -40,7 +44,7 @@ export function createAiBudgetStore(client: BlobClient, auth: Record<string, unk
         allowOverwrite: etag !== null, ...(etag === null ? {} : { ifMatch: etag }),
         cacheControlMaxAge: 60,
       });
-      return typeof receipt.etag === "string" && receipt.etag.length > 0;
+      return validEtag(receipt.etag);
     },
   };
 }
