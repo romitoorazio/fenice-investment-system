@@ -152,6 +152,21 @@ export default async function GlobalOpportunitiesPage(){
               {" "}{radar.pointInTime.horizons[2].down} ribassi e {radar.pointInTime.horizons[2].flat} casi invariati.
               Le misure sono lorde, nella valuta di quotazione.
             </p>
+            <div className="mt-3 rounded-lg border border-slate-700 p-3">
+              <h4 className="font-semibold text-slate-200">Titoli selezionati e opportunità non selezionate</h4>
+              <p className="mt-1 text-xs text-slate-400">Confronto descrittivo tra gruppi della stessa valutazione e valuta, solo quando tutti gli esiti del gruppo sono maturati. Ogni gruppo pesa allo stesso modo; nessuna prova di vantaggio predittivo.</p>
+              {([2,10,40] as const).map(horizon=>{
+                const c=radar.pointInTime.horizons[horizon].selectionComparison;
+                return <p className="mt-2 text-sm text-slate-300" key={horizon}>
+                  {horizon} barre successive: {c.pairedCompleteCohorts} gruppi completi, {c.pendingMatchedCohorts} in attesa, {c.unpairedCohorts} senza confronto.
+                  {c.pairedCompleteCohorts>0
+                    ? <> Selezionati in rialzo: {c.selectedPositive}/{c.selectedMeasured}; esclusi in rialzo: {c.outsidePositive}/{c.outsideMeasured}.
+                      Differenza media dei gruppi (selezionati meno esclusi): {c.meanCohortPositiveRateGapPp?.toFixed(1)} punti percentuali nella frequenza di rialzo; {c.meanCohortGrossChangeGapPp?.toFixed(1)} punti percentuali nella variazione lorda.</>
+                    : " Dati comparabili non ancora disponibili."}
+                </p>;
+              })}
+              <p className="mt-1 text-xs text-slate-400">Campioni potenzialmente dipendenti; costi e cambio non inclusi. Non è un segnale operativo.</p>
+            </div>
             <p className="mt-2 text-xs text-slate-400">
               I giorni di Borsa non osservati non vengono inventati. Questi conteggi non sono
               operazioni, rendimenti netti in euro, previsioni o prove di strategia PAPER certificata.

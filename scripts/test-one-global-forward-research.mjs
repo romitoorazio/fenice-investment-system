@@ -275,3 +275,41 @@ assert.equal(dependence.strategyPromotionAllowed,false);
 assert.deepEqual(summarizeForwardDecisions([...dependenceRows].reverse(),dependenceObservations).horizons[2].sampleDependence,dependence);
 assert.equal(summarizeForwardDecisions([],new Map()).horizons[2].sampleDependence.overall.measured,0);
 console.log("PASS overlapping and duplicate research windows are distinguished without claims of sample independence");
+
+ // Explicitly synthetic paired cohorts. Only fully matured, contemporaneous
+ // same-currency observations contribute; no pending or cross-currency join.
+const cohortObservations=new Map(),cohortRows=[];
+function cohortCase(name,offset,currency,selected,close){
+  const key="TEST:"+name;
+  cohortRows.push({key,at:instant(offset),currency,selected,
+    short:"MOMENTUM_WATCH",medium:"TREND_WATCH"});
+  const marks=close===null?[100]:[100,100,close];
+  cohortObservations.set(key,new Map([[currency,marks.map((value,j)=>({
+    close:value,barBucketAt:instant(offset+j+1),recordedAt:instant(offset+j+2),
+  }))]]));
+}
+cohortCase("a",4000,"USD",true,110);
+cohortCase("b",4000,"USD",true,90);
+cohortCase("c",4000,"USD",false,120);
+cohortCase("d",4010,"USD",true,130);
+cohortCase("e",4010,"USD",false,90);
+cohortCase("f",4020,"USD",true,130);
+cohortCase("g",4020,"USD",false,null);
+cohortCase("h",4000,"EUR",false,140);
+const cohortReport=summarizeForwardDecisions(cohortRows,cohortObservations).horizons[2].selectionComparison;
+assert.deepEqual(cohortReport,{
+  basis:"SAME_DECISION_TIMESTAMP_AND_QUOTE_CURRENCY_FULLY_MATURED",
+  pairedCompleteCohorts:2,pendingMatchedCohorts:1,unpairedCohorts:1,
+  selectedMeasured:3,outsideMeasured:2,selectedPositive:2,outsidePositive:1,
+  meanCohortPositiveRateGapPp:25,meanCohortGrossChangeGapPp:10,
+  researchOnly:true,independentSamplesProven:false,costsAndFxIncluded:false,
+  strategyPromotionAllowed:false,
+});
+const cohortLong=summarizeForwardDecisions(cohortRows,cohortObservations).horizons[10].selectionComparison;
+assert.equal(cohortLong.pairedCompleteCohorts,0);
+assert.equal(cohortLong.pendingMatchedCohorts,3);
+assert.equal(cohortLong.meanCohortPositiveRateGapPp,null);
+assert.equal(cohortLong.meanCohortGrossChangeGapPp,null);
+assert.deepEqual(summarizeForwardDecisions([...cohortRows].reverse(),cohortObservations).horizons[2].selectionComparison,cohortReport);
+assert.equal(summarizeForwardDecisions([],new Map()).horizons[2].selectionComparison.pairedCompleteCohorts,0);
+console.log("PASS matched research selection comparison: fully matured cohorts, same currency, equal cohort weights, no strategy promotion");

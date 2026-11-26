@@ -99,3 +99,17 @@ assert.equal(emerging?.stage,"VOLUME_BACKED_ACCELERATION");
 assert(emerging.evidence.some(label=>label.includes("sotto i massimi recenti")));
 assert.deepEqual(emergingView.watchlist.map(row=>row.symbol),result.watchlist.map(row=>row.symbol));
 assert.equal(emergingView.policy.liveTradingAllowed,false);
+
+for(const h of [2,10,40]){
+  const c=result.pointInTime.horizons[h].selectionComparison;
+  assert.equal(c.researchOnly,true);
+  assert.equal(c.strategyPromotionAllowed,false);
+  assert.equal(c.independentSamplesProven,false);
+  assert.equal(c.costsAndFxIncluded,false);
+  if(c.pairedCompleteCohorts===0){
+    assert.equal(c.meanCohortPositiveRateGapPp,null);
+    assert.equal(c.meanCohortGrossChangeGapPp,null);
+  }
+}
+assert(page.includes("selectionComparison"));
+assert(page.includes("Dati comparabili non ancora disponibili"));
