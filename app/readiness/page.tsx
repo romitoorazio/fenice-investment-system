@@ -211,6 +211,7 @@ export default async function ReadinessPage() {
     shadow: forwardShadowEvidence,
     engineeringEvidence: engineeringValidation,
     paperWindow: calendar,
+    legacyPaperRetired: paperOwnerCheckpoint.legacyRetired,
     paperApproval,
     deploymentCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     deploymentEnvironment: process.env.VERCEL_ENV ?? null,
@@ -312,15 +313,15 @@ export default async function ReadinessPage() {
             </div>
             <div className="rounded-xl border border-white/10 p-3">
               <p className="text-sm font-bold text-white">3. PAPER Certification</p>
-              {paperOwnerCheckpoint.legacyRetired && <p className="mt-1 text-xs text-amber-200">V6: archivio storico, non target ONE GLOBAL. <Link href="/recupero-paper" className="underline">Verifica journal originale</Link>.</p>}
+              {paperOwnerCheckpoint.legacyRetired && <p className="mt-1 text-xs text-amber-200">Il controllo ONE GLOBAL richiede le prove di ingresso e uscita nel journal privato. <Link href="/recupero-paper" className="underline">Verifica journal originale</Link>.</p>}
               <p className="mt-1 text-xs font-semibold text-amber-200">NON CERTIFICATA</p>
-              <p className="mt-1 text-xs text-slate-400">
+              {!paperOwnerCheckpoint.legacyRetired && <p className="mt-1 text-xs text-slate-400">
                 {releaseGate.gates.paperCertification.verifiedEvidenceDays ?? "N/D"}/
                 {releaseGate.gates.paperCertification.requiredEvidenceDays ?? "N/D"} giornate verificate,
                 {" "}{releaseGate.gates.paperCertification.reportedFills ?? "N/D"}/
                 {releaseGate.gates.paperCertification.requiredFills ?? "N/D"} fill riportati.
                 Minimo temporale {italianInstant(releaseGate.gates.paperCertification.earliestMaturityAt)}.
-              </p>
+              </p>}
             </div>
             <div className="rounded-xl border border-white/10 p-3">
               <p className="text-sm font-bold text-white">4. Vantaggio economico SHADOW</p>

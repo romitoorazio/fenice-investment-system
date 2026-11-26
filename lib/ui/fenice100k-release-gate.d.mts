@@ -95,6 +95,7 @@ export declare function assessFenice100KRelease(input?:{
   committee?:unknown;
   shadow?:unknown;
   paperWindow?:unknown;
+  legacyPaperRetired?:boolean;
   engineeringEvidence?:unknown;
   paperApproval?:unknown;
   deploymentCommit?:string|null;

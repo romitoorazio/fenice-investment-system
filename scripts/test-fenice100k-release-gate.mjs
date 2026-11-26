@@ -68,6 +68,16 @@ for (const falseAssurance of [
     "HISTORICAL_ROTATION_UNVERIFIED");
 }
 assert(baseline.blockers.some(x=>x.id==="P0_PAPER_APPROVAL_WINDOW"));
+const retiredWindow = assess({legacyPaperRetired:true,
+  paperWindow:{...paperWindow,numericalTargetsMet:true,evidenceIntegrityReviewRequired:true}});
+assert(!retiredWindow.blockers.some(x=>x.id==="P0_PAPER_APPROVAL_WINDOW"));
+assert(retiredWindow.blockers.some(x=>x.id==="P0_PAPER_EVIDENCE_REVIEW"));
+assert(retiredWindow.blockers.some(x=>x.id==="P0_PAPER_NOT_CERTIFIED" && /ONE GLOBAL/.test(x.detail)));
+assert.equal(retiredWindow.gates.paperCertification.numericalTargetsMet,false);
+assert.equal(retiredWindow.gates.paperCertification.reportedFills,paperWindow.reportedFills);
+assert.equal(retiredWindow.gates.liveLock.liveOrdersAllowed,false);
+assert.equal(assess({legacyPaperRetired:true,paperWindow:{...paperWindow,liveTradingAllowed:true}})
+  .gates.liveLock.state,"SAFETY_FAILURE");
 assert(baseline.blockers.some(x=>x.id==="P1_INSUFFICIENT_FORWARD_ALPHA"));
 
 for(const [name,patch] of [
