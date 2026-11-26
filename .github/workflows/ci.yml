@@ -44,6 +44,11 @@ jobs:
       - name: Repository secret scan
         run: node scripts/scan-repository-secrets.mjs
 
+      - name: GitHub main writer inventory (read-only; does not gate existing PAPER)
+        run: |
+          node scripts/test-github-main-writer-audit.mjs
+          node scripts/audit-github-main-writers.mjs
+
       - name: Forward research real-snapshot freshness and PAPER isolation regression
         run: node scripts/test-one-global-forward-research.mjs
 
