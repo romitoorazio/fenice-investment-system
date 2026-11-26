@@ -14,6 +14,7 @@ const URL="/api/paper/one-global-private-status";
 const RESTORE="/api/paper/one-global-private-recover";
 const EXPIRE="/api/paper/one-global-private-expire-cba";
 const R2_PROBE="/api/paper/one-global-r2-probe";
+const R2_PENDING_KEY="fenice:r2-probe-unresolved:v1";
 const R2_CHECKS=["conditionalCreate","concurrentExclusive","sha256Verified","conditionalUpdate","staleUpdateRejected","finalSha256Verified","cleanup"] as const;
 type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string};
 
@@ -27,19 +28,37 @@ export default function FeniceRecoverPage(){
   const [r2Busy,setR2Busy]=useState(false);
   const [r2Result,setR2Result]=useState<R2Result|null>(null);
   const r2InFlight=useRef(false);
-  const r2Uncertain=useRef(false);
+  const [r2Blocked,setR2Blocked]=useState(true);
+  function restoreR2Guard(){
+    try{
+      const pending=window.localStorage.getItem(R2_PENDING_KEY);
+      setR2Blocked(pending!==null);
+      if(pending!==null){
+        const id=/^[a-f0-9-]{36}$/.test(pending)?pending:undefined;
+        setR2Result({state:"R2_PROBE_RECONCILIATION_REQUIRED",cleanupPending:true,diagnosticId:id});
+      }
+    }catch{setR2Blocked(true);setR2Result({state:"R2_PROBE_LOCAL_GUARD_UNAVAILABLE"});}
+  }
   async function runR2Probe(){
-    if(!authenticated||r2InFlight.current||r2Uncertain.current)return;
-    r2InFlight.current=true;setR2Busy(true);setR2Result(null);
+    if(!authenticated||r2InFlight.current||r2Blocked)return;
+    // Persist before dispatch: navigation or loss of the response must not unlock retry.
+    try{
+      if(window.localStorage.getItem(R2_PENDING_KEY)!==null){restoreR2Guard();return;}
+      window.localStorage.setItem(R2_PENDING_KEY,"pending");
+    }catch{setR2Blocked(true);setR2Result({state:"R2_PROBE_LOCAL_GUARD_UNAVAILABLE"});return;}
+    r2InFlight.current=true;setR2Busy(true);setR2Blocked(true);setR2Result(null);
     try{
       const response=await fetch(R2_PROBE,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"x-fenice-diagnostic":"r2-write"}});
       const payload=await response.json() as R2Result;
       const verified=response.ok&&payload.state==="R2_WRITE_PROBE_VERIFIED"&&R2_CHECKS.every(key=>payload.checks?.[key]===true);
       const knownRejection=response.status===401||payload.state==="R2_WRITE_PROBE_CONFIGURATION_FAILED"||payload.state==="PRIVATE_OWNER_ACCESS_NOT_CONFIGURED";
-      r2Uncertain.current=!verified&&!knownRejection&&(payload.cleanupPending===true||payload.writeOutcomeAmbiguous===true||payload.checks?.cleanup!==true);
-      setR2Result({state:verified?"R2_WRITE_PROBE_VERIFIED":payload.state==="R2_WRITE_PROBE_VERIFIED"?"R2_PROBE_RESULT_INCOMPLETE":typeof payload.state==="string"?payload.state:"R2_PROBE_RESULT_UNKNOWN",checks:payload.checks,failedStep:payload.failedStep,diagnosticId:payload.diagnosticId,cleanupPending:r2Uncertain.current,writeOutcomeAmbiguous:payload.writeOutcomeAmbiguous});
+      const uncertain=!verified&&!knownRejection&&(payload.cleanupPending===true||payload.writeOutcomeAmbiguous===true||payload.checks?.cleanup!==true);
+      if(uncertain){
+        if(typeof payload.diagnosticId==="string"&&/^[a-f0-9-]{36}$/.test(payload.diagnosticId))window.localStorage.setItem(R2_PENDING_KEY,payload.diagnosticId);
+      }else{window.localStorage.removeItem(R2_PENDING_KEY);setR2Blocked(false);}
+      setR2Result({state:verified?"R2_WRITE_PROBE_VERIFIED":payload.state==="R2_WRITE_PROBE_VERIFIED"?"R2_PROBE_RESULT_INCOMPLETE":typeof payload.state==="string"?payload.state:"R2_PROBE_RESULT_UNKNOWN",checks:payload.checks,failedStep:payload.failedStep,diagnosticId:payload.diagnosticId,cleanupPending:uncertain,writeOutcomeAmbiguous:payload.writeOutcomeAmbiguous});
     }catch{
-      r2Uncertain.current=true;
+      setR2Blocked(true);
       setR2Result({state:"R2_PROBE_OUTCOME_UNKNOWN",cleanupPending:true});
     }finally{r2InFlight.current=false;setR2Busy(false);}
   }
@@ -53,6 +72,7 @@ export default function FeniceRecoverPage(){
         setStatus(null);
         return;
       }
+      restoreR2Guard();
       setAuthenticated(true);
       const response=await fetch(URL,{credentials:"same-origin",cache:"no-store"});
       const payload=await response.json() as Status;
@@ -119,7 +139,7 @@ export default function FeniceRecoverPage(){
             <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}} aria-label="Collaudo reale R2">
               <h2 style={{fontWeight:600}}>Collaudo reale R2</h2>
               <p>Test isolato: scrittura, lettura, SHA-256, concorrenza, CAS ed eliminazione. Non modifica il journal e non autorizza Directa.</p>
-              <button type="button" disabled={r2Busy||r2Uncertain.current} onClick={()=>void runR2Probe()} style={{background:"#334155",color:"#fff",padding:"12px 15px",borderRadius:8}}>{r2Busy?"Collaudo in corso...":"Esegui collaudo reale R2"}</button>
+              <button type="button" disabled={r2Busy||r2Blocked} onClick={()=>void runR2Probe()} style={{background:"#334155",color:"#fff",padding:"12px 15px",borderRadius:8}}>{r2Busy?"Collaudo in corso...":"Esegui collaudo reale R2"}</button>
               {r2Result?<div role="status">
                 <p>{r2Result.state}</p>
                 {r2Result.checks?<ul>{R2_CHECKS.map(key=><li key={key}>{key}: {r2Result.checks?.[key]===true?"OK":"NON VERIFICATO"}</li>)}</ul>:null}
