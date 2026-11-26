@@ -19,5 +19,13 @@ for(const [status,state] of [[200,'R2_PROBE_OBJECT_PRESENT'],[404,'R2_PROBE_OBJE
  assert.deepEqual(result,{state,httpStatus:status});
 }
 assert.deepEqual(await probePrivateR2({env,now,fetcher:async()=>{throw Error('secret error');}}),{state:'R2_PROBE_NETWORK_FAILED'});
-await assert.rejects(probePrivateR2({env:{},fetcher:async()=>{assert.fail('unexpected network');}}),/R2_CONFIGURATION_INCOMPLETE/);
+assert.deepEqual(await probePrivateR2({env:{},fetcher:async()=>{assert.fail('unexpected network');}}),{state:'R2_PROBE_CONFIGURATION_FAILED'});
+const originalTimeout=AbortSignal.timeout;
+try{
+ const signal=new AbortController().signal;
+ let timeoutCalls=0;
+ AbortSignal.timeout=ms=>{assert.equal(ms,8000);timeoutCalls++;return signal;};
+ await probePrivateR2({env,now,fetcher:async(url,options)=>{assert.equal(options.signal,signal);return {status:404};}});
+ assert.equal(timeoutCalls,1);
+}finally{AbortSignal.timeout=originalTimeout;}
 console.log('R2 probe isolation tests passed');
