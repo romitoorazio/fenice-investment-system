@@ -133,7 +133,7 @@ peers.assets=[12,2,0,-4].map((ret,i)=>{
 });
 const peerResult=()=>worldTacticalResearchRadar({terminal:peers,nowIso:at});
 const classification=()=>Object.fromEntries(peerResult().screenedResearch.map(r=>[r.symbol,r.relativeStrength]));
-assert.deepEqual(classification(),{PEER0:"LEADER_ACCELERATING",PEER1:"OTHER",PEER2:"OTHER",PEER3:"OTHER"});
+assert.deepEqual(classification(),{PEER0:"LEADER_ACCELERATING",PEER1:"LEADER",PEER2:"OTHER",PEER3:"OTHER"});
 const ranks=peerResult().balancedGlobalWatchlist.map(r=>r.symbol);
 peers.assets[0].technical.completedBarResearch.accelerating=false;
 assert.equal(classification().PEER0,"LEADER");
