@@ -4,6 +4,7 @@ import executionCoverage from "@/data/execution-market-coverage.json";
 import { getAlpacaPaperClock } from "@/lib/market/alpaca-paper-clock-runtime.mjs";
 import paperCampaign from "@/data/paper-validation-campaign.json";
 import paperApproval from "@/data/paper-validation-approval.json";
+import legacyRetirement from "@/data/one-global-legacy-retirement.json";
 import { summarizePaperCertificationWindow } from "@/lib/ui/paper-certification-window";
 import { buildPaperContinuityOwnerCheckpoint } from "@/lib/ui/paper-continuity-owner-checkpoint";
 import paperOms from "@/data/paper-oms-state.json";
@@ -48,7 +49,7 @@ export async function GET() {
     usMarketSession,
   };
   const paperCertificationWindow = summarizePaperCertificationWindow(paperCampaign, paperApproval, now);
-  const paperContinuityOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(paperCertificationWindow, paperApproval);
+  const paperContinuityOwnerCheckpoint = buildPaperContinuityOwnerCheckpoint(paperCertificationWindow, paperApproval, legacyRetirement);
   const paperRuntimeEvidence = derivePaperRuntimeEvidence(paperCampaign, paperOms);
   const engineeringEvidence = deriveEngineeringValidationEvidence(engineeringValidation);
   const readiness = applyTemporalRiskReadiness(buildInstitutionalReadiness(intelligence, {
@@ -60,11 +61,8 @@ export async function GET() {
     brokerReconciliationVerified: false,
     shadowExecutionVerified: false,
     recoveryVerified: engineeringEvidence.crashRecoveryVerified,
-    persistentAuditVerified: engineeringEvidence.persistentAuditImplementationVerified
-      && paperRuntimeEvidence.persistentAuditRuntimeVerified,
+    // Current control scores use the default unverified state until ONE GLOBAL provides evidence.
     heartbeatWatchdogVerified: false,
-    marketSessionControlsVerified: paperRuntimeEvidence.marketSessionControlsVerified,
-    fxExposureVerified: paperRuntimeEvidence.fxExposureVerified,
     paper30dVerified: false,
     chaosTestsVerified: engineeringEvidence.chaosTestsVerified,
   }));
@@ -74,8 +72,10 @@ export async function GET() {
     ...readiness,
     executionReadiness,
     paperRuntimeEvidence,
+    paperRuntimeEvidenceScope: "V6_HISTORICAL_DIAGNOSTIC_ONLY",
     paperEvidenceBottlenecks: diagnosePaperEvidenceBottlenecks(executionMarket, executionCoverage, paperOms, now),
     paperCertificationWindow,
+    paperCertificationWindowScope: paperContinuityOwnerCheckpoint.legacyRetired ? "RETIRED_V6_HISTORICAL_ONLY" : "V6_DIAGNOSTIC_ONLY",
     paperContinuityOwnerCheckpoint,
     credentialRotation: assessHistoricalCredentialRotation(),
     releaseCommitEvidence: assessProductionCommitEvidence(engineeringValidation, {
