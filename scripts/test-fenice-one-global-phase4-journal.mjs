@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {appendPhase4Signals} from "../lib/global/phase4-signal-journal.mjs";
+const capturedAt="2026-11-10T12:00:00Z";
+const signal={mic:"XMIL",instrumentId:"XMIL:ENI",symbol:"ENI.MI",observedAt:"2026-11-10T10:00:00Z",score:3.2,dataVerified:false,executable:false};
+const first=appendPhase4Signals({candidates:[signal],capturedAt});
+assert.equal(first.appended,1);assert.equal(first.journal.length,1);
+const replay=appendPhase4Signals({journal:first.journal,candidates:[signal],capturedAt});
+assert.equal(replay.appended,0);assert.equal(replay.duplicates,1);assert.equal(replay.headHash,first.headHash);
+const next=appendPhase4Signals({journal:replay.journal,candidates:[{...signal,instrumentId:"XMIL:TEST"}],capturedAt});
+assert.equal(next.journal.length,2);
+assert.throws(()=>appendPhase4Signals({journal:[{...next.journal[0],hash:"tampered"}],capturedAt}),/INTEGRITY_FAILURE/);
+assert.throws(()=>appendPhase4Signals({candidates:[{...signal,observedAt:"2026-11-11T10:00:00Z"}],capturedAt}),/INVALID_PHASE4_RESEARCH_SIGNAL/);
+assert.equal(next.ordersGenerated,0);assert.equal(next.liveTradingAllowed,false);
+console.log("FENICE phase 4 append-only signal journal: PASS");

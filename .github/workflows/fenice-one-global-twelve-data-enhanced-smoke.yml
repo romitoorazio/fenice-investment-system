@@ -1,0 +1,79 @@
+name: Fenice ONE GLOBAL Twelve Data Enhanced Smoke (no persistence)
+on:
+  workflow_dispatch:
+  # Run the enhanced entrypoint on integration changes, not just manual dispatch.
+  # This is an isolated, non-persistent provider smoke; NOT the PAPER scheduler.
+  push:
+    branches: [fix/one-global-integration-safety-reconcile-20261107]
+    paths:
+      - ".github/workflows/fenice-one-global-twelve-data-enhanced-smoke.yml"
+      - "scripts/refresh-twelve-data-batch-evidence-enhanced.mjs"
+      - "lib/trading/paper-fx-timestamp.mjs"
+      - "lib/trading/paper-quote-probe-priority.mjs"
+permissions:
+  contents: read
+concurrency:
+  group: fenice-one-global-enhanced-smoke-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  enhanced-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      FENICE_ONE_GLOBAL_PAIRED_SNAPSHOT: "1"
+      FENICE_TWELVE_DATA_BATCH_PROBES: "4"
+      FENICE_TWELVE_DATA_BATCH_429_RETRIES: "0"
+      FENICE_TWELVE_DATA_FX_FRESHNESS_RETRIES: "0"
+    steps:
+      - name: Checkout selected integration ref (never main implicitly)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Assert frozen V6 workflow and isolated enhanced entrypoint safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/test-paper-bottleneck-causes.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { validateFxTimestamp } from './lib/trading/paper-fx-timestamp.mjs';
+          import { prioritizeMissingSecondSource } from './lib/trading/paper-quote-probe-priority.mjs';
+          const now=Date.parse('2026-11-07T12:00:00Z');
+          assert.equal(validateFxTimestamp(now/1000+60,now).reason,'FUTURE_TIMESTAMP');
+          const candidates=[{symbol:'AAA'},{symbol:'BBB'}];
+          const observations=[{symbol:'BBB',sourceFamily:'alpaca',eligibility:'PAPER',observedAt:new Date(now).toISOString()}];
+          assert.equal(prioritizeMissingSecondSource(candidates,observations,now)[0].symbol,'BBB');
+          const enhanced=readFileSync('scripts/refresh-twelve-data-batch-evidence-enhanced.mjs','utf8');
+          assert.match(enhanced,/validateFxTimestamp\s*\(/);
+          assert.match(enhanced,/prioritizeMissingSecondSource\s*\(/);
+          const frozen=readFileSync('.github/workflows/paper-validation.yml','utf8');
+          assert.match(frozen,/run: node --experimental-strip-types scripts\/refresh-twelve-data-batch-evidence\.mjs/);
+          console.log('Enhanced smoke preflight: safety assertions PASS; frozen V6 PAPER scheduler unchanged; enhanced entrypoint tested separately');
+          NODE
+      - name: Run enhanced provider entrypoint on disposable checkout only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$TWELVE_DATA_API_KEY" ]; then
+            echo "TWELVE_DATA_API_KEY unavailable: fail closed"
+            exit 2
+          fi
+          node --experimental-strip-types scripts/refresh-twelve-data-batch-evidence-enhanced.mjs
+          echo "Enhanced provider entrypoint executed in disposable workspace; no evidence committed."
+          node --input-type=module <<'NODE'
+          import {readPairedEvidence} from "./lib/global/paired-evidence-store.mjs";
+          const result=await readPairedEvidence({directory:"data/one-global-paired-evidence"});
+          if(!result.accepted)throw Error(`PAIRED_SNAPSHOT_INVALID_${result.reason}`);
+          console.log(`Paired snapshot read-back PASS: ${result.runId}`);
+          NODE
+      - name: Verify no broker or persistent repository write
+        if: always()
+        shell: bash
+        run: |
+          echo "Smoke workflow has contents:read, no push/commit/upload and no broker credentials."
+          git status --short
