@@ -14,7 +14,7 @@ const headers={
   'Referrer-Policy':'no-referrer',
   'X-Robots-Tag':'noindex, nofollow',
 };
-const json=(body,status=200)=>Response.json(body,{status,headers});
+const json=(body,status=200)=>Response.json({...body,journalMutationAllowed:false,brokerConnectivityAllowed:false,liveTradingAllowed:false},{status,headers});
 
 export async function GET(request){
   const secret=process.env.FENICE_AI_OWNER_TOKEN;
