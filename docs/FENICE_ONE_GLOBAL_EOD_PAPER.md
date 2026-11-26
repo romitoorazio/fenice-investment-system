@@ -268,7 +268,7 @@ Regole verificabili:
 - solo AAPL/MSFT/TSLA (Nasdaq), con rapporto privato del collettore doppio;
 - l'osservazione di entrambe le API deve essere coerente (massimo 0,5%);
 - per un ingresso, SMA5 maggiore di SMA20 di oltre lo 0,5% e non decrescente;
-- il ciclo esamina prima le posizioni PAPER già aperte. Per proporre un’uscita XNAS, SMA5 deve essere inferiore al 99,5% di SMA20 e in calo rispetto alla SMA5 precedente. Entrambe le chiusure devono essere sotto SMA5. La vendita virtuale richiede le ricevute e il cambio della seduta successiva secondo le regole di settlement;
+- il ciclo esamina prima le posizioni PAPER già aperte. Per proporre un’uscita XNAS, SMA5 deve essere inferiore al 99,5% di SMA20 e in calo rispetto alla SMA5 precedente. Le chiusure delle due fonti devono entrambe essere sotto SMA5. Il settlement SELL richiede le ricevute della seduta successiva e un cambio BCE con data di riferimento precedente a tale seduta, secondo le regole di settlement;
 - decisione registrata con **l'orologio vero del processo**, nello stesso
   giorno locale di New York, dopo le 16:20 e al massimo tre ore dopo l'osservazione;
 - chiusura di riferimento alle 16:00 di New York, convertita in UTC in modo
