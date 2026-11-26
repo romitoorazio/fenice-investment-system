@@ -1,33 +1,34 @@
 # FENICE ONE GLOBAL — Report operativo mondiale
 
-Aggiornato: 2026-11-25T17:59:13.461Z | Ordini Directa: **0** | PAPER certificato: **NO**
+Aggiornato: 2026-11-26T17:44:42.080Z | Ordini Directa: **0** | PAPER certificato: **NO**
 
 ## Copertura e opportunità (ricerca, non consigli di acquisto)
 Copertura: 8/8 strumenti, uno per borsa. **Questo campione non esamina tutte le azioni mondiali.**
 
 | Posizione | Borsa | Strumento | Punteggio | Stato |
 |---:|---|---|---:|---|
-| 1 | XNSE | XNSE:RELIANCE | 4.7827 | Virtuale aperta |
+| 1 | XNSE | XNSE:RELIANCE | 5.1220 | Virtuale aperta |
+| 2 | XTKS | XTKS:7203 | 2.1905 | Da osservare |
 
 ## Portafoglio forward (simulazione non certificata)
-- Posizioni aperte: **3**; chiuse: **7**
-- Esiti: **3 positivi / 4 negativi**
-- Risultato forward realizzato: **−€10,73**
-- Liquidità virtuale, esclusa valorizzazione posizioni aperte: **€689,27**
-- Rischio: **ACTIVE**; nuove posizioni virtuali: sottoposte ai limiti
+- Posizioni aperte: **1**; chiuse: **9**
+- Esiti: **3 positivi / 6 negativi**
+- Risultato forward realizzato: **−€16,27**
+- Liquidità virtuale, esclusa valorizzazione posizioni aperte: **€883,73**
+- Rischio: **HALT_NEW_VIRTUAL_ENTRIES**; nuove posizioni virtuali: BLOCCATE
 
 ## Backtest distinto dal forward
-- Risultato storico: **−€9,24** (non va sommato al forward)
+- Risultato storico: **−€18,93** (non va sommato al forward)
 
 ## Trasparenza
 - Fonte: Yahoo Finance pubblico non attestato; cambi BCE indicativi
-- Ledger forward: 9ae105d6fafab11d05a48cf7871521b683c3d875d87e836c17e0eb95d892618d
+- Ledger forward: 2201fe8c1441c14b1970cbcd466110eefe8c12f33e275cfe2db8273463937b71
 - Prezzi non eseguibili; nessun fill PAPER certificato e nessun ordine Directa
 
 ## Avvisi
 - WAITING_FOR_FIVE_LATER_SETTLED_SESSIONS
-- UNSETTLED_DAILY_SIGNAL_AT_CAPTURE_EXCLUDED
-- STALE_ENTRY_BAR
+- PHASE6_RISK_HALT_NEW_VIRTUAL_ENTRIES
+- PHASE6_RISK_HALT
 
 ## Registri originali
 - [Registro forward](phase5-forward-ledger.json)

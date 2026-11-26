@@ -1,6 +1,6 @@
 # FENICE ONE GLOBAL — Fase 8: verbale di verifica
 
-**Data:** 2026-11-25T17:59:13.461Z
+**Data:** 2026-11-26T17:44:42.080Z
 **Audit tecnico:** PASS
 **PAPER certificato:** NO | **Ordini Directa:** 0
 
@@ -8,20 +8,20 @@
 
 | Verifica | Esito | Evidenza |
 |---|---|---|
-| SIGNAL_JOURNAL_INTEGRITY | PASS | 93 valid entries |
-| HISTORICAL_LEDGER_INTEGRITY | PASS | 30 valid entries |
-| FORWARD_LEDGER_INTEGRITY | PASS | 17 valid events |
-| RISK_CONTROLS_MATCH | PASS | ACTIVE |
+| SIGNAL_JOURNAL_INTEGRITY | PASS | 101 valid entries |
+| HISTORICAL_LEDGER_INTEGRITY | PASS | 33 valid entries |
+| FORWARD_LEDGER_INTEGRITY | PASS | 19 valid events |
+| RISK_CONTROLS_MATCH | PASS | HALT_NEW_VIRTUAL_ENTRIES |
 | BROKER_ISOLATION | PASS | 0 orders |
 | RESEARCH_VENUE_COVERAGE | PASS | 8/8 |
-| FORWARD_MATURED_OUTCOMES | PENDING | 7 closed, 3 wins, 4 losses, 4 venues, 4 exit dates |
+| FORWARD_MATURED_OUTCOMES | PENDING | 9 closed, 3 wins, 6 losses, 4 venues, 5 exit dates |
 | INDEPENDENT_EXECUTABLE_QUOTES | PENDING | 0 independently attested providers |
 
 ## Performance e provenienza
-- Segnali forward valutabili: 93; esclusi motivatamente: 0
-- Operazioni forward chiuse: 7; positive: 3; negative: 4
-- Risultato forward simulato: €-10.7318
-- Backtest storico, completamente separato: €-9.2431
+- Segnali forward valutabili: 101; esclusi motivatamente: 0
+- Operazioni forward chiuse: 9; positive: 3; negative: 6
+- Risultato forward simulato: €-16.2696
+- Backtest storico, completamente separato: €-18.9272
 - Campione mondiale: 8/8 borse, non una scansione di tutte le azioni.
 - Due vecchie osservazioni storiche potenzialmente provvisorie: 2
 - Prezzi Yahoo non attestati; cambi BCE indicativi, non eseguibili.
@@ -31,8 +31,8 @@
 - INDEPENDENT_EXECUTABLE_QUOTES
 
 ## Integrità registri
-- Segnali: d4dd246b900b49abfd38f1fba05a942a8eb0b68255b6b086caf406ceee0a648d
-- Storico: 7cae4cb133507c0a52de3124fe52a44aae3c6413dc30cae9dd430a369f896a9e
-- Forward: 9ae105d6fafab11d05a48cf7871521b683c3d875d87e836c17e0eb95d892618d
+- Segnali: c4bfbad877a7ac3ac8030e9762388836ae5dedf5067a848c0d2e6c1d0acc2633
+- Storico: f925c42f2dee7a821154d8405d313bbee4b7ef82050e2499596aeb71d5ba55a1
+- Forward: 2201fe8c1441c14b1970cbcd466110eefe8c12f33e275cfe2db8273463937b71
 
 **L'audit della Fase 8 è implementato ed eseguito; non autorizza PAPER certificato o ordini reali.**
