@@ -114,9 +114,27 @@ for(const h of [2,10,40]){
 assert(page.includes("selectionComparison"));
 assert(page.includes("Dati comparabili non ancora disponibili"));
 
-assert(Array.isArray(result.relativeStrengthResearch));
-assert(result.relativeStrengthResearch.every(r=>["LEADER_ACCELERATING","LEADER"].includes(r.relativeStrength)
+// Deterministic synthetic peers: the actual snapshot may lack precision or leaders.
+const strengthTerminal=structuredClone(terminal);
+const strengthBase=strengthTerminal.assets.find(a=>a.symbol==="ENEL");
+assert(strengthBase);
+const strengthBucket=new Date(Date.parse(strengthTerminal.generatedAt)-86400000).toISOString();
+strengthTerminal.assets=[12,2,0,-4].map((ret,i)=>{
+  const a=structuredClone(strengthBase);
+  a.symbol="PEER"+i;a.currency="EUR";
+  a.technical.exchangeMic="XMIL";a.technical.observedAt=strengthBucket;
+  a.technical.dailyBarCompletion.status="RESEARCH_SESSION_COMPLETED";
+  a.technical.returns.oneMonthPercent=ret;
+  a.technical.returns.oneMonthResearchPercent=ret;
+  a.technical.completedBarResearch={stage:"NO_SETUP",accelerating:i===0,barBucketAt:strengthBucket};
+  return a;
+});
+const strengthView=run(strengthTerminal);
+assert(Array.isArray(strengthView.relativeStrengthResearch));
+assert.equal(strengthView.relativeStrengthResearch.length,2);
+assert(strengthView.relativeStrengthResearch.every(r=>["LEADER_ACCELERATING","LEADER"].includes(r.relativeStrength)
   &&Object.keys(r).sort().join(",")==="relativeStrength,symbol,venueMic"));
+assert(strengthView.relativeStrengthResearch.some(r=>r.symbol==="PEER0"&&r.relativeStrength==="LEADER_ACCELERATING"));
 assert.equal(later.relativeStrengthResearch.length,0);
 assert(page.includes("Forza relativa e accelerazione"));
-assert(page.includes("byRelativeStrength"));
+assert(page.includes("horizons[h].byRelativeStrength"));

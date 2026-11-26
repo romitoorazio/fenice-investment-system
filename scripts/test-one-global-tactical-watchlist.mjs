@@ -128,12 +128,21 @@ peers.assets=[12,2,0,-4].map((ret,i)=>{
   a.symbol="PEER"+i;a.currency="EUR";
   a.technical.exchangeMic="XMIL";a.technical.observedAt=bucket;
   a.technical.returns.oneMonthPercent=ret;
+  a.technical.returns.oneMonthResearchPercent=ret;
   a.technical.completedBarResearch={stage:"NO_SETUP",accelerating:i===0,barBucketAt:bucket};
   return a;
 });
 const peerResult=()=>worldTacticalResearchRadar({terminal:peers,nowIso:at});
 const classification=()=>Object.fromEntries(peerResult().screenedResearch.map(r=>[r.symbol,r.relativeStrength]));
 assert.deepEqual(classification(),{PEER0:"LEADER_ACCELERATING",PEER1:"LEADER",PEER2:"OTHER",PEER3:"OTHER"});
+// A rounded 2.0 pp gap must not promote a true 1.991 pp excess.
+peers.assets[1].technical.returns.oneMonthResearchPercent=1.991;
+assert.equal(classification().PEER1,"OTHER");
+peers.assets[1].technical.returns.oneMonthResearchPercent=2;
+assert.equal(classification().PEER1,"LEADER");
+delete peers.assets[1].technical.returns.oneMonthResearchPercent;
+assert(Object.values(classification()).every(v=>v===null),"Legacy rounded returns cannot establish peer evidence");
+peers.assets[1].technical.returns.oneMonthResearchPercent=2;
 const ranks=peerResult().balancedGlobalWatchlist.map(r=>r.symbol);
 peers.assets[0].technical.completedBarResearch.accelerating=false;
 assert.equal(classification().PEER0,"LEADER");
