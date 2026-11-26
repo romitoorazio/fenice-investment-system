@@ -77,6 +77,20 @@ const readFail=await inspect({storage:{
 }});
 assert.equal(readFail.state,'PRIVATE_STORE_READ_UNAVAILABLE');
 assertNeverPrivateMaterial(readFail);
+const warnings=[];
+const originalWarn=console.warn;
+try{
+ console.warn=(...args)=>warnings.push(args);
+ for(const message of ['CLOUD_BLOB_PRIVATE_STATUS_SIZE_MISMATCH','secret token https://private.example']){
+  const result=await inspect({storage:{privateAccess:true,durable:true,async read(){throw Error(message);}}});
+  assert.equal(result.state,'PRIVATE_STORE_READ_UNAVAILABLE');
+  assertNeverPrivateMaterial(result);
+ }
+}finally{console.warn=originalWarn;}
+assert.deepEqual(warnings,[
+ ['ONE_GLOBAL_PRIVATE_STATUS_READ_FAILED','CLOUD_BLOB_PRIVATE_STATUS_SIZE_MISMATCH'],
+ ['ONE_GLOBAL_PRIVATE_STATUS_READ_FAILED','PRIVATE_PROVIDER_OR_STREAM_ERROR'],
+]);
 const publicStore=await inspect({storage:{
  privateAccess:false,durable:true,
  async read(){throw Error('MUST_NOT_READ_PUBLIC_STORE');},
