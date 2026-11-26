@@ -90,7 +90,11 @@ const heldLedger=settleOneGlobalEodSignal({previousLedger:ledger,nowIso:monday,s
   fxEvidence:{rateToEuro:1/1.1,source:'ECB_REFERENCE_ONLY',referenceDate:'2026-11-13',publishedAt:'2026-11-13T16:00:00.000Z',
     unitsPerEuro:1.1,series:'EXR.D.USD.EUR.SP00.A',currency:'USD'}}).ledger;
 const heldPlan=planPrivateEodSignalCycle({nowIso:monday,originalLedger:heldLedger});
-assert.equal(heldPlan.candidates[0].eligible,false);assert.equal(heldPlan.candidates[0].reason,'POSITION_ALREADY_HELD');
+assert.equal(heldPlan.candidates[0].eligible,true);
+assert.equal(heldPlan.candidates[0].reason,'ELIGIBLE_FOR_EXIT_RESEARCH');
+assert.equal(heldPlan.candidates[0].researchSide,'SELL');
+assert.deepEqual(planPrivateEodSignalCycle({nowIso:monday,originalLedger:heldLedger,symbols:['MSFT','AAPL']})
+  .candidates.map(x=>x.symbol),['AAPL','MSFT'],'review held positions before admitting fresh entries');
 assert.equal(heldPlan.candidates[1].eligible,true,'holding AAPL must never starve the remaining US candidates');
 assert.equal(initial.events.length,0,'planner must not mutate original journal');
 

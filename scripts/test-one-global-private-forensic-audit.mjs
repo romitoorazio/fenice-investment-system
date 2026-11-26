@@ -10,6 +10,9 @@ import {isOneGlobalEuConfirmedExitResearch} from '../lib/trading/one-global-clou
 import {buildFirstPaperFreeEodEvidence} from '../lib/market/one-global-first-paper-dual-eod.mjs';
 import {buildOneGlobalProspectiveSignalFromDualEod} from '../lib/trading/one-global-prospective-dual-eod-bridge.mjs';
 import {selectOneGlobalEcbCurrencyReference} from '../lib/market/one-global-cloud-ecb-reference.mjs';
+import {runOneGlobalCloudProspectiveCycle} from '../lib/trading/one-global-cloud-prospective-cycle.mjs';
+import {runOneGlobalCloudSettlementCycle} from '../lib/trading/one-global-cloud-settlement.mjs';
+import {auditOneGlobalLatestPrivateRoundTrip} from '../lib/trading/one-global-private-roundtrip-audit.mjs';
 
 // SYNTHETIC ONLY. No private journal, consent, publisher payload or actual
 // production fill is committed in this fixture; no network request is made.
@@ -377,6 +380,77 @@ assert.equal(usAudit.liveTradingAllowed,false);
 assert.equal(publicOneGlobalSecondFillForensicSummary(usAudit).checksPassed,10);
 assert.equal(publicOneGlobalSecondFillForensicSummary(usAudit).secondFillForensicallyVerified,true);
 assert.equal(usLedgerBody,JSON.stringify(usLedger),'original synthetic US journal unchanged');
+// Drive the production entry points from a held synthetic position to a later
+// close. The providers, clock and private store are entirely in memory.
+{
+  const decisionDate='2026-11-19',executionDate='2026-11-20';
+  let clockAt=decisionDate+'T21:45:00.000Z',body=usLedgerBody,version=0;
+  const clock=()=>clockAt;
+  const session={...usContext.sessions[0],sessionDate:executionDate,
+    sessionOpenedAt:executionDate+'T14:30:00.000Z',sessionClosedAt:executionDate+'T21:00:00.000Z'};
+  const sessionDoc=Buffer.from('SYNTHETIC XNAS 20 November session for offline PAPER exit test');
+  session.evidenceSha256=sha(sessionDoc);
+  const exitContext={...usContext,sessions:[session],documents:[...usDocuments,{
+    kind:'ORIGINAL_EXCHANGE_SESSION',sha256:session.evidenceSha256,bodyBase64:sessionDoc.toString('base64')}]};
+  const exitStore={...usStorage,atomicCompareAndSwap:true,
+    async read(){return {body,etag:String(version)};},
+    async readSettlementContext(){return {body:JSON.stringify(exitContext,null,2)+'\n',etag:'test-context'};},
+    async createResearchObservation({hash,body:archive}){
+      assert(!observations.has(hash));
+      observations.set(hash,{body:Buffer.from(archive),uploadedAt:clock(),uploadedAtSource:'VERCEL_CONTROL_PLANE_HEAD'});
+      return {created:true};
+    },
+    async compareAndSwap(next){
+      assert.equal(next.expectedEtag,String(version));
+      body=next.body;
+      return {committed:true,etag:String(++version)};
+    }};
+  const days=[decisionDate,usFillDate,...Object.keys(usBars)];
+  const bars=Object.fromEntries(days.map((day,i)=>[day,{'4. close':String(170+i)}]));
+  const alphaRaw=Buffer.from(JSON.stringify({'Meta Data':{'2. Symbol':'AAPL'},'Time Series (Daily)':bars}));
+  const eodhdRaw=Buffer.from(JSON.stringify([{date:decisionDate,close:170.05}]));
+  const report=buildFirstPaperFreeEodEvidence({alphaRaw,eodhdRaw,symbol:'AAPL',sessionDate:decisionDate,observedAt:clock()});
+  const propose=(ledger,candidate)=>buildOneGlobalProspectiveSignalFromDualEod({previousLedger:ledger,report:candidate,nowIso:clock()});
+  assert.throws(()=>propose(newOneGlobalEodPaperLedger(),report),/RESEARCH_GATE_NOT_MET/);
+  assert.throws(()=>propose(usLedger,{...report,priorSma5:report.sma5}),/RESEARCH_GATE_NOT_MET/);
+  assert.throws(()=>propose(usLedger,{...report,sma5:report.sma20*0.995,priorSma5:report.sma20}),/RESEARCH_GATE_NOT_MET/);
+  assert.throws(()=>propose(usLedger,{...report,sma5:170.04}),/RESEARCH_GATE_NOT_MET/,'both closes must confirm');
+  assert.throws(()=>propose(usLedger,{...usReport,sessionDate:decisionDate,observedAt:clock()}),/RESEARCH_GATE_NOT_MET/);
+  const collect=async({symbol})=>{assert.equal(symbol,'AAPL');return {alphaRaw,eodhdRaw,report};};
+  const decision=await runOneGlobalCloudProspectiveCycle({storage:exitStore,clock,collect});
+  assert.equal(decision.newSignals,1);
+  const recorded=JSON.parse(body);
+  assert.equal(recorded.events.at(-1).side,'SELL');
+  assert.deepEqual(recorded.positions,usLedger.positions);
+  assert.deepEqual(recorded.events.slice(0,-1),usLedger.events);
+  assert.equal((await runOneGlobalCloudProspectiveCycle({storage:exitStore,clock,collect})).newSignals,0);
+  const beforeClose=await runOneGlobalCloudSettlementCycle({storage:exitStore,clock});
+  assert.deepEqual(beforeClose.settlementBlockers,['CLOUD_SETTLEMENT_NEXT_SESSION_NOT_COMPLETED']);
+  clockAt=executionDate+'T22:30:00.000Z';
+  const rawPair=[Buffer.from(JSON.stringify({'Meta Data':{'2. Symbol':'AAPL'},'Time Series (Daily)':{[executionDate]:{'4. close':'169'}}})),
+    Buffer.from(JSON.stringify([{date:executionDate,close:169.05}]))];
+  const pair=rawPair.map((raw,i)=>({raw,receipt:{...usReceipts[i],close:i===0?169:169.05,
+    sessionDate:executionDate,payloadSha256:sha(raw),observedAt:clock(),publishedAt:clock()}}));
+  const fxRaw=Buffer.from(usEcbRaw.toString().replace('2026-11-17',decisionDate));
+  const fill=await runOneGlobalCloudSettlementCycle({storage:exitStore,clock,
+    collect:async()=>({pair,outcomes:[]}),collectFx:async()=>({raw:fxRaw,evidence:selectOneGlobalEcbCurrencyReference({
+      raw:fxRaw,currency:'USD',sessionDate:executionDate,observedAt:clock()})})});
+  assert.equal(fill.state,'STRICT_PAPER_FILL_COMMITTED_PRIVATE',JSON.stringify(fill));
+  assert.equal(fill.pendingSignalCount,0);
+  const sold=JSON.parse(body).events.at(-1);
+  assert.equal(sold.quantity,usLedger.positions['XNAS:AAPL'].quantity);
+  const exitAudit=await audit({storage:exitStore,nowIso:clock(),policyPins,fillOrdinal:3});
+  assert.equal(publicOneGlobalLatestFillForensicSummary(exitAudit).checksPassed,10);
+  assert.equal(exitAudit.accounting.executionPrice,(169+169.05)/2*(1-sold.slippageBps/10000));
+  const roundTrip=await auditOneGlobalLatestPrivateRoundTrip({storage:exitStore,nowIso:clock()});
+  assert.equal(roundTrip.roundTripForensicallyVerified,true,JSON.stringify(roundTrip));
+  const net=sold.notionalEuro-sold.feeEuro-usLedger.positions['XNAS:AAPL'].costEuro;
+  assert.equal(roundTrip.lastRoundTripNetEuro,Number(net.toFixed(4)));
+  assert.equal(roundTrip.lastRoundTripDirection,'LOSS');
+  assert.equal(roundTrip.certifiedTrades,0);
+  assert.equal(roundTrip.liveTradingAllowed,false);
+  assert.equal(version,2,'only the prospective signal and next-session fill may write');
+}
 const usCorruptResearch={...usStorage,
   async readResearchObservation(hash){
     if(hash!==usSignalSnapshot)return observations.get(hash);
