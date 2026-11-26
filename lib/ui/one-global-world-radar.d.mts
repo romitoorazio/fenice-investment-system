@@ -45,6 +45,11 @@ export type WorldRadarResearchView = {
       latestGroups:Record<string,{decisions:number;priorOutcomes:number;probability:number|null}>;
       minimumPriorGroupOutcomes:number;overlappingSamplesPossible:true;recordedLiveForecast:false;
       researchOnly:true;executionEligible:false;liveTradingAllowed:false};
+    selectionComparison:{basis:"SAME_DECISION_TIMESTAMP_AND_QUOTE_CURRENCY_FULLY_MATURED";
+      pairedCompleteCohorts:number;pendingMatchedCohorts:number;unpairedCohorts:number;
+      selectedMeasured:number;outsideMeasured:number;selectedPositive:number;outsidePositive:number;
+      meanCohortPositiveRateGapPp:number|null;meanCohortGrossChangeGapPp:number|null;
+      researchOnly:true;independentSamplesProven:false;costsAndFxIncluded:false;strategyPromotionAllowed:false};
     sampleDependence:{overall:SampleDependenceCounts;byAttention:Record<string,SampleDependenceCounts>;
       method:"STRICT_DISJOINT_INSTRUMENT_CURRENCY_CAPTURED_BAR_WINDOWS";independentSamplesProven:false;
       effectiveSampleSize:null;researchOnly:true;changesForecastEligibility:false;strategyPromotionAllowed:false};
