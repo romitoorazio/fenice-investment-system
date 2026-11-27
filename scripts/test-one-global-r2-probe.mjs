@@ -103,7 +103,7 @@ for(const format of ['opaque','bare','weak','missing','wildcard','list','oversiz
 }
 // Missing GET validator: independently read provider metadata and bind it
 // to the winning bytes before sending a conditional update.
-for(const fault of ['head','put','direct-get','conflict','no-metadata','head-403','wrong-bound-body','bound-412','bound-tag-conflict']){
+for(const fault of ['head','put','direct-get','put-head-403','put-head-network','conflict','no-metadata','head-403','wrong-bound-body','bound-412','bound-tag-conflict']){
  let value=null,casCalls=0,boundCalls=0,metadataCalls=0;
  const token=()=>'"version-'+createHash('sha256').update(value).digest('hex')+'"';
  const response=(status,body=null,tag=null)=>new Response(body,{status,headers:tag?{etag:tag}:{}});
@@ -112,7 +112,7 @@ for(const fault of ['head','put','direct-get','conflict','no-metadata','head-403
    if(o.headers['if-none-match']==='*'&&value!==null)return response(412);
    if(o.headers['if-match']){casCalls++;if(o.headers['if-match']!==token())return response(412);}
    value=o.body;
-   return response(200,null,['put','conflict'].includes(fault)?token():null);
+   return response(200,null,['put','put-head-403','put-head-network','conflict'].includes(fault)?token():null);
   }
   if(o.method==='GET')return response(200,value);
   if(o.method==='DELETE'){value=null;return response(204);}
@@ -120,8 +120,9 @@ for(const fault of ['head','put','direct-get','conflict','no-metadata','head-403
  };
  const metadataFetcher=async(url,o)=>{
   metadataCalls++;
-  assert.match(url.pathname,/^\\/fenice-private-storage\\/diagnostics\\/r2-write-probe\\/[a-f0-9-]{36}$/);
-  if(o.method==='HEAD')return fault==='head-403'?response(403):response(200,null,fault==='conflict'?'"other"':['head','wrong-bound-body','bound-412','bound-tag-conflict'].includes(fault)?token():null);
+  assert.match(url.pathname,/^\/fenice-private-storage\/diagnostics\/r2-write-probe\/[a-f0-9-]{36}$/);
+  if(o.method==='HEAD'&&fault==='put-head-network')throw Error('HEAD unavailable');
+  if(o.method==='HEAD')return ['head-403','put-head-403'].includes(fault)?response(403):response(200,null,fault==='conflict'?'"other"':['head','wrong-bound-body','bound-412','bound-tag-conflict'].includes(fault)?token():null);
   assert.equal(o.method,'GET');
   if(o.headers['if-match']){
    boundCalls++;assert.equal(o.headers['if-match'],token());
@@ -131,7 +132,7 @@ for(const fault of ['head','put','direct-get','conflict','no-metadata','head-403
   return response(200,value,fault==='direct-get'?token():null);
  };
  const result=await probePrivateR2Write({env,clock:()=>now,fetcher,metadataFetcher});
- const valid=['head','put','direct-get'].includes(fault);
+ const valid=['head','put','direct-get','put-head-403','put-head-network'].includes(fault);
  assert.equal(result.state,valid?'R2_WRITE_PROBE_VERIFIED':'R2_WRITE_PROBE_FAILED');
  assert.equal(result.checks.sha256Verified,true);
  assert.equal(result.checks.cleanup,true);
