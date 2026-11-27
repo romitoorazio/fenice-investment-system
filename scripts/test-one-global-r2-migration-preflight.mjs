@@ -1,14 +1,29 @@
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
-import {prepareR2Migration as run} from '../lib/trading/one-global-r2-migration-preflight.mjs';
-const root='fenice/one-global/private-eod/';
-const objects=['original-ledger.json','settlement-inputs.json'].map(k=>({key:root+k,bytes:Buffer.from('{}')}));
-const manifest=objects.map(o=>({key:o.key,size:o.bytes.length,sha256:createHash('sha256').update(o.bytes).digest('hex'),sourceUploadedAt:'2026-11-14T00:00:00Z'}));
-assert.equal(run().state,'MIGRATION_INVENTORY_INVALID');
-assert.equal(run({manifest,objects}).state,'MIGRATION_HISTORY_MISMATCH');
-assert.equal(run({manifest,objects:[{...objects[0],bytes:Buffer.from('xx')},objects[1]]}).state,'MIGRATION_BYTES_MISMATCH');
-assert.equal(run({manifest:[manifest[0],manifest[0]],objects}).state,'MIGRATION_MANIFEST_INVALID');
-assert.equal(run({manifest,objects:[objects[0],objects[0]]}).state,'MIGRATION_OBJECT_INVALID');
-assert.equal(run({manifest:[{...manifest[0],key:root+'../escape'},manifest[1]],objects}).state,'MIGRATION_MANIFEST_INVALID');
-assert.equal(run({manifest,objects}).liveTradingAllowed,false);
-console.log('Migration preflight synthetic negative cases passed; no authentic source or storage write tested.');
+import {ROOT,LEDGER,prepareR2Migration,reconcileInventory,sha256} from '../lib/trading/one-global-r2-migration-preflight.mjs';
+import {syntheticInventory} from './fixtures/one-global-r2-migration.mjs';
+
+const {manifest,objects}=syntheticInventory();
+const check=(m,o,code)=>assert.equal(prepareR2Migration({manifest:m,objects:o}).state,'MIGRATION_'+code);
+const changed=(index,patch)=>manifest.map((row,i)=>i===index?{...row,...patch}:row);
+const {ledger,objectCount}=reconcileInventory(manifest,objects);
+assert.equal(ledger.events.length,1);
+assert.equal(objectCount,4);
+check(manifest,objects,'HISTORY_MISMATCH'); // Positive synthetic replay cannot authorize the authentic history.
+check(null,objects,'INVENTORY_INVALID');
+check(manifest.slice(1),objects.slice(1),'REQUIRED_OBJECT_MISSING');
+check(manifest.slice(0,3),objects.slice(0,3),'REFERENCED_RAW_MISSING');
+check(changed(0,{key:manifest[1].key}),objects,'MANIFEST_INVALID');
+check(manifest,[objects[1],...objects.slice(1)],'OBJECT_INVALID');
+check(manifest,[{key:LEDGER,bytes:Buffer.alloc(manifest[0].size)},...objects.slice(1)],'BYTES_MISMATCH');
+for(const key of [ROOT+'../escape',ROOT+'%2e%2e',ROOT+'arbitrary.json',ROOT+'observations/raw/a','https://private.invalid'])
+  check(changed(0,{key}),objects,'MANIFEST_INVALID');
+for(const bad of [{sourceUploadedAt:'2026-02-30T12:00:00.000Z'},{sourceUploadedAt:'yesterday'},
+  {size:0},{size:1_500_001},{size:1.5},{sha256:'x'.repeat(64)}])check(changed(0,bad),objects,'MANIFEST_INVALID');
+for(const [index,bytes,code] of [[0,Buffer.from('{}'),'HISTORY_MISMATCH'],[0,Buffer.from([255]),'INVALID_JSON_OBJECT'],
+  [1,Buffer.from('{}'),'ORIGINAL_CONTEXT_INVALID'],[3,Buffer.from('other raw'),'RAW_FINGERPRINT_MISMATCH']]){
+  check(changed(index,{size:bytes.length,sha256:sha256(bytes)}),objects.map((o,i)=>i===index?{...o,bytes}:o),code);
+}
+const result=prepareR2Migration({manifest,objects,authorized:true,sourceProvenanceIndependentlyVerified:true});
+for(const key of ['sourceProvenanceIndependentlyVerified','completeInventoryIndependentlyVerified','journalMutationAllowed',
+  'authoritativeStoreChanged','brokerConnectivityAllowed','liveTradingAllowed'])assert.equal(result[key],false);
+console.log('PASS isolated migration inventory, byte integrity, metadata, replay, references and provenance boundaries');

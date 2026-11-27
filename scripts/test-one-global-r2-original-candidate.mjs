@@ -26,3 +26,6 @@ assert.equal(result.state,'R2_ORIGINAL_HISTORY_MISMATCH');
 assert.equal(result.journalMutationAllowed,false);assert.equal(result.authoritativeStoreChanged,false);
 assert.equal(result.sourceProvenanceIndependentlyVerified,false);assert.equal(result.liveTradingAllowed,false);
 console.log('R2 original candidate read-only negative and transport tests passed; genuine journal required for positive replay.');
+
+// Run the migration inventory regressions in the existing required Production CI R2 step.
+await import('./test-one-global-r2-migration-preflight.mjs');
