@@ -73,6 +73,34 @@ for(const fault of ['none','corrupt','ignore-conditions','no-delete','network','
  if(['network','late-write','ambiguous-http'].includes(fault))assert.equal(result.writeOutcomeAmbiguous,true);
  if(!['no-delete','late-write','delete-ignored'].includes(fault))assert.equal(value,null);
 }
+// Exercise opaque/legacy wire formats without replacing the server's version.
+for(const format of ['opaque','bare','weak','missing','wildcard','list','oversize']){
+ let value=null,casCalls=0;
+ const token=()=> 'version-'+createHash('sha256').update(value).digest('hex');
+ const valid=format==='opaque'||format==='bare';
+ const result=await probePrivateR2Write({env,clock:()=>now,fetcher:async(url,options)=>{
+  const h=options.headers;
+  if(options.method==='PUT'){
+   if(h['if-none-match']==='*'&&value!==null)return new Response(null,{status:412});
+   if(h['if-match']){
+    casCalls++;assert.equal(valid,true);
+    if(h['if-match']!=='"'+token()+'"')return new Response(null,{status:412});
+   }
+   value=options.body;return new Response(null,{status:200});
+  }
+  if(options.method==='GET'){
+   const tags={opaque:'"'+token()+'"',bare:token(),weak:'W/"'+token()+'"',wildcard:'*',list:'"a", "b"',oversize:'"'+ 'a'.repeat(257)+'"'};
+   return new Response(value,{status:200,headers:format==='missing'?{}:{etag:tags[format]}});
+  }
+  if(options.method==='DELETE'){value=null;return new Response(null,{status:204});}
+  assert.equal(options.method,'HEAD');return new Response(null,{status:value===null?404:200});
+ }});
+ assert.equal(result.state,valid?'R2_WRITE_PROBE_VERIFIED':'R2_WRITE_PROBE_FAILED');
+ assert.equal(result.checks.sha256Verified,true);assert.equal(result.checks.cleanup,true);
+ assert.equal(casCalls,valid?2:0);
+ if(!valid){assert.equal(result.failedStep,'READ');assert.equal(result.failureCode,'STRONG_ETAG_MISSING_OR_UNSUPPORTED');}
+ assert.equal(value,null);
+}
 console.log('R2 conditional write diagnostic mock tests passed');
 
 // Owner page exposes the isolated POST only after explicit interaction.
