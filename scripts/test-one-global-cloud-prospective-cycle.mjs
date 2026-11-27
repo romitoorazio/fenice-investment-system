@@ -139,7 +139,10 @@ console.log('PASS cloud SIGNAL: private raw evidence before original CAS, full r
  assert.equal(outside.state,'R2_PROSPECTIVE_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW');
  const none=await run({storage:r2,collect:async()=>{throw Error('unavailable');},clock:()=>now});
  assert.equal(none.state,'R2_PROSPECTIVE_VERIFIED_NO_ELIGIBLE_SIGNAL');
- const eu=await runOneGlobalCloudEuProspectiveCycle({storage:r2,clock:()=>now,fetcher:async()=>{throw Error('unexpected EU fetch');}});
+ let euFetches=0;
+ const eu=await runOneGlobalCloudEuProspectiveCycle({storage:r2,clock:()=>now,fetcher:async()=>{euFetches++;throw Error('unexpected EU fetch');}});
+ assert.equal(eu.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');
+ assert.equal(euFetches,0);
  assert.equal(eu.originalJournalVerified,false);
  assert.equal(eu.prospectiveJournalVerified,true);
  const report=await run({storage:r2,collect:async({symbol})=>evidence(symbol),clock:()=>now});
