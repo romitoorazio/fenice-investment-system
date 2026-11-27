@@ -37,10 +37,19 @@ assert.equal(Object.hasOwn(sanitized,'privateContext'),false);
 assert.equal(Object.hasOwn(sanitized,'cashEuro'),false);
 // A cycle that started with consent may cross expiry during collection.
 const priorTime=t;
-await assert.rejects(runAuthorizedR2PaperCycle({storage,clock,run:async({storage:guarded})=>{
+let journalWrites = 0;
+const observedStorage = {
+  ...storage,
+  async compareAndSwap(args) {
+    journalWrites++;
+    return storage.compareAndSwap(args);
+  },
+};
+await assert.rejects(runAuthorizedR2PaperCycle({storage:observedStorage,clock,run:async({storage:guarded})=>{
   t='2026-12-28T20:00:00.000Z';
   await guarded.compareAndSwap({expectedEtag:(await storage.read()).etag,body:before,contentType:'application/json'});
-}}));
+}}), {message:'CLOUD_SETTLEMENT_ORIGINAL_OWNER_CONSENT_INVALID_OR_EXPIRED'});
+assert.equal(journalWrites,0);
 assert.equal((await storage.read()).body,before);
 assert.equal((await storage.readSettlementContext()).body,context);
 t=priorTime;
