@@ -1,6 +1,7 @@
 /** Trusted Actions runner sends a short-lived identity, never vendor or owner keys. */
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
 import {oneGlobalActionsCycleSummary,validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
+import {validateR2PublicCycleSummary} from '../lib/trading/one-global-r2-paper-control.mjs';
 import {appendFileSync} from 'node:fs';
 // Public Actions logs may contain ONLY a fixed phase plus a bounded HTTP
 // status category. No response body, JWT, provider error, private URL or hash.
@@ -29,14 +30,20 @@ try{
   const {value}=await identity.json();
   if(typeof value!=='string'||value.length<100||value.length>16000)throw Error('OIDC');
   failurePhase='CYCLE_REQUEST';failureStatus=0;
+  const r2=process.env.FENICE_R2_PROSPECTIVE_ENABLED==='true';
   const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
     signal:AbortSignal.timeout(70000),headers:{Authorization:'Bearer '+value,
-      'Content-Type':'application/json'},body:JSON.stringify({action:'RESEARCH_SIGNAL_CYCLE'})});
+      'Content-Type':'application/json'},body:JSON.stringify({action:r2?'R2_PROSPECTIVE_PAPER_CYCLE':'RESEARCH_SIGNAL_CYCLE'})});
   failurePhase='CYCLE_RESPONSE';failureStatus=response.status;
   const text=await response.text();if(text.length>10000)throw Error('RESPONSE_SIZE');
   const report=JSON.parse(text);failurePhase='CYCLE_REPORT';
   if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
+  if(r2){
+    const visible=validateR2PublicCycleSummary(report);
+    console.log(JSON.stringify(visible));
+    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## R2 prospective PAPER (uncertified)\n\n'+Object.entries(visible).map(([k,v])=>'- '+k+': '+v).join('\n')+'\n');
+  }else{
   const visible=oneGlobalActionsCycleSummary(report);
   console.log(JSON.stringify(visible.report));
   console.log('ONE_GLOBAL_PAPER_OUTCOME='+visible.status);
@@ -101,6 +108,7 @@ try{
       +'| Phase 9 / Directa LIVE | DISABLED |\n',{encoding:'utf8'});
   }
 
+  }
 }catch{
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_FAILURE_CLASS='+safeTransportFailure());
