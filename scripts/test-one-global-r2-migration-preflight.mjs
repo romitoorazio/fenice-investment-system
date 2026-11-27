@@ -32,6 +32,26 @@ function replacedPacket(packet,code){
 replacedPacket({...obs,kind:'ONE_GLOBAL_PRIVATE_SOURCE_ACCESS_OBSERVATION'},'SIGNAL_ARCHIVE_KIND_MISMATCH');
 replacedPacket({...obs,receipts:[{receipt:{payloadSha256:sha256('xxx')},rawBase64:'eA=='}]},'INLINE_PAYLOAD_MISMATCH');
 replacedPacket({...obs,receipts:[{receipt:{payloadSha256:sha256('x')},rawBase64:'eA'}]},'INLINE_PAYLOAD_MISMATCH');
+// A non-EUR settlement must include authentic ECB bytes even if both FX fields are absent.
+function checkSettlementFx(currency,fxFields,expected){
+  const payload=Buffer.from('synthetic-provider');
+  const packet={kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_SOURCE_OBSERVATION',
+    marketEvidence:{providerReceipts:[{providerId:'test-provider',currency,payloadSha256:sha256(payload)}]},
+    providerRaw:[{providerId:'test-provider',rawBase64:payload.toString('base64')}],...fxFields};
+  const bytes=Buffer.from(JSON.stringify(packet));
+  const key=ROOT+'observations/'+sha256(bytes)+'.json';
+  const m=[...manifest,{key,size:bytes.length,sha256:sha256(bytes),sourceUploadedAt:manifest[0].sourceUploadedAt}];
+  const o=[...objects,{key,bytes}];
+  if(expected)check(m,o,expected);
+  else assert.equal(reconcileInventory(m,o).objectCount,5);
+}
+const ecb=Buffer.from('synthetic-ecb');
+const validFx={ecbRawBase64:ecb.toString('base64'),fxEvidence:{ecbResponseSha256:sha256(ecb)}};
+checkSettlementFx('USD',{},'INLINE_PAYLOAD_INVALID');
+checkSettlementFx('USD',{fxEvidence:validFx.fxEvidence},'INLINE_PAYLOAD_INVALID');
+checkSettlementFx('USD',{...validFx,ecbRawBase64:'eA=='},'INLINE_PAYLOAD_MISMATCH');
+checkSettlementFx('USD',validFx);
+checkSettlementFx('EUR',{});
 const result=prepareR2Migration({manifest,objects,authorized:true,sourceProvenanceIndependentlyVerified:true});
 for(const key of ['sourceProvenanceIndependentlyVerified','completeInventoryIndependentlyVerified','journalMutationAllowed',
   'authoritativeStoreChanged','brokerConnectivityAllowed','liveTradingAllowed'])assert.equal(result[key],false);
