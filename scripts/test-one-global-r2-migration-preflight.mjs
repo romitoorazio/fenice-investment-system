@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {prepareR2Migration as run} from '../lib/trading/one-global-r2-migration-preflight.mjs';
+const root='fenice/one-global/private-eod/';
+const objects=['original-ledger.json','settlement-inputs.json'].map(k=>({key:root+k,bytes:Buffer.from('{}')}));
+const manifest=objects.map(o=>({key:o.key,size:o.bytes.length,sha256:createHash('sha256').update(o.bytes).digest('hex'),sourceUploadedAt:'2026-11-14T00:00:00Z'}));
+assert.equal(run().state,'MIGRATION_INVENTORY_INVALID');
+assert.equal(run({manifest,objects}).state,'MIGRATION_HISTORY_MISMATCH');
+assert.equal(run({manifest,objects:[{...objects[0],bytes:Buffer.from('xx')},objects[1]]}).state,'MIGRATION_BYTES_MISMATCH');
+assert.equal(run({manifest:[manifest[0],manifest[0]],objects}).state,'MIGRATION_MANIFEST_INVALID');
+assert.equal(run({manifest,objects:[objects[0],objects[0]]}).state,'MIGRATION_OBJECT_INVALID');
+assert.equal(run({manifest:[{...manifest[0],key:root+'../escape'},manifest[1]],objects}).state,'MIGRATION_MANIFEST_INVALID');
+assert.equal(run({manifest,objects}).liveTradingAllowed,false);
+console.log('Migration preflight synthetic negative cases passed; no authentic source or storage write tested.');
