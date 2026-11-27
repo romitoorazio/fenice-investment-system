@@ -4,7 +4,7 @@ import {createProspectiveR2PaperStore} from '../lib/trading/one-global-r2-prospe
 import {recordOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 const objects=new Map();let version=0;
 const transport=async ({method,key,body,condition})=>{
-  assert.match(key,/^(ledger\.json|snapshots\/[a-f0-9]{64}\.json)$/);
+  assert.match(key,/^(ledger\.json|snapshots\/[a-f0-9]{64}\.json|evidence\/settlement-inputs\.json|evidence\/observations\/[a-f0-9]{64}\.json|evidence\/raw\/[a-f0-9]{64})$/);
   const current=objects.get(key);
   if(method==='GET'){
     if(condition['if-match']&&current?.etag!==condition['if-match'])return {status:412};
@@ -116,3 +116,36 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
  assert.equal((await backed.verifyIndependentBackup(saved.digest)).verified,true);
  assert.equal(writes,1);
  console.log('Independent encrypted backup, immutable retry, and isolated restore mock tests passed.');
+
+// Prospective evidence storage, exclusively synthetic.
+const evidenceStore=createProspectiveR2PaperStore({transport,clock:()=>now});
+assert.equal(evidenceStore.campaignKind,'R2_PROSPECTIVE_UNCERTIFIED');
+assert.equal(await evidenceStore.readSettlementContext(),null);
+const originalLedgerBytes=Buffer.from(objects.get('ledger.json').body);
+const context=JSON.stringify({kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',authority:{liveTradingAllowed:false,brokerConnectivityAllowed:false},documents:[],markets:[],sessions:[]})+'\n';
+const contextSaved=await evidenceStore.writeSettlementContext({expectedEtag:null,body:context});
+assert.equal((await evidenceStore.readSettlementContext()).body,context);
+await assert.rejects(evidenceStore.writeSettlementContext({expectedEtag:null,body:context}),/CONTEXT_CAS_CONFLICT/);
+await assert.rejects(evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:context.replace('false','true')}),/CONTEXT_SCOPE_INVALID/);
+const contextNext=context.replace('"sessions":[]','"sessions":[{}]');
+const contextRace=await Promise.allSettled([evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:contextNext}),evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:contextNext})]);
+assert.equal(contextRace.filter(x=>x.status==='fulfilled').length,1);
+const obs=JSON.stringify({kind:'TEST_ONLY_OBSERVATION',liveTradingAllowed:false})+'\n';
+const obsHash=createHash('sha256').update(obs).digest('hex');
+assert.equal((await evidenceStore.createResearchObservation({hash:obsHash,body:obs})).created,true);
+assert.equal((await evidenceStore.createResearchObservation({hash:obsHash,body:obs})).created,false);
+await assert.rejects(evidenceStore.createResearchObservation({hash:obsHash,body:obs.replace('TEST_ONLY','DIFFERENT')}),/EVIDENCE_READBACK_MISMATCH/);
+const observed=await evidenceStore.readResearchObservation(obsHash);
+assert.equal(observed.body.toString(),obs);
+assert.equal(observed.uploadedAt,null);
+assert.equal(observed.uploadedAtSource,'R2_PRIVATE_READBACK_ONLY');
+assert.equal(observed.readbackObservedAt,now);
+const raw=Buffer.from('synthetic market-data test artifact');
+const rawHash=createHash('sha256').update(raw).digest('hex');
+assert.equal((await evidenceStore.createSourceArtifact({hash:rawHash,body:raw,contentType:'text/csv'})).verified,true);
+assert.equal((await evidenceStore.createSourceArtifact({hash:rawHash,body:raw,contentType:'text/csv'})).created,false);
+assert.deepEqual((await evidenceStore.readSourceArtifact(rawHash)).body,raw);
+await assert.rejects(evidenceStore.createSourceArtifact({hash:'0'.repeat(64),body:raw,contentType:'text/csv'}),/RAW_ARTIFACT_INVALID/);
+await assert.rejects(evidenceStore.readResearchObservation('../ledger.json'),/EVIDENCE_HASH_INVALID/);
+assert.deepEqual(objects.get('ledger.json').body,originalLedgerBytes);
+console.log('Prospective R2 evidence storage tests passed; no historical chronology attested.');
