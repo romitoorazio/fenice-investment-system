@@ -3,6 +3,8 @@ import {readFileSync} from 'node:fs';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
 import {runOneGlobalCloudProspectiveCycle as run,pinOneGlobalRecoveredOriginalStore as pin} from '../lib/trading/one-global-cloud-prospective-cycle.mjs';
 import {buildFirstPaperFreeEodEvidence} from '../lib/market/one-global-first-paper-dual-eod.mjs';
+import {runOneGlobalCloudEuProspectiveCycle} from '../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
+import {createProspectiveR2PaperStore} from '../lib/trading/one-global-r2-prospective-paper-store.mjs';
 const now='2026-11-13T21:45:00.000Z',date='2026-11-13';
 // Explicitly synthetic pre-existing journal, never the user's private bytes.
 const initial=recordOneGlobalEodSignal({previousLedger:newOneGlobalEodPaperLedger(),
@@ -115,3 +117,47 @@ assert.doesNotMatch(route,/export async function GET|newOneGlobalEodPaperLedger|
 const safe=JSON.stringify(result);
 assert.doesNotMatch(safe,/payloadSha256|sourceSnapshotHash|RawBase64|unitPrice|lastHash|grossEuro/);
 console.log('PASS cloud SIGNAL: private raw evidence before original CAS, full replay/readback, one/day idempotency, weekends, missing original, forged data, archive/race/window failures; zero FILL/LIVE.');
+
+ // Actual R2 adapter, isolated in-memory transport, synthetic prices only.
+ {
+ const objects=new Map();let version=0;
+ const transport=async ({method,key,body,condition})=>{
+   const current=objects.get(key);
+   if(method==='GET'){
+     if(condition['if-match']&&current?.etag!==condition['if-match'])return {status:412};
+     return current?{status:200,...current}:{status:404};
+   }
+   if((condition['if-match']&&condition['if-match']!==current?.etag)||(condition['if-none-match']==='*'&&current))return {status:412};
+   objects.set(key,{body:Buffer.from(body),etag:'"r2-test-'+(++version)+'"'});
+   return {status:200};
+ };
+ const r2=createProspectiveR2PaperStore({transport,clock:()=>now});
+ await assert.rejects(run({storage:r2,collect:async()=>{throw Error('unexpected collection');},clock:()=>now}),/ORIGINAL_JOURNAL_REQUIRED/);
+ await r2.initialize();
+ const first=await r2.read();
+ const outside=await run({storage:r2,collect:async()=>{throw Error('unexpected');},clock:()=> '2026-11-13T20:35:00.000Z'});
+ assert.equal(outside.state,'R2_PROSPECTIVE_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW');
+ const none=await run({storage:r2,collect:async()=>{throw Error('unavailable');},clock:()=>now});
+ assert.equal(none.state,'R2_PROSPECTIVE_VERIFIED_NO_ELIGIBLE_SIGNAL');
+ let euFetches=0;
+ const eu=await runOneGlobalCloudEuProspectiveCycle({storage:r2,clock:()=>now,fetcher:async()=>{euFetches++;throw Error('unexpected EU fetch');}});
+ assert.equal(eu.state,'EU_OUTSIDE_POSTCLOSE_WINDOW');
+ assert.equal(euFetches,0);
+ assert.equal(eu.originalJournalVerified,false);
+ assert.equal(eu.prospectiveJournalVerified,true);
+ const report=await run({storage:r2,collect:async({symbol})=>evidence(symbol),clock:()=>now});
+ assert.equal(report.newSignals,1);
+ assert.equal(report.originalJournalVerified,false);
+ assert.equal(report.prospectiveJournalVerified,true);
+ assert.equal(report.certifiedTrades,0);
+ assert.equal(report.liveTradingAllowed,false);
+ assert.equal((await r2.read()).originId,first.originId);
+ assert.equal(JSON.parse((await r2.read()).body).events.length,1);
+ assert.equal((await r2.verifyCurrentSnapshot()).verified,true);
+ let duplicateCollections=0;
+ const duplicate=await run({storage:r2,collect:async()=>{duplicateCollections++;throw Error('duplicate');},clock:()=>now});
+ assert.equal(duplicate.state,'SESSION_SIGNAL_ALREADY_COMMITTED');
+ assert.equal(duplicate.newSignals,0);
+ assert.equal(duplicateCollections,0);
+ await assert.rejects(pin(r2).read(),/RECOVERED_ORIGINAL_PREFIX_MISMATCH/);
+ }

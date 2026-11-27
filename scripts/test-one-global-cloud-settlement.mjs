@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createProspectiveR2PaperStore} from '../lib/trading/one-global-r2-prospective-paper-store.mjs';
 import {oneGlobalReviewSubjectSha256} from '../lib/trading/one-global-technical-review.mjs';
 import {createHash} from 'node:crypto';
 import {newOneGlobalEodPaperLedger,recordOneGlobalEodSignal,replayOneGlobalEodPaperLedger} from '../lib/trading/one-global-eod-paper.mjs';
@@ -92,13 +93,14 @@ function network(f,options={}){
       (u.hostname==='www.alphavantage.co'?'alpha-vantage':u.hostname==='eodhd.com'?'eodhd':'twelve-data'));
     assert.ok(src,'unknown hosts are never contacted');
     if(options.deny===src.providerId)return new Response('not allowed',{status:403});
-    const close=options.diverge&&src.providerId==='eodhd'?11:10;
+    const close=options.diverge&&src.providerId==='eodhd'?11:(options.close??10);
+    const exactDate=options.sessionDate??sessionDate;
     let body;
-    if(src.providerId==='alpha-vantage')body={'Meta Data':{'2. Symbol':options.wrongSymbol?'OTHER':src.symbol},'Time Series (Daily)':{[sessionDate]:{'4. close':String(close)}}};
-    else if(src.providerId==='eodhd')body=[{date:sessionDate,close,adjusted_close:1}];
+    if(src.providerId==='alpha-vantage')body={'Meta Data':{'2. Symbol':options.wrongSymbol?'OTHER':src.symbol},'Time Series (Daily)':{[exactDate]:{'4. close':String(close)}}};
+    else if(src.providerId==='eodhd')body=[{date:exactDate,close,adjusted_close:1}];
     else{
       assert.equal(u.searchParams.get('adjust'),'none');assert.equal(u.searchParams.get('mic_code'),f.signal.mic);
-      body={meta:{symbol:src.symbol,mic_code:f.signal.mic,currency:f.signal.currency,interval:'1day'},values:[{datetime:sessionDate,close:String(close)}]};
+      body={meta:{symbol:src.symbol,mic_code:f.signal.mic,currency:f.signal.currency,interval:'1day'},values:[{datetime:exactDate,close:String(close)}]};
     }
     if(options.duplicate&&Array.isArray(body))body.push({...body[0]});
     return Response.json(body);
@@ -501,3 +503,67 @@ console.log('PASS delegated settlement: synthetic original evidence supports att
   }),/CLOUD_SETTLEMENT_EXACT_NEXT_EXCHANGE_SESSION_ORIGINAL_EVIDENCE_MISSING/);
   console.log('PASS synthetic XNAS Thanksgiving official-session boundary: Nov 25 -> Nov 30, no holiday FILL.');
 }
+
+ // Isolated R2 roundtrip: genuine engine and CAS adapter; entirely synthetic receipts and consent.
+ {
+ const f=fixture(),objects=new Map();let version=0,clockValue='2026-11-12T18:00:00.000Z';
+ const transport=async ({method,key,body,condition})=>{
+   const current=objects.get(key);
+   if(method==='GET'){
+     if(condition['if-match']&&current?.etag!==condition['if-match'])return {status:412};
+     return current?{status:200,...current}:{status:404};
+   }
+   if((condition['if-match']&&condition['if-match']!==current?.etag)||(condition['if-none-match']==='*'&&current))return {status:412};
+   objects.set(key,{body:Buffer.from(body),etag:'"r2-roundtrip-'+(++version)+'"'});
+   return {status:200};
+ };
+ let r2=createProspectiveR2PaperStore({transport,clock:()=>clockValue});
+ await r2.initialize();
+ const genesis=await r2.read();
+ assert.equal(JSON.parse(genesis.body).cashEuro,1000);
+ assert.equal(JSON.parse(genesis.body).events.length,0);
+ await r2.compareAndSwap({expectedEtag:genesis.etag,body:JSON.stringify(f.ledger),contentType:'application/json'});
+ clockValue=now;
+ const context=structuredClone(f.context),doc=Buffer.from('SYNTHETIC TEST ONLY next exchange session November 16');
+ const hash=sha(doc);
+ context.documents.push({kind:'ORIGINAL_EXCHANGE_SESSION',sha256:hash,bodyBase64:doc.toString('base64')});
+ context.sessions.push({...context.sessions[0],sessionDate:'2026-11-16',sessionOpenedAt:'2026-11-16T08:00:00.000Z',
+   sessionClosedAt:'2026-11-16T16:40:00.000Z',evidenceSha256:hash});
+ await r2.writeSettlementContext({expectedEtag:null,body:JSON.stringify(context)});
+ const buy=await execute(r2,f,{clock:()=>clockValue}).promise;
+ assert.equal(buy.paperFillsCreated,1,JSON.stringify(buy.settlementBlockers));
+ assert.equal(buy.originalJournalVerified,false);
+ assert.equal(buy.prospectiveJournalVerified,true);
+ // Reload from persistent objects, not process memory.
+ r2=createProspectiveR2PaperStore({transport,clock:()=>clockValue});
+ const opened=await r2.read(),openLedger=JSON.parse(opened.body),openState=replayOneGlobalEodPaperLedger(openLedger);
+ assert.equal(openState.virtualBuys,1);
+ assert.ok(openState.positions[f.signal.key].quantity>0);
+ assert.equal((await execute(r2,f,{clock:()=>clockValue}).promise).paperFillsCreated,0);
+ const buyFill=openLedger.events.at(-1);
+ const archived=await r2.readResearchObservation(buyFill.settlementEvidenceArchiveSha256);
+ assert.equal(archived.uploadedAt,null);
+ assert.equal(archived.uploadedAtSource,'R2_PRIVATE_READBACK_ONLY');
+ clockValue='2026-11-13T18:10:00.000Z';
+ const sellSignal=recordOneGlobalEodSignal({previousLedger:openLedger,nowIso:clockValue,signal:{
+   signalId:'synthetic-r2-roundtrip-sell',key:f.signal.key,mic:f.signal.mic,currency:f.signal.currency,side:'SELL',
+   decisionAt:clockValue,referenceSessionDate:'2026-11-13',referenceCloseAt:'2026-11-13T16:40:00.000Z',
+   referencePublishedAt:'2026-11-13T17:00:00.000Z',sourceSnapshotHash:'c'.repeat(64),maxNotionalEuro:50,
+   strategyReason:'DOWNTREND_EXIT',researchSignalOnly:true,sourceRightsIndependentlyCertified:false}}).ledger;
+ await r2.compareAndSwap({expectedEtag:opened.etag,body:JSON.stringify(sellSignal),contentType:'application/json'});
+ clockValue='2026-11-16T18:00:00.000Z';
+ const sell=await execute(r2,f,{clock:()=>clockValue,sessionDate:'2026-11-16',close:11}).promise;
+ assert.equal(sell.paperFillsCreated,1,JSON.stringify(sell.settlementBlockers));
+ const final=await r2.read(),ledger=JSON.parse(final.body),state=replayOneGlobalEodPaperLedger(ledger);
+ assert.equal(final.originId,genesis.originId);
+ assert.equal(state.closedVirtualRoundTrips,1);
+ assert.equal(state.virtualBuys,1);assert.equal(state.virtualSells,1);
+ assert.equal(state.pendingSignals.length,0);
+ assert.equal(state.positions[f.signal.key]?.quantity??0,0);
+ assert.ok(Math.abs(state.cashEuro-1000-state.realizedNetEuro)<0.0002);
+ assert.equal(ledger.events.length,4);
+ assert.equal(sell.certifiedTrades,0);assert.equal(sell.liveTradingAllowed,false);
+ assert.equal((await r2.verifyCurrentSnapshot()).verified,true);
+ assert.equal((await execute(r2,f,{clock:()=>clockValue,sessionDate:'2026-11-16',close:11}).promise).paperFillsCreated,0);
+ console.log('PASS isolated synthetic R2 BUY -> reload -> SELL -> reconciled P&L; no certification or LIVE.');
+ }
