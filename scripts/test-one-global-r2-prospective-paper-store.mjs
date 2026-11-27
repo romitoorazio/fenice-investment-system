@@ -12,7 +12,11 @@ const transport=async ({method,key,body,condition})=>{
   }
   assert.ok(condition['if-match']||condition['if-none-match']==='*');
   if((condition['if-none-match']==='*'&&current)||(condition['if-match']&&current?.etag!==condition['if-match']))return {status:412};
-  objects.set(key,{etag:'"version-'+(++version)+'"',body:Buffer.from(body)});
+  const bytes=Buffer.from(body);
+  const etag=key==='evidence/settlement-inputs.json'
+    ?'"'+createHash('md5').update(bytes).digest('hex')+'"'
+    :'"version-'+(++version)+'"';
+  objects.set(key,{etag,body:bytes});
   return {status:200};
 };
 const start='2026-11-13T22:30:00.000Z';
@@ -125,11 +129,26 @@ const originalLedgerBytes=Buffer.from(objects.get('ledger.json').body);
 const context=JSON.stringify({kind:'ONE_GLOBAL_PRIVATE_SETTLEMENT_CONTEXT',authority:{liveTradingAllowed:false,brokerConnectivityAllowed:false},documents:[],markets:[],sessions:[]})+'\n';
 const contextSaved=await evidenceStore.writeSettlementContext({expectedEtag:null,body:context});
 assert.equal((await evidenceStore.readSettlementContext()).body,context);
+const identicalContext=await evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:context});
+assert.equal(identicalContext.committed,true);
+assert.equal(identicalContext.etag,contextSaved.etag);
+assert.equal((await evidenceStore.readSettlementContext()).etag,contextSaved.etag);
 await assert.rejects(evidenceStore.writeSettlementContext({expectedEtag:null,body:context}),/CONTEXT_CAS_CONFLICT/);
 await assert.rejects(evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:context.replace('false','true')}),/CONTEXT_SCOPE_INVALID/);
 const contextNext=context.replace('"sessions":[]','"sessions":[{}]');
 const contextRace=await Promise.allSettled([evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:contextNext}),evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:contextNext})]);
 assert.equal(contextRace.filter(x=>x.status==='fulfilled').length,1);
+assert.equal(contextRace.filter(x=>x.status==='rejected').length,1);
+assert.notEqual((await evidenceStore.readSettlementContext()).etag,contextSaved.etag);
+assert.equal((await evidenceStore.readSettlementContext()).body,contextNext);
+await assert.rejects(evidenceStore.writeSettlementContext({expectedEtag:contextSaved.etag,body:context}),/CONTEXT_CAS_CONFLICT/);
+const corruptReadbackStore=createProspectiveR2PaperStore({clock:()=>now,transport:async args=>{
+  const result=await transport(args);
+  if(args.method==='GET'&&args.key==='evidence/settlement-inputs.json'&&result.status===200)
+    return {...result,body:Buffer.from('incorrect readback')};
+  return result;
+}});
+await assert.rejects(corruptReadbackStore.writeSettlementContext({expectedEtag:(await evidenceStore.readSettlementContext()).etag,body:contextNext}),/CONTEXT_READBACK_UNCONFIRMED/);
 const obs=JSON.stringify({kind:'TEST_ONLY_OBSERVATION',liveTradingAllowed:false})+'\n';
 const obsHash=createHash('sha256').update(obs).digest('hex');
 assert.equal((await evidenceStore.createResearchObservation({hash:obsHash,body:obs})).created,true);
