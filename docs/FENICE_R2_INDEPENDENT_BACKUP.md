@@ -4,7 +4,7 @@ The prospective store exposes `backupCurrent()` and `verifyIndependentBackup(dig
 
 ## Owner setup (no paid plan without approval)
 
-Use the existing Cloudflare account and a second private R2 bucket named `fenice-paper-backup-<suffix>`. A separate account remains optional. The backup bucket must never be the primary bucket. Issue distinct credentials scoped only to the backup bucket; verify primary credentials cannot access it. Configure production-only secrets:
+Use the existing Cloudflare account and a second private R2 bucket named `fenice-paper-backup` or `fenice-paper-backup-<suffix>`. A separate account remains optional. The backup bucket must never be the primary bucket. Issue distinct credentials scoped only to the backup bucket; verify primary credentials cannot access it. Configure production-only secrets:
 
 - R2_BACKUP_ENDPOINT (optional; defaults to the primary endpoint)
 - R2_BACKUP_BUCKET_NAME
