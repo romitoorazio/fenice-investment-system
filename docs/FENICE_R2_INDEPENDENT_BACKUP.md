@@ -1,6 +1,6 @@
 # ONE GLOBAL prospective PAPER — independent encrypted backup
 
-The prospective store now exposes `backupCurrent()` and `verifyIndependentBackup(digest)`. Neither initializes the journal, credits history, modifies the primary, or enables PAPER/LIVE. This is a storage primitive, not yet an activated scheduler or production attestation.
+The prospective store now exposes `backupCurrent()` and `verifyIndependentBackup(digest)`. Neither initializes the journal, credits history, modifies the primary, or enables PAPER/LIVE. The guarded owner-only action is available in this branch through the existing genesis route and /recupero-paper panel. The scheduler is not activated and this is not a production attestation.
 
 ## Owner setup (no paid plan without approval)
 
@@ -15,4 +15,4 @@ Do not make the bucket public. Configure provider-side retention/lock if availab
 
 Each backup contains the exact validated primary envelope, AES-256-GCM with fresh IV and digest-bound authentication, immutable create-only object path, and SHA-256 readback. Recovery decrypts and replays without rewriting either store. The current-state check rejects a concurrent newer primary; retry only after authenticated reload. An uncertain write must be reconciled by readback; never overwrite.
 
-Next: owner-authenticated production backup action and readback, schedule alongside the authorized prospective cycle, verify retention/quota monitoring, and attest independent recovery only after real provider evidence. No private bytes, digest, or credentials in public logs. Restore into an isolated environment first; no automatic production overwrite. Preserve historical journal separately.
+Next: after protected release and separate storage configuration, use the owner-authenticated panel to execute and verify the real backup; schedule alongside the authorized prospective cycle, verify retention/quota monitoring, and attest independent recovery only after real provider evidence. No private bytes, digest, or credentials in public logs. Restore into an isolated environment first; no automatic production overwrite. Preserve historical journal separately.
