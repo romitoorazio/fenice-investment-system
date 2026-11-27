@@ -18,6 +18,43 @@ const R2_PENDING_KEY="fenice:r2-probe-unresolved:v1";
 const R2_CHECKS=["conditionalCreate","concurrentExclusive","sha256Verified","conditionalUpdate","staleUpdateRejected","finalSha256Verified","cleanup"] as const;
 type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string;failureCode?:string};
 
+const R2_GENESIS="/api/paper/one-global-r2-prospective-genesis";
+type GenesisResult={state:string;verified?:boolean;eventCount?:number;startedAt?:string};
+function R2ProspectiveGenesisPanel(){
+  const [result,setResult]=useState<GenesisResult|null>(null);
+  const [busy,setBusy]=useState(false);
+  const inFlight=useRef(false);
+  async function request(initialize:boolean){
+    if(inFlight.current||(initialize&&result?.state!=="R2_PROSPECTIVE_GENESIS_ABSENT"))return;
+    inFlight.current=true;setBusy(true);
+    try{
+      const options:RequestInit={method:initialize?"POST":"GET",credentials:"same-origin",cache:"no-store"};
+      if(initialize){
+        options.headers={"Content-Type":"application/json","x-fenice-diagnostic":"r2-prospective-genesis"};
+        options.body=JSON.stringify({action:"INITIALIZE_PAPER_GENESIS"});
+      }
+      const response=await fetch(R2_GENESIS,options);
+      const payload=await response.json() as GenesisResult;
+      if(!response.ok){setResult({state:"R2_GENESIS_CHECK_REQUIRED"});return;}
+      if(payload.state==="R2_PROSPECTIVE_GENESIS_ABSENT"&&!initialize)setResult({state:payload.state});
+      else if(payload.verified===true&&(payload.state==="R2_PROSPECTIVE_GENESIS_PRESENT"||payload.state==="R2_PROSPECTIVE_GENESIS_VERIFIED"))
+        setResult({state:payload.state,verified:true,eventCount:payload.eventCount,startedAt:payload.startedAt});
+      else setResult({state:"R2_GENESIS_CHECK_REQUIRED"});
+    }catch{setResult({state:"R2_GENESIS_CHECK_REQUIRED"});}
+    finally{inFlight.current=false;setBusy(false);}
+  }
+  return <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}} aria-label="Nuova campagna PAPER R2">
+    <h2 style={{fontWeight:600}}>Nuova campagna PAPER R2</h2>
+    <p>Registro prospettico separato dallo storico. La genesis non crea operazioni, non attiva il motore PAPER e non autorizza Directa.</p>
+    <button type="button" disabled={busy} onClick={()=>void request(false)} style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>Verifica genesis R2</button>
+    {result?.state==="R2_PROSPECTIVE_GENESIS_ABSENT"?<button type="button" disabled={busy} onClick={()=>void request(true)} style={{background:"#334155",color:"#fff",padding:"12px 15px",borderRadius:8}}>Inizializza nuova campagna PAPER</button>:null}
+    <div role="status">{busy?"Verifica in corso...":result?.state}
+      {result?.verified?<p>Snapshot R2 verificato nello stesso bucket. Eventi: {result.eventCount??"N/D"}. Backup indipendente non attestato.</p>:null}
+      {result?.state==="R2_GENESIS_CHECK_REQUIRED"?<p>Esito non confermato: eseguire una nuova verifica in sola lettura prima di inizializzare.</p>:null}
+    </div>
+  </section>;
+}
+
 export default function FeniceRecoverPage(){
   const [authenticated,setAuthenticated]=useState(false);
   const [status,setStatus]=useState<Status|null>(null);
@@ -135,6 +172,7 @@ export default function FeniceRecoverPage(){
         !authenticated?
           <FenicePrivateOwnerLogin onAuthenticated={reload}/>:
           <section>
+            <R2ProspectiveGenesisPanel/>
             <p><strong>Stato:</strong> {status?.state||"NON_DISPONIBILE"}</p>
             <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}} aria-label="Collaudo reale R2">
               <h2 style={{fontWeight:600}}>Collaudo reale R2</h2>
