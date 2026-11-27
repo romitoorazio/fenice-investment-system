@@ -73,6 +73,33 @@ const header=yaml.split('\njobs:\n')[0];
 const writer=yaml.split('\n  cloud-original-private-signal-cycle:\n')[1]
   ?.split(/\n  (?:cloud-|safe-)[a-z-]+:\n/)[0];
 assert(writer,'Only existing original private OIDC writer can be triggered');
+const r2Job=yaml.split('\n  cloud-r2-prospective-paper:\n')[1]?.split('\n  cloud-original-private-signal-cycle:\n')[0];
+assert(r2Job,'R2 must report a distinct job result');
+assert.match(r2Job,/FENICE_R2_PROSPECTIVE_ENABLED: "true"/);
+assert.match(r2Job,/steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
+assert.match(r2Job,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
+assert.match(r2Job,/id-token: write/);
+assert.match(r2Job,/github\.ref == 'refs\/heads\/main'/);
+for(const trustedGate of [
+  "github.event_name == 'schedule'",
+  "github.event_name == 'workflow_dispatch'",
+  "github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'",
+  "github.event.workflow_run.head_branch == 'main'",
+  "github.event.workflow_run.head_repository.full_name == github.repository",
+  "github.event.workflow_run.name == 'Fenice Production Deploy'",
+  "github.event.workflow_run.name == 'Fenice World V7 EOD Research'",
+  "github.event.workflow_run.name == 'Fenice Production CI'",
+  "github.event.workflow_run.name == 'Fenice Foundation'",
+  "github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence'",
+  "github.event.workflow_run.name == 'Fenice World Market Collection'",
+  "github.event.workflow_run.event == 'schedule'"
+])assert(r2Job.includes(trustedGate),'Missing R2 trust gate: '+trustedGate);
+assert.doesNotMatch(r2Job,/secrets\.|DIRECTA|continue-on-error/);
+assert.match(writer,/needs: cloud-r2-prospective-paper/);
+assert.match(writer,/always\(\) && !cancelled\(\)/);
+assert.match(writer,/FENICE_R2_PROSPECTIVE_ENABLED: "false"/);
+assert.doesNotMatch(writer,/FENICE_R2_PROSPECTIVE_ENABLED: "true"|continue-on-error/);
+
 assert.match(header,/workflows: \["Fenice Production Deploy", "Fenice World V7 EOD Research", "Fenice Production CI", "Fenice Foundation", "Fenice ONE GLOBAL — Unified PAPER Evidence", "Fenice World Market Collection"\]/);
 const foundation=readFileSync('.github/workflows/autonomy.yml','utf8');
 const unified=readFileSync('.github/workflows/fenice-unica-paper-cycle.yml','utf8');
@@ -90,8 +117,8 @@ assert.match(writer,/github\.event\.workflow_run\.name == 'Fenice World Market C
 assert.match(writer,/github\.event\.workflow_run\.event == 'schedule'/);
 assert.match(writer,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
 assert.match(writer,/github\.event\.workflow_run\.head_branch == 'main'/);
-assert.match(writer,/steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
-assert.match(writer,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
+assert.match(writer,/needs\.cloud-r2-prospective-paper\.outputs\.should_invoke == 'true'/);
+assert.match(r2Job,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
 assert.match(writer,/scripts\/invoke-one-global-cloud-signal-cycle\.mjs/);
 assert.match(writer,/id-token: write/);
 assert.doesNotMatch(writer,/secrets\.|ALPHA_VANTAGE_API_KEY|EODHD_API_TOKEN|DIRECTA/);

@@ -366,9 +366,9 @@ jobs:
       - name: Scan for accidentally committed credentials
         run: node scripts/scan-repository-secrets.mjs
 
-  cloud-original-private-signal-cycle:
-    # Only this job gets a short-lived GitHub identity. Vendor keys and the
-    # owner session stay in Vercel; PRs never acquire a journal-write identity.
+  cloud-r2-prospective-paper:
+    # Report prospective PAPER independently of the legacy Blob journal.
+    # Both jobs use the same protected workflow identity; PRs get neither.
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
@@ -382,6 +382,8 @@ jobs:
            github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence' ||
            github.event.workflow_run.name == 'Fenice World Market Collection') &&
           github.event.workflow_run.event == 'schedule'))))
+    outputs:
+      should_invoke: ${{ steps.ci_recovery.outputs.should_invoke }}
     permissions:
       contents: read
       id-token: write
@@ -409,8 +411,41 @@ jobs:
         env:
           FENICE_R2_PROSPECTIVE_ENABLED: "true"
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
+
+  cloud-original-private-signal-cycle:
+    # Preserve the original journal audit even if prospective PAPER fails.
+    # Sequential execution shares the already evaluated preflight, not journal state.
+    needs: cloud-r2-prospective-paper
+    if: >-
+      always() && !cancelled() &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (github.event.workflow_run.name == 'Fenice Production Deploy' ||
+         github.event.workflow_run.name == 'Fenice World V7 EOD Research' ||
+         ((github.event.workflow_run.name == 'Fenice Production CI' ||
+           github.event.workflow_run.name == 'Fenice Foundation' ||
+           github.event.workflow_run.name == 'Fenice ONE GLOBAL — Unified PAPER Evidence' ||
+           github.event.workflow_run.name == 'Fenice World Market Collection') &&
+          github.event.workflow_run.event == 'schedule'))))
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted main without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
       - name: Verify original private journal, settle admissible PAPER and run bounded research
-        if: always() && !cancelled() && steps.ci_recovery.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true
+        if: always() && !cancelled() && needs.cloud-r2-prospective-paper.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true
         env:
           # A committed FILL always triggers immediate replay. Recheck
           # historical FILLs only on explicit dispatch and one existing daily slot.
