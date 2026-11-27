@@ -98,7 +98,47 @@ for(const format of ['opaque','bare','weak','missing','wildcard','list','oversiz
  assert.equal(result.state,valid?'R2_WRITE_PROBE_VERIFIED':'R2_WRITE_PROBE_FAILED');
  assert.equal(result.checks.sha256Verified,true);assert.equal(result.checks.cleanup,true);
  assert.equal(casCalls,valid?2:0);
- if(!valid){assert.equal(result.failedStep,'READ');assert.equal(result.failureCode,'STRONG_ETAG_MISSING_OR_UNSUPPORTED');}
+ if(!valid){assert.equal(result.failedStep,'METADATA');assert.equal(result.failureCode,'STRONG_ETAG_MISSING_OR_UNSUPPORTED');}
+ assert.equal(value,null);
+}
+// Missing GET validator: independently read provider metadata and bind it
+// to the winning bytes before sending a conditional update.
+for(const fault of ['head','put','direct-get','conflict','no-metadata','head-403','wrong-bound-body','bound-412','bound-tag-conflict']){
+ let value=null,casCalls=0,boundCalls=0,metadataCalls=0;
+ const token=()=>'"version-'+createHash('sha256').update(value).digest('hex')+'"';
+ const response=(status,body=null,tag=null)=>new Response(body,{status,headers:tag?{etag:tag}:{}});
+ const fetcher=async(url,o)=>{
+  if(o.method==='PUT'){
+   if(o.headers['if-none-match']==='*'&&value!==null)return response(412);
+   if(o.headers['if-match']){casCalls++;if(o.headers['if-match']!==token())return response(412);}
+   value=o.body;
+   return response(200,null,['put','conflict'].includes(fault)?token():null);
+  }
+  if(o.method==='GET')return response(200,value);
+  if(o.method==='DELETE'){value=null;return response(204);}
+  assert.equal(o.method,'HEAD');return response(value===null?404:200);
+ };
+ const metadataFetcher=async(url,o)=>{
+  metadataCalls++;
+  assert.match(url.pathname,/^\\/fenice-private-storage\\/diagnostics\\/r2-write-probe\\/[a-f0-9-]{36}$/);
+  if(o.method==='HEAD')return fault==='head-403'?response(403):response(200,null,fault==='conflict'?'"other"':['head','wrong-bound-body','bound-412','bound-tag-conflict'].includes(fault)?token():null);
+  assert.equal(o.method,'GET');
+  if(o.headers['if-match']){
+   boundCalls++;assert.equal(o.headers['if-match'],token());
+   if(fault==='bound-412')return response(412);
+   return response(200,fault==='wrong-bound-body'?'wrong':value,fault==='bound-tag-conflict'?'"other"':null);
+  }
+  return response(200,value,fault==='direct-get'?token():null);
+ };
+ const result=await probePrivateR2Write({env,clock:()=>now,fetcher,metadataFetcher});
+ const valid=['head','put','direct-get'].includes(fault);
+ assert.equal(result.state,valid?'R2_WRITE_PROBE_VERIFIED':'R2_WRITE_PROBE_FAILED');
+ assert.equal(result.checks.sha256Verified,true);
+ assert.equal(result.checks.cleanup,true);
+ assert.equal(casCalls,valid?2:0);
+ assert.ok(metadataCalls>=1);
+ if(valid){assert.equal(boundCalls,1);assert.ok(Object.values(result.checks).every(Boolean));}
+ if(!valid)assert.equal(result.failedStep,'METADATA');
  assert.equal(value,null);
 }
 console.log('R2 conditional write diagnostic mock tests passed');
