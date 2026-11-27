@@ -60,3 +60,59 @@ await assert.rejects(restarted.read(),/LEDGER_REPLAY_ACCOUNT_MISMATCH/);
 objects.set('ledger.json',current);
 assert.equal(JSON.parse((await restarted.read()).body).liveTradingAllowed,false);
 console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests passed (no provider or LIVE access).');
+
+ // Separate buckets and create-only encrypted objects; exclusively synthetic.
+ const env={
+   R2_ENDPOINT:'https://'+ 'a'.repeat(32)+'.r2.cloudflarestorage.com',
+   R2_BUCKET_NAME:'fenice-private-storage',R2_ACCESS_KEY_ID:'mock-primary-id',
+   R2_SECRET_ACCESS_KEY:'mock-primary-secret',
+   R2_BACKUP_ENDPOINT:'https://'+ 'b'.repeat(32)+'.r2.cloudflarestorage.com',
+   R2_BACKUP_BUCKET_NAME:'fenice-paper-backup-test',R2_BACKUP_ACCESS_KEY_ID:'mock-backup-id',
+   R2_BACKUP_SECRET_ACCESS_KEY:'mock-backup-secret',R2_BACKUP_ENCRYPTION_KEY_HEX:'a'.repeat(64)
+ };
+ const external=new Map();
+ let writes=0;
+ const backupTransport=async({method,key,body,condition})=>{
+   assert.match(key,/^encrypted\/[a-f0-9]{64}\.bin$/);
+   if(method==='GET')return external.has(key)?{status:200,body:external.get(key)}:{status:404};
+   assert.equal(condition['if-none-match'],'*');
+   if(external.has(key))return {status:412};
+   writes++;
+   assert.ok(Buffer.isBuffer(body));
+   external.set(key,Buffer.from(body));
+   return {status:200};
+ };
+ const backed=createProspectiveR2PaperStore({env,transport,backupTransport});
+ const primaryBefore=Buffer.from(objects.get('ledger.json').body);
+ const saved=await backed.backupCurrent();
+ assert.equal(saved.verified,true);
+ assert.equal(saved.backupAccountSeparated,true);
+ assert.equal(saved.eventCount,1);
+ assert.equal(saved.digest,createHash('sha256').update(primaryBefore).digest('hex'));
+ assert.equal(saved.liveTradingAllowed,false);
+ const key='encrypted/'+saved.digest+'.bin';
+ assert.notDeepEqual(external.get(key),primaryBefore);
+ assert.equal(external.get(key).length,primaryBefore.length+29);
+ assert.equal((await backed.backupCurrent()).digest,saved.digest);
+ assert.equal(writes,1);
+ assert.equal((await backed.verifyIndependentBackup(saved.digest)).eventCount,1);
+ assert.deepEqual(objects.get('ledger.json').body,primaryBefore);
+ const sameAccount=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:env.R2_ENDPOINT},transport,backupTransport});
+ assert.equal((await sameAccount.backupCurrent()).backupAccountSeparated,false);
+ assert.equal((await sameAccount.verifyIndependentBackup(saved.digest)).backupAccountSeparated,false);
+ const defaultEndpoint=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:undefined},transport,backupTransport});
+ assert.equal((await defaultEndpoint.backupCurrent()).backupAccountSeparated,false);
+ for(const invalid of [{R2_BACKUP_BUCKET_NAME:env.R2_BUCKET_NAME},{R2_BACKUP_ACCESS_KEY_ID:env.R2_ACCESS_KEY_ID},{R2_BACKUP_SECRET_ACCESS_KEY:env.R2_SECRET_ACCESS_KEY}]){
+   const rejected=createProspectiveR2PaperStore({env:{...env,...invalid},transport,backupTransport});
+   await assert.rejects(rejected.backupCurrent(),/INDEPENDENT_BACKUP_CONFIG_REQUIRED/);
+ }
+ const wrongKey=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENCRYPTION_KEY_HEX:'b'.repeat(64)},transport,backupTransport});
+ await assert.rejects(wrongKey.verifyIndependentBackup(saved.digest),/AUTHENTICATION_FAILED/);
+ const originalCipher=Buffer.from(external.get(key));
+ const corrupt=Buffer.from(originalCipher);corrupt[corrupt.length-1]^=1;
+ external.set(key,corrupt);
+ await assert.rejects(backed.backupCurrent(),/AUTHENTICATION_FAILED/);
+ external.set(key,originalCipher);
+ assert.equal((await backed.verifyIndependentBackup(saved.digest)).verified,true);
+ assert.equal(writes,1);
+ console.log('Independent encrypted backup, immutable retry, and isolated restore mock tests passed.');
