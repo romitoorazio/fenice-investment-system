@@ -342,6 +342,7 @@ jobs:
           node scripts/test-one-global-cloud-workflow-auth.mjs
           node scripts/test-one-global-cloud-dual-eod-fetch.mjs
           node scripts/test-one-global-cloud-settlement.mjs
+          node scripts/test-one-global-r2-paper-control.mjs
           node scripts/test-one-global-alpaca-sip-eod.mjs
           node scripts/test-one-global-alpaca-iex-eod.mjs
           node scripts/test-one-global-eu-delayed-eod.mjs
@@ -402,6 +403,7 @@ jobs:
         env:
           # A committed FILL always triggers immediate replay. Recheck
           # historical FILLs only on explicit dispatch and one existing daily slot.
+          FENICE_R2_PROSPECTIVE_ENABLED: ${{ vars.FENICE_R2_PROSPECTIVE_ENABLED }}
           FENICE_RECHECK_HISTORICAL_FILLS: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '15 0 * * 2-6') }}
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
       - name: Inspect original journal from trusted OIDC (strictly read-only)

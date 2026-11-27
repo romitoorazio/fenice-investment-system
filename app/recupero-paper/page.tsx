@@ -18,11 +18,13 @@ const R2_PENDING_KEY="fenice:r2-probe-unresolved:v1";
 const R2_CHECKS=["conditionalCreate","concurrentExclusive","sha256Verified","conditionalUpdate","staleUpdateRejected","finalSha256Verified","cleanup"] as const;
 type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string;failureCode?:string};
 
+const R2_CONTROL="/api/paper/one-global-r2-paper-control";
 const R2_GENESIS="/api/paper/one-global-r2-prospective-genesis";
 type GenesisResult={state:string;verified?:boolean;eventCount?:number;startedAt?:string;backupAccountSeparated?:boolean};
 function R2ProspectiveGenesisPanel(){
   const [result,setResult]=useState<GenesisResult|null>(null);
   const [busy,setBusy]=useState(false);
+  const [control,setControl]=useState<{state:string;authorityValid?:boolean;cashEuro?:number;closedVirtualRoundTrips?:number;realizedNetEuro?:number;positionCount?:number}|null>(null);
   const [backupResult,setBackupResult]=useState<GenesisResult|null>(null);
   const inFlight=useRef(false);
   async function request(initialize:boolean){
@@ -42,6 +44,17 @@ function R2ProspectiveGenesisPanel(){
         setResult({state:payload.state,verified:true,eventCount:payload.eventCount,startedAt:payload.startedAt});
       else setResult({state:"R2_GENESIS_CHECK_REQUIRED"});
     }catch{setResult({state:"R2_GENESIS_CHECK_REQUIRED"});}
+    finally{inFlight.current=false;setBusy(false);}
+  }
+  async function paperControl(authorize:boolean){
+    if(inFlight.current||result?.verified!==true)return;
+    inFlight.current=true;setBusy(true);
+    try{
+      const response=await fetch(R2_CONTROL,{method:authorize?"POST":"GET",credentials:"same-origin",cache:"no-store",
+        ...(authorize?{headers:{"Content-Type":"application/json","x-fenice-diagnostic":"r2-paper-control"},body:JSON.stringify({action:"AUTHORIZE_R2_PAPER_30_DAYS"})}:{})});
+      const p=await response.json();
+      setControl(response.ok?p:{state:"R2_PAPER_CONTROL_RECHECK_REQUIRED"});
+    }catch{setControl({state:"R2_PAPER_CONTROL_RECHECK_REQUIRED"});}
     finally{inFlight.current=false;setBusy(false);}
   }
   async function backup(){
@@ -66,6 +79,9 @@ function R2ProspectiveGenesisPanel(){
     <div role="status">{busy?"Verifica in corso...":result?.state}
       {result?.verified?<p>Snapshot R2 verificato nello stesso bucket. Eventi: {result.eventCount??"N/D"}. {backupResult?.verified?"Backup cifrato su bucket separato verificato per "+(backupResult.eventCount??"N/D")+" eventi in questa sessione. "+(backupResult.backupAccountSeparated===true?"Account R2 distinti configurati; non prova di protezione fuori Cloudflare.":"Stesso account: non protegge dalla perdita dell’intero account."):"Backup su bucket separato non attestato."}</p>:null}
       {result?.verified?<button type="button" disabled={busy} onClick={()=>void backup()} style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>Esegui e verifica backup cifrato</button>:null}
+      {result?.verified?<button type="button" disabled={busy} onClick={()=>void paperControl(false)}>Stato campagna PAPER R2</button>:null}
+      {control?.state==="R2_PAPER_CONSENT_REQUIRED"?<button type="button" disabled={busy} onClick={()=>void paperControl(true)}>Autorizzo 30 giorni di simulazione PAPER con 1.000 € virtuali, nessun ordine reale</button>:null}
+      {control?<p>{control.state} — autorizzazione: {control.authorityValid?"valida":"non confermata"}; cassa virtuale: {control.cashEuro??"N/D"} €; posizioni: {control.positionCount??"N/D"}; operazioni chiuse: {control.closedVirtualRoundTrips??"N/D"}; P&amp;L realizzato: {control.realizedNetEuro??"N/D"} €. L’autorizzazione non dimostra che lo scheduler sia attivo.</p>:null}
       {backupResult?<p>{backupResult.state}{backupResult.verified?" — copia cifrata riletta e replay riuscito.":" — verificare configurazione privata e riprovare dopo una nuova verifica della genesis."}</p>:null}
       {result?.state==="R2_GENESIS_CHECK_REQUIRED"?<p>Esito non confermato: eseguire una nuova verifica in sola lettura prima di inizializzare.</p>:null}
     </div>
