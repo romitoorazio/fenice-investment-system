@@ -20,7 +20,7 @@ type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],bool
 
 const R2_CONTROL="/api/paper/one-global-r2-paper-control";
 const R2_GENESIS="/api/paper/one-global-r2-prospective-genesis";
-type GenesisResult={state:string;verified?:boolean;eventCount?:number;startedAt?:string;backupAccountSeparated?:boolean};
+type GenesisResult={state:string;reasonCode?:string;httpStatus?:number;verified?:boolean;eventCount?:number;startedAt?:string;backupAccountSeparated?:boolean};
 function R2ProspectiveGenesisPanel(){
   const [result,setResult]=useState<GenesisResult|null>(null);
   const [busy,setBusy]=useState(false);
@@ -67,7 +67,7 @@ function R2ProspectiveGenesisPanel(){
       const payload=await response.json() as GenesisResult;
       if(response.ok&&payload.state==="R2_ENCRYPTED_BACKUP_VERIFIED"&&payload.verified===true)
         setBackupResult({state:payload.state,verified:true,eventCount:payload.eventCount,startedAt:payload.startedAt,backupAccountSeparated:payload.backupAccountSeparated});
-      else setBackupResult({state:"R2_ENCRYPTED_BACKUP_BLOCKED"});
+      else setBackupResult({state:"R2_ENCRYPTED_BACKUP_BLOCKED",httpStatus:response.status,reasonCode:typeof payload.reasonCode==="string"&&/^R2_[A-Z0-9_]{1,90}$/.test(payload.reasonCode)?payload.reasonCode:undefined});
     }catch{setBackupResult({state:"R2_ENCRYPTED_BACKUP_BLOCKED"});}
     finally{inFlight.current=false;setBusy(false);}
   }
@@ -82,7 +82,7 @@ function R2ProspectiveGenesisPanel(){
       {result?.verified?<button type="button" disabled={busy} onClick={()=>void paperControl(false)}>Stato campagna PAPER R2</button>:null}
       {control?.state==="R2_PAPER_CONSENT_REQUIRED"?<button type="button" disabled={busy} onClick={()=>void paperControl(true)}>Autorizzo 30 giorni di simulazione PAPER con 1.000 € virtuali, nessun ordine reale</button>:null}
       {control?<p>{control.state} — autorizzazione: {control.authorityValid?"valida":"non confermata"}; cassa virtuale: {control.cashEuro??"N/D"} €; posizioni: {control.positionCount??"N/D"}; operazioni chiuse: {control.closedVirtualRoundTrips??"N/D"}; P&amp;L realizzato: {control.realizedNetEuro??"N/D"} €. L’autorizzazione non dimostra che lo scheduler sia attivo.</p>:null}
-      {backupResult?<p>{backupResult.state}{backupResult.verified?" — copia cifrata riletta e replay riuscito.":" — verificare configurazione privata e riprovare dopo una nuova verifica della genesis."}</p>:null}
+      {backupResult?<p>{backupResult.state}{backupResult.httpStatus?` (HTTP ${backupResult.httpStatus})`:""}{backupResult.reasonCode?` — ${backupResult.reasonCode}`:""}{backupResult.verified?" — copia cifrata riletta e replay riuscito.":" — verificare configurazione privata e riprovare dopo una nuova verifica della genesis."}</p>:null}
       {result?.state==="R2_GENESIS_CHECK_REQUIRED"?<p>Esito non confermato: eseguire una nuova verifica in sola lettura prima di inizializzare.</p>:null}
     </div>
   </section>;

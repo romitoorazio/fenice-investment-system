@@ -56,4 +56,12 @@ assert.equal(writes,previousWrites);
 store.verifyIndependentBackup=async()=>({verified:true,eventCount:1});
 await check(await POST(post(bearer,backupAction)),409,'R2_ENCRYPTED_BACKUP_BLOCKED');
 assert.equal(writes,previousWrites);
-console.log('Independent backup owner-only HTTP boundary: PASS (mock storage).');
+for(const [message,expected] of [['R2_PROSPECTIVE_INDEPENDENT_BACKUP_CONFIG_REQUIRED_ENCRYPTION_KEY','R2_PROSPECTIVE_INDEPENDENT_BACKUP_CONFIG_REQUIRED_ENCRYPTION_KEY'],['R2_PROSPECTIVE_INDEPENDENT_BACKUP_WRITE_AUTH_DENIED','R2_PROSPECTIVE_INDEPENDENT_BACKUP_WRITE_AUTH_DENIED'],['mock-secret-never-return','R2_BACKUP_UNCLASSIFIED']]){
+  store.backupCurrent=async()=>{throw Error(message);};
+  const result=await check(await POST(post(browser,backupAction)),409,'R2_ENCRYPTED_BACKUP_BLOCKED');
+  assert.equal(result.reasonCode,expected);
+  assert(!JSON.stringify(result).includes('mock-secret-never-return'));
+  assert.equal(Object.hasOwn(result,'digest'),false);
+}
+assert.equal(writes,previousWrites);
+console.log('Independent backup owner-only HTTP boundary and sanitized diagnostics: PASS (mock storage).');
