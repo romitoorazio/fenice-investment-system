@@ -1,18 +1,21 @@
-# ONE GLOBAL prospective PAPER — independent encrypted backup
+# ONE GLOBAL prospective PAPER — encrypted separate-bucket backup
 
-The prospective store now exposes `backupCurrent()` and `verifyIndependentBackup(digest)`. Neither initializes the journal, credits history, modifies the primary, or enables PAPER/LIVE. The guarded owner-only action is available in this branch through the existing genesis route and /recupero-paper panel. The scheduler is not activated and this is not a production attestation.
+The prospective store exposes `backupCurrent()` and `verifyIndependentBackup(digest)`. Neither initializes or modifies the primary, credits history, nor enables PAPER/LIVE. The owner-only action is available through the genesis route and /recupero-paper. Production backup is not yet attested.
 
 ## Owner setup (no paid plan without approval)
 
-Use a separate private R2 account and bucket named `fenice-paper-backup-<suffix>`, with a scoped object read/write credential distinct from primary. Configure production-only secrets:
-- R2_BACKUP_ENDPOINT
+Use the existing Cloudflare account and a second private R2 bucket named `fenice-paper-backup-<suffix>`. A separate account remains optional. The backup bucket must never be the primary bucket. Issue distinct credentials scoped only to the backup bucket; verify primary credentials cannot access it. Configure production-only secrets:
+
+- R2_BACKUP_ENDPOINT (optional; defaults to the primary endpoint)
 - R2_BACKUP_BUCKET_NAME
 - R2_BACKUP_ACCESS_KEY_ID
 - R2_BACKUP_SECRET_ACCESS_KEY
-- R2_BACKUP_ENCRYPTION_KEY_HEX (32 random bytes encoded as 64 lowercase hex characters; generate locally, never paste into issue/PR, keep an offline recovery copy).
+- R2_BACKUP_ENCRYPTION_KEY_HEX (32 random bytes as 64 lowercase hex; generate locally, retain offline, never post in issues or logs).
 
-Do not make the bucket public. Configure provider-side retention/lock if available and authorized; monitor quota and version growth. No automatic deletion or overwrite is implemented. A second account reduces account/bucket failure coupling, but not Cloudflare-wide outage risk. Confirm free-plan capacity before enabling recurring copies.
+Do not make the bucket public. Use provider-side retention/lock where available and authorized. Monitor bucket bytes, Class A/B operations and growth against current free quotas before enabling recurring copies. No automatic deletion or overwrite is implemented.
 
-Each backup contains the exact validated primary envelope, AES-256-GCM with fresh IV and digest-bound authentication, immutable create-only object path, and SHA-256 readback. Recovery decrypts and replays without rewriting either store. The current-state check rejects a concurrent newer primary; retry only after authenticated reload. An uncertain write must be reconciled by readback; never overwrite.
+Each backup uses AES-256-GCM with fresh IV and digest-bound authentication, create-only digest path, SHA-256 readback and isolated replay. Stale primary state requires authenticated reload. An uncertain write must be reconciled by readback; never overwrite.
 
-Next: after protected release and separate storage configuration, use the owner-authenticated panel to execute and verify the real backup; schedule alongside the authorized prospective cycle, verify retention/quota monitoring, and attest independent recovery only after real provider evidence. No private bytes, digest, or credentials in public logs. Restore into an isolated environment first; no automatic production overwrite. Preserve historical journal separately.
+`backupAccountSeparated` distinguishes different configured Cloudflare account IDs from same-account bucket separation; it does not prove credential scope or provider-level disaster recovery. Same-account backup does not protect against loss of the entire account. Even separate accounts share Cloudflare outage risk. A future encrypted off-provider copy (e.g. Google Drive) is desirable but not a prerequisite for developing or testing PAPER. No off-provider copy is implemented or attested.
+
+After protected release and private configuration, run the owner backup action. Keep historical journal separate. Restore into isolation first, never automatically overwrite production. Schedule verified backup alongside the authorized prospective cycle in a separate integration change. No private bytes, digests or credentials in public logs.

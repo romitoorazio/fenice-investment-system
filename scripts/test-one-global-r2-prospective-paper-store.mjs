@@ -61,7 +61,7 @@ objects.set('ledger.json',current);
 assert.equal(JSON.parse((await restarted.read()).body).liveTradingAllowed,false);
 console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests passed (no provider or LIVE access).');
 
- // Separate account and create-only encrypted objects; exclusively synthetic.
+ // Separate buckets and create-only encrypted objects; exclusively synthetic.
  const env={
    R2_ENDPOINT:'https://'+ 'a'.repeat(32)+'.r2.cloudflarestorage.com',
    R2_BUCKET_NAME:'fenice-private-storage',R2_ACCESS_KEY_ID:'mock-primary-id',
@@ -86,6 +86,7 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
  const primaryBefore=Buffer.from(objects.get('ledger.json').body);
  const saved=await backed.backupCurrent();
  assert.equal(saved.verified,true);
+ assert.equal(saved.backupAccountSeparated,true);
  assert.equal(saved.eventCount,1);
  assert.equal(saved.digest,createHash('sha256').update(primaryBefore).digest('hex'));
  assert.equal(saved.liveTradingAllowed,false);
@@ -96,8 +97,15 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
  assert.equal(writes,1);
  assert.equal((await backed.verifyIndependentBackup(saved.digest)).eventCount,1);
  assert.deepEqual(objects.get('ledger.json').body,primaryBefore);
- const wrongAccount=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:env.R2_ENDPOINT},transport,backupTransport});
- await assert.rejects(wrongAccount.backupCurrent(),/INDEPENDENT_BACKUP_CONFIG_REQUIRED/);
+ const sameAccount=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:env.R2_ENDPOINT},transport,backupTransport});
+ assert.equal((await sameAccount.backupCurrent()).backupAccountSeparated,false);
+ assert.equal((await sameAccount.verifyIndependentBackup(saved.digest)).backupAccountSeparated,false);
+ const defaultEndpoint=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:undefined},transport,backupTransport});
+ assert.equal((await defaultEndpoint.backupCurrent()).backupAccountSeparated,false);
+ for(const invalid of [{R2_BACKUP_BUCKET_NAME:env.R2_BUCKET_NAME},{R2_BACKUP_ACCESS_KEY_ID:env.R2_ACCESS_KEY_ID},{R2_BACKUP_SECRET_ACCESS_KEY:env.R2_SECRET_ACCESS_KEY}]){
+   const rejected=createProspectiveR2PaperStore({env:{...env,...invalid},transport,backupTransport});
+   await assert.rejects(rejected.backupCurrent(),/INDEPENDENT_BACKUP_CONFIG_REQUIRED/);
+ }
  const wrongKey=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENCRYPTION_KEY_HEX:'b'.repeat(64)},transport,backupTransport});
  await assert.rejects(wrongKey.verifyIndependentBackup(saved.digest),/AUTHENTICATION_FAILED/);
  const originalCipher=Buffer.from(external.get(key));

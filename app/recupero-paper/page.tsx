@@ -19,7 +19,7 @@ const R2_CHECKS=["conditionalCreate","concurrentExclusive","sha256Verified","con
 type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string;failureCode?:string};
 
 const R2_GENESIS="/api/paper/one-global-r2-prospective-genesis";
-type GenesisResult={state:string;verified?:boolean;eventCount?:number;startedAt?:string};
+type GenesisResult={state:string;verified?:boolean;eventCount?:number;startedAt?:string;backupAccountSeparated?:boolean};
 function R2ProspectiveGenesisPanel(){
   const [result,setResult]=useState<GenesisResult|null>(null);
   const [busy,setBusy]=useState(false);
@@ -52,10 +52,10 @@ function R2ProspectiveGenesisPanel(){
         headers:{"Content-Type":"application/json","x-fenice-diagnostic":"r2-prospective-genesis"},
         body:JSON.stringify({action:"BACKUP_PAPER_JOURNAL"})});
       const payload=await response.json() as GenesisResult;
-      if(response.ok&&payload.state==="R2_INDEPENDENT_BACKUP_VERIFIED"&&payload.verified===true)
-        setBackupResult({state:payload.state,verified:true,eventCount:payload.eventCount,startedAt:payload.startedAt});
-      else setBackupResult({state:"R2_INDEPENDENT_BACKUP_BLOCKED"});
-    }catch{setBackupResult({state:"R2_INDEPENDENT_BACKUP_BLOCKED"});}
+      if(response.ok&&payload.state==="R2_ENCRYPTED_BACKUP_VERIFIED"&&payload.verified===true)
+        setBackupResult({state:payload.state,verified:true,eventCount:payload.eventCount,startedAt:payload.startedAt,backupAccountSeparated:payload.backupAccountSeparated});
+      else setBackupResult({state:"R2_ENCRYPTED_BACKUP_BLOCKED"});
+    }catch{setBackupResult({state:"R2_ENCRYPTED_BACKUP_BLOCKED"});}
     finally{inFlight.current=false;setBusy(false);}
   }
   return <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}} aria-label="Nuova campagna PAPER R2">
@@ -64,8 +64,8 @@ function R2ProspectiveGenesisPanel(){
     <button type="button" disabled={busy} onClick={()=>void request(false)} style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>Verifica genesis R2</button>
     {result?.state==="R2_PROSPECTIVE_GENESIS_ABSENT"?<button type="button" disabled={busy} onClick={()=>void request(true)} style={{background:"#334155",color:"#fff",padding:"12px 15px",borderRadius:8}}>Inizializza nuova campagna PAPER</button>:null}
     <div role="status">{busy?"Verifica in corso...":result?.state}
-      {result?.verified?<p>Snapshot R2 verificato nello stesso bucket. Eventi: {result.eventCount??"N/D"}. {backupResult?.verified?"Backup indipendente verificato per "+(backupResult.eventCount??"N/D")+" eventi in questa sessione.":"Backup indipendente non attestato."}</p>:null}
-      {result?.verified?<button type="button" disabled={busy} onClick={()=>void backup()} style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>Esegui e verifica backup indipendente</button>:null}
+      {result?.verified?<p>Snapshot R2 verificato nello stesso bucket. Eventi: {result.eventCount??"N/D"}. {backupResult?.verified?"Backup cifrato su bucket separato verificato per "+(backupResult.eventCount??"N/D")+" eventi in questa sessione. "+(backupResult.backupAccountSeparated===true?"Account R2 distinti configurati; non prova di protezione fuori Cloudflare.":"Stesso account: non protegge dalla perdita dell’intero account."):"Backup su bucket separato non attestato."}</p>:null}
+      {result?.verified?<button type="button" disabled={busy} onClick={()=>void backup()} style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>Esegui e verifica backup cifrato</button>:null}
       {backupResult?<p>{backupResult.state}{backupResult.verified?" — copia cifrata riletta e replay riuscito.":" — verificare configurazione privata e riprovare dopo una nuova verifica della genesis."}</p>:null}
       {result?.state==="R2_GENESIS_CHECK_REQUIRED"?<p>Esito non confermato: eseguire una nuova verifica in sola lettura prima di inizializzare.</p>:null}
     </div>
