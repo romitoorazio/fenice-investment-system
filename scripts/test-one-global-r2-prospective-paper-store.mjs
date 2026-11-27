@@ -106,7 +106,10 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
  assert.equal((await sameAccount.verifyIndependentBackup(saved.digest)).backupAccountSeparated,false);
  const defaultEndpoint=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:undefined},transport,backupTransport});
  assert.equal((await defaultEndpoint.backupCurrent()).backupAccountSeparated,false);
- for(const invalid of [{R2_BACKUP_BUCKET_NAME:env.R2_BUCKET_NAME},{R2_BACKUP_ACCESS_KEY_ID:env.R2_ACCESS_KEY_ID},{R2_BACKUP_SECRET_ACCESS_KEY:env.R2_SECRET_ACCESS_KEY}]){
+ const canonicalBucket=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:undefined,R2_BACKUP_BUCKET_NAME:'fenice-paper-backup'},transport,backupTransport});
+ assert.equal((await canonicalBucket.backupCurrent()).backupAccountSeparated,false);
+ assert.equal((await canonicalBucket.verifyIndependentBackup(saved.digest)).verified,true);
+ for(const invalid of [{R2_BACKUP_BUCKET_NAME:'fenice-paper-backup-'},{R2_BACKUP_BUCKET_NAME:'unrelated-backup'},{R2_BACKUP_BUCKET_NAME:env.R2_BUCKET_NAME},{R2_BACKUP_ACCESS_KEY_ID:env.R2_ACCESS_KEY_ID},{R2_BACKUP_SECRET_ACCESS_KEY:env.R2_SECRET_ACCESS_KEY}]){
    const rejected=createProspectiveR2PaperStore({env:{...env,...invalid},transport,backupTransport});
    await assert.rejects(rejected.backupCurrent(),/INDEPENDENT_BACKUP_CONFIG_REQUIRED/);
  }
