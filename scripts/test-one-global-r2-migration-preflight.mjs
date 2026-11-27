@@ -24,6 +24,14 @@ for(const [index,bytes,code] of [[0,Buffer.from('{}'),'HISTORY_MISMATCH'],[0,Buf
   [1,Buffer.from('{}'),'ORIGINAL_CONTEXT_INVALID'],[3,Buffer.from('other raw'),'RAW_FINGERPRINT_MISMATCH']]){
   check(changed(index,{size:bytes.length,sha256:sha256(bytes)}),objects.map((o,i)=>i===index?{...o,bytes}:o),code);
 }
+const obs=JSON.parse(objects[2].bytes);
+function replacedPacket(packet,code){
+  const bytes=Buffer.from(JSON.stringify(packet));
+  check(changed(2,{size:bytes.length,sha256:sha256(bytes)}),objects.map((o,i)=>i===2?{...o,bytes}:o),code);
+}
+replacedPacket({...obs,kind:'ONE_GLOBAL_PRIVATE_SOURCE_ACCESS_OBSERVATION'},'SIGNAL_ARCHIVE_KIND_MISMATCH');
+replacedPacket({...obs,receipts:[{receipt:{payloadSha256:sha256('xxx')},rawBase64:'eA=='}]},'INLINE_PAYLOAD_MISMATCH');
+replacedPacket({...obs,receipts:[{receipt:{payloadSha256:sha256('x')},rawBase64:'eA'}]},'INLINE_PAYLOAD_MISMATCH');
 const result=prepareR2Migration({manifest,objects,authorized:true,sourceProvenanceIndependentlyVerified:true});
 for(const key of ['sourceProvenanceIndependentlyVerified','completeInventoryIndependentlyVerified','journalMutationAllowed',
   'authoritativeStoreChanged','brokerConnectivityAllowed','liveTradingAllowed'])assert.equal(result[key],false);
