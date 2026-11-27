@@ -411,6 +411,11 @@ jobs:
         env:
           FENICE_R2_PROSPECTIVE_ENABLED: "true"
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
+      - name: Verify separate encrypted R2 backup after PAPER attempt
+        if: always() && !cancelled() && steps.ci_recovery.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true
+        env:
+          FENICE_R2_BACKUP_ONLY: "true"
+        run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-original-private-signal-cycle:
     # Preserve the original journal audit even if prospective PAPER fails.
