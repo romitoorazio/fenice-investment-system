@@ -45,6 +45,10 @@ const current=objects.get('ledger.json');
 const damaged=JSON.parse(current.body);damaged.ledger.cashEuro=999999;
 objects.set('ledger.json',{...current,body:Buffer.from(JSON.stringify(damaged))});
 await assert.rejects(restarted.read(),/ENVELOPE_INVALID/);
+// A matching envelope digest cannot legitimize an invalid replayed account.
+damaged.ledgerSha256=createHash('sha256').update(JSON.stringify(damaged.ledger)+'\n').digest('hex');
+objects.set('ledger.json',{...current,body:Buffer.from(JSON.stringify(damaged)+'\n')});
+await assert.rejects(restarted.read(),/LEDGER_REPLAY_ACCOUNT_MISMATCH/);
 objects.set('ledger.json',current);
 assert.equal(JSON.parse((await restarted.read()).body).liveTradingAllowed,false);
 console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests passed (no provider or LIVE access).');
