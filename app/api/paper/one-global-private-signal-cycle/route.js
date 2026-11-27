@@ -40,7 +40,8 @@ export async function POST(request){
       try{
         const report=await runAuthorizedR2PaperCycle({storage:createProspectiveR2PaperStore(),collect:fetchOneGlobalCloudDualEod});
         return Response.json(report,{headers});
-      }catch{return json('R2_PROSPECTIVE_CYCLE_RECHECK_REQUIRED',409);}
+      }catch{return Response.json({state:'R2_PROSPECTIVE_CYCLE_RECHECK_REQUIRED',paperFillsCreated:null,
+        certifiedTrades:0,phase9Credit:0,brokerConnectivityAllowed:false,liveTradingAllowed:false},{status:409,headers});}
     }
     const storage=pinOneGlobalRecoveredOriginalStore(await createVercelPrivateEodBlobStore());
     if(input.action==='AUDIT_JOURNAL_STATUS_READ_ONLY'){

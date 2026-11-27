@@ -35,8 +35,24 @@ assert.throws(()=>validateR2PublicCycleSummary({...result,closedVirtualRoundTrip
 const sanitized=validateR2PublicCycleSummary({...result,privateContext:'SYNTHETIC PRIVATE BYTES',cashEuro:1000});
 assert.equal(Object.hasOwn(sanitized,'privateContext'),false);
 assert.equal(Object.hasOwn(sanitized,'cashEuro'),false);
+// A cycle that started with consent may cross expiry during collection.
+const priorTime=t;
+await assert.rejects(runAuthorizedR2PaperCycle({storage,clock,run:async({storage:guarded})=>{
+  t='2026-12-28T20:00:00.000Z';
+  await guarded.compareAndSwap({expectedEtag:(await storage.read()).etag,body:before,contentType:'application/json'});
+}}));
+assert.equal((await storage.read()).body,before);
+assert.equal((await storage.readSettlementContext()).body,context);
+t=priorTime;
+const expiredAfterRead=await runAuthorizedR2PaperCycle({storage,clock,run:async()=>{
+  t='2026-12-28T20:00:00.000Z';
+  return {state:'R2_PROSPECTIVE_VERIFIED_OUTSIDE_POSTCLOSE_WINDOW',originalJournalVerified:false,prospectiveJournalVerified:true,
+    newSignals:0,paperFillsCreated:0,certifiedTrades:0,phase9Credit:0,liveTradingAllowed:false,brokerConnectivityAllowed:false};
+}});
+assert.equal(expiredAfterRead.authorityValid,false);
 t='2026-12-28T20:00:00.000Z';
 assert.equal((await runAuthorizedR2PaperCycle({storage,clock,run})).state,'R2_PAPER_CONSENT_REVIEW_REQUIRED');
 assert.equal(calls,1);
 assert.equal((await storage.read()).body,before);
+assert.equal((await storage.readSettlementContext()).body,context);
 console.log('PASS R2 PAPER control: no engine without explicit valid consent, expiry, immutable genesis, no historical or LIVE credit.');

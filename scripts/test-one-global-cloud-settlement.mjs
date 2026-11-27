@@ -514,7 +514,9 @@ console.log('PASS delegated settlement: synthetic original evidence supports att
      return current?{status:200,...current}:{status:404};
    }
    if((condition['if-match']&&condition['if-match']!==current?.etag)||(condition['if-none-match']==='*'&&current))return {status:412};
-   objects.set(key,{body:Buffer.from(body),etag:'"r2-roundtrip-'+(++version)+'"'});
+   const bytes=Buffer.from(body);
+   const etag=key==='evidence/settlement-inputs.json'?'"'+sha(bytes)+'"':'"r2-roundtrip-'+(++version)+'"';
+   objects.set(key,{body:bytes,etag});
    return {status:200};
  };
  let r2=createProspectiveR2PaperStore({transport,clock:()=>clockValue});
@@ -529,7 +531,9 @@ console.log('PASS delegated settlement: synthetic original evidence supports att
  context.documents.push({kind:'ORIGINAL_EXCHANGE_SESSION',sha256:hash,bodyBase64:doc.toString('base64')});
  context.sessions.push({...context.sessions[0],sessionDate:'2026-11-16',sessionOpenedAt:'2026-11-16T08:00:00.000Z',
    sessionClosedAt:'2026-11-16T16:40:00.000Z',evidenceSha256:hash});
- await r2.writeSettlementContext({expectedEtag:null,body:JSON.stringify(context)});
+ const savedContext=await r2.writeSettlementContext({expectedEtag:null,body:JSON.stringify(context)});
+ const sameContext=await r2.writeSettlementContext({expectedEtag:savedContext.etag,body:JSON.stringify(context)});
+ assert.equal(sameContext.etag,savedContext.etag);
  const buy=await execute(r2,f,{clock:()=>clockValue}).promise;
  assert.equal(buy.paperFillsCreated,1,JSON.stringify(buy.settlementBlockers));
  assert.equal(buy.originalJournalVerified,false);
