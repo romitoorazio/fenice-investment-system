@@ -41,6 +41,9 @@ jobs:
       - name: R2 isolated configuration and probe tests
         run: node scripts/test-one-global-r2-config.mjs && node scripts/test-one-global-r2-probe.mjs && node scripts/test-one-global-r2-original-candidate.mjs && node scripts/test-one-global-r2-prospective-paper-store.mjs
 
+      - name: R2 prospective genesis HTTP authorization regression
+        run: node --experimental-strip-types scripts/test-one-global-r2-genesis-handler.mjs
+
       - name: Repository secret scan
         run: node scripts/scan-repository-secrets.mjs
 
