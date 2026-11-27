@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {createProspectiveR2PaperStore} from '../lib/trading/one-global-r2-prospective-paper-store.mjs';
+import {createProspectiveR2PaperStore,assertR2ProspectiveClockAfterReadback} from '../lib/trading/one-global-r2-prospective-paper-store.mjs';
 import {recordOneGlobalEodSignal} from '../lib/trading/one-global-eod-paper.mjs';
 const objects=new Map();let version=0;
 const transport=async ({method,key,body,condition})=>{
@@ -140,6 +140,18 @@ assert.equal(observed.body.toString(),obs);
 assert.equal(observed.uploadedAt,null);
 assert.equal(observed.uploadedAtSource,'R2_PRIVATE_READBACK_ONLY');
 assert.equal(observed.readbackObservedAt,now);
+const proof=await evidenceStore.verifyProspectivePrecommitObservation({hash:obsHash,body:obs});
+assert.equal(proof.provenance,'R2_PRIVATE_READBACK_ONLY');
+assert.equal(proof.historicalChronologyProven,false);
+assert.equal(proof.observationSha256,obsHash);
+assert.equal(proof.originId,first.originId);
+assert.equal('uploadedAt' in proof,false);
+assertR2ProspectiveClockAfterReadback({proof,recordedAt:now});
+assert.throws(()=>assertR2ProspectiveClockAfterReadback({proof,recordedAt:start}),/PRECOMMIT_READBACK_CLOCK_INVALID/);
+assert.throws(()=>assertR2ProspectiveClockAfterReadback({proof:{...proof,historicalChronologyProven:true},recordedAt:now}),/PRECOMMIT_READBACK_CLOCK_INVALID/);
+await assert.rejects(evidenceStore.verifyProspectivePrecommitObservation({hash:obsHash,body:obs.replace('TEST_ONLY','DIFFERENT')}),/EVIDENCE_READBACK_MISMATCH/);
+const reversedClockStore=createProspectiveR2PaperStore({transport,clock:()=> '2026-11-13T22:29:00.000Z'});
+await assert.rejects(reversedClockStore.verifyProspectivePrecommitObservation({hash:obsHash,body:obs}),/PRECOMMIT_READBACK_BEFORE_GENESIS/);
 const raw=Buffer.from('synthetic market-data test artifact');
 const rawHash=createHash('sha256').update(raw).digest('hex');
 assert.equal((await evidenceStore.createSourceArtifact({hash:rawHash,body:raw,contentType:'text/csv'})).verified,true);
