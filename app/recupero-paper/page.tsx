@@ -16,7 +16,7 @@ const EXPIRE="/api/paper/one-global-private-expire-cba";
 const R2_PROBE="/api/paper/one-global-r2-probe";
 const R2_PENDING_KEY="fenice:r2-probe-unresolved:v1";
 const R2_CHECKS=["conditionalCreate","concurrentExclusive","sha256Verified","conditionalUpdate","staleUpdateRejected","finalSha256Verified","cleanup"] as const;
-type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string};
+type R2Result={state:string;checks?:Partial<Record<typeof R2_CHECKS[number],boolean>>;diagnosticId?:string;cleanupPending?:boolean;writeOutcomeAmbiguous?:boolean;failedStep?:string;failureCode?:string};
 
 export default function FeniceRecoverPage(){
   const [authenticated,setAuthenticated]=useState(false);
@@ -56,7 +56,7 @@ export default function FeniceRecoverPage(){
       if(uncertain){
         if(typeof payload.diagnosticId==="string"&&/^[a-f0-9-]{36}$/.test(payload.diagnosticId))window.localStorage.setItem(R2_PENDING_KEY,payload.diagnosticId);
       }else{window.localStorage.removeItem(R2_PENDING_KEY);setR2Blocked(false);}
-      setR2Result({state:verified?"R2_WRITE_PROBE_VERIFIED":payload.state==="R2_WRITE_PROBE_VERIFIED"?"R2_PROBE_RESULT_INCOMPLETE":typeof payload.state==="string"?payload.state:"R2_PROBE_RESULT_UNKNOWN",checks:payload.checks,failedStep:payload.failedStep,diagnosticId:payload.diagnosticId,cleanupPending:uncertain,writeOutcomeAmbiguous:payload.writeOutcomeAmbiguous});
+      setR2Result({state:verified?"R2_WRITE_PROBE_VERIFIED":payload.state==="R2_WRITE_PROBE_VERIFIED"?"R2_PROBE_RESULT_INCOMPLETE":typeof payload.state==="string"?payload.state:"R2_PROBE_RESULT_UNKNOWN",checks:payload.checks,failedStep:payload.failedStep,failureCode:typeof payload.failureCode==="string"&&/^[A-Z0-9_]{1,80}$/.test(payload.failureCode)?payload.failureCode:undefined,diagnosticId:payload.diagnosticId,cleanupPending:uncertain,writeOutcomeAmbiguous:payload.writeOutcomeAmbiguous});
     }catch{
       setR2Blocked(true);
       setR2Result({state:"R2_PROBE_OUTCOME_UNKNOWN",cleanupPending:true});
@@ -144,6 +144,7 @@ export default function FeniceRecoverPage(){
                 <p>{r2Result.state}</p>
                 {r2Result.checks?<ul>{R2_CHECKS.map(key=><li key={key}>{key}: {r2Result.checks?.[key]===true?"OK":"NON VERIFICATO"}</li>)}</ul>:null}
                 {r2Result.failedStep?<p>Fase: {r2Result.failedStep}</p>:null}
+                {r2Result.failureCode?<p>Codice: {r2Result.failureCode}</p>:null}
                 {r2Result.diagnosticId?<p>ID diagnostico: {r2Result.diagnosticId}</p>:null}
                 {r2Result.cleanupPending?<p>Esito o pulizia non confermati. Non ripetere il test prima della riconciliazione, anche dopo un ricaricamento della pagina.</p>:null}
               </div>:null}
