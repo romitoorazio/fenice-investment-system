@@ -11,6 +11,7 @@ assert.equal(objectCount,4);
 check(manifest,objects,'HISTORY_MISMATCH'); // Positive synthetic replay cannot authorize the authentic history.
 check(null,objects,'INVENTORY_INVALID');
 check(manifest.slice(1),objects.slice(1),'REQUIRED_OBJECT_MISSING');
+check(manifest.slice(0,2),objects.slice(0,2),'REFERENCED_OBSERVATION_MISSING');
 check(manifest.slice(0,3),objects.slice(0,3),'REFERENCED_RAW_MISSING');
 check(changed(0,{key:manifest[1].key}),objects,'MANIFEST_INVALID');
 check(manifest,[objects[1],...objects.slice(1)],'OBJECT_INVALID');
