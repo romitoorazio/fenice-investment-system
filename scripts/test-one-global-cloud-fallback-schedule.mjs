@@ -11,6 +11,19 @@ const trigger=workflow.split('\njobs:\n')[0];
 const originalJob=workflow.split('\n  cloud-original-private-signal-cycle:\n')[1]
   ?.split(/\n  (?:cloud-|safe-)[a-z-]+:\n/)[0];
 assert(originalJob,'trusted original cloud cycle job must exist');
+const r2Job=workflow.split('\n  cloud-r2-prospective-paper:\n')[1]?.split('\n  cloud-original-private-signal-cycle:\n')[0];
+assert(r2Job,'R2 must report a distinct job result');
+assert.match(r2Job,/FENICE_R2_PROSPECTIVE_ENABLED: "true"/);
+assert.match(r2Job,/steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
+assert.match(r2Job,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
+assert.match(r2Job,/id-token: write/);
+assert.match(r2Job,/github\.ref == 'refs\/heads\/main'/);
+assert.doesNotMatch(r2Job,/secrets\.|DIRECTA|continue-on-error/);
+assert.match(originalJob,/needs: cloud-r2-prospective-paper/);
+assert.match(originalJob,/always\(\) && !cancelled\(\)/);
+assert.match(originalJob,/FENICE_R2_PROSPECTIVE_ENABLED: "false"/);
+assert.doesNotMatch(originalJob,/FENICE_R2_PROSPECTIVE_ENABLED: "true"|continue-on-error/);
+
 
 // Preserve the original EU post-close windows, with exactly one extra set of
 // off-minute retries. No new writer, new broker path or widened evidence gate.
@@ -61,8 +74,8 @@ assert.match(originalJob,/github\.event\.workflow_run\.head_branch == 'main'/);
 assert.match(originalJob,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
 assert.match(originalJob,/github\.event\.workflow_run\.name == 'Fenice Production CI'/);
 assert.match(originalJob,/github\.event\.workflow_run\.event == 'schedule'/);
-assert.match(originalJob,/steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
-assert.match(originalJob,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
+assert.match(originalJob,/needs\.cloud-r2-prospective-paper\.outputs\.should_invoke == 'true'/);
+assert.match(r2Job,/scripts\/check-one-global-hourly-ci-recovery\.mjs/);
 assert.match(originalJob,/id-token: write/);
 assert.match(originalJob,/ref: main/);
 assert.match(originalJob,/persist-credentials: false/);
