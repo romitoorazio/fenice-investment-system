@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createProspectiveR2PaperStore} from '../lib/trading/one-global-r2-prospective-paper-store.mjs';
-import {authorizeR2Paper,readR2PaperControl,runAuthorizedR2PaperCycle,validateR2PublicCycleSummary,runR2EuSourcePreflight,validateR2EuPreflightSummary} from '../lib/trading/one-global-r2-paper-control.mjs';
+import {authorizeR2Paper,readR2PaperControl,runAuthorizedR2PaperCycle,validateR2PublicCycleSummary,runR2EuSourcePreflight,validateR2EuPreflightSummary,runR2UsSourcePreflight,validateR2UsPreflightSummary} from '../lib/trading/one-global-r2-paper-control.mjs';
 const objects=new Map();let n=0;
 const transport=async({method,key,body,condition})=>{
  const old=objects.get(key);
@@ -109,3 +109,29 @@ console.log('PASS isolated weekend EU source qualification: no journal writer, n
  assert.equal((await storage.read()).body,before);
  assert.equal((await storage.readSettlementContext()).body,context);
  console.log('PASS preflight consent expiry guards all evidence writes and final attestation.');
+
+// US access tests are synthetic only, with no storage mutation or rights claim.
+t='2026-11-28T12:00:00.000Z';
+const writesBefore=n;let usCalls=0;
+const usCollect=async({source,signal,sessionDate})=>{
+  usCalls++;assert.equal(sessionDate,'2026-11-27');
+  if(source.providerId==='alpaca-iex'&&source.symbol==='TSLA')throw Error('synthetic denied');
+  return {receipt:{...signal,providerId:source.providerId,sessionDate,close:100,simulatedOrSynthetic:false}};
+};
+const us=await runR2UsSourcePreflight({storage,clock,collect:usCollect});
+assert.equal(us.state,'US_ACCESS_DIAGNOSTIC_COMPLETED');
+assert.equal(usCalls,7);
+assert.deepEqual(us.symbols.map(x=>x.symbol),['AAPL','MSFT','TSLA']);
+assert.equal(us.symbols[2].eodhd,'EXACT_DAILY_ROW_RECEIVED');
+assert.equal(us.symbols[2].iex,'ACCESS_NOT_CONFIRMED');
+assert.equal(us.symbols.every(x=>x.numericalAgreement),true);
+assert.equal(us.rightsApproved,false);assert.equal(us.independenceCertified,false);
+assert.throws(()=>validateR2UsPreflightSummary({...us,rightsApproved:true}));
+assert.throws(()=>validateR2UsPreflightSummary({...us,newSignals:1}));
+assert.equal(n,writesBefore);
+t='2026-11-30T12:00:00.000Z';
+assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).state,'R2_PREFLIGHT_OUTSIDE_WEEKEND');
+t='2027-01-02T12:00:00.000Z';
+assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).state,'R2_PREFLIGHT_AUTHORITY_REQUIRED');
+assert.equal(usCalls,7);assert.equal(n,writesBefore);
+console.log('PASS synthetic R2 US source diagnostic: three symbols, fallback, no writes or approval, weekday and authority guards.');
