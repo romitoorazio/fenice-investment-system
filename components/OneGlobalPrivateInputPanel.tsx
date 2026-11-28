@@ -20,7 +20,7 @@ function blockerText(code:string){
   if(code.includes("CONSENT"))return "Il consenso originale non è valido o è scaduto.";
   return "I documenti non superano ancora tutti i controlli richiesti.";
 }
-export default function OneGlobalPrivateInputPanel(){
+export default function OneGlobalPrivateInputPanel({legacyAvailable=true}:{legacyAvailable?:boolean}){
   const [status,setStatus]=useState<InputStatus|null>(null);
   const [kind,setKind]=useState("ORIGINAL_OWNER_PAPER_CONSENT");
   const [file,setFile]=useState<File|null>(null);
@@ -33,7 +33,8 @@ export default function OneGlobalPrivateInputPanel(){
   const [usReviewed,setUsReviewed]=useState(false);
   const [usNote,setUsNote]=useState("");
   const [usCampaign,setUsCampaign]=useState<"r2"|"legacy">("r2");
-  const usEndpoint="/api/paper/one-global-private-us-mapping?campaign="+usCampaign;
+  const selectedCampaign=legacyAvailable?usCampaign:"r2";
+  const usEndpoint="/api/paper/one-global-private-us-mapping?campaign="+selectedCampaign;
   async function inspectUs(){
     if(usBusy||busy)return;
     setUsBusy(true);setUsReviewed(false);setUsNote("");
@@ -59,7 +60,7 @@ export default function OneGlobalPrivateInputPanel(){
       const data=await response.json() as UsMappingPreview;
       if(response.ok&&data.state==="US_OWNER_REVIEWED_MAPPING_CONNECTED_PRIVATE"){
         setUsNote("Mappatura USA collegata agli originali archiviati. Non è stato creato un FILL.");
-        setUsPreview(data);if(usCampaign==="legacy")await refresh();
+        setUsPreview(data);if(selectedCampaign==="legacy")await refresh();
       }else{
         setUsNote("Collegamento non confermato: "+(data.state||"PROVE_NON_VALIDE"));
         setUsPreview(null);
@@ -84,13 +85,13 @@ export default function OneGlobalPrivateInputPanel(){
     if(!response.ok)throw Error("PRIVATE_INPUT_STATUS_UNAVAILABLE");
     setStatus(result);
   }
-  useEffect(()=>{let current=true;
+  useEffect(()=>{if(!legacyAvailable)return;let current=true;
     void fetch(endpoint,{credentials:"same-origin",cache:"no-store"})
       .then(async response=>{if(!response.ok)throw Error("PRIVATE_INPUT_STATUS_UNAVAILABLE");return response.json() as Promise<InputStatus>;})
       .then(result=>{if(current)setStatus(result);})
       .catch(()=>{if(current)setNote("Verifica dei documenti privati non disponibile.");});
     return ()=>{current=false;};
-  },[]);
+  },[legacyAvailable]);
   async function upload(){
     if(!file||!status||busy)return;
     if(file.size<20||file.size>500000){setNote("Seleziona un file JSON originale, massimo 500 kB.");return;}
@@ -114,6 +115,7 @@ export default function OneGlobalPrivateInputPanel(){
     finally{setBusy(false);}
   }
   return <section style={style}>
+    {legacyAvailable?<>
     <h2 style={{fontWeight:600}}>Documenti originali per il PAPER cloud</h2>
     <p>Carica il consenso già approvato oppure il pacchetto delle prove originali. Il contenuto resta privato e il registro delle operazioni viene conservato.</p>
     {status?<>
@@ -154,16 +156,17 @@ export default function OneGlobalPrivateInputPanel(){
           Serve verifica delle condizioni originali prima di riutilizzarlo.</p>)}
       </div>:null}
     </div>
+    </>:null}
     <div style={{borderTop:"1px solid #475569",marginTop:18,paddingTop:14}}>
       <h3 style={{fontWeight:600}}>Mappatura USA guidata · Alpaca Basic IEX</h3>
       <p>Solo per il proprietario. Verifica il segnale della campagna selezionata, consulta le condizioni ufficiali
         e collega le prove nel suo archivio privato. Il servizio rifiuta pagine non verificabili e non permette ordini reali.</p>
       <label style={{display:"block",marginBottom:10}}>Campagna USA
-        <select value={usCampaign} disabled={busy||usBusy} onChange={e=>{
+        <select value={selectedCampaign} disabled={busy||usBusy} onChange={e=>{
           setUsCampaign(e.target.value==="legacy"?"legacy":"r2");setUsPreview(null);setUsReviewed(false);setUsNote("");
         }} style={{display:"block",padding:10,border:"1px solid #64748b",borderRadius:6,width:"100%"}}>
           <option value="r2">Nuova campagna PAPER R2</option>
-          <option value="legacy">Registro storico Blob</option>
+          {legacyAvailable?<option value="legacy">Registro storico Blob</option>:null}
         </select>
       </label>
       <p>La mappatura richiede un segnale USA prospettico effettivamente registrato e la tua conferma dei diritti d’uso.</p>
