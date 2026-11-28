@@ -152,6 +152,7 @@ console.log('PASS US owner review: official originals captured, fixed sources an
  // storage fixture. No real source, owner approval or journal is manufactured.
  const r2Base=fixture();
  const r2Fixture={...r2Base,campaignKind:'R2_PROSPECTIVE_UNCERTIFIED',
+   async createResearchObservation(args){await r2Base.createResearchObservation(args);return {created:false,verified:true};},
    verifyProspectivePrecommitObservation:async()=>{throw Error('unexpected signal proof');},
    async read(){return {...await r2Base.read(),originId:'12345678-1234-1234-1234-123456789abc',
      startedAt:'2026-11-16T18:00:00.000Z'};}};
