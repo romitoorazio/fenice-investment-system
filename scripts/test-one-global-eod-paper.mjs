@@ -508,6 +508,7 @@ const emptyEconomics=projectR2PaperEconomics(start);
 assert.equal(emptyEconomics.cashEuro,1000);
 assert.equal(emptyEconomics.portfolioValueEuro,1000);
 assert.equal(emptyEconomics.winRatePercent,null);
+assert.equal(emptyEconomics.maxDrawdownPercent,null);
 assert.equal(emptyEconomics.profitFactor,null);
 const openEconomics=projectR2PaperEconomics(buy.ledger);
 assert.equal(openEconomics.investedCostEuro,buy.ledger.positions["XMIL:ENEL"].costEuro);
