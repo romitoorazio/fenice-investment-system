@@ -12,7 +12,7 @@ import {inspectOneGlobalCloudSourceAccess} from '../../../../lib/trading/one-glo
 import {alpacaSipCredentialsPresent} from '../../../../lib/market/one-global-alpaca-sip-eod.mjs';
 import {createProspectiveR2PaperStore} from '../../../../lib/trading/one-global-r2-prospective-paper-store.mjs';
 import {inspectOneGlobalEuSourceAccess} from '../../../../lib/trading/one-global-cloud-eu-prospective-cycle.mjs';
-import {runR2EuSourcePreflight,runAuthorizedR2PaperCycle} from '../../../../lib/trading/one-global-r2-paper-control.mjs';
+import {runR2EuSourcePreflight,runR2UsSourcePreflight,runAuthorizedR2PaperCycle} from '../../../../lib/trading/one-global-r2-paper-control.mjs';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const revalidate=0;
@@ -34,9 +34,14 @@ export async function POST(request){
     const text=await request.text();if(text.length>80)return json('CYCLE_REQUEST_INVALID',400);
     const input=JSON.parse(text);
     if(!input||Object.keys(input).length!==1
-      ||!['R2_PROSPECTIVE_PAPER_CYCLE','R2_PROSPECTIVE_BACKUP','R2_EU_SOURCE_PREFLIGHT','RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY',
+      ||!['R2_PROSPECTIVE_PAPER_CYCLE','R2_PROSPECTIVE_BACKUP','R2_EU_SOURCE_PREFLIGHT','R2_US_SOURCE_PREFLIGHT','RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY',
         'AUDIT_JOURNAL_STATUS_READ_ONLY'].includes(input.action))
       return json('CYCLE_REQUEST_INVALID',400);
+    if(input.action==='R2_US_SOURCE_PREFLIGHT'){
+      try{
+        return Response.json(await runR2UsSourcePreflight({storage:createProspectiveR2PaperStore()}),{headers});
+      }catch{return json('R2_US_PREFLIGHT_NOT_CONFIRMED',409);}
+    }
     if(input.action==='R2_EU_SOURCE_PREFLIGHT'){
       try{
         const report=await runR2EuSourcePreflight({storage:createProspectiveR2PaperStore(),qualify:inspectOneGlobalEuSourceAccess});
