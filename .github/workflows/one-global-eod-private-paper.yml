@@ -416,6 +416,11 @@ jobs:
         env:
           FENICE_R2_BACKUP_ONLY: "true"
         run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
+      - name: Qualify R2 EU source access separately on weekend release or manual invocation
+        if: always() && !cancelled() && steps.ci_recovery.outputs.should_invoke == 'true' && inputs.journal_status_read_only != true && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.name == 'Fenice Production Deploy')
+        env:
+          FENICE_R2_EU_PREFLIGHT_ONLY: "true"
+        run: node scripts/invoke-one-global-cloud-signal-cycle.mjs
 
   cloud-original-private-signal-cycle:
     # Preserve the original journal audit even if prospective PAPER fails.
