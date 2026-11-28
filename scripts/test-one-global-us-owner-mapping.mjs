@@ -147,3 +147,25 @@ const csrf=await handleOneGlobalUsOwnerMappingRequest(new Request('https://examp
 assert.equal(csrf.status,403);
 assert.equal(store.get().writes,1,'CSRF and unauthenticated access never write');
 console.log('PASS US owner review: official originals captured, fixed sources and Nasdaq time, CAS, strict rights, signal preserved, refusers fail closed; SYNTHETIC docs only.');
+
+ // The existing owner review is also exercised against an isolated R2-shaped
+ // storage fixture. No real source, owner approval or journal is manufactured.
+ const r2Base=fixture();
+ const r2Fixture={...r2Base,campaignKind:'R2_PROSPECTIVE_UNCERTIFIED',
+   async createResearchObservation(args){await r2Base.createResearchObservation(args);return {created:false,verified:true};},
+   verifyProspectivePrecommitObservation:async()=>{throw Error('unexpected signal proof');},
+   async read(){return {...await r2Base.read(),originId:'12345678-1234-1234-1234-123456789abc',
+     startedAt:'2026-11-16T18:00:00.000Z'};}};
+ const r2Preview=await inspectOneGlobalUsOwnerMapping({storage:r2Fixture,nowIso:now});
+ assert.equal(r2Preview.state,'US_MAPPING_OFFICIAL_DOCUMENT_REVIEW_AVAILABLE');
+ assert.equal(r2Base.get().writes,0);
+ const r2Saved=await connectOneGlobalUsOwnerMapping({storage:r2Fixture,nowIso:now,input:{...input,expectedEtag:r2Preview.expectedEtag},fetcher,pinnedAlphaTermsSha256});
+ assert.equal(r2Saved.state,'US_OWNER_REVIEWED_MAPPING_CONNECTED_PRIVATE');
+ assert.equal(r2Saved.paperFillsCreated,0);
+ assert.equal(r2Saved.liveTradingAllowed,false);
+ assert.equal(r2Base.get().writes,1);
+ assert.deepEqual(r2Base.get().c.authority,consent);
+ assert.equal(JSON.parse((await r2Fixture.read()).body).events.length,1);
+ const emptyR2={...r2Fixture,async read(){return {body:JSON.stringify(newOneGlobalEodPaperLedger())};}};
+ await assert.rejects(inspectOneGlobalUsOwnerMapping({storage:emptyR2,nowIso:now}),/NO_SUPPORTED_PENDING_US_SIGNAL/);
+ console.log('PASS isolated R2 USA owner mapping: explicit review, no synthetic production trades, unchanged authority and signal.');
