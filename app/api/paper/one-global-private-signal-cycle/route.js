@@ -33,9 +33,21 @@ export async function POST(request){
     const text=await request.text();if(text.length>80)return json('CYCLE_REQUEST_INVALID',400);
     const input=JSON.parse(text);
     if(!input||Object.keys(input).length!==1
-      ||!['R2_PROSPECTIVE_PAPER_CYCLE','RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY',
+      ||!['R2_PROSPECTIVE_PAPER_CYCLE','R2_PROSPECTIVE_BACKUP','RESEARCH_SIGNAL_CYCLE','AUDIT_FIRST_FILL_READ_ONLY','AUDIT_SECOND_FILL_READ_ONLY','AUDIT_LATEST_FILL_READ_ONLY',
         'AUDIT_JOURNAL_STATUS_READ_ONLY'].includes(input.action))
       return json('CYCLE_REQUEST_INVALID',400);
+    // Same protected main-workflow identity; backup never invokes the engine.
+    if(input.action==='R2_PROSPECTIVE_BACKUP'){
+      try{
+        const storage=createProspectiveR2PaperStore();
+        const saved=await storage.backupCurrent();
+        const restored=await storage.verifyIndependentBackup(saved.digest);
+        if(saved.verified!==true||restored.verified!==true||saved.eventCount!==restored.eventCount
+          ||saved.startedAt!==restored.startedAt||saved.backupAccountSeparated!==restored.backupAccountSeparated)
+          return json('R2_AUTOMATIC_BACKUP_NOT_CONFIRMED',409);
+        return json('R2_AUTOMATIC_BACKUP_VERIFIED',200);
+      }catch{return json('R2_AUTOMATIC_BACKUP_NOT_CONFIRMED',409);}
+    }
     if(input.action==='R2_PROSPECTIVE_PAPER_CYCLE'){
       try{
         const report=await runAuthorizedR2PaperCycle({storage:createProspectiveR2PaperStore(),collect:fetchOneGlobalCloudDualEod});

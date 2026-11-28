@@ -123,3 +123,16 @@ console.log('PASS ONE GLOBAL: independent EU and overnight recovery, main-only O
 
 const historicalCba=workflow.split('  cloud-asx-cba-next-session:')[1].split('    runs-on:')[0];
 assert.match(historicalCba,/if: github.ref == 'refs\/heads\/main' && github.event_name == 'workflow_dispatch'\s*$/);
+
+// Backup runs separately even if PAPER failed, on the same restricted identity.
+assert.match(r2Job,/if: always\(\) && !cancelled\(\) && steps\.ci_recovery\.outputs\.should_invoke == 'true'/);
+assert.match(r2Job,/FENICE_R2_BACKUP_ONLY: "true"/);
+assert.match(runner,/R2_PROSPECTIVE_BACKUP/);
+assert.match(runner,/R2_AUTOMATIC_BACKUP_VERIFIED/);
+assert.match(runner,/R2_AUTOMATIC_BACKUP_NOT_CONFIRMED/);
+const route=readFileSync('app/api/paper/one-global-private-signal-cycle/route.js','utf8');
+const backup=route.split("if(input.action==='R2_PROSPECTIVE_BACKUP')")[1]?.split("if(input.action==='R2_PROSPECTIVE_PAPER_CYCLE')")[0];
+assert(backup);
+assert.match(backup,/backupCurrent\(\)/);
+assert.match(backup,/verifyIndependentBackup\(saved\.digest\)/);
+assert.doesNotMatch(backup,/runAuthorizedR2PaperCycle|compareAndSwap|initialize\(/);

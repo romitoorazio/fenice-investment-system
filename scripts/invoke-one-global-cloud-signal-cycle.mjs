@@ -15,6 +15,7 @@ const safeTransportFailure=()=>(
   failurePhase==='AUDIT'?'AUDIT':'SETUP')+
   '_'+([400,401,403,404,408,409,422,429,500,502,503,504].includes(failureStatus)
     ?'HTTP_'+failureStatus:failureStatus?'HTTP_OTHER':'NO_HTTP_RESPONSE');
+const backupOnly=process.env.FENICE_R2_BACKUP_ONLY==='true';
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
     ||process.env.GITHUB_REF!=='refs/heads/main')throw Error('SCOPE');
@@ -33,13 +34,19 @@ try{
   const r2=process.env.FENICE_R2_PROSPECTIVE_ENABLED==='true';
   const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
     signal:AbortSignal.timeout(70000),headers:{Authorization:'Bearer '+value,
-      'Content-Type':'application/json'},body:JSON.stringify({action:r2?'R2_PROSPECTIVE_PAPER_CYCLE':'RESEARCH_SIGNAL_CYCLE'})});
+      'Content-Type':'application/json'},body:JSON.stringify({action:backupOnly?'R2_PROSPECTIVE_BACKUP':r2?'R2_PROSPECTIVE_PAPER_CYCLE':'RESEARCH_SIGNAL_CYCLE'})});
   failurePhase='CYCLE_RESPONSE';failureStatus=response.status;
   const text=await response.text();if(text.length>10000)throw Error('RESPONSE_SIZE');
   const report=JSON.parse(text);failurePhase='CYCLE_REPORT';
   if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
-  if(r2){
+  if(backupOnly){
+    if(report.state!=='R2_AUTOMATIC_BACKUP_VERIFIED'||report.paperFillsCreated!==0
+      ||report.certifiedTrades!==0||report.phase9Credit!==0
+      ||report.brokerConnectivityAllowed!==false||report.liveTradingAllowed!==false)throw Error('BACKUP_NOT_VERIFIED');
+    console.log('R2_AUTOMATIC_BACKUP_VERIFIED');
+    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## R2 encrypted backup\n\nVERIFIED — isolated readback and replay.\n');
+  }else if(r2){
     const visible=validateR2PublicCycleSummary(report);
     console.log(JSON.stringify(visible));
     if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## R2 prospective PAPER (uncertified)\n\n'+Object.entries(visible).map(([k,v])=>'- '+k+': '+v).join('\n')+'\n');
@@ -110,7 +117,13 @@ try{
 
   }
 }catch{
+  if(backupOnly){
+    // A secondary storage problem must not change a completed PAPER outcome.
+    console.log('::warning title=FENICE R2 backup::R2_AUTOMATIC_BACKUP_NOT_CONFIRMED '+safeTransportFailure());
+    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## R2 encrypted backup\n\nNOT CONFIRMED — retry at next authorized cycle.\n');
+  }else{
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_CYCLE_NOT_CONFIRMED');
   console.error('ONE_GLOBAL_PRIVATE_CLOUD_FAILURE_CLASS='+safeTransportFailure());
   process.exitCode=1;
+  }
 }

@@ -75,10 +75,11 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
    R2_BACKUP_SECRET_ACCESS_KEY:'mock-backup-secret',R2_BACKUP_ENCRYPTION_KEY_HEX:'a'.repeat(64)
  };
  const external=new Map();
- let writes=0;
+ let writes=0, putAttempts=0;
  const backupTransport=async({method,key,body,condition})=>{
    assert.match(key,/^encrypted\/[a-f0-9]{64}\.bin$/);
    if(method==='GET')return external.has(key)?{status:200,body:external.get(key)}:{status:404};
+   putAttempts++;
    assert.equal(condition['if-none-match'],'*');
    if(external.has(key))return {status:412};
    writes++;
@@ -99,6 +100,7 @@ console.log('Independent R2 PAPER genesis, CAS, backup and integrity mock tests 
  assert.equal(external.get(key).length,primaryBefore.length+29);
  assert.equal((await backed.backupCurrent()).digest,saved.digest);
  assert.equal(writes,1);
+ assert.equal(putAttempts,1,'unchanged backup never attempts another PUT');
  assert.equal((await backed.verifyIndependentBackup(saved.digest)).eventCount,1);
  assert.deepEqual(objects.get('ledger.json').body,primaryBefore);
  const sameAccount=createProspectiveR2PaperStore({env:{...env,R2_BACKUP_ENDPOINT:env.R2_ENDPOINT},transport,backupTransport});
