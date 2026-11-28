@@ -174,4 +174,17 @@ const empty= summarizeShadowDirectionalOutcomes([],"30d");
 assert.equal(empty.observedPositiveRate,null);
 assert.equal(empty.state,"NO_OBSERVED_OUTCOMES");
 
+const suppliedForecast = explicit[0].positiveReturnForecast;
+const forecastCandidates = selectShadowCalibrationCandidates([
+  candidateDecision("SPY", 780, {positiveReturnForecast:suppliedForecast})
+], {asOf:day0.toISOString()});
+assert.deepEqual(forecastCandidates[0].positiveReturnForecast,suppliedForecast);
+const retained = updateShadowCalibrationLedger({records:[]}, forecastCandidates, new Map(), {now:day0});
+assert.deepEqual(retained.records[0].positiveReturnForecast,suppliedForecast);
+const matured = updateShadowCalibrationLedger(retained, [], new Map([["SPY",800]]), {now:new Date("2026-10-09T22:00:00Z")});
+assert.deepEqual(buildShadowOutcomeSamples(matured.records,"7d"), [{confidence:0.65,outcome:1}]);
+assert.equal(selectShadowCalibrationCandidates([candidateDecision("SPY",780,{positiveReturnForecast:suppliedForecast})])[0].positiveReturnForecast,undefined);
+assert.equal(selectShadowCalibrationCandidates([candidateDecision("SPY",780,{positiveReturnForecast:{...suppliedForecast,generatedAt:"2026-10-02T00:00:00Z"}})],{asOf:day0.toISOString()})[0].positiveReturnForecast,undefined);
+assert.equal(selectShadowCalibrationCandidates([candidateDecision("SPY",780,{positiveReturnForecast:{...suppliedForecast,provenanceVerified:false}})],{asOf:day0.toISOString()})[0].positiveReturnForecast,undefined);
+
 console.log("Fenice V7 shadow calibration historical + longitudinal/probability guards: PASS");
