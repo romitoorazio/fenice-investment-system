@@ -134,4 +134,33 @@ assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).s
 t='2027-01-02T12:00:00.000Z';
 assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).state,'R2_PREFLIGHT_AUTHORITY_REQUIRED');
 assert.equal(usCalls,7);assert.equal(n,writesBefore);
+// Existing report schema remains readable across a guarded rolling release.
+const oldReport={...us,symbols:us.symbols.map(({twelve,reasons,...x})=>x)};
+assert.deepEqual(validateR2UsPreflightSummary(oldReport),oldReport);
+assert.equal(us.symbols.every(x=>x.twelve==='NOT_REQUESTED'),true);
+t='2026-11-28T12:00:00.000Z';
+let fallbackCalls=0;
+const partial=await runR2UsSourcePreflight({storage,clock,collect:async({source,signal,sessionDate})=>{
+  if(source.providerId==='alpha-vantage'&&source.symbol!=='TSLA')throw Error('CLOUD_SETTLEMENT_SOURCE_RATE_LIMIT');
+  if(source.providerId==='eodhd')throw Error('CLOUD_SETTLEMENT_SOURCE_AUTH_OR_PLAN_DENIED');
+  if(source.providerId==='twelve-data'){fallbackCalls++;if(source.symbol==='MSFT')throw Error('CLOUD_SETTLEMENT_SOURCE_EXACT_SESSION_MISSING_OR_DUPLICATED');}
+  return {receipt:{...signal,providerId:source.providerId,sessionDate,close:100,simulatedOrSynthetic:false}};
+}});
+assert.equal(fallbackCalls,2);
+assert.equal(partial.symbols[0].twelve,'EXACT_DAILY_ROW_RECEIVED');
+assert.equal(partial.symbols[0].numericalAgreement,true);
+assert.equal(partial.symbols[0].reasons.alpha,'RATE_LIMIT');
+assert.equal(partial.symbols[0].reasons.eodhd,'AUTH_OR_PLAN_DENIED');
+assert.equal(partial.symbols[1].reasons.twelve,'EXACT_ROW_NOT_VERIFIED');
+assert.equal(partial.symbols[1].numericalAgreement,false);
+assert.equal(partial.symbols[2].twelve,'NOT_REQUESTED');
+assert.throws(()=>validateR2UsPreflightSummary({...partial,symbols:partial.symbols.map((x,i)=>i?x:{...x,reasons:{...x.reasons,alpha:'secret-url'}})}));
+let divergentCalls=0;
+const divergent=await runR2UsSourcePreflight({storage,clock,collect:async({source,signal,sessionDate})=>{
+  divergentCalls++;
+  return {receipt:{...signal,providerId:source.providerId,sessionDate,close:source.providerId==='alpaca-iex'?110:100,simulatedOrSynthetic:false}};
+}});
+assert.equal(divergentCalls,6);
+assert.equal(divergent.symbols.every(x=>!x.numericalAgreement&&x.eodhd==='NOT_REQUESTED'&&x.twelve==='NOT_REQUESTED'),true);
+assert.equal(n,writesBefore);
 console.log('PASS synthetic R2 US source diagnostic: three symbols, fallback, no writes or approval, weekday and authority guards.');
