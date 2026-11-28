@@ -250,7 +250,7 @@ export default function FeniceRecoverPage(){
               style={{border:"1px solid #999",padding:"10px 16px",borderRadius:8}}>
                 Ricontrolla stato privato
               </button></p>
-            {status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"?<OneGlobalPrivateInputPanel/>:null}
+            <OneGlobalPrivateInputPanel key={status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"?"legacy-available":"r2-only"} legacyAvailable={status?.state==="ORIGINAL_JOURNAL_VALID_PRIVATE"}/>
           </section>}
       {note?<p role="status">{note}</p>:null}
       <p style={{fontSize:13,opacity:.75}}>L&apos;operazione conserva gli eventi originali. Nessuna quotazione o credenziale è resa pubblica. Il recupero non certifica operazioni né autorizza Directa.</p>
