@@ -32,11 +32,13 @@ export default function OneGlobalPrivateInputPanel(){
   const [usBusy,setUsBusy]=useState(false);
   const [usReviewed,setUsReviewed]=useState(false);
   const [usNote,setUsNote]=useState("");
+  const [usCampaign,setUsCampaign]=useState<"r2"|"legacy">("r2");
+  const usEndpoint="/api/paper/one-global-private-us-mapping?campaign="+usCampaign;
   async function inspectUs(){
     if(usBusy||busy)return;
     setUsBusy(true);setUsReviewed(false);setUsNote("");
     try{
-      const response=await fetch("/api/paper/one-global-private-us-mapping",{
+      const response=await fetch(usEndpoint,{
         credentials:"same-origin",cache:"no-store"});
       const data=await response.json() as UsMappingPreview;
       setUsPreview(data);
@@ -49,7 +51,7 @@ export default function OneGlobalPrivateInputPanel(){
       ||usPreview.state!=="US_MAPPING_OFFICIAL_DOCUMENT_REVIEW_AVAILABLE")return;
     setUsBusy(true);setUsNote("");
     try{
-      const response=await fetch("/api/paper/one-global-private-us-mapping",{
+      const response=await fetch(usEndpoint,{
         method:"POST",credentials:"same-origin",cache:"no-store",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({confirm:"I_REVIEWED_US_SOURCE_TERMS_AND_PRIVATE_PAPER_SCOPE",
@@ -57,7 +59,7 @@ export default function OneGlobalPrivateInputPanel(){
       const data=await response.json() as UsMappingPreview;
       if(response.ok&&data.state==="US_OWNER_REVIEWED_MAPPING_CONNECTED_PRIVATE"){
         setUsNote("Mappatura USA collegata agli originali archiviati. Non è stato creato un FILL.");
-        setUsPreview(data);await refresh();
+        setUsPreview(data);if(usCampaign==="legacy")await refresh();
       }else{
         setUsNote("Collegamento non confermato: "+(data.state||"PROVE_NON_VALIDE"));
         setUsPreview(null);
@@ -154,9 +156,17 @@ export default function OneGlobalPrivateInputPanel(){
     </div>
     <div style={{borderTop:"1px solid #475569",marginTop:18,paddingTop:14}}>
       <h3 style={{fontWeight:600}}>Mappatura USA guidata · Alpaca Basic IEX</h3>
-      <p>Solo per il proprietario. Verifica il segnale originale, consulta le condizioni ufficiali
-        e collega le prove nel Blob privato senza preparare un JSON a mano.
-        Il servizio rifiuta pagine non verificabili e non permette ordini reali.</p>
+      <p>Solo per il proprietario. Verifica il segnale della campagna selezionata, consulta le condizioni ufficiali
+        e collega le prove nel suo archivio privato. Il servizio rifiuta pagine non verificabili e non permette ordini reali.</p>
+      <label style={{display:"block",marginBottom:10}}>Campagna USA
+        <select value={usCampaign} disabled={busy||usBusy} onChange={e=>{
+          setUsCampaign(e.target.value==="legacy"?"legacy":"r2");setUsPreview(null);setUsReviewed(false);setUsNote("");
+        }} style={{display:"block",padding:10,border:"1px solid #64748b",borderRadius:6,width:"100%"}}>
+          <option value="r2">Nuova campagna PAPER R2</option>
+          <option value="legacy">Registro storico Blob</option>
+        </select>
+      </label>
+      <p>La mappatura richiede un segnale USA prospettico effettivamente registrato e la tua conferma dei diritti d’uso.</p>
       <button type="button" disabled={busy||usBusy} onClick={()=>void inspectUs()}
         style={{padding:"10px 14px",border:"1px solid #64748b",borderRadius:8}}>
         {usBusy?"Controllo privato USA...":"Verifica il segnale USA e prepara il mapping"}
