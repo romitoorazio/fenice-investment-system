@@ -45,7 +45,9 @@ async function readCommitteeHistory() {
 const committee = await readJson("investment-committee.json", { allDecisions: [], generatedAt: null });
 let previousLedger = await readJson("shadow-calibration-ledger.json", { version: 1, records: [] });
 const now = new Date();
-const candidates = selectShadowCalibrationCandidates(committee.allDecisions || []);
+const committeeTime = Date.parse(committee.generatedAt);
+const forecastCutoff = Number.isFinite(committeeTime) && committeeTime <= now.getTime() ? committee.generatedAt : null;
+const candidates = selectShadowCalibrationCandidates(committee.allDecisions || [], { asOf: forecastCutoff });
 
 let historicalBootstrap = {
   applied: false,
