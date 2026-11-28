@@ -1,7 +1,7 @@
 /** Trusted Actions runner sends a short-lived identity, never vendor or owner keys. */
 import {SIGNAL_CYCLE_AUDIENCE} from '../lib/trading/one-global-cloud-workflow-auth.mjs';
 import {oneGlobalActionsCycleSummary,validateOneGlobalWorkflowForensic} from '../lib/trading/one-global-cloud-cycle-report.mjs';
-import {validateR2PublicCycleSummary,validateR2EuPreflightSummary} from '../lib/trading/one-global-r2-paper-control.mjs';
+import {validateR2PublicCycleSummary,validateR2EuPreflightSummary,validateR2UsPreflightSummary} from '../lib/trading/one-global-r2-paper-control.mjs';
 import {appendFileSync} from 'node:fs';
 // Public Actions logs may contain ONLY a fixed phase plus a bounded HTTP
 // status category. No response body, JWT, provider error, private URL or hash.
@@ -17,6 +17,7 @@ const safeTransportFailure=()=>(
     ?'HTTP_'+failureStatus:failureStatus?'HTTP_OTHER':'NO_HTTP_RESPONSE');
 const backupOnly=process.env.FENICE_R2_BACKUP_ONLY==='true';
 const preflightOnly=process.env.FENICE_R2_EU_PREFLIGHT_ONLY==='true';
+const usPreflightOnly=process.env.FENICE_R2_US_PREFLIGHT_ONLY==='true';
 try{
   if(process.env.GITHUB_REPOSITORY!=='romitoorazio/fenice-investment-system'
     ||process.env.GITHUB_REF!=='refs/heads/main')throw Error('SCOPE');
@@ -35,13 +36,19 @@ try{
   const r2=process.env.FENICE_R2_PROSPECTIVE_ENABLED==='true';
   const response=await fetch(SIGNAL_CYCLE_AUDIENCE,{method:'POST',redirect:'error',
     signal:AbortSignal.timeout(70000),headers:{Authorization:'Bearer '+value,
-      'Content-Type':'application/json'},body:JSON.stringify({action:preflightOnly?'R2_EU_SOURCE_PREFLIGHT':backupOnly?'R2_PROSPECTIVE_BACKUP':r2?'R2_PROSPECTIVE_PAPER_CYCLE':'RESEARCH_SIGNAL_CYCLE'})});
+      'Content-Type':'application/json'},body:JSON.stringify({action:usPreflightOnly?'R2_US_SOURCE_PREFLIGHT':preflightOnly?'R2_EU_SOURCE_PREFLIGHT':backupOnly?'R2_PROSPECTIVE_BACKUP':r2?'R2_PROSPECTIVE_PAPER_CYCLE':'RESEARCH_SIGNAL_CYCLE'})});
   failurePhase='CYCLE_RESPONSE';failureStatus=response.status;
   const text=await response.text();if(text.length>10000)throw Error('RESPONSE_SIZE');
   const report=JSON.parse(text);failurePhase='CYCLE_REPORT';
   if(!response.ok)throw Error('CYCLE_BLOCKED');
   // Explicit allowlist only: never dump an upstream response to public logs.
-  if(preflightOnly){
+  if(usPreflightOnly){
+    const visible=validateR2UsPreflightSummary(report);
+    console.log(JSON.stringify(visible));
+    if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## R2 USA access diagnostic (not rights or trading certification)\n\n'+JSON.stringify(visible)+'\n');
+    if(visible.state==='US_ACCESS_DIAGNOSTIC_COMPLETED'&&visible.symbols.some(x=>!x.numericalAgreement))
+      console.log('::warning title=FENICE USA source preflight::SOURCE_PAIR_INCOMPLETE_OR_DIVERGENT');
+  }else if(preflightOnly){
     const visible=validateR2EuPreflightSummary(report);
     console.log(JSON.stringify(visible));
     if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## R2 EU weekend qualification\n\n'+Object.entries(visible).map(([k,v])=>'- '+k+': '+v).join('\n')+'\n');
@@ -124,7 +131,9 @@ try{
 
   }
 }catch{
-  if(preflightOnly){
+  if(usPreflightOnly){
+    console.log('::warning title=FENICE USA source preflight::R2_US_PREFLIGHT_NOT_CONFIRMED '+safeTransportFailure());
+  }else if(preflightOnly){
     console.log('::warning title=FENICE EU source preflight::R2_EU_PREFLIGHT_NOT_CONFIRMED '+safeTransportFailure());
   }else if(backupOnly){
     // A secondary storage problem must not change a completed PAPER outcome.
