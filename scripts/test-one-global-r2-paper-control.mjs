@@ -120,11 +120,15 @@ const usCollect=async({source,signal,sessionDate})=>{
 };
 const us=await runR2UsSourcePreflight({storage,clock,collect:usCollect});
 assert.equal(us.state,'US_ACCESS_DIAGNOSTIC_COMPLETED');
-assert.equal(usCalls,7);
+assert.equal(usCalls,10);
 assert.deepEqual(us.symbols.map(x=>x.symbol),['AAPL','MSFT','TSLA']);
 assert.equal(us.symbols[2].eodhd,'EXACT_DAILY_ROW_RECEIVED');
 assert.equal(us.symbols[2].iex,'ACCESS_NOT_CONFIRMED');
 assert.equal(us.symbols.every(x=>x.numericalAgreement),true);
+assert.equal(us.symbols.every(x=>x.sipAccess==='EXACT_DAILY_ROW_RECEIVED'&&x.sipReason==='RECEIVED'),true);
+assert.throws(()=>validateR2UsPreflightSummary({...us,symbols:us.symbols.map((x,i)=>i?x:{...x,sipReason:'AUTH_OR_PLAN_DENIED'})}));
+const v124={...us,symbols:us.symbols.map(({sipAccess,sipReason,...x})=>x)};
+assert.deepEqual(validateR2UsPreflightSummary(v124),v124);
 assert.equal(us.rightsApproved,false);assert.equal(us.independenceCertified,false);
 assert.throws(()=>validateR2UsPreflightSummary({...us,rightsApproved:true}));
 assert.throws(()=>validateR2UsPreflightSummary({...us,newSignals:1}));
@@ -133,14 +137,15 @@ t='2026-11-30T12:00:00.000Z';
 assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).state,'R2_PREFLIGHT_OUTSIDE_WEEKEND');
 t='2027-01-02T12:00:00.000Z';
 assert.equal((await runR2UsSourcePreflight({storage,clock,collect:usCollect})).state,'R2_PREFLIGHT_AUTHORITY_REQUIRED');
-assert.equal(usCalls,7);assert.equal(n,writesBefore);
+assert.equal(usCalls,10);assert.equal(n,writesBefore);
 // Existing report schema remains readable across a guarded rolling release.
-const oldReport={...us,symbols:us.symbols.map(({twelve,reasons,...x})=>x)};
+const oldReport={...us,symbols:us.symbols.map(({twelve,reasons,sipAccess,sipReason,...x})=>x)};
 assert.deepEqual(validateR2UsPreflightSummary(oldReport),oldReport);
 assert.equal(us.symbols.every(x=>x.twelve==='NOT_REQUESTED'),true);
 t='2026-11-28T12:00:00.000Z';
 let fallbackCalls=0;
 const partial=await runR2UsSourcePreflight({storage,clock,collect:async({source,signal,sessionDate})=>{
+  if(source.providerId==='alpaca-sip'&&source.symbol==='MSFT')throw Error('CLOUD_SETTLEMENT_SOURCE_ALPACA_EXISTING_KEYS_MISSING');
   if(source.providerId==='alpha-vantage'&&source.symbol!=='TSLA')throw Error('CLOUD_SETTLEMENT_SOURCE_RATE_LIMIT');
   if(source.providerId==='eodhd')throw Error('CLOUD_SETTLEMENT_SOURCE_AUTH_OR_PLAN_DENIED');
   if(source.providerId==='twelve-data'){fallbackCalls++;if(source.symbol==='MSFT')throw Error('CLOUD_SETTLEMENT_SOURCE_EXACT_SESSION_MISSING_OR_DUPLICATED');}
@@ -153,6 +158,9 @@ assert.equal(partial.symbols[0].reasons.alpha,'RATE_LIMIT');
 assert.equal(partial.symbols[0].reasons.eodhd,'AUTH_OR_PLAN_DENIED');
 assert.equal(partial.symbols[1].reasons.twelve,'EXACT_ROW_NOT_VERIFIED');
 assert.equal(partial.symbols[1].numericalAgreement,false);
+assert.equal(partial.symbols[1].sipAccess,'ACCESS_NOT_CONFIRMED');
+assert.equal(partial.symbols[1].sipReason,'KEY_MISSING_OR_INVALID');
+assert.equal(partial.symbols[2].sipAccess,'EXACT_DAILY_ROW_RECEIVED');
 assert.equal(partial.symbols[2].twelve,'NOT_REQUESTED');
 assert.throws(()=>validateR2UsPreflightSummary({...partial,symbols:partial.symbols.map((x,i)=>i?x:{...x,reasons:{...x.reasons,alpha:'secret-url'}})}));
 let divergentCalls=0;
@@ -160,7 +168,7 @@ const divergent=await runR2UsSourcePreflight({storage,clock,collect:async({sourc
   divergentCalls++;
   return {receipt:{...signal,providerId:source.providerId,sessionDate,close:source.providerId==='alpaca-iex'?110:100,simulatedOrSynthetic:false}};
 }});
-assert.equal(divergentCalls,6);
+assert.equal(divergentCalls,9);
 assert.equal(divergent.symbols.every(x=>!x.numericalAgreement&&x.eodhd==='NOT_REQUESTED'&&x.twelve==='NOT_REQUESTED'),true);
 assert.equal(n,writesBefore);
 console.log('PASS synthetic R2 US source diagnostic: three symbols, fallback, no writes or approval, weekday and authority guards.');
