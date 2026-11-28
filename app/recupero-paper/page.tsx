@@ -3,6 +3,7 @@
 import {useEffect,useRef,useState} from "react";
 import OneGlobalPrivateInputPanel from "@/components/OneGlobalPrivateInputPanel";
 import FenicePrivateOwnerLogin from "@/components/FenicePrivateOwnerLogin";
+import R2PaperEconomicsPanel from "@/components/R2PaperEconomicsPanel";
 type CbaWindow={state:string;nextRegularSessionDate:string;
   evidenceDeadlineAt:string;ownerManualRetirementAvailable:boolean;};
 type Status={state:string;journalEventCount?:number;pendingSignalCount?:number;
@@ -206,6 +207,7 @@ export default function FeniceRecoverPage(){
           <FenicePrivateOwnerLogin onAuthenticated={reload}/>:
           <section>
             <R2ProspectiveGenesisPanel/>
+            <R2PaperEconomicsPanel/>
             <p><strong>Stato:</strong> {status?.state||"NON_DISPONIBILE"}</p>
             <section style={{marginTop:18,padding:16,border:"1px solid #475569",borderRadius:10}} aria-label="Collaudo reale R2">
               <h2 style={{fontWeight:600}}>Collaudo reale R2</h2>

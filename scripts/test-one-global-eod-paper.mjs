@@ -501,3 +501,33 @@ for(const [mic,currency,open,close,openDayOffset] of venues){
   }
 }
 console.log("PASS ONE GLOBAL forward EOD: all 12 venues enforce immediate next session in writer and replay; weekend boundaries, original hashes, rights/FX/risk and zero Phase9/Directa LIVE");
+
+// Economic projection: synthetic fixtures only, never campaign evidence.
+const {projectR2PaperEconomics}=await import("../lib/ui/r2-paper-economics.mjs");
+const emptyEconomics=projectR2PaperEconomics(start);
+assert.equal(emptyEconomics.cashEuro,1000);
+assert.equal(emptyEconomics.portfolioValueEuro,1000);
+assert.equal(emptyEconomics.winRatePercent,null);
+assert.equal(emptyEconomics.maxDrawdownPercent,null);
+assert.equal(emptyEconomics.profitFactor,null);
+const openEconomics=projectR2PaperEconomics(buy.ledger);
+assert.equal(openEconomics.investedCostEuro,buy.ledger.positions["XMIL:ENEL"].costEuro);
+assert.equal(openEconomics.portfolioValueEuro,null);
+assert.equal(openEconomics.positions[0].currentUnitEuro,null);
+assert.equal(openEconomics.unrealizedNetEuro,null);
+assert.equal(openEconomics.feesEuro,1);
+assert(openEconomics.estimatedSlippageEuro>0);
+for(const fixture of [sell,declineSell]){
+  const e=projectR2PaperEconomics(fixture.ledger);
+  assert.equal(e.portfolioValueEuro,fixture.ledger.cashEuro);
+  assert.equal(e.realizedNetEuro,fixture.accounting.realizedNetEuro);
+  assert.equal(e.feesEuro,2);
+  assert.equal(e.closedRoundTrips,1);
+  assert.equal(e.winRatePercent,fixture.accounting.realizedNetEuro>0?100:0);
+  assert.equal(e.profitFactor,fixture.accounting.realizedNetEuro>0?null:0);
+  assert.equal(e.maxDrawdownPercent,null);
+  assert.equal(e.liveTradingAllowed,false);
+}
+assert.throws(()=>projectR2PaperEconomics(tampered));
+assert.throws(()=>projectR2PaperEconomics(changedCash));
+console.log("PASS R2 economic projection: genesis, open, win, loss, tamper, unavailable marks");
