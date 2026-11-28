@@ -89,3 +89,23 @@ t='2027-01-02T12:00:00.000Z';
 assert.equal((await runR2EuSourcePreflight({storage,clock,qualify})).state,'R2_PREFLIGHT_AUTHORITY_REQUIRED');
 assert.equal(preflightCalls,1);
 console.log('PASS isolated weekend EU source qualification: no journal writer, no new signal or fill, consent and weekend gates, strict public summary.');
+
+ // Consent expires while source collection is in flight. No supporting write
+ // can begin after the expiry; even a successful-looking qualifier is rejected.
+ for(const method of ['createSourceArtifact','createResearchObservation','verifyProspectivePrecommitObservation','writeSettlementContext']){
+   t='2026-11-28T12:00:00.000Z';let writes=0;
+   const wrapped={...storage,[method]:async()=>{writes++;throw Error('unexpected write');}};
+   const snap=await storage.readSettlementContext();
+   await assert.rejects(runR2EuSourcePreflight({storage:wrapped,clock,qualify:async({storage:restricted})=>{
+     t='2026-12-28T20:00:00.000Z';
+     await restricted[method]({expectedEtag:snap.etag,body:context});
+   }}),/CLOUD_SETTLEMENT_ORIGINAL_OWNER_CONSENT_INVALID_OR_EXPIRED/);
+   assert.equal(writes,0);
+ }
+ t='2026-11-28T12:00:00.000Z';
+ await assert.rejects(runR2EuSourcePreflight({storage,clock,qualify:async(args)=>{
+   const report=await qualify(args);t='2026-12-28T20:00:00.000Z';return report;
+ }}),/CLOUD_SETTLEMENT_ORIGINAL_OWNER_CONSENT_INVALID_OR_EXPIRED/);
+ assert.equal((await storage.read()).body,before);
+ assert.equal((await storage.readSettlementContext()).body,context);
+ console.log('PASS preflight consent expiry guards all evidence writes and final attestation.');
